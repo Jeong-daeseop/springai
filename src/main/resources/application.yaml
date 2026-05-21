@@ -1,0 +1,85 @@
+spring:
+  application:
+    name: springai-mcp
+  main:
+    banner-mode: off
+    web-application-type: servlet   # SSE HTTP 서버 활성화
+    allow-bean-definition-overriding: true  # Ollama(chat) + Transformers(embedding) 빈 공존
+  ai:
+    mcp:
+      server:
+        name: springai-mcp-server
+        version: 1.0.0
+        transport: sse
+        keep-alive-interval: 30s   # SSE 연결 유지 — 30초마다 ping 전송
+    openai:
+      api-key: ${OPENAI_API_KEY:disabled}
+      chat:
+        options:
+          model: gpt-4o-mini
+          max-tokens: 4096          # 코드 생성 응답 길이 대응
+    model:
+      embedding: transformers       # ko-sroberta-multitask ONNX 로컬 임베딩 사용
+
+    embedding:
+      transformer:
+        onnx:
+          modelUri: file:${ONNX_MODEL_PATH:${user.home}/models/ko-sroberta/model.onnx}
+          modelOutputName: last_hidden_state  # torch.onnx.export 출력명
+        tokenizer:
+          uri: file:${ONNX_TOKENIZER_PATH:${user.home}/models/ko-sroberta/tokenizer.json}
+          options:
+            padding: true
+            truncation: true
+            maxLength: 512
+            returnTensor: true
+
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:mistral}
+          num-predict: 2048         # 최대 생성 토큰 수
+          num-ctx: 4096             # 컨텍스트 윈도우 — 한국어 처리 품질 향상
+          temperature: 0.0          # 소스 생성 일관성 — 완전 결정적 출력
+      # embedding 블록 제거 — ONNX Transformers로 대체
+    vectorstore:
+      redis:
+        uri: ${REDIS_URI:redis://localhost:6379}
+        index: ${REDIS_INDEX:egov-rag}
+        prefix: ${REDIS_PREFIX:egov:}
+        initialize-schema: false   # VectorStoreConfig에서 직접 초기화
+  datasource:
+    url: jdbc:mysql://localhost:3306/com?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+    username: com
+    password: com01
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  mvc:
+    async:
+      request-timeout: -1           # SSE async 요청 timeout 비활성화
+
+server:
+  port: 8080
+  tomcat:
+    connection-timeout: PT1H        # SSE 연결 유지 — 1시간
+
+rag:
+  similarity:
+    threshold: 0.70
+  top-k: 3
+  enable-query-compression: true
+
+chat:
+  memory:
+    max-messages: 20
+
+app:
+  api-key: ${APP_API_KEY:local-dev-key}
+  document-path: ${APP_DOCUMENT_PATH:${user.home}/Downloads/egovframe-docs-main}
+
+egov:
+  output:
+    base-path: ${EGOV_OUTPUT_PATH:${user.home}/Desktop/egov-generated}
+
+logging:
+  config: classpath:logback-spring.xml

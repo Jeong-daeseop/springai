@@ -1,0 +1,258 @@
+================================================================================
+아키텍처 문서
+프로젝트: springai-mcp
+스택: Spring Boot 4.0.6 / Spring AI 2.0.0-M6 / Java 17
+================================================================================
+
+--------------------------------------------------------------------------------
+1. 전체 구조
+--------------------------------------------------------------------------------
+
+  [Claude Desktop / MCP Client]
+          │ SSE (Server-Sent Events, port 8080)
+          ▼
+  [Spring AI MCP Server]  ← spring-ai-starter-mcp-server-webmvc
+          │ @Tool 어노테이션 자동 라우팅
+          ▼
+  [Tool 클래스]  →  [Service]  →  [Repository / JdbcTemplate]  →  [egov-mysql]
+                              →  [VectorStore (Redis)]
+                              →  [ChatClient (Ollama)]
+
+  [웹 채팅 UI]  →  /ai/rag/stream, /ai/simple/stream (SSE 스트리밍)
+                →  ChatClient → OllamaChatModel → Ollama 서버
+
+--------------------------------------------------------------------------------
+2. 핵심 설정
+--------------------------------------------------------------------------------
+
+  transport: sse              - HTTP SSE로 MCP 통신 (Claude Desktop 연결)
+  web-application-type: servlet - Tomcat 기반 HTTP 서버
+  embedding: transformers     - 로컬 ONNX 임베딩 사용 (OpenAI API 불필요)
+  chat model: ollama/mistral  - 로컬 LLM (기본값, 런타임에 모델 변경 가능)
+
+--------------------------------------------------------------------------------
+3. 패키지 구조
+--------------------------------------------------------------------------------
+
+com.krdevops.springai
+├── SpringaiApplication.java
+│
+├── config/
+│   ├── McpConfig.java          - ToolCallbackProvider 빈 등록 (MCP tool 연결)
+│   ├── OllamaConfig.java       - OllamaChatModel 설정
+│   ├── SecurityConfig.java     - API Key 인증 필터 (/api/** 경로)
+│   └── VectorStoreConfig.java  - RedisVectorStore 빈 (JedisPooled + EmbeddingModel)
+│
+├── tools/                      - MCP Tool 구현체 (@Tool 어노테이션)
+│   ├── DateTimeTool.java
+│   ├── EmployeeTool.java
+│   ├── SchemaReaderTool.java
+│   ├── CodeTemplateTool.java
+│   ├── CodeSaverTool.java
+│   ├── CodeValidatorTool.java
+│   ├── CrudPromptBuilderTool.java
+│   ├── GenerationHistoryTool.java
+│   ├── CommonCodeTool.java
+│   ├── WorkflowGuideTool.java
+│   ├── ProjectHealthTool.java
+│   ├── ProjectInitializrTool.java
+│   ├── ProjectScannerTool.java
+│   └── RagTool.java
+│
+├── service/                    - 비즈니스 로직
+│   ├── RagService.java             - VectorStore 검색 + 컨텍스트 빌드
+│   ├── EmployeeService.java
+│   ├── SchemaService.java
+│   ├── CodeService.java
+│   ├── CodeValidatorService.java
+│   ├── CrudPromptBuilderService.java
+│   ├── GenerationHistoryService.java
+│   ├── CommonCodeService.java
+│   ├── WorkflowGuideService.java
+│   ├── ProjectHealthService.java
+│   ├── ProjectInitializrService.java
+│   ├── ProjectScannerService.java
+│   └── LlmRouterService.java
+│
+├── mapper/                     - JdbcTemplate 기반 DB 접근
+│   ├── EmployeeRepository.java
+│   └── GenerationHistoryRepository.java
+│
+├── controller/
+│   ├── RagController.java
+│   └── ToolApiController.java
+│
+└── chat/                       - 웹 채팅 서브시스템
+    ├── config/
+    │   ├── EgovRagConfig.java              - ChatClient 빈 (OllamaChatModel 기반)
+    │   ├── EgovChatMemoryConfig.java       - ChatMemory + MessageChatMemoryAdvisor
+    │   ├── EgovRedisConfig.java            - RedisTemplate<String, Object>
+    │   ├── EgovAsyncConfig.java            - 비동기 스레드풀 + CORS
+    │   └── rag/transformers/
+    │       └── EgovCompressionQueryTransformer.java  - 쿼리 히스토리 압축
+    ├── context/
+    │   └── SessionContext.java             - ThreadLocal 세션 ID 관리
+    ├── controller/
+    │   ├── EgovWebController.java          - GET / → chat.html
+    │   ├── EgovOllamaChatController.java   - /ai/rag/stream, /ai/simple/stream
+    │   ├── EgovChatSessionController.java  - /api/chat/sessions CRUD
+    │   ├── EgovDocumentController.java     - /api/documents
+    │   └── EgovOllamaModelController.java  - /api/ollama/models
+    ├── dto/
+    │   ├── ChatMessageDto.java
+    │   └── ChatSession.java
+    ├── repository/
+    │   └── EgovRedisChatMemoryRepository.java  - ChatMemoryRepository (Redis)
+    ├── response/
+    │   ├── DocumentStatusResponse.java
+    │   └── TechnologyResponse.java
+    ├── service/
+    │   ├── EgovChatSessionService.java
+    │   ├── EgovSessionAwareChatService.java
+    │   ├── EgovDocumentService.java
+    │   └── EgovOllamaModelService.java
+    ├── service/impl/
+    │   ├── EgovChatSessionServiceImpl.java      - Redis 세션 메타데이터 관리
+    │   ├── EgovSessionAwareChatServiceImpl.java - RAG + 일반 스트리밍
+    │   ├── EgovDocumentServiceImpl.java         - 문서 상태 조회
+    │   └── EgovOllamaModelServiceImpl.java      - ollama CLI 모델 목록
+    └── util/
+        ├── EgovDocumentHashUtil.java
+        ├── EgovResponseCleanerUtil.java
+        ├── EgovThinkTagOutputConverter.java
+        ├── EgovJsonPromptTemplates.java
+        └── EgovPromptEngineeringUtil.java
+
+--------------------------------------------------------------------------------
+4. RAG (Retrieval-Augmented Generation) 흐름
+--------------------------------------------------------------------------------
+
+  사용자 질문 입력
+      │
+      ▼
+  [EgovOllamaChatController] /ai/rag/stream
+      │ sessionId 설정 (SessionContext ThreadLocal)
+      ▼
+  [EgovSessionAwareChatServiceImpl.streamRagResponse()]
+      │
+      ├─ (enable-query-compression=true 인 경우)
+      │   └─ [EgovCompressionQueryTransformer.compress()]
+      │         ChatMemory에서 히스토리 조회
+      │         → ChatClient로 "후속 질문 → 독립 질문" 재작성
+      │
+      ├─ [RagService.buildRagContext(compressedQuery, topK)]
+      │         VectorStore.similaritySearch() → 유사 문서 검색
+      │         → 문서들을 컨텍스트 문자열로 포맷
+      │
+      ├─ 컨텍스트 있으면: system prompt에 참고 문서 삽입
+      │
+      └─ ChatClient.prompt()
+              .system("참고 문서 컨텍스트...")  [선택적]
+              .user(query)
+              .advisors(MessageChatMemoryAdvisor)  ← 대화 히스토리 자동 주입
+              .stream().chatResponse()
+              → Flux<ChatResponse> SSE 스트리밍
+
+--------------------------------------------------------------------------------
+5. 임베딩 모델 (ko-sroberta-multitask ONNX)
+--------------------------------------------------------------------------------
+
+  모델 경로 (외부 파일시스템):
+    ~/models/ko-sroberta/model.onnx       (422MB, 단일 파일)
+    ~/models/ko-sroberta/tokenizer.json   (735KB)
+
+  설정:
+    spring.ai.model.embedding: transformers
+    spring.ai.embedding.transformer.onnx.modelUri: file:${user.home}/models/ko-sroberta/model.onnx
+    spring.ai.embedding.transformer.onnx.modelOutputName: last_hidden_state
+    spring.ai.embedding.transformer.tokenizer.uri: file:${user.home}/models/ko-sroberta/tokenizer.json
+
+  특이사항:
+    - dynamo=False, opset_version=14 으로 export한 단일 파일 사용
+      (dynamo export 시 model.onnx + model.onnx.data 분리 포맷 → ONNX Runtime 오류 발생)
+    - JAR에 포함하지 않고 file: URI로 외부 참조
+
+--------------------------------------------------------------------------------
+6. 채팅 메모리 (Redis)
+--------------------------------------------------------------------------------
+
+  구현: EgovRedisChatMemoryRepository (ChatMemoryRepository 구현)
+  저장 형식: Redis String, key = "chat:memory:{conversationId}"
+  내용: JSON 직렬화된 메시지 목록 [{messageType, content}, ...]
+
+  세션 메타데이터: Redis Hash, key = "chat:session:{sessionId}:info"
+  세션 목록: Redis Set, key = "chat:sessions:list"
+
+  ChatMemory 구현체: MessageWindowChatMemory (maxMessages=20)
+
+--------------------------------------------------------------------------------
+7. 보안
+--------------------------------------------------------------------------------
+
+  /api/**        → X-API-Key 헤더 검증 (값: ${APP_API_KEY}, 기본 local-dev-key)
+  /ai/**         → 인증 없이 허용 (채팅 스트리밍)
+  /sse, /mcp/**  → 인증 없이 허용 (Claude Desktop MCP 연결)
+  /api/chat/**, /api/ollama/**, /api/documents/** → 인증 없이 허용
+
+  세션 방식: STATELESS (JWT/세션 쿠키 없음)
+
+--------------------------------------------------------------------------------
+8. 인프라 의존성
+--------------------------------------------------------------------------------
+
+  서비스              포트    Docker 컨테이너
+  ──────────────────────────────────────────
+  MySQL 8.0           3306   egov-mysql
+  Redis Stack         6379   redis-stack (redis/redis-stack)
+  Ollama              11434  (로컬 프로세스)
+  Spring Boot App     8080   (직접 실행)
+
+  MySQL 시작:  docker start egov-mysql
+  Redis 시작:  docker start redis-stack (또는 redis-stack-server)
+  Ollama 시작: ollama serve
+
+--------------------------------------------------------------------------------
+9. 주요 API 엔드포인트
+--------------------------------------------------------------------------------
+
+  [채팅 스트리밍]
+  GET /ai/rag/stream?message=...&model=...&sessionId=...   → SSE Flux<ChatResponse>
+  GET /ai/simple/stream?message=...&model=...&sessionId=... → SSE Flux<ChatResponse>
+
+  [세션 관리]
+  POST   /api/chat/sessions           → 세션 생성
+  GET    /api/chat/sessions           → 전체 세션 목록
+  DELETE /api/chat/sessions/{id}      → 세션 삭제
+  GET    /api/chat/sessions/{id}/messages → 세션 메시지 조회
+
+  [문서]
+  GET  /api/documents/status  → 문서 처리 상태
+  POST /api/documents/reindex → 재인덱싱
+  POST /api/documents/upload  → 문서 업로드
+
+  [Ollama 모델]
+  GET /api/ollama/models      → 설치된 모델 목록
+
+  [웹 UI]
+  GET /                       → chat.html (Thymeleaf)
+
+  [MCP]
+  GET /sse                    → MCP SSE 엔드포인트 (Claude Desktop 연결)
+
+--------------------------------------------------------------------------------
+10. 빌드 및 실행
+--------------------------------------------------------------------------------
+
+  빌드:
+    ./gradlew bootJar
+    → build/libs/springai-0.0.1-SNAPSHOT.jar
+
+  실행:
+    java -jar build/libs/springai-0.0.1-SNAPSHOT.jar
+    환경변수: OPENAI_API_KEY, OLLAMA_BASE_URL, OLLAMA_MODEL,
+              REDIS_URI, APP_API_KEY, ONNX_MODEL_PATH, ONNX_TOKENIZER_PATH
+
+  로그:
+    tail -f /tmp/springai-mcp.log
+
+================================================================================

@@ -1,0 +1,149 @@
+================================================================================
+세션 변경사항 요약
+날짜: 2026-05-19
+프로젝트: springai (Spring Boot 4.0.6 + Spring AI 2.0.0-M6)
+================================================================================
+
+--------------------------------------------------------------------------------
+1. build.gradle — 의존성 추가
+--------------------------------------------------------------------------------
+추가된 항목:
+  - org.springframework.boot:spring-boot-starter-thymeleaf
+  - org.springframework.boot:spring-boot-starter-data-redis
+  - com.fasterxml.jackson.datatype:jackson-datatype-jsr310
+
+제거된 항목:
+  - spring-ai-advisors-vector-store  (Spring AI 2.0.0-M6 BOM에 없어 빌드 실패)
+
+--------------------------------------------------------------------------------
+2. src/main/resources/application.yaml — 설정 추가
+--------------------------------------------------------------------------------
+변경 내용:
+  - web-application-type: servlet  (SSE HTTP 서버 활성화)
+  - transport: sse  (stdio → sse 변경)
+  - embedding.transformer.onnx.modelUri: file:${user.home}/models/ko-sroberta/model.onnx
+  - embedding.transformer.tokenizer.uri: file:${user.home}/models/ko-sroberta/tokenizer.json
+  - rag.similarity.threshold: 0.70
+  - rag.top-k: 3
+  - rag.enable-query-compression: true
+  - chat.memory.max-messages: 20
+  - server.tomcat.connection-timeout: PT1H
+  - mvc.async.request-timeout: -1
+
+--------------------------------------------------------------------------------
+3. src/main/java/com/krdevops/springai/config/VectorStoreConfig.java
+--------------------------------------------------------------------------------
+변경 내용:
+  - vectorStore() 반환 타입 VectorStore → RedisVectorStore
+    (EgovRagConfig에서 RedisVectorStore 직접 주입 가능하도록)
+
+--------------------------------------------------------------------------------
+4. src/main/java/com/krdevops/springai/config/SecurityConfig.java
+--------------------------------------------------------------------------------
+변경 내용:
+  - permitAll 경로 추가: /api/chat/**, /api/ollama/**, /api/documents/**, /ai/**
+
+--------------------------------------------------------------------------------
+5. 신규 파일 — chat 패키지 전체 (com.krdevops.springai.chat)
+--------------------------------------------------------------------------------
+
+[DTO]
+  chat/dto/ChatMessageDto.java          - messageType, content, timestamp
+  chat/dto/ChatSession.java             - sessionId, title, createdAt, lastMessageAt
+
+[Response]
+  chat/response/DocumentStatusResponse.java - record (processing/processedCount/totalCount/changedCount/hasDocuments)
+  chat/response/TechnologyResponse.java     - name, category, description, features, useCases
+
+[Context]
+  chat/context/SessionContext.java      - ThreadLocal 기반 세션 ID 관리
+
+[Util]
+  chat/util/EgovDocumentHashUtil.java       - MD5 해시 (Apache Commons 대신 표준 MessageDigest)
+  chat/util/EgovResponseCleanerUtil.java    - 응답 후처리
+  chat/util/EgovThinkTagOutputConverter.java - <think> 태그 제거 + StructuredOutputConverter
+  chat/util/EgovJsonPromptTemplates.java    - 프롬프트 템플릿 상수
+  chat/util/EgovPromptEngineeringUtil.java  - 프롬프트 빌딩 유틸
+
+[Repository]
+  chat/repository/EgovRedisChatMemoryRepository.java - ChatMemoryRepository 구현 (Redis)
+
+[Service Interface]
+  chat/service/EgovChatSessionService.java
+  chat/service/EgovSessionAwareChatService.java
+  chat/service/EgovDocumentService.java
+  chat/service/EgovOllamaModelService.java
+
+[Service Impl]
+  chat/service/impl/EgovChatSessionServiceImpl.java      - Redis 기반 세션 CRUD
+  chat/service/impl/EgovSessionAwareChatServiceImpl.java - ChatClient + RAG/일반 스트리밍
+  chat/service/impl/EgovDocumentServiceImpl.java         - 문서 상태 조회 스텁
+  chat/service/impl/EgovOllamaModelServiceImpl.java      - ollama CLI 프로세스 실행
+
+[Controller]
+  chat/controller/EgovWebController.java           - GET / → chat 템플릿
+  chat/controller/EgovChatSessionController.java   - /api/chat/sessions CRUD
+  chat/controller/EgovDocumentController.java      - /api/documents (status/reindex/upload)
+  chat/controller/EgovOllamaModelController.java   - /api/ollama/models
+  chat/controller/EgovOllamaChatController.java    - /ai/rag/stream, /ai/simple/stream
+
+[Config]
+  chat/config/EgovRagConfig.java                              - ChatClient 빈
+  chat/config/EgovChatMemoryConfig.java                       - ChatMemory + MessageChatMemoryAdvisor 빈
+  chat/config/EgovRedisConfig.java                            - RedisTemplate<String, Object> 빈
+  chat/config/EgovAsyncConfig.java                            - ThreadPool + WebMvcConfigurer
+  chat/config/rag/transformers/EgovCompressionQueryTransformer.java - 쿼리 히스토리 압축
+
+--------------------------------------------------------------------------------
+6. src/main/resources/templates/chat.html — Thymeleaf 채팅 UI
+--------------------------------------------------------------------------------
+  - 세션 목록 사이드바 (생성/삭제/전환)
+  - RAG / 일반 채팅 탭
+  - Ollama 모델 선택 드롭다운
+  - 문서 업로드 / 재인덱싱 관리 패널
+  - EventSource 스트리밍 수신 + marked.js 마크다운 렌더링
+
+--------------------------------------------------------------------------------
+7. src/main/resources/static/js/marked.min.js
+--------------------------------------------------------------------------------
+  - marked v15.0.12 (39KB) — CDN 없이 로컬 번들
+
+--------------------------------------------------------------------------------
+8. 빌드 오류 수정 이력
+--------------------------------------------------------------------------------
+
+오류 1: spring-ai-advisors-vector-store 의존성 미존재
+  → build.gradle에서 제거
+
+오류 2: org.springframework.ai.rag.* 패키지 미존재 (Spring AI 2.0.0-M6)
+  영향 파일:
+    - EgovRagConfig.java
+    - EgovCompressionQueryTransformer.java
+    - EgovSessionAwareChatServiceImpl.java
+  수정 방법:
+    - EgovRagConfig: RAG advisor 패턴 제거, ChatClient 빈만 유지
+    - EgovCompressionQueryTransformer: Query 객체 → String 입출력으로 변경,
+      ChatClient 직접 호출로 쿼리 압축 구현
+    - EgovSessionAwareChatServiceImpl: VectorStoreDocumentRetriever 제거,
+      RagService.buildRagContext() 결과를 system prompt로 주입
+
+오류 3: ChatMemory.DEFAULT_CONVERSATION_ID 상수 미존재
+  영향 파일:
+    - SessionContext.java
+    - EgovOllamaChatController.java
+  수정: "default" 리터럴로 교체
+
+오류 4: ChatClientRequestSpec.options() 타입 불일치
+  원인: Spring AI 2.0.0-M6의 options()는 ChatOptions.Builder를 받음
+         (ChatOptions 인스턴스 불가)
+  영향 파일:
+    - EgovCompressionQueryTransformer.java
+    - EgovSessionAwareChatServiceImpl.java
+  수정: ChatOptions.builder()...build() → ChatOptions.builder()... (build() 제거)
+
+오류 5: jackson-datatype-jsr310 미존재
+  수정: build.gradle에 의존성 추가
+
+================================================================================
+최종 빌드 결과: BUILD SUCCESSFUL
+================================================================================

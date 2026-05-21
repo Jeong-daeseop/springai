@@ -1,0 +1,318 @@
+================================================================================
+P4 구현 계획 — 메뉴 구조 조회 / 권한·프로그램 등록
+프로젝트: springai-mcp
+작성일: 2026-05-20
+================================================================================
+
+--------------------------------------------------------------------------------
+1. 구현 배경
+--------------------------------------------------------------------------------
+
+checkProjectHealth()가 메뉴·권한 등록 여부를 완성도 점검 항목으로 포함하고 있다.
+MenuTool / AuthTool 없이는 도메인 완성도가 항상 미완료로 남는다.
+P4의 나머지 항목(배포, 롤백)보다 이 2개가 선행되어야
+완전한 end-to-end 파이프라인이 완성된다.
+
+--------------------------------------------------------------------------------
+2. 관련 DB 테이블
+--------------------------------------------------------------------------------
+
+[COMTNMENUINFO — 메뉴정보]
+
+  컬럼            타입              설명
+  MENU_NO         decimal(20) PK   메뉴 번호 (트리 구조 키)
+  UPPER_MENU_NO   decimal(20)      부모 메뉴 번호
+  MENU_NM         varchar(60)      메뉴명
+  PROGRM_FILE_NM  varchar(60)      연결 프로그램 파일명 (dir=디렉터리 노드)
+  MENU_ORDR       decimal(5)       같은 레벨 내 정렬 순서
+  MENU_DC         varchar(250)     메뉴 설명
+  RELATE_IMAGE_PATH varchar(100)   아이콘 경로
+  RELATE_IMAGE_NM  varchar(60)     아이콘 파일명
+
+  실제 트리 구조 예시:
+    0 (root)
+    ├── 1000000 사용자디렉터리/통합인증
+    │   ├── 1010000 로그인              → egovLoginUsr
+    │   └── 1020000 로그인정책관리      → selectLoginPolicyList
+    ├── 2000000 보안
+    │   ├── 2010000 권한관리            → EgovAuthorList
+    │   └── 2020000 권한그룹관리        → EgovAuthorGroupList
+    └── 6000000 시스템관리
+        ├── 6010000 공통코드관리        → EgovCcmCmmCode
+        └── 6020000 공지사항관리        → EgovNoticeList
+
+  번호 규칙:
+    1뎁스: N000000  (N = 1~9)
+    2뎁스: NXY0000  (XY = 10, 20, 30 ...)
+    3뎁스: NXYABCD  (ABCD = 1000 단위)
+
+--------------------------------------------------------------------------------
+
+[COMTNPROGRMLIST — 프로그램목록]
+
+  컬럼              타입              설명
+  PROGRM_FILE_NM    varchar(60) PK   파일명 (예: EgovEmployerList)
+  PROGRM_STRE_PATH  varchar(100)     저장경로 (예: /emp/employer/)
+  PROGRM_KOREAN_NM  varchar(60)      한국어명 (예: 직원관리)
+  URL               varchar(100)     URL (예: /emp/employer/EgovEmployerList.do)
+
+  실제 데이터 예시:
+    EgovAuthorList      /sec/ram/    권한관리    /sec/ram/EgovAuthorList.do
+    EgovGroupList       /sec/gmt/    그룹관리    /sec/gmt/EgovGroupList.do
+
+--------------------------------------------------------------------------------
+
+[COMTNROLEINFO — 롤정보]
+
+  컬럼          타입              설명
+  ROLE_CODE     varchar(50) PK   롤코드 (예: web-000004)
+  ROLE_NM       varchar(60)      롤명 (예: 회원관리)
+  ROLE_PTTRN    varchar(300)     URL 패턴 (정규식, 예: \\A/uss/umt/.*\\.do.*\\Z)
+  ROLE_DC       varchar(200)     롤 설명
+  ROLE_TY       varchar(80)      타입 (url / method)
+  ROLE_SORT     varchar(10)      정렬 순서
+  ROLE_CREAT_DE char(20)         생성일시
+
+  실제 데이터 예시:
+    web-000001  로그인롤     \\A/uat/uia/.*\\.do.*\\Z   url
+    web-000003  모든접근제한  \\A/.*\\.do.*\\Z           url
+    web-000004  회원관리     \\A/uss/umt/.*\\.do.*\\Z   url
+
+  URL 패턴 규칙:
+    \\A{urlPrefix}/.*\\.do.*\\Z
+    예) urlPrefix=/emp/employer → \\A/emp/employer/.*\\.do.*\\Z
+
+--------------------------------------------------------------------------------
+
+[COMTNAUTHORROLERELATE — 권한롤관계]
+
+  컬럼         타입              설명
+  AUTHOR_CODE  varchar(30) PK   권한코드 (예: ROLE_ADMIN, ROLE_USER)
+  ROLE_CODE    varchar(50) PK   롤코드 (COMTNROLEINFO 참조)
+  CREAT_DT     datetime         생성일시
+
+--------------------------------------------------------------------------------
+3. 구현할 MCP Tool / 메서드
+--------------------------------------------------------------------------------
+
+[MenuTool]
+
+  getMenuStructure(menuNo)
+    - 지정 메뉴 번호 기준 하위 트리 조회
+    - menuNo = "0" 이면 전체 트리 반환
+    - 반환: 트리 형태 텍스트 + 신규 등록 시 권장 MENU_NO / MENU_ORDR
+
+  generateMenuInsertSql(upperMenuNo, urlPrefix, menuNm, progrmFileNm)
+    - 신규 메뉴 등록에 필요한 SQL 2개 반환
+    - SQL 1: COMTNPROGRMLIST INSERT (프로그램 등록)
+    - SQL 2: COMTNMENUINFO INSERT (메뉴 등록)
+    - MENU_NO: 해당 상위 메뉴 하위의 기존 최대값 + 10000 자동 계산
+    - MENU_ORDR: 해당 상위 메뉴의 기존 최대 MENU_ORDR + 1 자동 계산
+
+[AuthTool]
+
+  getProgramList(keyword)
+    - COMTNPROGRMLIST 키워드 검색
+    - 한국어명 / URL / PROGRM_FILE_NM 기준 LIKE 검색
+    - 기존 등록 여부 확인용 (중복 방지)
+
+  generateAuthInsertSql(urlPrefix, programNm, domain)
+    - 신규 도메인 접근 제어에 필요한 SQL 3개 반환
+    - SQL 1: COMTNROLEINFO INSERT (롤 등록)
+      → ROLE_CODE: 기존 최대 web-NNNNNN + 1 자동 계산
+      → ROLE_PTTRN: \\A{urlPrefix}/.*\\.do.*\\Z 자동 생성
+    - SQL 2: COMTNAUTHORROLERELATE INSERT (ROLE_ADMIN 연결)
+    - SQL 3: 추가 권한 그룹 연결 예시 (주석 포함)
+
+--------------------------------------------------------------------------------
+4. 반환 예시
+--------------------------------------------------------------------------------
+
+[getMenuStructure("6000000")]
+
+  === 메뉴 구조 (MENU_NO: 6000000) ===
+
+  [6000000] 시스템관리  (UPPER: 0, 순서: 6)
+    ├── [6010000] 공통코드관리    → EgovCcmCmmCode
+    ├── [6020000] 공지사항관리    → EgovNoticeList
+    └── [6030000] 사용자관리      → EgovUserList
+
+  [신규 등록 시 권장값]
+    MENU_NO   : 6040000
+    MENU_ORDR : 4
+
+  [다음 단계]
+    generateMenuInsertSql("6000000", "/emp/employer", "직원관리", "EgovEmployerList")
+
+------------------------------------------------------------------------
+
+[generateMenuInsertSql("6000000", "/emp/employer", "직원관리", "EgovEmployerList")]
+
+  === 메뉴·프로그램 등록 SQL ===
+
+  -- Step 1. 프로그램 등록
+  INSERT INTO COMTNPROGRMLIST (
+      PROGRM_FILE_NM, PROGRM_STRE_PATH, PROGRM_KOREAN_NM, URL
+  ) VALUES (
+      'EgovEmployerList',
+      '/emp/employer/',
+      '직원관리',
+      '/emp/employer/EgovEmployerList.do'
+  );
+
+  -- Step 2. 메뉴 등록
+  INSERT INTO COMTNMENUINFO (
+      MENU_NO, UPPER_MENU_NO, MENU_NM, PROGRM_FILE_NM, MENU_ORDR
+  ) VALUES (
+      6040000,
+      6000000,
+      '직원관리',
+      'EgovEmployerList',
+      4
+  );
+
+  ※ SQL 실행 후 Spring Security 캐시 갱신 또는 서버 재기동이 필요합니다.
+
+------------------------------------------------------------------------
+
+[getProgramList("employer")]
+
+  === 프로그램 목록 — 검색어: employer ===
+
+  PROGRM_FILE_NM       저장경로              한국어명    URL
+  EgovEmployerList     /emp/employer/        직원목록    /emp/employer/EgovEmployerList.do
+  EgovEmployerDetail   /emp/employer/        직원상세    /emp/employer/EgovEmployerDetail.do
+
+  총 2건
+
+------------------------------------------------------------------------
+
+[generateAuthInsertSql("/emp/employer", "직원관리", "emp")]
+
+  === 권한·롤 등록 SQL ===
+
+  -- Step 1. 롤 등록 (URL 패턴 기반 접근 제어)
+  INSERT INTO COMTNROLEINFO (
+      ROLE_CODE, ROLE_NM, ROLE_PTTRN, ROLE_DC, ROLE_TY, ROLE_SORT, ROLE_CREAT_DE
+  ) VALUES (
+      'web-000099',
+      '직원관리',
+      '\\A/emp/employer/.*\\.do.*\\Z',
+      '직원 도메인 접근 롤',
+      'url',
+      '99',
+      NOW()
+  );
+
+  -- Step 2. ROLE_ADMIN 권한에 롤 연결
+  INSERT INTO COMTNAUTHORROLERELATE (AUTHOR_CODE, ROLE_CODE, CREAT_DT)
+  VALUES ('ROLE_ADMIN', 'web-000099', NOW());
+
+  -- Step 3. 추가 권한 그룹 연결 (필요 시 AUTHOR_CODE 변경 후 실행)
+  -- INSERT INTO COMTNAUTHORROLERELATE (AUTHOR_CODE, ROLE_CODE, CREAT_DT)
+  -- VALUES ('ROLE_USER', 'web-000099', NOW());
+
+  ※ ROLE_CODE(web-000099)는 기존 최대값 기준 자동 계산된 값입니다.
+  ※ 실제 적용을 위해서는 Spring Security 재기동 또는 캐시 갱신이 필요합니다.
+
+--------------------------------------------------------------------------------
+5. 구현 파일 계획
+--------------------------------------------------------------------------------
+
+신규 파일 4개:
+  tools/MenuTool.java             — getMenuStructure, generateMenuInsertSql
+  service/MenuService.java        — 메뉴 트리 조회, MENU_NO/MENU_ORDR 자동 계산, SQL 생성
+  tools/AuthTool.java             — getProgramList, generateAuthInsertSql
+  service/AuthService.java        — 프로그램 검색, ROLE_CODE 자동 계산, SQL 생성
+
+McpConfig.java 수정:
+  menuToolCallbacks(MenuTool) 빈 추가
+  authToolCallbacks(AuthTool) 빈 추가
+
+--------------------------------------------------------------------------------
+6. 핵심 구현 로직
+--------------------------------------------------------------------------------
+
+[MenuService — MENU_NO 자동 계산]
+
+  SELECT MAX(MENU_NO)
+  FROM COMTNMENUINFO
+  WHERE UPPER_MENU_NO = {upperMenuNo}
+
+  → 결과가 없으면: upperMenuNo + 10000
+  → 결과가 있으면: MAX(MENU_NO) + 10000
+
+[MenuService — MENU_ORDR 자동 계산]
+
+  SELECT MAX(MENU_ORDR)
+  FROM COMTNMENUINFO
+  WHERE UPPER_MENU_NO = {upperMenuNo}
+
+  → 결과가 없으면: 1
+  → 결과가 있으면: MAX(MENU_ORDR) + 1
+
+[AuthService — ROLE_CODE 자동 계산]
+
+  SELECT MAX(CAST(SUBSTRING(ROLE_CODE, 5) AS UNSIGNED))
+  FROM COMTNROLEINFO
+  WHERE ROLE_CODE LIKE 'web-%'
+
+  → MAX + 1 → 'web-' + LPAD(값, 6, '0')
+  → 예) 기존 최대 web-000098 → 신규 web-000099
+
+[AuthService — URL 패턴 자동 생성]
+
+  urlPrefix = "/emp/employer"
+  → ROLE_PTTRN = "\\A" + urlPrefix + "/.*\\.do.*\\Z"
+  → 결과: \\A/emp/employer/.*\\.do.*\\Z
+
+--------------------------------------------------------------------------------
+7. end-to-end 사용 흐름 (구현 후)
+--------------------------------------------------------------------------------
+
+  [CRUD 소스 생성 완료]
+      ↓
+  getProgramList("employer")
+    → 기존 등록 여부 확인 (중복 방지)
+      ↓
+  getMenuStructure("6000000")
+    → 등록 위치 파악
+    → 권장 MENU_NO / MENU_ORDR 확인
+      ↓
+  generateMenuInsertSql("6000000", "/emp/employer", "직원관리", "EgovEmployerList")
+    → COMTNPROGRMLIST INSERT SQL 반환
+    → COMTNMENUINFO INSERT SQL 반환
+    → SQL 실행 (사용자가 직접 또는 별도 Tool로)
+      ↓
+  generateAuthInsertSql("/emp/employer", "직원관리", "emp")
+    → COMTNROLEINFO INSERT SQL 반환
+    → COMTNAUTHORROLERELATE INSERT SQL 반환
+    → SQL 실행
+      ↓
+  checkProjectHealth(projectRootPath, "employer")
+    → 메뉴·권한 등록 완료 확인
+    → 완성도 100%
+
+--------------------------------------------------------------------------------
+8. 주의사항
+--------------------------------------------------------------------------------
+
+8-1. SQL 실행 방식
+  이 Tool들은 SQL을 반환만 합니다. 직접 DB에 INSERT하지 않습니다.
+  사용자가 반환된 SQL을 검토 후 직접 실행해야 합니다.
+  (추후 P4 배포 Tool에서 자동 실행 옵션 추가 가능)
+
+8-2. Spring Security 캐시
+  COMTNROLEINFO / COMTNAUTHORROLERELATE 변경 후
+  Spring Security의 URL 기반 접근 제어는 서버 재기동 또는
+  캐시 갱신(EgovSecurityContextRefresher)이 필요합니다.
+
+8-3. MENU_NO 번호 체계
+  eGovFrame 표준 번호 체계(N000000 / NXY0000)를 따르지 않아도
+  동작에는 문제없으나 운영 일관성을 위해 자동 계산 시 체계를 준수합니다.
+
+8-4. PROGRM_FILE_NM 중복
+  COMTNPROGRMLIST.PROGRM_FILE_NM은 PK이므로
+  generateMenuInsertSql() 호출 전 getProgramList()로 중복 여부를 확인하세요.
+
+================================================================================

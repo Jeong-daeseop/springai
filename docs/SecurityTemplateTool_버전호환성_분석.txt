@@ -1,0 +1,209 @@
+================================================================================
+SecurityTemplateTool — eGovFrame 버전별 호환성 분석
+작성일: 2026-05-20
+================================================================================
+
+--------------------------------------------------------------------------------
+1. 버전별 기술 스택 차이
+--------------------------------------------------------------------------------
+
+  항목                   eGovFrame 4.3          eGovFrame 5.0
+  ─────────────────────  ─────────────────────  ─────────────────────
+  Spring Framework       4.3.x                  6.1.x
+  Spring Security        4.x                    6.x
+  Java                   8                      17+
+  Servlet API            javax.servlet          jakarta.servlet
+  Security 설정 방식     WebSecurityConfigurerAdapter 상속  SecurityFilterChain Bean
+  URL 매처               antMatchers()          requestMatchers()
+  인가 메서드            authorizeRequests()    authorizeHttpRequests()
+  DSL 스타일             .and() 체이닝          Lambda DSL
+  AccessDecisionManager  공식 지원              Deprecated
+  FilterSecurityInterceptor 공식 지원           Deprecated
+
+--------------------------------------------------------------------------------
+2. securityType 별 버전 호환성
+--------------------------------------------------------------------------------
+
+  securityType        eGovFrame 4.3   eGovFrame 5.0   판정
+  ──────────────────  ─────────────   ─────────────   ────────────────────────────────
+  webXmlFilter        ✅ 가능         ✅ 가능         완전 호환 — DelegatingFilterProxy 방식 동일
+  contextSecurity     ⚠️ 부분 가능   ✅ 가능         4.3은 eGovFrame 클래스명 일부 상이
+  securityMapper      ✅ 가능         ✅ 가능         완전 호환 — SQL 자체는 버전 무관
+  javaConfig          ❌ 불가         ✅ 가능         4.3 사용 불가 — Security 6.x 전용 API
+  userDetailsService  ✅ 가능         ✅ 가능         완전 호환 — UserDetailsService 인터페이스 동일
+  roleHierarchy       ⚠️ 부분 가능   ✅ 가능         setHierarchy() Deprecation 가능성
+  loginPage           ✅ 가능         ✅ 가능         완전 호환 — JSP는 버전 무관
+
+--------------------------------------------------------------------------------
+3. 문제 항목 상세
+--------------------------------------------------------------------------------
+
+[javaConfig — eGovFrame 4.3 사용 불가 ❌]
+
+  현재 생성 코드는 Spring Security 6.x 전용 API만 사용.
+
+  현재 생성 코드 (Security 6.x — eGovFrame 5.0):
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  @Configuration                                                      │
+  │  @EnableWebSecurity                                                  │
+  │  public class EgovSecurityConfig {                                   │
+  │      @Bean                                                           │
+  │      public SecurityFilterChain filterChain(HttpSecurity http) {    │
+  │          http                                                        │
+  │              .authorizeHttpRequests(auth -> auth                     │
+  │                  .requestMatchers("/css/**").permitAll()             │
+  │              )                                                       │
+  │              .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**")); │
+  │          return http.build();                                        │
+  │      }                                                               │
+  │  }                                                                   │
+  └──────────────────────────────────────────────────────────────────────┘
+
+  4.3에서 필요한 방식 (Security 4.x — WebSecurityConfigurerAdapter):
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  @Configuration                                                      │
+  │  @EnableWebSecurity                                                  │
+  │  public class EgovSecurityConfig                                     │
+  │          extends WebSecurityConfigurerAdapter {   ← 5.0에서 삭제    │
+  │                                                                      │
+  │      @Override                                                       │
+  │      protected void configure(HttpSecurity http) throws Exception {  │
+  │          http                                                        │
+  │              .authorizeRequests()                ← 5.0: authorizeHttpRequests() │
+  │                  .antMatchers("/css/**").permitAll()  ← 5.0: requestMatchers()  │
+  │                  .anyRequest().authenticated()                       │
+  │              .and()                              ← 5.0: Lambda DSL  │
+  │              .formLogin()                                            │
+  │                  .loginPage("/uat/uia/egovLoginUsr.do")              │
+  │              .and()                                                  │
+  │              .csrf().ignoringAntMatchers("/api/**"); ← API명 상이   │
+  │      }                                                               │
+  │  }                                                                   │
+  └──────────────────────────────────────────────────────────────────────┘
+
+  API 변경 대조표:
+    4.3 API                    →  5.0 API
+    ─────────────────────────────────────────────────────
+    WebSecurityConfigurerAdapter  삭제 (SecurityFilterChain Bean으로 대체)
+    authorizeRequests()           authorizeHttpRequests()
+    antMatchers()                 requestMatchers()
+    .and() 체이닝                 Lambda DSL (.formLogin(form -> form...))
+    csrf().ignoringAntMatchers()  csrf(csrf -> csrf.ignoringRequestMatchers())
+    configure(HttpSecurity http)  filterChain(HttpSecurity http) @Bean
+
+------------------------------------------------------------------------
+
+[contextSecurity — eGovFrame 4.3 부분 호환 ⚠️]
+
+  XML 네임스페이스 구조 자체는 거의 동일하나,
+  참조 eGovFrame 런타임 클래스명이 버전별로 패키지 경로가 다를 수 있음.
+
+  현재 생성 코드 (eGovFrame 5.x 기준 클래스명):
+    egovframework.rte.fdl.security.intercept
+        .EgovReloadableFilterInvocationSecurityMetadataSource
+    egovframework.rte.fdl.security.userdetails
+        .EgovUserDetailsHelper
+    egovframework.rte.fdl.security.userdetails
+        .EgovAuthenticationSuccessHandler
+    egovframework.rte.fdl.security.userdetails
+        .EgovAuthenticationFailureHandler
+    egovframework.rte.fdl.security.userdetails
+        .EgovAccessDeniedHandler
+
+  → eGovFrame 4.3 프로젝트에서는 위 클래스가 존재하지 않거나
+    패키지 경로가 상이할 수 있으므로 직접 확인 후 수정 필요.
+
+------------------------------------------------------------------------
+
+[roleHierarchy — eGovFrame 5.0 최신 Deprecation 주의 ⚠️]
+
+  현재 생성 코드:
+    RoleHierarchyImpl impl = new RoleHierarchyImpl();
+    impl.setHierarchy(hierarchy.toString());   ← Security 6.2+에서 Deprecated
+
+  Spring Security 6.2+ 권장 방식:
+    RoleHierarchyImpl impl = RoleHierarchyImpl.fromHierarchy(hierarchy.toString());
+
+  → eGovFrame 5.0이 Spring Security 6.2 이상을 사용하는 경우 경고 발생.
+    동작은 하지만 향후 버전에서 제거될 수 있음.
+
+------------------------------------------------------------------------
+
+[javaConfig — eGovFrame 5.0 Deprecated API 사용 ⚠️]
+
+  현재 생성 코드에서 Security 6.x에서 Deprecated된 API 2개 사용:
+    FilterSecurityInterceptor   → AuthorizationFilter 로 대체 권장
+    AccessDecisionManager       → AuthorizationManager 로 대체 권장
+
+  → 동작에는 문제 없으나 컴파일 경고 발생.
+    eGovFrame 공통 모듈(EgovReloadableFilterInvocationSecurityMetadataSource)이
+    여전히 FilterSecurityInterceptor 기반이므로 현재는 불가피한 선택.
+
+--------------------------------------------------------------------------------
+4. 버전별 사용 가능 securityType 요약
+--------------------------------------------------------------------------------
+
+  eGovFrame 4.3 프로젝트:
+    ✅ webXmlFilter      → 그대로 사용 가능
+    ⚠️ contextSecurity   → eGovFrame 런타임 클래스명 확인 후 수정 필요
+    ✅ securityMapper    → 그대로 사용 가능
+    ❌ javaConfig        → 사용 불가 (WebSecurityConfigurerAdapter 방식으로 재작성 필요)
+    ✅ userDetailsService → 그대로 사용 가능
+    ✅ roleHierarchy     → 그대로 사용 가능 (setHierarchy() 4.3도 동일)
+    ✅ loginPage         → 그대로 사용 가능
+
+  eGovFrame 5.0 프로젝트:
+    ✅ webXmlFilter      → 그대로 사용 가능
+    ✅ contextSecurity   → 그대로 사용 가능
+    ✅ securityMapper    → 그대로 사용 가능
+    ✅ javaConfig        → 사용 가능 (Deprecated API 경고는 발생)
+    ✅ userDetailsService → 그대로 사용 가능
+    ✅ roleHierarchy     → 사용 가능 (setHierarchy() Deprecation 경고 가능)
+    ✅ loginPage         → 그대로 사용 가능
+
+--------------------------------------------------------------------------------
+5. 개선 방향 — egovVersion 파라미터 추가
+--------------------------------------------------------------------------------
+
+  현재 메서드 시그니처:
+    getSecurityTemplate(String securityType, String packageName)
+
+  개선 후 메서드 시그니처 (안):
+    getSecurityTemplate(String securityType, String packageName, String egovVersion)
+
+  분기 로직:
+    case "javaconfig":
+        if ("4.3".equals(egovVersion)) → javaConfig43(pkg)   // WebSecurityConfigurerAdapter
+        else                           → javaConfig50(pkg)   // SecurityFilterChain Bean (현재)
+
+    case "rolehierarchy":
+        if ("5.0".equals(egovVersion) && securityVersion >= 6.2)
+                                       → roleHierarchy50New(pkg)  // fromHierarchy()
+        else                           → roleHierarchy(pkg)       // setHierarchy() (현재)
+
+  추가 필요 private 메서드:
+    javaConfig43(String pkg)       → WebSecurityConfigurerAdapter 방식
+    javaConfig50(String pkg)       → SecurityFilterChain Bean 방식 (현재 javaConfig)
+    roleHierarchy50New(String pkg) → fromHierarchy() 방식
+
+  추가 securityType 후보 (4.3 전용):
+    "javaConfig43"  → WebSecurityConfigurerAdapter 방식 명시적 요청
+
+--------------------------------------------------------------------------------
+6. 결론
+--------------------------------------------------------------------------------
+
+  질문                                          답
+  ────────────────────────────────────────────  ────────────────────────────────────
+  현재 코드로 eGovFrame 4.3 지원 가능?          부분 가능
+                                                XML 3종(webXmlFilter·securityMapper·loginPage)
+                                                + userDetailsService는 그대로 사용 가능
+  javaConfig를 eGovFrame 4.3에 쓸 수 있나?     불가
+                                                WebSecurityConfigurerAdapter 방식으로 재작성 필요
+  eGovFrame 5.0은 완전 지원?                    대부분 가능
+                                                FilterSecurityInterceptor·setHierarchy()
+                                                Deprecated 경고는 발생하나 동작에 지장 없음
+  egovVersion 파라미터 추가로 해결 가능?        가능
+                                                javaConfig 분기 추가로 4.3·5.0 모두 지원 가능
+
+================================================================================
