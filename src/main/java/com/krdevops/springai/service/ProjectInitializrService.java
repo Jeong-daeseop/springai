@@ -49,6 +49,12 @@ public class ProjectInitializrService {
     // compareVersion("latest", ...) 해석 기준 버전
     private static final String EGOV_LATEST   = EGOV_50;
 
+    // eGovFrame Parent POM 좌표 (5.0+ 전용)
+    private static final String EGOV_WAR_PARENT_GROUP    = "org.egovframe.web";
+    private static final String EGOV_WAR_PARENT_ARTIFACT = "egovframe-web-config-parent";
+    private static final String EGOV_BOOT_PARENT_GROUP   = "org.egovframe.boot";
+    private static final String EGOV_BOOT_PARENT_ARTIFACT = "org.egovframe.boot.starter.parent";
+
     // ── 공개 API ─────────────────────────────────────────────────────────────
 
     /**
@@ -308,6 +314,13 @@ public class ProjectInitializrService {
         return supportsJakarta(v) ? EGOV_50 : EGOV_43;
     }
 
+    /** eGovFrame 5.0+: 전용 Parent POM 사용
+     *  WAR  → org.egovframe.web:egovframe-web-config-parent
+     *  Boot → org.egovframe.boot:org.egovframe.boot.starter.parent */
+    private static boolean supportsEgovParent(String v) {
+        return compareVersion(v, "5.0") >= 0;
+    }
+
     private String toPascalCase(String artifactId) {
         StringBuilder sb = new StringBuilder();
         for (String part : artifactId.split("[-_]")) {
@@ -321,32 +334,63 @@ public class ProjectInitializrService {
     // =========================================================================
 
     private String warPomXml(Spec s, String projectName) {
-        String egovVer         = resolveEgovVersion(s.egovVersion);
-        String javaVer         = supportsJava17(s.egovVersion)         ? JAVA_17          : JAVA_11;
-        String springVer       = supportsSpring6(s.egovVersion)        ? SPRING_6         : SPRING_5;
-        String mybatisSpringVer = supportsMyBatisSpring3(s.egovVersion) ? MYBATIS_SPRING_3 : MYBATIS_SPRING_2;
-        // eGovFrame 5.0+: artifactId 명명 규칙 변경 (점(.) → 하이픈(-))
-        String egovDeps = supportsHyphenArtifactId(s.egovVersion)
+        String egovVer          = resolveEgovVersion(s.egovVersion);
+        String javaVer          = supportsJava17(s.egovVersion)          ? JAVA_17          : JAVA_11;
+        String springVer        = supportsSpring6(s.egovVersion)         ? SPRING_6         : SPRING_5;
+        String mybatisSpringVer = supportsMyBatisSpring3(s.egovVersion)  ? MYBATIS_SPRING_3 : MYBATIS_SPRING_2;
+        boolean useParent       = supportsEgovParent(s.egovVersion);
+
+        // ── [1] Parent POM 블록 ────────────────────────────────────────────────
+        // 5.0: egovframe-web-config-parent (dependencyManagement + pluginManagement 제공)
+        // 4.3: Parent POM 없음 → 수동 버전 관리 유지
+        String parentBlock = useParent
             ? """
+
+    <parent>
+        <groupId>%s</groupId>
+        <artifactId>%s</artifactId>
+        <version>%s</version>
+        <relativePath/>
+    </parent>
+""".formatted(EGOV_WAR_PARENT_GROUP, EGOV_WAR_PARENT_ARTIFACT, egovVer)
+            : "";
+
+        // ── [2] Properties ────────────────────────────────────────────────────
+        // 5.0 parent: spring.version, mybatis.version 제거 (parent BOM 관리)
+        // 4.3: 전부 수동 명시
+        String versionProps = useParent
+            ? """
+        <java.version>%s</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <egov.version>%s</egov.version>""".formatted(javaVer, egovVer)
+            : """
+        <java.version>%s</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <egov.version>%s</egov.version>
+        <spring.version>%s</spring.version>
+        <mybatis.version>%s</mybatis.version>""".formatted(javaVer, egovVer, springVer, MYBATIS_35);
+
+        // ── [3] eGovFrame RTE 의존성 ──────────────────────────────────────────
+        // 5.0 parent: <version> 제거 (parent BOM 관리)
+        // 4.3: 점(.) 명명 + <version> 명시
+        String egovDeps = useParent
+            ? """
+                <!-- eGovFrame 5.0 — version managed by egovframe-web-config-parent -->
                 <dependency>
                     <groupId>org.egovframe.rte</groupId>
                     <artifactId>egovframe-rte-ptl-mvc</artifactId>
-                    <version>${egov.version}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.egovframe.rte</groupId>
                     <artifactId>egovframe-rte-psl-dataaccess</artifactId>
-                    <version>${egov.version}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.egovframe.rte</groupId>
                     <artifactId>egovframe-rte-fdl-cmmn</artifactId>
-                    <version>${egov.version}</version>
                 </dependency>
                 <dependency>
                     <groupId>org.egovframe.rte</groupId>
                     <artifactId>egovframe-rte-fdl-security</artifactId>
-                    <version>${egov.version}</version>
                 </dependency>"""
             : """
                 <dependency>
@@ -369,18 +413,48 @@ public class ProjectInitializrService {
                     <artifactId>org.egovframe.rte.fdl.security</artifactId>
                     <version>${egov.version}</version>
                 </dependency>""";
-        String servletDep = supportsJakarta(s.egovVersion)
+
+        // ── [4] MyBatis ───────────────────────────────────────────────────────
+        // 5.0 parent: <version> 제거 (parent BOM 관리)
+        // 4.3: ${mybatis.version} property 참조 유지
+        String mybatisBlock = useParent
             ? """
+        <!-- MyBatis — version managed by egovframe-web-config-parent -->
+        <dependency>
+            <groupId>org.mybatis</groupId>
+            <artifactId>mybatis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mybatis</groupId>
+            <artifactId>mybatis-spring</artifactId>
+        </dependency>"""
+            : """
+        <!-- MyBatis -->
+        <dependency>
+            <groupId>org.mybatis</groupId>
+            <artifactId>mybatis</artifactId>
+            <version>${mybatis.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.mybatis</groupId>
+            <artifactId>mybatis-spring</artifactId>
+            <version>%s</version>
+        </dependency>""".formatted(mybatisSpringVer);
+
+        // ── [5] Servlet / JSP ─────────────────────────────────────────────────
+        // 5.0 parent: servlet-api version 제거, JSTL 구현체 version 유지 (불확실)
+        // 4.3: javax + 전부 version 명시
+        String servletDep = useParent
+            ? """
+                <!-- Servlet/JSP — servlet-api version managed by egovframe-web-config-parent -->
                 <dependency>
                     <groupId>jakarta.servlet</groupId>
                     <artifactId>jakarta.servlet-api</artifactId>
-                    <version>6.0.0</version>
                     <scope>provided</scope>
                 </dependency>
                 <dependency>
                     <groupId>jakarta.servlet.jsp</groupId>
                     <artifactId>jakarta.servlet.jsp-api</artifactId>
-                    <version>3.1.1</version>
                     <scope>provided</scope>
                 </dependency>
                 <dependency>
@@ -411,12 +485,17 @@ public class ProjectInitializrService {
                     <artifactId>jstl</artifactId>
                     <version>1.2</version>
                 </dependency>""";
-        String validationDep = supportsJakarta(s.egovVersion)
+
+        // ── [6] Validation ────────────────────────────────────────────────────
+        // 5.0 parent: jakarta.validation-api version 제거 (parent 관리)
+        //             hibernate-validator, jakarta.el version 유지 (불확실)
+        // 4.3: javax + 전부 version 명시
+        String validationDep = useParent
             ? """
+                <!-- Validation — jakarta.validation-api version managed by egovframe-web-config-parent -->
                 <dependency>
                     <groupId>jakarta.validation</groupId>
                     <artifactId>jakarta.validation-api</artifactId>
-                    <version>3.0.2</version>
                 </dependency>
                 <dependency>
                     <groupId>org.hibernate.validator</groupId>
@@ -444,78 +523,24 @@ public class ProjectInitializrService {
                     <artifactId>jakarta.el</artifactId>
                     <version>3.0.4</version>
                 </dependency>""";
-        return """
-<?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
-             http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
 
-    <groupId>%s</groupId>
-    <artifactId>%s</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
-    <packaging>war</packaging>
-    <name>%s</name>
-
-    <!-- ── 버전 정의 ── -->
-    <properties>
-        <java.version>%s</java.version>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <egov.version>%s</egov.version>
-        <spring.version>%s</spring.version>
-        <mybatis.version>%s</mybatis.version>
-    </properties>
-
-    <repositories>
-        <repository>
-            <id>egovframe</id>
-            <url>https://maven.egovframe.go.kr/maven/</url>
-        </repository>
-    </repositories>
-
-    <dependencies>
-        <!-- eGovFrame 핵심 -->
-%s
-
-        <!-- MyBatis -->
+        // ── [7] Test ──────────────────────────────────────────────────────────
+        // 5.0 parent: junit-jupiter, spring-test version 제거 (Spring parent chain 관리)
+        // 4.3: ${spring.version} property 참조 유지
+        String testBlock = useParent
+            ? """
+        <!-- Test — version managed by egovframe-web-config-parent (Spring chain) -->
         <dependency>
-            <groupId>org.mybatis</groupId>
-            <artifactId>mybatis</artifactId>
-            <version>${mybatis.version}</version>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.mybatis</groupId>
-            <artifactId>mybatis-spring</artifactId>
-            <version>%s</version>
-        </dependency>
-
-        <!-- DB -->
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <version>8.4.0</version>
-        </dependency>
-        <dependency>
-            <groupId>com.zaxxer</groupId>
-            <artifactId>HikariCP</artifactId>
-            <version>5.1.0</version>
-        </dependency>
-
-        <!-- Servlet / JSP -->
-%s
-
-        <!-- Validation -->
-%s
-
-        <!-- Lombok -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>1.18.32</version>
-            <scope>provided</scope>
-        </dependency>
-
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-test</artifactId>
+            <scope>test</scope>
+        </dependency>"""
+            : """
         <!-- Test -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -528,8 +553,12 @@ public class ProjectInitializrService {
             <artifactId>spring-test</artifactId>
             <version>${spring.version}</version>
             <scope>test</scope>
-        </dependency>
-    </dependencies>
+        </dependency>""";
+
+        // ── [8] Build plugins ─────────────────────────────────────────────────
+        // 5.0 parent: 제거 (parent pluginManagement 관리)
+        // 4.3: maven-compiler-plugin, maven-war-plugin 수동 명시
+        String buildSection = useParent ? "" : """
 
     <build>
         <plugins>
@@ -549,8 +578,73 @@ public class ProjectInitializrService {
             </plugin>
         </plugins>
     </build>
+""";
+
+        return """
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+%s
+    <groupId>%s</groupId>
+    <artifactId>%s</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>war</packaging>
+    <name>%s</name>
+
+    <!-- ── 버전 정의 ── -->
+    <properties>
+%s
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>egovframe</id>
+            <url>https://maven.egovframe.go.kr/maven/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- eGovFrame 핵심 -->
+%s
+
+%s
+
+        <!-- DB (버전 직접 명시 — parent 관리 여부 미확인) -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>8.4.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>5.1.0</version>
+        </dependency>
+
+        <!-- Servlet / JSP -->
+%s
+
+        <!-- Validation -->
+%s
+
+        <!-- Lombok (버전 직접 명시 — parent 관리 여부 미확인) -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.32</version>
+            <scope>provided</scope>
+        </dependency>
+
+%s
+    </dependencies>
+%s
 </project>
-""".formatted(s.groupId, s.artifactId, projectName, javaVer, egovVer, springVer, MYBATIS_35, egovDeps, mybatisSpringVer, servletDep, validationDep);
+""".formatted(parentBlock, s.groupId, s.artifactId, projectName,
+              versionProps, egovDeps, mybatisBlock,
+              servletDep, validationDep, testBlock, buildSection);
     }
 
     private String warBuildGradle(Spec s) {
@@ -655,6 +749,22 @@ tasks.named('test') { useJUnitPlatform() }
         String egovVer   = resolveEgovVersion(s.egovVersion);
         // eGovFrame 5.0+: artifactId 명명 규칙 변경 (점(.) → 하이픈(-))
         String fdlCmmnId = supportsHyphenArtifactId(s.egovVersion)   ? "egovframe-rte-fdl-cmmn"  : "org.egovframe.rte.fdl.cmmn";
+
+        boolean useParent = supportsEgovParent(s.egovVersion);
+
+        // [1] parent 좌표: 5.0 → eGovFrame Boot parent, 4.3 → spring-boot-starter-parent
+        String parentGroupId    = useParent ? EGOV_BOOT_PARENT_GROUP    : "org.springframework.boot";
+        String parentArtifactId = useParent ? EGOV_BOOT_PARENT_ARTIFACT : "spring-boot-starter-parent";
+        String parentVersion    = useParent ? egovVer                   : sbVer;
+
+        // [2] egov.version property: 5.0 → parent BOM 관리, 4.3 → 수동 명시
+        String egovVersionProp = useParent ? ""
+                : "        <egov.version>" + egovVer + "</egov.version>\n";
+
+        // [3] eGov RTE 의존성 version: 5.0 → parent BOM 관리, 4.3 → ${egov.version}
+        String egovRteVersion = useParent ? ""
+                : "            <version>${egov.version}</version>\n";
+
         return """
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -664,8 +774,8 @@ tasks.named('test') { useJUnitPlatform() }
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
+        <groupId>%s</groupId>
+        <artifactId>%s</artifactId>
         <version>%s</version>
         <relativePath/>
     </parent>
@@ -678,8 +788,7 @@ tasks.named('test') { useJUnitPlatform() }
 
     <properties>
         <java.version>%s</java.version>
-        <egov.version>%s</egov.version>
-    </properties>
+%s    </properties>
 
     <repositories>
         <repository>
@@ -718,8 +827,7 @@ tasks.named('test') { useJUnitPlatform() }
         <dependency>
             <groupId>org.egovframe.rte</groupId>
             <artifactId>%s</artifactId>
-            <version>${egov.version}</version>
-            <exclusions>
+%s            <exclusions>
                 <exclusion>
                     <groupId>org.springframework</groupId>
                     <artifactId>*</artifactId>
@@ -771,7 +879,12 @@ tasks.named('test') { useJUnitPlatform() }
         </plugins>
     </build>
 </project>
-""".formatted(sbVer, s.groupId, s.artifactId, projectName, javaVer, egovVer, fdlCmmnId, mbsbVer, mbsbVer);
+""".formatted(parentGroupId, parentArtifactId, parentVersion,
+              s.groupId, s.artifactId, projectName,
+              javaVer, egovVersionProp,
+              mbsbVer,
+              fdlCmmnId, egovRteVersion,
+              mbsbVer);
     }
 
     private String bootBuildGradle(Spec s) {
