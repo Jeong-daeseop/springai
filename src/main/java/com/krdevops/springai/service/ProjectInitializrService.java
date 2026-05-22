@@ -417,12 +417,32 @@ public class ProjectInitializrService {
                     <groupId>jakarta.validation</groupId>
                     <artifactId>jakarta.validation-api</artifactId>
                     <version>3.0.2</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.hibernate.validator</groupId>
+                    <artifactId>hibernate-validator</artifactId>
+                    <version>8.0.1.Final</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.glassfish</groupId>
+                    <artifactId>jakarta.el</artifactId>
+                    <version>4.0.2</version>
                 </dependency>"""
             : """
                 <dependency>
                     <groupId>javax.validation</groupId>
                     <artifactId>validation-api</artifactId>
                     <version>2.0.1.Final</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.hibernate.validator</groupId>
+                    <artifactId>hibernate-validator</artifactId>
+                    <version>6.2.5.Final</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.glassfish</groupId>
+                    <artifactId>jakarta.el</artifactId>
+                    <version>3.0.4</version>
                 </dependency>""";
         return """
 <?xml version="1.0" encoding="UTF-8"?>
@@ -561,8 +581,14 @@ public class ProjectInitializrService {
     providedCompile 'javax.servlet.jsp:javax.servlet.jsp-api:2.3.3'
     implementation  'javax.servlet:jstl:1.2'""";
         String validationDeps = supportsJakarta(s.egovVersion)
-            ? "    implementation 'jakarta.validation:jakarta.validation-api:3.0.2'"
-            : "    implementation 'javax.validation:validation-api:2.0.1.Final'";
+            ? """
+    implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+    implementation 'org.hibernate.validator:hibernate-validator:8.0.1.Final'
+    implementation 'org.glassfish:jakarta.el:4.0.2'"""
+            : """
+    implementation 'javax.validation:validation-api:2.0.1.Final'
+    implementation 'org.hibernate.validator:hibernate-validator:6.2.5.Final'
+    implementation 'org.glassfish:jakarta.el:3.0.4'""";
         return """
 plugins {
     id 'java'
@@ -921,6 +947,23 @@ tasks.named('test') { useJUnitPlatform() }
         <property name="defaultEncoding" value="UTF-8"/>
         <property name="maxUploadSize"   value="52428800"/>
     </bean>""";
+
+        // 4.3.x: <mvc:annotation-driven/> 이 클래스패스에서 Hibernate Validator를 자동 감지하므로
+        //        LocalValidatorFactoryBean을 명시해 MethodValidationPostProcessor와 공유한다.
+        // 6.2.x: Spring MVC 6.1+ 내장 메서드 검증 지원 — MethodValidationPostProcessor 불필요.
+        //        LocalValidatorFactoryBean은 <mvc:annotation-driven validator="validator"/> 연동 필수.
+        String validatorBean = """
+    <!-- Bean Validation (JSR-303/380) — Hibernate Validator 구현체 자동 감지 -->
+    <bean id="validator"
+          class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean"/>""";
+
+        String methodValidationBean = supportsSpring6(egovVersion) ? "" : """
+
+    <!-- 메서드 레벨 파라미터 검증 활성화 (Spring 5 / eGovFrame 4.3 — AOP 기반) -->
+    <bean class="org.springframework.validation.beanvalidation.MethodValidationPostProcessor">
+        <property name="validator" ref="validator"/>
+    </bean>""";
+
         return """
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
@@ -940,7 +983,9 @@ tasks.named('test') { useJUnitPlatform() }
             expression="org.springframework.stereotype.Controller"/>
     </context:component-scan>
 
-    <mvc:annotation-driven/>
+%s%s
+
+    <mvc:annotation-driven validator="validator"/>
     <mvc:resources mapping="/resources/**" location="/resources/"/>
 
     <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
@@ -952,7 +997,7 @@ tasks.named('test') { useJUnitPlatform() }
 %s
 
 </beans>
-""".formatted(packageName, multipartBean);
+""".formatted(packageName, validatorBean, methodValidationBean, multipartBean);
     }
 
     private String webXml(String artifactId, String egovVersion) {

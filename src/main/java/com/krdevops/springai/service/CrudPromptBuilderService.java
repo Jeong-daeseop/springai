@@ -20,6 +20,12 @@ public class CrudPromptBuilderService {
 
     public String buildFullCrudPrompt(String database, String tableName,
                                       String domain, String packageName, String outputPath) {
+        return buildFullCrudPrompt(database, tableName, domain, packageName, outputPath, "5.0");
+    }
+
+    public String buildFullCrudPrompt(String database, String tableName,
+                                      String domain, String packageName, String outputPath,
+                                      String egovVersion) {
         // 1. 컬럼 정보 조회
         List<Map<String, Object>> columns = fetchColumns(database, tableName);
         if (columns.isEmpty()) {
@@ -41,6 +47,12 @@ public class CrudPromptBuilderService {
         String domainKr    = extractKoreanName(tableName);
         String urlPrefix   = "/" + packageName.replace("egovframework.let.", "").replace(".", "/") + "/" + domainLc;
         String date        = LocalDate.now().toString();
+
+        boolean isJakarta = egovVersion != null
+            && (egovVersion.startsWith("5") || "latest".equalsIgnoreCase(egovVersion));
+        String validationImport = isJakarta
+            ? "import jakarta.validation.constraints.NotBlank;\nimport jakarta.validation.constraints.NotNull;\nimport jakarta.validation.constraints.Size;"
+            : "import javax.validation.constraints.NotBlank;\nimport javax.validation.constraints.NotNull;\nimport javax.validation.constraints.Size;";
 
         String voFields        = buildVoFields(columns);
         String mapperColumns   = buildMapperColumns(columns);
@@ -66,6 +78,7 @@ public class CrudPromptBuilderService {
         sb.append("  PK 컬럼   : ").append(pkColumn).append(" (").append(pkType).append(")\n\n");
 
         sb.append("[플레이스홀더 치환 규칙]\n");
+        sb.append("  {{VALIDATION_IMPORT}} = ").append(validationImport).append("\n");
         sb.append("  {{PACKAGE}}           = ").append(packageName).append("\n");
         sb.append("  {{DOMAIN}}            = ").append(domain).append("\n");
         sb.append("  {{DOMAIN_LC}}         = ").append(domainLc).append("\n");
@@ -100,23 +113,24 @@ public class CrudPromptBuilderService {
         sb.append("출력 경로: ").append(outputPath).append("\n\n");
 
         String[][] layers = {
-            {"vo",          domain + "VO.java"},
-            {"mapper",      domain + "Mapper.java"},
-            {"mapperXml",   domain + "Mapper.xml"},
-            {"service",     domain + "Service.java"},
-            {"serviceImpl", "Egov" + domain + "ServiceImpl.java"},
-            {"controller",  "Egov" + domain + "Controller.java"},
-            {"jspList",     "Egov" + domain + "List.jsp"},
-            {"jspDetail",   "Egov" + domain + "Detail.jsp"},
-            {"jspRegist",   "Egov" + domain + "Regist.jsp"},
-            {"jspUpdt",     "Egov" + domain + "Updt.jsp"},
+            {"vo",               domain + "VO.java"},
+            {"mapper",           domain + "Mapper.java"},
+            {"mapperXml",        domain + "Mapper.xml"},
+            {"service",          domain + "Service.java"},
+            {"serviceImpl",      "Egov" + domain + "ServiceImpl.java"},
+            {"controller",       "Egov" + domain + "Controller.java"},
+            {"controlleradvice", "Egov" + domain + "ValidationHandler.java"},
+            {"jspList",          "Egov" + domain + "List.jsp"},
+            {"jspDetail",        "Egov" + domain + "Detail.jsp"},
+            {"jspRegist",        "Egov" + domain + "Regist.jsp"},
+            {"jspUpdt",          "Egov" + domain + "Updt.jsp"},
         };
         for (int i = 0; i < layers.length; i++) {
             sb.append(String.format("  Step %2d: getCodeTemplate(\"%s\") → %s\n",
                 i + 1, layers[i][0], layers[i][1]));
         }
 
-        sb.append("\n").append(promptBuilder.postGeneration(outputPath, tableName, domain, packageName, domainLc, "10개 파일"));
+        sb.append("\n").append(promptBuilder.postGeneration(outputPath, tableName, domain, packageName, domainLc, "11개 파일"));
 
         log.info("CRUD 프롬프트 빌드 완료: table={}, domain={}", tableName, domain);
         return sb.toString();
@@ -142,10 +156,21 @@ public class CrudPromptBuilderService {
     private String buildVoFields(List<Map<String, Object>> columns) {
         StringBuilder sb = new StringBuilder();
         for (Map<String, Object> col : columns) {
-            String field   = toCamelCase((String) col.get("COLUMN_NAME"));
+            String field    = toCamelCase((String) col.get("COLUMN_NAME"));
             String javaType = toJavaType((String) col.get("DATA_TYPE"));
-            String comment = col.get("COLUMN_COMMENT") != null ? (String) col.get("COLUMN_COMMENT") : "";
+            String nullable = (String) col.get("IS_NULLABLE");
+            Object maxLen   = col.get("CHARACTER_MAXIMUM_LENGTH");
+            String comment  = col.get("COLUMN_COMMENT") != null ? (String) col.get("COLUMN_COMMENT") : "";
+            boolean isPk    = "PRI".equals(col.get("COLUMN_KEY"));
+
             if (!comment.isEmpty()) sb.append("    // ").append(comment).append("\n");
+
+            if (!isPk && "NO".equals(nullable)) {
+                sb.append("    @").append("String".equals(javaType) ? "NotBlank" : "NotNull").append("\n");
+            }
+            if (!isPk && maxLen != null && "String".equals(javaType)) {
+                sb.append("    @Size(max = ").append(maxLen).append(")\n");
+            }
             sb.append("    private ").append(javaType).append(" ").append(field).append(";\n");
         }
         return sb.toString();

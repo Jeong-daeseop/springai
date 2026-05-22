@@ -42,7 +42,8 @@ public class CodeTemplateTool {
               jspList     → 목록 JSP (Egov{{DOMAIN}}List.jsp)
               jspDetail   → 상세 JSP (Egov{{DOMAIN}}Detail.jsp)
               jspRegist   → 등록 JSP (Egov{{DOMAIN}}Regist.jsp)
-              jspUpdt     → 수정 JSP (Egov{{DOMAIN}}Updt.jsp)
+              jspUpdt          → 수정 JSP (Egov{{DOMAIN}}Updt.jsp)
+              controlleradvice → Validation 전역 예외 핸들러 (Egov{{DOMAIN}}ValidationHandler.java)
 
             [소스 생성 규칙 — 반드시 준수]
             1. buildFullCrudPrompt()가 제공한 플레이스홀더 값만 대입하세요.
@@ -63,8 +64,9 @@ public class CodeTemplateTool {
             case "jsplist"     -> jspListTemplate();
             case "jspdetail"   -> jspDetailTemplate();
             case "jspregist"   -> jspRegistTemplate();
-            case "jspupdt"     -> jspUpdtTemplate();
-            default -> "지원하지 않는 레이어입니다. 사용 가능: vo, controller, service, serviceImpl, mapper, mapperXml, jspList, jspDetail, jspRegist, jspUpdt";
+            case "jspupdt"           -> jspUpdtTemplate();
+            case "controlleradvice"  -> controllerAdviceTemplate();
+            default -> "지원하지 않는 레이어입니다. 사용 가능: vo, controller, service, serviceImpl, mapper, mapperXml, jspList, jspDetail, jspRegist, jspUpdt, controllerAdvice";
         };
     }
 
@@ -72,6 +74,7 @@ public class CodeTemplateTool {
         return """
                 package {{PACKAGE}}.service;
 
+                {{VALIDATION_IMPORT}}
                 import lombok.Getter;
                 import lombok.Setter;
                 import org.egovframe.rte.ptl.mvc.tags.ui.pagination.PaginationInfo;
@@ -113,9 +116,11 @@ public class CodeTemplateTool {
                 import lombok.RequiredArgsConstructor;
                 import org.springframework.stereotype.Controller;
                 import org.springframework.ui.ModelMap;
+                import org.springframework.validation.BindingResult;
                 import org.springframework.web.bind.annotation.ModelAttribute;
                 import org.springframework.web.bind.annotation.RequestMapping;
 
+                import jakarta.validation.Valid;
                 import java.util.List;
 
                 /**
@@ -186,9 +191,13 @@ public class CodeTemplateTool {
                      */
                     @RequestMapping("{{URL_PREFIX}}Regist.do")
                     public String insert{{DOMAIN}}(
-                            {{DOMAIN}}VO {{DOMAIN_LC}}VO,
+                            @ModelAttribute("{{DOMAIN_LC}}VO") @Valid {{DOMAIN}}VO {{DOMAIN_LC}}VO,
+                            BindingResult bindingResult,
                             ModelMap model) throws Exception {
 
+                        if (bindingResult.hasErrors()) {
+                            return "{{DOMAIN_LC}}/Egov{{DOMAIN}}Regist";
+                        }
                         {{DOMAIN_LC}}Service.insert{{DOMAIN}}({{DOMAIN_LC}}VO);
                         return "forward:{{URL_PREFIX}}List.do";
                     }
@@ -202,7 +211,7 @@ public class CodeTemplateTool {
                             ModelMap model) throws Exception {
 
                         {{DOMAIN}}VO vo = {{DOMAIN_LC}}Service.select{{DOMAIN}}(searchVO);
-                        model.addAttribute("result", vo);
+                        model.addAttribute("{{DOMAIN_LC}}VO", vo);
                         return "{{DOMAIN_LC}}/Egov{{DOMAIN}}Updt";
                     }
 
@@ -211,9 +220,13 @@ public class CodeTemplateTool {
                      */
                     @RequestMapping("{{URL_PREFIX}}Updt.do")
                     public String update{{DOMAIN}}(
-                            {{DOMAIN}}VO {{DOMAIN_LC}}VO,
+                            @ModelAttribute("{{DOMAIN_LC}}VO") @Valid {{DOMAIN}}VO {{DOMAIN_LC}}VO,
+                            BindingResult bindingResult,
                             ModelMap model) throws Exception {
 
+                        if (bindingResult.hasErrors()) {
+                            return "{{DOMAIN_LC}}/Egov{{DOMAIN}}Updt";
+                        }
                         {{DOMAIN_LC}}Service.update{{DOMAIN}}({{DOMAIN_LC}}VO);
                         return "forward:{{URL_PREFIX}}List.do";
                     }
@@ -472,20 +485,21 @@ public class CodeTemplateTool {
     private String jspRegistTemplate() {
         return """
                 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-                <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
-                <%
-                    String contextPath = request.getContextPath();
-                %>
+                <%@ taglib prefix="c"    uri="http://java.sun.com/jsp/jstl/core"%>
+                <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form"%>
                 <!DOCTYPE html>
                 <html>
                 <head>
                     <title>{{DOMAIN_KR}} 등록</title>
+                    <style>.error-msg { color: red; font-size: 0.85em; }</style>
                 </head>
                 <body>
                 <div class="container">
                     <h2>{{DOMAIN_KR}} 등록</h2>
 
-                    <form name="{{DOMAIN_LC}}Form" action="<c:url value='{{URL_PREFIX}}Regist.do'/>" method="post">
+                    <form:form modelAttribute="{{DOMAIN_LC}}VO"
+                               action="${pageContext.request.contextPath}{{URL_PREFIX}}Regist.do"
+                               method="post">
 
                         <table>
                             <tbody>
@@ -497,7 +511,7 @@ public class CodeTemplateTool {
                             <button type="submit">저장</button>
                             <a href="<c:url value='{{URL_PREFIX}}List.do'/>">취소</a>
                         </div>
-                    </form>
+                    </form:form>
                 </div>
                 </body>
                 </html>
@@ -507,21 +521,22 @@ public class CodeTemplateTool {
     private String jspUpdtTemplate() {
         return """
                 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-                <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
-                <%
-                    String contextPath = request.getContextPath();
-                %>
+                <%@ taglib prefix="c"    uri="http://java.sun.com/jsp/jstl/core"%>
+                <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form"%>
                 <!DOCTYPE html>
                 <html>
                 <head>
                     <title>{{DOMAIN_KR}} 수정</title>
+                    <style>.error-msg { color: red; font-size: 0.85em; }</style>
                 </head>
                 <body>
                 <div class="container">
                     <h2>{{DOMAIN_KR}} 수정</h2>
 
-                    <form name="{{DOMAIN_LC}}Form" action="<c:url value='{{URL_PREFIX}}Updt.do'/>" method="post">
-                        <input type="hidden" name="{{PK_FIELD}}" value="${result.{{PK_FIELD}}}"/>
+                    <form:form modelAttribute="{{DOMAIN_LC}}VO"
+                               action="${pageContext.request.contextPath}{{URL_PREFIX}}Updt.do"
+                               method="post">
+                        <form:hidden path="{{PK_FIELD}}"/>
 
                         <table>
                             <tbody>
@@ -531,9 +546,9 @@ public class CodeTemplateTool {
 
                         <div>
                             <button type="submit">저장</button>
-                            <a href="<c:url value='{{URL_PREFIX}}Detail.do'/>?{{PK_FIELD}}=${result.{{PK_FIELD}}}">취소</a>
+                            <a href="<c:url value='{{URL_PREFIX}}Detail.do'/>?{{PK_FIELD}}=${{{DOMAIN_LC}}VO.{{PK_FIELD}}}">취소</a>
                         </div>
-                    </form>
+                    </form:form>
                 </div>
                 </body>
                 </html>
@@ -619,6 +634,41 @@ public class CodeTemplateTool {
                     </sql>
 
                 </mapper>
+                """;
+    }
+
+    private String controllerAdviceTemplate() {
+        return """
+                package {{PACKAGE}}.web;
+
+                import org.springframework.validation.FieldError;
+                import org.springframework.web.bind.MethodArgumentNotValidException;
+                import org.springframework.web.bind.annotation.ControllerAdvice;
+                import org.springframework.web.bind.annotation.ExceptionHandler;
+                import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+                /**
+                 * {{DOMAIN_KR}} Validation 전역 예외 핸들러
+                 * BindingResult 없이 @Valid 검증 실패 시 HTTP 400 대신 에러 메시지와 함께 리다이렉트합니다.
+                 * @author Claude AI
+                 * @since {{DATE}}
+                 */
+                @ControllerAdvice(assignableTypes = Egov{{DOMAIN}}Controller.class)
+                public class Egov{{DOMAIN}}ValidationHandler {
+
+                    @ExceptionHandler(MethodArgumentNotValidException.class)
+                    public String handleValidationError(
+                            MethodArgumentNotValidException ex,
+                            RedirectAttributes redirectAttributes) {
+
+                        String message = ex.getBindingResult().getFieldErrors().stream()
+                            .map(FieldError::getDefaultMessage)
+                            .findFirst()
+                            .orElse("입력값을 확인하세요.");
+                        redirectAttributes.addFlashAttribute("errorMessage", message);
+                        return "redirect:/error";
+                    }
+                }
                 """;
     }
 }

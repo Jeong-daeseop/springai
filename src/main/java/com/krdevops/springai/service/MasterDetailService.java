@@ -83,19 +83,20 @@ public class MasterDetailService {
         sb.append("[마스터 VO 필드]\n").append(buildVoFields(masterCols)).append("\n");
         sb.append("[디테일 VO 필드]\n").append(buildVoFields(detailCols)).append("\n");
 
-        sb.append("[생성 파일 목록 — 12개]\n");
-        sb.append("  Step  1: ").append(domain).append("VO.java           ← 마스터 VO\n");
-        sb.append("  Step  2: ").append(detailDomain).append("VO.java       ← 디테일 VO\n");
-        sb.append("  Step  3: ").append(domain).append("Mapper.java        ← 마스터 Mapper 인터페이스\n");
-        sb.append("  Step  4: ").append(detailDomain).append("Mapper.java    ← 디테일 Mapper 인터페이스\n");
-        sb.append("  Step  5: ").append(domain).append("Mapper.xml         ← 마스터 SQL + 디테일 목록 쿼리\n");
-        sb.append("  Step  6: ").append(detailDomain).append("Mapper.xml     ← 디테일 CRUD SQL\n");
-        sb.append("  Step  7: ").append(domain).append("Service.java       ← 마스터 Service 인터페이스\n");
-        sb.append("  Step  8: Egov").append(domain).append("ServiceImpl.java ← 마스터+디테일 목록 조회\n");
-        sb.append("  Step  9: Egov").append(domain).append("Controller.java  ← 상세 진입 시 디테일 로드\n");
-        sb.append("  Step 10: Egov").append(domain).append("List.jsp         ← 마스터 목록\n");
-        sb.append("  Step 11: Egov").append(domain).append("Detail.jsp       ← 마스터 상세 + 디테일 그리드 탭\n");
-        sb.append("  Step 12: Egov").append(domain).append("Regist.jsp       ← 마스터 등록\n\n");
+        sb.append("[생성 파일 목록 — 13개]\n");
+        sb.append("  Step  1: ").append(domain).append("VO.java                    ← 마스터 VO\n");
+        sb.append("  Step  2: ").append(detailDomain).append("VO.java                ← 디테일 VO\n");
+        sb.append("  Step  3: ").append(domain).append("Mapper.java                ← 마스터 Mapper 인터페이스\n");
+        sb.append("  Step  4: ").append(detailDomain).append("Mapper.java            ← 디테일 Mapper 인터페이스\n");
+        sb.append("  Step  5: ").append(domain).append("Mapper.xml                 ← 마스터 SQL + 디테일 목록 쿼리\n");
+        sb.append("  Step  6: ").append(detailDomain).append("Mapper.xml             ← 디테일 CRUD SQL\n");
+        sb.append("  Step  7: ").append(domain).append("Service.java               ← 마스터 Service 인터페이스\n");
+        sb.append("  Step  8: Egov").append(domain).append("ServiceImpl.java        ← 마스터+디테일 목록 조회\n");
+        sb.append("  Step  9: Egov").append(domain).append("Controller.java         ← 상세 진입 시 디테일 로드\n");
+        sb.append("  Step 10: Egov").append(domain).append("ValidationHandler.java  ← Validation 전역 예외 핸들러\n");
+        sb.append("  Step 11: Egov").append(domain).append("List.jsp                ← 마스터 목록\n");
+        sb.append("  Step 12: Egov").append(domain).append("Detail.jsp              ← 마스터 상세 + 디테일 그리드 탭\n");
+        sb.append("  Step 13: Egov").append(domain).append("Regist.jsp              ← 마스터 등록\n\n");
 
         sb.append("[Step 5 — 마스터 Mapper XML 핵심 패턴]\n");
         sb.append("  <!-- 디테일 목록 조회 (마스터 PK로 조회) -->\n");
@@ -126,7 +127,7 @@ public class MasterDetailService {
         sb.append("      return \"").append(domainLc).append("/Egov").append(domain).append("Detail\";\n");
         sb.append("  }\n\n");
 
-        sb.append("[Step 11 — Detail JSP 디테일 그리드 탭 패턴]\n");
+        sb.append("[Step 12 — Detail JSP 디테일 그리드 탭 패턴]\n");
         sb.append("  <!-- 마스터 정보 섹션 -->\n");
         sb.append("  <div id=\"masterSection\">\n");
         sb.append("    <table>...마스터 필드...</table>\n");
@@ -150,7 +151,7 @@ public class MasterDetailService {
         sb.append("    </table>\n");
         sb.append("  </div>\n\n");
 
-        sb.append(promptBuilder.postGeneration(outputPath, masterTable + "+" + detailTable, domain, packageName, domainLc, "12개 파일"));
+        sb.append(promptBuilder.postGeneration(outputPath, masterTable + "+" + detailTable, domain, packageName, domainLc, "13개 파일"));
 
         log.info("마스터-디테일 프롬프트 빌드 완료: master={}, detail={}", masterTable, detailTable);
         return sb.toString();
@@ -277,7 +278,7 @@ public class MasterDetailService {
 
     private List<Map<String, Object>> fetchColumns(String database, String tableName) {
         return jdbcTemplate.queryForList(
-            "SELECT c.COLUMN_NAME, c.DATA_TYPE, c.IS_NULLABLE, c.COLUMN_COMMENT, " +
+            "SELECT c.COLUMN_NAME, c.DATA_TYPE, c.CHARACTER_MAXIMUM_LENGTH, c.IS_NULLABLE, c.COLUMN_COMMENT, " +
             "  CASE WHEN kcu.COLUMN_NAME IS NOT NULL THEN 'PRI' ELSE '' END AS COLUMN_KEY " +
             "FROM INFORMATION_SCHEMA.COLUMNS c " +
             "LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu " +
@@ -293,8 +294,19 @@ public class MasterDetailService {
         for (Map<String, Object> col : columns) {
             String field    = toCamelCase((String) col.get("COLUMN_NAME"));
             String javaType = toJavaType((String) col.get("DATA_TYPE"));
+            String nullable = (String) col.get("IS_NULLABLE");
+            Object maxLen   = col.get("CHARACTER_MAXIMUM_LENGTH");
             String comment  = col.get("COLUMN_COMMENT") != null ? (String) col.get("COLUMN_COMMENT") : "";
+            boolean isPk    = "PRI".equals(col.get("COLUMN_KEY"));
+
             if (!comment.isBlank()) sb.append("  // ").append(comment).append("\n");
+
+            if (!isPk && "NO".equals(nullable)) {
+                sb.append("  @").append("String".equals(javaType) ? "NotBlank" : "NotNull").append("\n");
+            }
+            if (!isPk && maxLen != null && "String".equals(javaType)) {
+                sb.append("  @Size(max = ").append(maxLen).append(")\n");
+            }
             sb.append("  private ").append(javaType).append(" ").append(field).append(";\n");
         }
         return sb.toString();

@@ -52,7 +52,8 @@ public class EgovPromptBuilder {
         return "[소스 생성 제약 — 필수 준수]\n" +
                "  - 각 레이어는 반드시 getCodeTemplate(layer)가 반환한 템플릿을 기반으로 생성하세요.\n" +
                "  - 위 [플레이스홀더 치환 규칙]의 값을 정확히 대입하고 임의 해석하지 마세요.\n" +
-               "  - 템플릿 구조·어노테이션·상속·import를 변경하지 마세요.\n" +
+               "  - 템플릿 구조·어노테이션·상속을 변경하지 마세요.\n" +
+               "  - import는 템플릿에 명시된 항목만 사용하세요. 단, {{VALIDATION_IMPORT}} 플레이스홀더 치환값(javax/jakarta validation)은 그대로 유지하세요.\n" +
                "  - 플레이스홀더 외 메서드·주석·필드 추가·삭제 금지.\n" +
                "  - {{DOMAIN_KR}} 등 한국어 값은 위 규칙에 명시된 값만 사용하세요.\n\n";
     }
