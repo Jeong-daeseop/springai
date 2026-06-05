@@ -7,6 +7,8 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -17,11 +19,15 @@ import java.util.stream.Collectors;
 public class EgovCompressionQueryTransformer {
 
     private final ChatMemory chatMemory;
-    private final ChatClient chatClient;
+    private final ChatClient ollamaChatClient;
 
-    public EgovCompressionQueryTransformer(ChatMemory chatMemory, ChatClient chatClient) {
+    @Value("${rag.compression.model:qwen3:1.5b}")
+    private String compressionModel;
+
+    public EgovCompressionQueryTransformer(ChatMemory chatMemory,
+                                           @Qualifier("ollamaChatClient") ChatClient ollamaChatClient) {
         this.chatMemory = chatMemory;
-        this.chatClient = chatClient;
+        this.ollamaChatClient = ollamaChatClient;
     }
 
     /**
@@ -77,9 +83,9 @@ public class EgovCompressionQueryTransformer {
             Rewritten Question:""";
 
         try {
-            String compressed = chatClient.prompt()
+            String compressed = ollamaChatClient.prompt()
                 .user(prompt)
-                .options(ChatOptions.builder().temperature(0.0))
+                .options(ChatOptions.builder().model(compressionModel).temperature(0.0))
                 .call()
                 .content();
 

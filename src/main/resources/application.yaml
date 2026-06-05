@@ -13,7 +13,7 @@ spring:
         transport: sse
         keep-alive-interval: 30s   # SSE 연결 유지 — 30초마다 ping 전송
     openai:
-      api-key: ${OPENAI_API_KEY:disabled}
+      api-key: ${OPENAI_API_KEY}
       chat:
         options:
           model: gpt-4o-mini
@@ -38,9 +38,9 @@ spring:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
       chat:
         options:
-          model: ${OLLAMA_MODEL:mistral}
+          model: ${OLLAMA_MODEL:qwen3:8b}
           num-predict: 2048         # 최대 생성 토큰 수
-          num-ctx: 4096             # 컨텍스트 윈도우 — 한국어 처리 품질 향상
+          num-ctx: 8192             # 컨텍스트 윈도우 — ChatMemory(8) + RAG + Schema 합산 수용
           temperature: 0.0          # 소스 생성 일관성 — 완전 결정적 출력
       # embedding 블록 제거 — ONNX Transformers로 대체
     vectorstore:
@@ -48,12 +48,16 @@ spring:
         uri: ${REDIS_URI:redis://localhost:6379}
         index: ${REDIS_INDEX:egov-rag}
         prefix: ${REDIS_PREFIX:egov:}
-        initialize-schema: false   # VectorStoreConfig에서 직접 초기화
+        initialize-schema: true    # VectorStoreConfig.initializeSchema(true)와 일치
   datasource:
     url: jdbc:mysql://localhost:3306/com?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
     username: com
     password: com01
     driver-class-name: com.mysql.cj.jdbc.Driver
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
   mvc:
     async:
       request-timeout: -1           # SSE async 요청 timeout 비활성화
@@ -65,17 +69,19 @@ server:
 
 rag:
   similarity:
-    threshold: 0.70
-  top-k: 3
+    threshold: 0.30       # pdfplumber 변환 기준 적정값
+  top-k: 10              # 검색 범위 확대
   enable-query-compression: true
+  compression:
+    model: qwen3:1.7b     # 쿼리 압축 전용 경량 모델 (항상 Ollama 로컬 처리)
 
 chat:
   memory:
-    max-messages: 20
+    max-messages: 8       # 20 → 8: 토큰 예산 확보 (num-ctx 8192 기준)
 
 app:
   api-key: ${APP_API_KEY:local-dev-key}
-  document-path: ${APP_DOCUMENT_PATH:${user.home}/Downloads/egovframe-docs-main}
+  document-paths: /Users/EGOVEDU/eGovFrame-5.0.0/md
 
 egov:
   output:

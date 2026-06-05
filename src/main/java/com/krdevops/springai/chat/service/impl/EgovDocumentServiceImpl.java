@@ -2,10 +2,18 @@ package com.krdevops.springai.chat.service.impl;
 
 import com.krdevops.springai.chat.response.DocumentStatusResponse;
 import com.krdevops.springai.chat.service.EgovDocumentService;
+import com.krdevops.springai.chat.util.EgovDocumentHashUtil;
 import com.krdevops.springai.service.RagService;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.reader.pdf.PagePdfDocumentReader;
+import com.krdevops.springai.config.AppProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -19,17 +27,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
 @Service
 public class EgovDocumentServiceImpl implements EgovDocumentService {
 
-    @Value("${app.document-path:${user.home}/documents/egovframe-docs-main}")
-    private String documentPath;
+    private static final String HASH_KEY_PREFIX = "chat:hash:";
 
     private final RagService ragService;
     private final Executor documentProcessingExecutor;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final AppProperties appProperties;
 
     private final AtomicBoolean isProcessing = new AtomicBoolean(false);
     private final AtomicInteger processedCount = new AtomicInteger(0);
@@ -37,9 +47,13 @@ public class EgovDocumentServiceImpl implements EgovDocumentService {
     private final AtomicInteger changedCount = new AtomicInteger(0);
 
     public EgovDocumentServiceImpl(RagService ragService,
-                                   @Qualifier("documentProcessingExecutor") Executor documentProcessingExecutor) {
+                                   @Qualifier("documentProcessingExecutor") Executor documentProcessingExecutor,
+                                   RedisTemplate<String, Object> redisTemplate,
+                                   AppProperties appProperties) {
         this.ragService = ragService;
         this.documentProcessingExecutor = documentProcessingExecutor;
+        this.redisTemplate = redisTemplate;
+        this.appProperties = appProperties;
     }
 
     @Override
@@ -67,36 +81,52 @@ public class EgovDocumentServiceImpl implements EgovDocumentService {
         changedCount.set(0);
 
         return CompletableFuture.supplyAsync(() -> {
-            Path dir = Paths.get(documentPath);
-            if (!Files.exists(dir)) {
-                log.warn("문서 디렉터리 없음: {}", documentPath);
-                return 0;
+            // docId = baseDir 상대 경로로 계산 → 서로 다른 디렉터리의 동일 파일명 충돌 방지
+            Map<String, Path> docFileMap = new LinkedHashMap<>();
+            for (String pathStr : appProperties.getDocumentPaths()) {
+                Path dir = Paths.get(pathStr);
+                if (!Files.exists(dir)) {
+                    log.warn("문서 디렉터리 없음: {}", pathStr);
+                    continue;
+                }
+                try (Stream<Path> stream = Files.walk(dir)) {
+                    stream.filter(Files::isRegularFile)
+                          .filter(p -> p.toString().endsWith(".md") || p.toString().endsWith(".pdf"))
+                          .forEach(file -> {
+                              String docId = dir.relativize(file).toString().replace(File.separator, "_");
+                              docFileMap.put(docId, file);
+                          });
+                } catch (IOException e) {
+                    log.error("문서 디렉터리 스캔 실패: {}", pathStr, e);
+                }
             }
 
-            List<Path> mdFiles;
-            try (Stream<Path> stream = Files.walk(dir)) {
-                mdFiles = stream
-                    .filter(Files::isRegularFile)
-                    .filter(p -> p.toString().endsWith(".md"))
-                    .toList();
-            } catch (IOException e) {
-                log.error("문서 디렉터리 스캔 실패: {}", documentPath, e);
-                return 0;
-            }
-
-            totalCount.set(mdFiles.size());
-            log.info("인덱싱 시작 — 파일 {}개: {}", mdFiles.size(), documentPath);
+            totalCount.set(docFileMap.size());
+            log.info("인덱싱 시작 — 파일 {}개 (경로 {}개)", docFileMap.size(), appProperties.getDocumentPaths().size());
 
             int ingested = 0;
-            for (Path file : mdFiles) {
+            for (Map.Entry<String, Path> entry : docFileMap.entrySet()) {
+                String docId = entry.getKey();
+                Path file = entry.getValue();
                 try {
-                    String content = Files.readString(file);
-                    String docId = file.getFileName().toString();
+                    String content = extractContent(file);
+
+                    String newHash = EgovDocumentHashUtil.calculateHash(content);
+                    String hashKey = HASH_KEY_PREFIX + docId;
+                    Object savedHash = redisTemplate.opsForValue().get(hashKey);
+
+                    if (newHash.equals(savedHash)) {
+                        log.debug("변경 없음 — 스킵: {}", docId);
+                        processedCount.incrementAndGet();
+                        continue;
+                    }
+
                     ragService.ingestText(docId, content, "document");
+                    redisTemplate.opsForValue().set(hashKey, newHash);
                     processedCount.incrementAndGet();
                     changedCount.incrementAndGet();
                     ingested++;
-                    log.debug("임베딩 완료: {}", docId);
+                    log.debug("임베딩 완료 (변경 감지): {}", docId);
                 } catch (IOException e) {
                     log.error("파일 읽기 실패: {}", file, e);
                 } catch (Exception e) {
@@ -115,7 +145,7 @@ public class EgovDocumentServiceImpl implements EgovDocumentService {
     }
 
     @Override
-    public Map<String, Object> uploadMarkdownFiles(MultipartFile[] files) {
+    public Map<String, Object> uploadDocumentFiles(MultipartFile[] files) {
         Map<String, Object> result = new HashMap<>();
         if (files == null || files.length == 0) {
             result.put("success", false);
@@ -128,15 +158,16 @@ public class EgovDocumentServiceImpl implements EgovDocumentService {
             return result;
         }
 
-        File dir = new File(documentPath);
+        File dir = new File(appProperties.getDocumentPaths().get(0));
         if (!dir.exists()) dir.mkdirs();
 
         int uploaded = 0;
         for (MultipartFile file : files) {
             String originalFilename = file.getOriginalFilename();
-            if (originalFilename == null || !originalFilename.endsWith(".md")) {
+            if (originalFilename == null
+                    || (!originalFilename.endsWith(".md") && !originalFilename.endsWith(".pdf"))) {
                 result.put("success", false);
-                result.put("message", "마크다운(.md) 파일만 업로드 가능합니다.");
+                result.put("message", "마크다운(.md) 또는 PDF(.pdf) 파일만 업로드 가능합니다.");
                 return result;
             }
             String filename = Paths.get(originalFilename).getFileName().toString();
@@ -159,6 +190,24 @@ public class EgovDocumentServiceImpl implements EgovDocumentService {
         result.put("success", true);
         result.put("uploaded", uploaded);
         return result;
+    }
+
+    private String extractContent(Path file) throws IOException {
+        if (file.toString().endsWith(".pdf")) {
+            try {
+                PagePdfDocumentReader reader = new PagePdfDocumentReader(new FileSystemResource(file));
+                return reader.get().stream()
+                        .map(Document::getText)
+                        .collect(Collectors.joining("\n"));
+            } catch (Exception e) {
+                // ForkPDFLayoutTextStripper 레이아웃 파싱 실패 시 PDFBox 직접 추출로 폴백
+                log.warn("레이아웃 파싱 실패, PDFBox 단순 추출로 폴백: {}", file.getFileName());
+                try (PDDocument doc = Loader.loadPDF(file.toFile())) {
+                    return new PDFTextStripper().getText(doc);
+                }
+            }
+        }
+        return Files.readString(file);
     }
 
     @Override

@@ -1,8 +1,8 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.config.EgovProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Paths;
@@ -19,9 +19,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class OutputPathResolverService {
 
-    @Value("${egov.output.base-path:${user.home}/Desktop/egov-generated}")
-    private String basePath;
-
+    private final EgovProperties egovProperties;
     private final ProjectScannerService projectScannerService;
 
     // ── 3순위: 기본 경로 ──────────────────────────────────────────────────────
@@ -34,7 +32,7 @@ public class OutputPathResolverService {
      */
     public String resolveDefault(String domain) {
         String domainLc = toLowerFirst(domain);
-        String path = basePath + "/" + domainLc;
+        String path = egovProperties.getOutput().getBasePath() + "/" + domainLc;
         log.info("기본 출력 경로: {}", path);
         return path;
     }

@@ -4,7 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -21,10 +21,10 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
-    @Value("${app.api-key}")
-    private String apiKey;
+    private final AppProperties appProperties;
 
     /**
      * /api/** 경로는 X-API-Key 헤더 검증.
@@ -65,7 +65,7 @@ public class SecurityConfig {
                 }
 
                 String key = request.getHeader("X-API-Key");
-                if (apiKey.equals(key)) {
+                if (appProperties.getApiKey().equals(key)) {
                     // SecurityContext에 인증 정보 등록 → .authenticated() 통과
                     UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken("api-key-user", null, List.of());
