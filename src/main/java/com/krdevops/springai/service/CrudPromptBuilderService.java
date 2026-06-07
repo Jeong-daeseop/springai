@@ -18,21 +18,84 @@ public class CrudPromptBuilderService {
     private final CommonCodeService commonCodeService;
     private final EgovPromptBuilder promptBuilder;
 
-    public String buildFullCrudPrompt(String database, String tableName,
-                                      String domain, String packageName, String outputPath) {
-        return buildFullCrudPrompt(database, tableName, domain, packageName, outputPath, "5.0");
+    /**
+     * 플레이스홀더 치환에 필요한 모든 값을 담는 레코드.
+     * auto 모드에서 CodeService.generateSource() 호출 시 재사용합니다.
+     */
+    public record PlaceholderValues(
+        String packageName,
+        String domain,
+        String domainLc,
+        String domainKr,
+        String tableName,
+        String pkField,
+        String pkColumn,
+        String pkType,
+        String urlPrefix,
+        String date,
+        String validationImport,
+        String voFields,
+        String mapperColumns,
+        String insertColumns,
+        String insertValues,
+        String updateSet,
+        String resultMapFields,
+        String jspListTh,
+        String jspListTd,
+        String jspDetailRows,
+        String jspFormInputs
+    ) {
+        /** Map 형태로 변환 — CodeService.generateSource(layer, values) 에 그대로 전달합니다. */
+        public Map<String, String> toMap() {
+            Map<String, String> map = new LinkedHashMap<>();
+            map.put("PACKAGE",            packageName);
+            map.put("DOMAIN",             domain);
+            map.put("DOMAIN_LC",          domainLc);
+            map.put("DOMAIN_KR",          domainKr);
+            map.put("TABLE_NAME",         tableName);
+            map.put("PK_FIELD",           pkField);
+            map.put("PK_COLUMN",          pkColumn);
+            map.put("PK_TYPE",            pkType);
+            map.put("URL_PREFIX",         urlPrefix);
+            map.put("DATE",               date);
+            map.put("VALIDATION_IMPORT",  validationImport);
+            map.put("VO_FIELDS",          voFields);
+            map.put("MAPPER_COLUMNS",     mapperColumns);
+            map.put("INSERT_COLUMNS",     insertColumns);
+            map.put("INSERT_VALUES",      insertValues);
+            map.put("UPDATE_SET",         updateSet);
+            map.put("RESULT_MAP_FIELDS",  resultMapFields);
+            map.put("JSP_LIST_TH",        jspListTh);
+            map.put("JSP_LIST_TD",        jspListTd);
+            map.put("JSP_DETAIL_ROWS",    jspDetailRows);
+            map.put("JSP_FORM_INPUTS",    jspFormInputs);
+            return map;
+        }
     }
 
-    public String buildFullCrudPrompt(String database, String tableName,
-                                      String domain, String packageName, String outputPath,
-                                      String egovVersion) {
-        // 1. 컬럼 정보 조회
-        List<Map<String, Object>> columns = fetchColumns(database, tableName);
-        if (columns.isEmpty()) {
-            return "테이블을 찾을 수 없습니다: " + database + "." + tableName;
-        }
+    /**
+     * DB 스키마 정보를 조회하여 플레이스홀더 값을 계산합니다.
+     * buildFullCrudPrompt()와 auto 모드 오케스트레이션이 공통으로 사용합니다.
+     *
+     * @return 모든 플레이스홀더가 채워진 PlaceholderValues, 테이블 미존재 시 null
+     */
+    public PlaceholderValues buildPlaceholderValues(String database, String tableName,
+                                                    String domain, String packageName,
+                                                    String outputPath) {
+        return buildPlaceholderValues(database, tableName, domain, packageName, outputPath, "5.0");
+    }
 
-        // 2. PK 탐지
+    /**
+     * egovVersion을 지정하여 플레이스홀더 값을 계산합니다.
+     */
+    public PlaceholderValues buildPlaceholderValues(String database, String tableName,
+                                                    String domain, String packageName,
+                                                    String outputPath, String egovVersion) {
+        // 컬럼 정보 조회
+        List<Map<String, Object>> columns = fetchColumns(database, tableName);
+        if (columns.isEmpty()) return null;
+
+        // PK 탐지
         Map<String, Object> pkCol = columns.stream()
             .filter(c -> "PRI".equals(c.get("COLUMN_KEY")))
             .findFirst()
@@ -42,11 +105,10 @@ public class CrudPromptBuilderService {
         String pkField   = toCamelCase(pkColumn);
         String pkType    = toJavaType((String) pkCol.get("DATA_TYPE"));
 
-        // 3. 플레이스홀더 값 생성
-        String domainLc    = domain.substring(0, 1).toLowerCase() + domain.substring(1);
-        String domainKr    = extractKoreanName(tableName);
-        String urlPrefix   = "/" + packageName.replace("egovframework.let.", "").replace(".", "/") + "/" + domainLc;
-        String date        = LocalDate.now().toString();
+        String domainLc  = domain.substring(0, 1).toLowerCase() + domain.substring(1);
+        String domainKr  = extractKoreanName(tableName);
+        String urlPrefix = "/" + packageName.replace("egovframework.let.", "").replace(".", "/") + "/" + domainLc;
+        String date      = LocalDate.now().toString();
 
         boolean isJakarta = egovVersion != null
             && (egovVersion.startsWith("5") || "latest".equalsIgnoreCase(egovVersion));
@@ -54,52 +116,81 @@ public class CrudPromptBuilderService {
             ? "import jakarta.validation.constraints.NotBlank;\nimport jakarta.validation.constraints.NotNull;\nimport jakarta.validation.constraints.Size;"
             : "import javax.validation.constraints.NotBlank;\nimport javax.validation.constraints.NotNull;\nimport javax.validation.constraints.Size;";
 
-        String voFields        = buildVoFields(columns);
-        String mapperColumns   = buildMapperColumns(columns);
-        String insertColumns   = buildInsertColumns(columns);
-        String insertValues    = buildInsertValues(columns);
-        String updateSet       = buildUpdateSet(columns, pkColumn);
-        String resultMapFields = buildResultMapFields(columns, packageName, domain);
-        String jspListTh       = buildJspListTh(columns);
-        String jspListTd       = buildJspListTd(columns, pkField);
-        String jspDetailRows   = buildJspDetailRows(columns);
-        String jspFormInputs   = buildJspFormInputs(columns, pkColumn);
+        return new PlaceholderValues(
+            packageName,
+            domain,
+            domainLc,
+            domainKr,
+            tableName,
+            pkField,
+            pkColumn,
+            pkType,
+            urlPrefix,
+            date,
+            validationImport,
+            buildVoFields(columns),
+            buildMapperColumns(columns),
+            buildInsertColumns(columns),
+            buildInsertValues(columns),
+            buildUpdateSet(columns, pkColumn),
+            buildResultMapFields(columns, packageName, domain),
+            buildJspListTh(columns),
+            buildJspListTd(columns, pkField),
+            buildJspDetailRows(columns),
+            buildJspFormInputs(columns, pkColumn)
+        );
+    }
 
-        // 4. 공통 코드 컬럼 탐지 및 조회
+    public String buildFullCrudPrompt(String database, String tableName,
+                                      String domain, String packageName, String outputPath) {
+        return buildFullCrudPrompt(database, tableName, domain, packageName, outputPath, "5.0");
+    }
+
+    public String buildFullCrudPrompt(String database, String tableName,
+                                      String domain, String packageName, String outputPath,
+                                      String egovVersion) {
+        // 1. 플레이스홀더 값 계산 (공통 메서드 재사용)
+        PlaceholderValues pv = buildPlaceholderValues(database, tableName, domain, packageName, outputPath, egovVersion);
+        if (pv == null) {
+            return "테이블을 찾을 수 없습니다: " + database + "." + tableName;
+        }
+
+        // 2. 공통 코드 컬럼 탐지 및 조회
+        List<Map<String, Object>> columns = fetchColumns(database, tableName);
         String commonCodeSection = buildCommonCodeSection(columns);
 
-        // 5. 통합 프롬프트 조립
+        // 3. 통합 프롬프트 조립
         StringBuilder sb = new StringBuilder();
         sb.append("=== eGovFrame 5.x CRUD 전체 소스 생성 지시 ===\n\n");
 
         sb.append("[테이블 정보]\n");
         sb.append("  DB        : ").append(database).append("\n");
-        sb.append("  테이블    : ").append(tableName).append("\n");
-        sb.append("  PK 컬럼   : ").append(pkColumn).append(" (").append(pkType).append(")\n\n");
+        sb.append("  테이블    : ").append(pv.tableName()).append("\n");
+        sb.append("  PK 컬럼   : ").append(pv.pkColumn()).append(" (").append(pv.pkType()).append(")\n\n");
 
         sb.append("[플레이스홀더 치환 규칙]\n");
-        sb.append("  {{VALIDATION_IMPORT}} = ").append(validationImport).append("\n");
-        sb.append("  {{PACKAGE}}           = ").append(packageName).append("\n");
-        sb.append("  {{DOMAIN}}            = ").append(domain).append("\n");
-        sb.append("  {{DOMAIN_LC}}         = ").append(domainLc).append("\n");
-        sb.append("  {{DOMAIN_KR}}         = ").append(domainKr).append("\n");
-        sb.append("  {{TABLE_NAME}}        = ").append(tableName).append("\n");
-        sb.append("  {{PK_FIELD}}          = ").append(pkField).append("\n");
-        sb.append("  {{PK_COLUMN}}         = ").append(pkColumn).append("\n");
-        sb.append("  {{PK_TYPE}}           = ").append(pkType).append("\n");
-        sb.append("  {{URL_PREFIX}}        = ").append(urlPrefix).append("\n");
-        sb.append("  {{DATE}}              = ").append(date).append("\n\n");
+        sb.append("  {{VALIDATION_IMPORT}} = ").append(pv.validationImport()).append("\n");
+        sb.append("  {{PACKAGE}}           = ").append(pv.packageName()).append("\n");
+        sb.append("  {{DOMAIN}}            = ").append(pv.domain()).append("\n");
+        sb.append("  {{DOMAIN_LC}}         = ").append(pv.domainLc()).append("\n");
+        sb.append("  {{DOMAIN_KR}}         = ").append(pv.domainKr()).append("\n");
+        sb.append("  {{TABLE_NAME}}        = ").append(pv.tableName()).append("\n");
+        sb.append("  {{PK_FIELD}}          = ").append(pv.pkField()).append("\n");
+        sb.append("  {{PK_COLUMN}}         = ").append(pv.pkColumn()).append("\n");
+        sb.append("  {{PK_TYPE}}           = ").append(pv.pkType()).append("\n");
+        sb.append("  {{URL_PREFIX}}        = ").append(pv.urlPrefix()).append("\n");
+        sb.append("  {{DATE}}              = ").append(pv.date()).append("\n\n");
 
-        sb.append("  {{VO_FIELDS}}\n").append(voFields).append("\n");
-        sb.append("  {{MAPPER_COLUMNS}}    = ").append(mapperColumns).append("\n");
-        sb.append("  {{INSERT_COLUMNS}}    = ").append(insertColumns).append("\n");
-        sb.append("  {{INSERT_VALUES}}     = ").append(insertValues).append("\n");
-        sb.append("  {{UPDATE_SET}}\n").append(updateSet).append("\n");
-        sb.append("  {{RESULT_MAP_FIELDS}}\n").append(resultMapFields).append("\n");
-        sb.append("  {{JSP_LIST_TH}}\n").append(jspListTh).append("\n");
-        sb.append("  {{JSP_LIST_TD}}\n").append(jspListTd).append("\n");
-        sb.append("  {{JSP_DETAIL_ROWS}}\n").append(jspDetailRows).append("\n");
-        sb.append("  {{JSP_FORM_INPUTS}}\n").append(jspFormInputs).append("\n");
+        sb.append("  {{VO_FIELDS}}\n").append(pv.voFields()).append("\n");
+        sb.append("  {{MAPPER_COLUMNS}}    = ").append(pv.mapperColumns()).append("\n");
+        sb.append("  {{INSERT_COLUMNS}}    = ").append(pv.insertColumns()).append("\n");
+        sb.append("  {{INSERT_VALUES}}     = ").append(pv.insertValues()).append("\n");
+        sb.append("  {{UPDATE_SET}}\n").append(pv.updateSet()).append("\n");
+        sb.append("  {{RESULT_MAP_FIELDS}}\n").append(pv.resultMapFields()).append("\n");
+        sb.append("  {{JSP_LIST_TH}}\n").append(pv.jspListTh()).append("\n");
+        sb.append("  {{JSP_LIST_TD}}\n").append(pv.jspListTd()).append("\n");
+        sb.append("  {{JSP_DETAIL_ROWS}}\n").append(pv.jspDetailRows()).append("\n");
+        sb.append("  {{JSP_FORM_INPUTS}}\n").append(pv.jspFormInputs()).append("\n");
 
         if (!commonCodeSection.isEmpty()) {
             sb.append("[공통 코드 참조]\n").append(commonCodeSection).append("\n");
@@ -113,24 +204,24 @@ public class CrudPromptBuilderService {
         sb.append("출력 경로: ").append(outputPath).append("\n\n");
 
         String[][] layers = {
-            {"vo",               domain + "VO.java"},
-            {"mapper",           domain + "Mapper.java"},
-            {"mapperXml",        domain + "Mapper.xml"},
-            {"service",          domain + "Service.java"},
-            {"serviceImpl",      "Egov" + domain + "ServiceImpl.java"},
-            {"controller",       "Egov" + domain + "Controller.java"},
-            {"controlleradvice", "Egov" + domain + "ValidationHandler.java"},
-            {"jspList",          "Egov" + domain + "List.jsp"},
-            {"jspDetail",        "Egov" + domain + "Detail.jsp"},
-            {"jspRegist",        "Egov" + domain + "Regist.jsp"},
-            {"jspUpdt",          "Egov" + domain + "Updt.jsp"},
+            {"vo",               pv.domain() + "VO.java"},
+            {"mapper",           pv.domain() + "Mapper.java"},
+            {"mapperXml",        pv.domain() + "Mapper.xml"},
+            {"service",          pv.domain() + "Service.java"},
+            {"serviceImpl",      "Egov" + pv.domain() + "ServiceImpl.java"},
+            {"controller",       "Egov" + pv.domain() + "Controller.java"},
+            {"controlleradvice", "Egov" + pv.domain() + "ValidationHandler.java"},
+            {"jspList",          "Egov" + pv.domain() + "List.jsp"},
+            {"jspDetail",        "Egov" + pv.domain() + "Detail.jsp"},
+            {"jspRegist",        "Egov" + pv.domain() + "Regist.jsp"},
+            {"jspUpdt",          "Egov" + pv.domain() + "Updt.jsp"},
         };
         for (int i = 0; i < layers.length; i++) {
             sb.append(String.format("  Step %2d: getCodeTemplate(\"%s\") → %s\n",
                 i + 1, layers[i][0], layers[i][1]));
         }
 
-        sb.append("\n").append(promptBuilder.postGeneration(outputPath, tableName, domain, packageName, domainLc, "11개 파일"));
+        sb.append("\n").append(promptBuilder.postGeneration(outputPath, tableName, domain, packageName, pv.domainLc(), "11개 파일"));
 
         log.info("CRUD 프롬프트 빌드 완료: table={}, domain={}", tableName, domain);
         return sb.toString();
@@ -241,7 +332,7 @@ public class CrudPromptBuilderService {
         StringBuilder sb = new StringBuilder();
         for (Map<String, Object> col : columns) {
             String field = toCamelCase((String) col.get("COLUMN_NAME"));
-            sb.append("                                <td>${item.").append(field).append("}</td>\n");
+            sb.append("                                <td><c:out value=\"${item.").append(field).append("}\"/></td>\n");
         }
         return sb.toString();
     }

@@ -14,7 +14,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/documents")
 @RequiredArgsConstructor
-@CrossOrigin
+@CrossOrigin(origins = "${app.allowed-origins:http://localhost:8080}")
 public class EgovDocumentController {
 
     private final EgovDocumentService egovDocumentService;
@@ -30,9 +30,9 @@ public class EgovDocumentController {
     }
 
     @PostMapping("/upload")
-    public ResponseEntity<Map<String, Object>> uploadMarkdownFiles(
+    public ResponseEntity<Map<String, Object>> uploadDocumentFiles(
             @RequestParam("files") MultipartFile[] files) {
-        Map<String, Object> result = egovDocumentService.uploadMarkdownFiles(files);
+        Map<String, Object> result = egovDocumentService.uploadDocumentFiles(files);
         return Boolean.TRUE.equals(result.get("success"))
             ? ResponseEntity.ok(result)
             : ResponseEntity.badRequest().body(result);

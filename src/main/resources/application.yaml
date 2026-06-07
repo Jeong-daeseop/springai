@@ -51,8 +51,8 @@ spring:
         initialize-schema: true    # VectorStoreConfig.initializeSchema(true)와 일치
   datasource:
     url: jdbc:mysql://localhost:3306/com?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
-    username: com
-    password: com01
+    username: ${DB_USERNAME:com}
+    password: ${DB_PASSWORD:com01}
     driver-class-name: com.mysql.cj.jdbc.Driver
   servlet:
     multipart:
@@ -82,8 +82,8 @@ chat:
 app:
   api-key: ${APP_API_KEY}
   openai-models:
-    - gpt-5.4-mini
-    - gpt-5.4
+    - gpt-4o-mini
+    - gpt-4o
   document-paths:
     - /Users/EGOVEDU/eGovFrame-5.0.0/md
     - /Users/EGOVEDU/eGovFrame-5.0.0/docs

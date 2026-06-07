@@ -73,7 +73,7 @@ public class SecurityConfig {
                 }
 
                 String key = request.getHeader("X-API-Key");
-                if (appProperties.getApiKey().equals(key)) {
+                if (key != null && key.equals(appProperties.getApiKey())) {
                     // SecurityContext에 인증 정보 등록 → .authenticated() 통과
                     UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken("api-key-user", null, List.of());

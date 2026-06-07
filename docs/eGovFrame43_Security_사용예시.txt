@@ -1,0 +1,150 @@
+================================================================
+eGovFrame 4.3 Security 사용 예시
+================================================================
+
+----------------------------------------------------------------
+방식 A — XML 방식 (공공 SI 레거시 표준)
+----------------------------------------------------------------
+
+[생성 호출 순서]
+
+1) getSecurityTemplate("webxmlfilter", "egovframework.let.emp", "4.3")
+   → web.xml 에 붙여넣을 DelegatingFilterProxy 필터 블록 반환
+
+2) getSecurityTemplate("contextsecurity", "egovframework.let.emp", "4.3")
+   → egovframework/spring/context-security.xml 전체 파일 반환
+
+3) getSecurityTemplate("userdetailsservice", "egovframework.let.emp", "4.3")
+   → egovframework/let/emp/service/EgovUserDetailsServiceImpl.java 반환
+
+4) getSecurityTemplate("rolehierarchy", "egovframework.let.emp", "4.3")
+   → egovframework/let/emp/config/EgovRoleHierarchyConfig.java 반환
+
+5) getSecurityTemplate("loginpage", "egovframework.let.emp", "4.3")
+   → egovLoginUsr.jsp 반환
+
+[적용 후 수동 작업]
+  - web.xml 기존 contextConfigLocation <param-value>에 경로 추가
+      classpath*:egovframework/spring/context-security.xml
+  - context-security.xml 의 roleHierarchy 빈을 EgovRoleHierarchyConfig 참조로 교체 (선택)
+
+[방식 A에서 불필요한 securityType]
+  - successhandler / failurehandler
+      contextSecurity43 XML 이 eGovFrame RTE 제공 핸들러 클래스를 직접 참조하므로
+      별도 파일 생성 불필요
+  - accessdeniedhandler
+      동일 이유로 불필요
+
+
+----------------------------------------------------------------
+방식 B — Java Config 방식 (신규 / 5.0 마이그레이션 대비)
+----------------------------------------------------------------
+
+[생성 호출 순서]
+
+1) getSecurityTemplate("javaconfig", "egovframework.let.emp", "4.3")
+   → egovframework/let/emp/config/EgovSecurityConfig.java 반환
+     (WebSecurityConfigurerAdapter 상속 방식)
+
+2) getSecurityTemplate("userdetailsservice", "egovframework.let.emp", "4.3")
+   → egovframework/let/emp/service/EgovUserDetailsServiceImpl.java 반환
+
+3) getSecurityTemplate("rolehierarchy", "egovframework.let.emp", "4.3")
+   → egovframework/let/emp/config/EgovRoleHierarchyConfig.java 반환
+
+4) getSecurityTemplate("successhandler", "egovframework.let.emp", "4.3")
+   → egovframework/let/emp/security/EgovAuthenticationSuccessHandler.java 반환 (javax)
+
+5) getSecurityTemplate("failurehandler", "egovframework.let.emp", "4.3")
+   → egovframework/let/emp/security/EgovAuthenticationFailureHandler.java 반환 (javax)
+
+6) getSecurityTemplate("accessdeniedhandler", "egovframework.let.emp", "4.3")
+   → egovframework/let/emp/security/EgovAccessDeniedHandler.java 반환 (javax)
+
+7) getSecurityTemplate("loginpage", "egovframework.let.emp", "4.3")
+   → egovLoginUsr.jsp 반환
+
+[방식 B 추가 필요 작업]
+  EgovReloadableFilterInvocationSecurityMetadataSource 빈을
+  개발자가 직접 @Bean 으로 등록해야 한다.
+  현재 어떤 securityType 템플릿도 이 빈을 생성하지 않음.
+  (XML 방식에서는 context-security.xml 이 자동 처리)
+
+  등록 예시 (EgovSecurityConfig 또는 별도 Config 클래스에 추가):
+
+    @Bean
+    public FilterInvocationSecurityMetadataSource egovSecurityMetadataSource(
+            DataSource dataSource, RoleHierarchy roleHierarchy) {
+        EgovReloadableFilterInvocationSecurityMetadataSource ms =
+            new EgovReloadableFilterInvocationSecurityMetadataSource(dataSource);
+        ms.setRoleHierarchy(roleHierarchy);
+        return ms;
+    }
+
+  import:
+    egovframework.rte.fdl.security.intercept.EgovReloadableFilterInvocationSecurityMetadataSource
+
+
+----------------------------------------------------------------
+생성 파일 전체 구조
+----------------------------------------------------------------
+
+src/main/
+├── webapp/WEB-INF/
+│   └── web.xml                               ← webxmlfilter 삽입 (방식 A)
+│
+├── resources/egovframework/spring/
+│   └── context-security.xml                  ← contextsecurity (방식 A)
+│
+└── java/egovframework/let/emp/
+    ├── config/
+    │   ├── EgovSecurityConfig.java            ← javaconfig 4.3 (방식 B)
+    │   └── EgovRoleHierarchyConfig.java       ← rolehierarchy (A/B 공통)
+    ├── service/
+    │   └── EgovUserDetailsServiceImpl.java    ← userdetailsservice (A/B 공통)
+    └── security/
+        ├── EgovAuthenticationSuccessHandler.java  ← successhandler (방식 B 전용)
+        ├── EgovAuthenticationFailureHandler.java  ← failurehandler (방식 B 전용)
+        └── EgovAccessDeniedHandler.java           ← accessdeniedhandler (방식 B 전용)
+
+src/main/webapp/WEB-INF/jsp/
+    └── egovLoginUsr.jsp                       ← loginpage (A/B 공통)
+
+
+----------------------------------------------------------------
+방식 A vs B 선택 기준
+----------------------------------------------------------------
+
+상황                                          권장 방식
+--------------------------------------------  ----------
+기존 eGovFrame WAR 에 Security 추가           A (XML)
+Spring MVC Java Config 혼용 중                B (Java Config)
+eGovFrame 5.0 마이그레이션 예정              B — javaconfig(5.0) 전환 시
+                                               WebSecurityConfigurerAdapter
+                                               → SecurityFilterChain @Bean 교체만 하면 됨
+공공 감리 대응 / 기존 XML 유지 필수          A (XML)
+
+
+----------------------------------------------------------------
+주의 사항
+----------------------------------------------------------------
+
+1. 방식 A + B 동시 사용 불가
+   springSecurityFilterChain Bean 충돌
+   (context-security.xml <http> ↔ SecurityFilterChain @Bean)
+
+2. userdetailsservice, rolehierarchy, loginpage 는 A/B 공통
+   어느 방식을 선택하든 동일하게 사용
+
+3. 방식 A 에서 successhandler / failurehandler / accessdeniedhandler 불필요
+   XML 이 eGovFrame RTE 제공 클래스를 직접 참조하므로 생성 불필요
+   커스텀으로 교체하려면 XML class 속성에 fully-qualified name 직접 입력:
+     class="egovframework.let.emp.security.EgovAuthenticationSuccessHandler"
+
+4. 방식 B 에서 EgovReloadableFilterInvocationSecurityMetadataSource 빈 직접 등록 필요
+   위 [방식 B 추가 필요 작업] 참조
+
+5. eGovFrame 5.0 으로 버전 변경 시
+   egovVersion 파라미터를 "5.0" 으로 변경하면
+   javax → jakarta / WebSecurityConfigurerAdapter → SecurityFilterChain 자동 분기
+   getSecurityTemplate("javaconfig", "egovframework.let.emp", "5.0")
