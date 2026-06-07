@@ -2,10 +2,12 @@ package com.krdevops.springai.config;
 
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.redis.RedisVectorStore;
+import org.springframework.ai.vectorstore.redis.RedisVectorStore.MetadataField;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import redis.clients.jedis.JedisPooled;
+import java.net.URI;
 
 /**
  * Vector Store 설정 — Redis Stack (redis-stack 컨테이너)
@@ -28,11 +30,7 @@ public class VectorStoreConfig {
 
     @Bean
     public JedisPooled jedisPooled() {
-        String uri = redisUri.replace("redis://", "");
-        String[] parts = uri.split(":");
-        String host = parts[0];
-        int port = parts.length > 1 ? Integer.parseInt(parts[1]) : 6379;
-        return new JedisPooled(host, port);
+        return new JedisPooled(URI.create(redisUri));
     }
 
     @Bean
@@ -41,6 +39,10 @@ public class VectorStoreConfig {
                 .indexName(indexName)
                 .prefix(prefix)
                 .initializeSchema(true)
+                .metadataFields(
+                        MetadataField.tag("type"),
+                        MetadataField.tag("docId")
+                )
                 .build();
     }
 }

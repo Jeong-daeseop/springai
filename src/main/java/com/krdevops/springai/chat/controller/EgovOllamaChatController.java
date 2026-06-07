@@ -1,6 +1,5 @@
 package com.krdevops.springai.chat.controller;
 
-import com.krdevops.springai.chat.context.SessionContext;
 import com.krdevops.springai.chat.service.EgovChatSessionService;
 import com.krdevops.springai.chat.service.EgovSessionAwareChatService;
 import lombok.RequiredArgsConstructor;
@@ -27,16 +26,16 @@ public class EgovOllamaChatController {
             @RequestParam(required = false) String sessionId) {
 
         log.info("RAG 스트리밍 수신: {}, 세션: {}", message, sessionId);
-        setupSession(sessionId, message);
+        String resolvedSessionId = setupSession(sessionId, message);
 
-        return egovSessionAwareChatService.streamRagResponse(message, model)
+        return egovSessionAwareChatService.streamRagResponse(message, model, resolvedSessionId)
             .mapNotNull(response -> {
                 var result = response.getResult();
                 if (result == null || result.getOutput() == null) return null;
                 return result.getOutput().getText();
             })
-            .filter(text -> text != null && !text.isEmpty())
-            .doFinally(signal -> SessionContext.clear());
+            .filter(text -> text != null)
+            .map(EgovOllamaChatController::encodeToken);
     }
 
     @GetMapping(value = "/ai/simple/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
@@ -46,21 +45,25 @@ public class EgovOllamaChatController {
             @RequestParam(required = false) String sessionId) {
 
         log.info("일반 스트리밍 수신: {}, 세션: {}", message, sessionId);
-        setupSession(sessionId, message);
+        String resolvedSessionId = setupSession(sessionId, message);
 
-        return egovSessionAwareChatService.streamSimpleResponse(message, model)
+        return egovSessionAwareChatService.streamSimpleResponse(message, model, resolvedSessionId)
             .mapNotNull(response -> {
                 var result = response.getResult();
                 if (result == null || result.getOutput() == null) return null;
                 return result.getOutput().getText();
             })
-            .filter(text -> text != null && !text.isEmpty())
-            .doFinally(signal -> SessionContext.clear());
+            .filter(text -> text != null)
+            .map(EgovOllamaChatController::encodeToken);
     }
 
-    private void setupSession(String sessionId, String message) {
+    /** SSE는 data: 뒤 첫 공백을 자동 제거하므로 URL 인코딩해서 전송 */
+    private static String encodeToken(String text) {
+        return java.net.URLEncoder.encode(text, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    private String setupSession(String sessionId, String message) {
         if (sessionId != null && !sessionId.isEmpty() && egovChatSessionService.sessionExists(sessionId)) {
-            SessionContext.setCurrentSessionId(sessionId);
             List<Message> history = egovChatSessionService.getSessionMessages(sessionId);
             if (history.isEmpty()) {
                 String title = egovChatSessionService.generateSessionTitle(message);
@@ -68,8 +71,8 @@ public class EgovOllamaChatController {
             } else {
                 egovChatSessionService.updateLastMessageTime(sessionId);
             }
-        } else {
-            SessionContext.setCurrentSessionId(null);
+            return sessionId;
         }
+        return "default";
     }
 }

@@ -12,5 +12,6 @@ import java.util.List;
 public class AppProperties {
 
     private List<String> documentPaths = List.of(System.getProperty("user.home") + "/documents/egovframe-docs-main");
-    private String apiKey = "local-dev-key";
+    private String apiKey;
+    private List<String> openaiModels = List.of("gpt-4o-mini", "gpt-4o");
 }

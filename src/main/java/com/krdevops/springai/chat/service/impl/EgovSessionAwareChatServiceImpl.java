@@ -1,7 +1,6 @@
 package com.krdevops.springai.chat.service.impl;
 
 import com.krdevops.springai.chat.config.rag.transformers.EgovCompressionQueryTransformer;
-import com.krdevops.springai.chat.context.SessionContext;
 import com.krdevops.springai.chat.response.TechnologyResponse;
 import com.krdevops.springai.chat.service.EgovSessionAwareChatService;
 import com.krdevops.springai.chat.util.EgovThinkTagOutputConverter;
@@ -66,8 +65,7 @@ public class EgovSessionAwareChatServiceImpl implements EgovSessionAwareChatServ
         EgovThinkTagOutputConverter.of(TechnologyResponse.class);
 
     @Override
-    public Flux<ChatResponse> streamRagResponse(String query, String model) {
-        String sessionId = SessionContext.getCurrentSessionId();
+    public Flux<ChatResponse> streamRagResponse(String query, String model, String sessionId) {
         log.info("RAG 스트리밍 - 세션: {}, 질문: {}", sessionId, query);
 
         try {
@@ -122,8 +120,7 @@ public class EgovSessionAwareChatServiceImpl implements EgovSessionAwareChatServ
     }
 
     @Override
-    public Flux<ChatResponse> streamSimpleResponse(String query, String model) {
-        String sessionId = SessionContext.getCurrentSessionId();
+    public Flux<ChatResponse> streamSimpleResponse(String query, String model, String sessionId) {
         log.info("일반 스트리밍 - 세션: {}, 질문: {}", sessionId, query);
 
         try {
