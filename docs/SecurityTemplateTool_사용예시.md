@@ -343,3 +343,226 @@ Step 5. getSecurityTemplate("loginPage", "", "")
 | DSL 스타일 | `.and()` 체이닝 | Lambda DSL |
 | CSRF 제외 | `csrf().ignoringAntMatchers()` | `csrf(c -> c.ignoringRequestMatchers())` |
 | 인증 설정 | `configure(AuthenticationManagerBuilder)` override | `UserDetailsService @Bean` |
+
+---
+
+## 시나리오 6 — 단일 파일 직접 저장 (Phase 2)
+
+outputPath를 지정하면 파일을 직접 생성한다. 문자열 반환 없이 저장 결과만 반환된다.
+
+### 6-1. javaConfig 파일 저장
+
+**Claude 요청:**
+```
+eGovFrame 4.3 javaConfig 파일을 /Users/me/egov-project에 저장해줘.
+패키지는 egovframework.let.emp.
+```
+
+**Tool 호출:**
+```
+getSecurityTemplate(
+  securityType  = "javaConfig",
+  packageName   = "egovframework.let.emp",
+  egovVersion   = "4.3",
+  outputPath    = "/Users/me/egov-project",
+  projectType   = "war"
+)
+```
+
+**반환 결과:**
+```
+✅ Security 템플릿 저장 완료
+
+저장 경로: /Users/me/egov-project
+생성 파일: 1개
+
+  + src/main/java/egovframework/let/emp/config/EgovProjectSecurityConfig.java
+```
+
+---
+
+### 6-2. context-security.xml 저장
+
+**Tool 호출:**
+```
+getSecurityTemplate(
+  securityType  = "contextSecurity",
+  packageName   = "egovframework.let.emp",
+  egovVersion   = "5.0",
+  outputPath    = "/Users/me/egov-project",
+  projectType   = "war"
+)
+```
+
+**반환 결과:**
+```
+✅ Security 템플릿 저장 완료
+
+저장 경로: /Users/me/egov-project
+생성 파일: 1개
+
+  + src/main/resources/egovframework/spring/context-security.xml
+```
+
+---
+
+## 시나리오 7 — 조합 키워드로 전체 보안 셋업 (Phase 3)
+
+### 7-1. eGovFrame 4.3 전체 보안 셋업
+
+한 번의 호출로 15개 파일을 생성한다.
+
+**Claude 요청:**
+```
+eGovFrame 4.3 WAR 프로젝트 보안 설정 전체 셋업해줘.
+프로젝트 경로는 /Users/me/egov-war-43, 패키지는 egovframework.let.sample.
+```
+
+**Tool 호출:**
+```
+getSecurityTemplate(
+  securityType  = "setup-all-war-43",
+  packageName   = "egovframework.let.sample",
+  egovVersion   = "4.3",
+  outputPath    = "/Users/me/egov-war-43",
+  projectType   = "war"
+)
+```
+
+**반환 결과:**
+```
+✅ Security 템플릿 저장 완료
+
+저장 경로: /Users/me/egov-war-43
+생성 파일: 15개
+
+  + src/main/webapp/WEB-INF/web.xml.fragment
+  + src/main/resources/egovframework/spring/context-security.xml
+  + src/main/java/egovframework/let/sample/config/EgovProjectSecurityConfig.java
+  + src/main/java/egovframework/let/sample/sec/service/impl/EgovUserDetailsServiceImpl.java
+  + src/main/java/egovframework/let/sample/sec/config/EgovRoleHierarchyConfig.java
+  + src/main/webapp/WEB-INF/jsp/egovframework/com/uat/uia/egovLoginUsr.jsp
+  + src/main/resources/egovframework/spring/context-egovuserdetailshelper.xml
+  + src/main/java/egovframework/let/sample/sec/filter/EgovSpringSecurityLoginFilter.java
+  + src/main/java/egovframework/let/sample/sec/filter/EgovSpringSecurityLogoutFilter.java
+  + src/main/java/egovframework/let/sample/uat/uap/filter/EgovLoginPolicyFilter.java
+  + src/main/java/egovframework/let/sample/uat/uia/service/impl/EgovSessionMapping.java
+  + src/main/java/egovframework/let/sample/sec/handler/EgovAuthenticationSuccessHandler.java
+  + src/main/java/egovframework/let/sample/sec/handler/EgovAuthenticationFailureHandler.java
+  + src/main/java/egovframework/let/sample/sec/handler/EgovAccessDeniedHandler.java
+  + src/main/resources/egovframework/sqlmap/security/security-mapper.sql
+```
+
+---
+
+### 7-2. eGovFrame 5.0 전체 보안 셋업
+
+**Tool 호출:**
+```
+getSecurityTemplate(
+  securityType  = "setup-all-war-50",
+  packageName   = "egovframework.let.sample",
+  egovVersion   = "5.0",
+  outputPath    = "/Users/me/egov-war-50",
+  projectType   = "war"
+)
+```
+
+**반환 결과:**
+```
+✅ Security 템플릿 저장 완료
+
+저장 경로: /Users/me/egov-war-50
+생성 파일: 11개
+
+  + src/main/resources/egovframework/spring/context-security.xml
+  + src/main/java/egovframework/let/sample/config/EgovProjectSecurityConfig.java
+  + src/main/java/egovframework/let/sample/sec/config/EgovRoleHierarchyConfig.java
+  + src/main/webapp/WEB-INF/jsp/egovframework/com/uat/uia/egovLoginUsr.jsp
+  + src/main/resources/egovframework/spring/context-egovuserdetailshelper.xml
+  + src/main/java/egovframework/let/sample/sec/filter/EgovSpringSecurityLoginFilter.java
+  + src/main/java/egovframework/let/sample/sec/filter/EgovSpringSecurityLogoutFilter.java
+  + src/main/java/egovframework/let/sample/uat/uap/filter/EgovLoginPolicyFilter.java
+  + src/main/java/egovframework/let/sample/uat/uia/service/impl/EgovSessionMapping.java
+  + src/main/java/egovframework/let/sample/sec/handler/EgovAccessDeniedHandler.java
+  + src/main/resources/egovframework/sqlmap/security/security-mapper.sql
+```
+
+---
+
+### 7-3. 필터만 별도 추가
+
+기존 프로젝트에 DB 인증 필터를 추가할 때 사용한다.
+
+**Tool 호출:**
+```
+getSecurityTemplate(
+  securityType  = "setup-filters",
+  packageName   = "egovframework.let.emp",
+  egovVersion   = "5.0",
+  outputPath    = "/Users/me/egov-existing",
+  projectType   = "war"
+)
+```
+
+**반환 결과:**
+```
+✅ Security 템플릿 저장 완료
+
+저장 경로: /Users/me/egov-existing
+생성 파일: 4개
+
+  + src/main/java/egovframework/let/emp/sec/filter/EgovSpringSecurityLoginFilter.java
+  + src/main/java/egovframework/let/emp/sec/filter/EgovSpringSecurityLogoutFilter.java
+  + src/main/java/egovframework/let/emp/uat/uap/filter/EgovLoginPolicyFilter.java
+  + src/main/java/egovframework/let/emp/uat/uia/service/impl/EgovSessionMapping.java
+```
+
+---
+
+## 조합 키워드 요약
+
+### 4.3 XML Security 방식 (공공 SI 표준)
+
+| securityType | alias | 파일 수 | 구성 |
+|---|---|:---:|---|
+| `setup-war-43` | `setup-war-43-xml` | 9 | webXmlFilter + contextSecurity + userDetailsService + sessionMapping + loginFilter + logoutFilter + loginPolicyFilter + loginPage + userDetailsHelperXml |
+| `setup-all-war-43` | `setup-all-war-43-xml` | 10 | setup-war-43-xml + securityMapper |
+
+> ※ `setup-war-43` / `setup-all-war-43`은 각각 XML alias. 동일하게 동작한다.  
+> ※ **조합 원칙**: webXmlFilter가 참조하는 필터 구현체 3종(loginFilter/logoutFilter/loginPolicyFilter)이 포함되어 있어 조합 안에서 참조가 완결된다.  
+> ※ javaConfig / roleHierarchy / 핸들러 미포함 — contextSecurity XML이 이미 XML Bean으로 선언하므로 Java Config와 동시 로드 시 Bean 중복으로 기동 실패.
+
+### 4.3 Java Config 방식 (WebSecurityConfigurerAdapter)
+
+| securityType | 파일 수 | 구성 |
+|---|:---:|---|
+| `setup-war-43-java` | 7 | javaConfig + userDetailsService + roleHierarchy + successHandler + failureHandler + accessDeniedHandler + loginPage |
+| `setup-all-war-43-java` | 12 | setup-war-43-java + setup-filters + securityMapper |
+
+> ※ contextSecurity(XML `<http>`) 미포함 — XML 방식과 동시 사용 불가.  
+> ※ 핸들러 3종은 Java Config 조합에만 포함. XML 방식은 RTE가 핸들러를 직접 제공한다.
+
+### 5.0
+
+| securityType | 파일 수 | 구성 |
+|---|:---:|---|
+| `setup-war-50` | 5 | contextSecurity + javaConfig + roleHierarchy + loginPage + userDetailsHelperXml |
+| `setup-all-war-50` | 11 | setup-war-50 + setup-filters + accessDeniedHandler + securityMapper |
+
+### 필터 / 핸들러 단독 조합
+
+| securityType | 파일 수 | 구성 |
+|---|:---:|---|
+| `setup-filters` | 4 | loginFilter + logoutFilter + loginPolicyFilter + sessionMapping |
+| `setup-handlers-43` | 3 | successHandler + failureHandler + accessDeniedHandler |
+
+> ※ `setup-handlers-43`은 XML 조합에 사용하지 않는다. Java Config 조합 또는 단독 사용 전용.
+
+---
+
+> **조합 키워드 사용 시 주의사항**
+> - 반드시 `outputPath`와 함께 사용해야 한다. `outputPath` 없이 조합 키워드를 사용하면 지원하지 않는 securityType 안내 메시지가 반환된다.
+> - 4.3 전용 키워드(`setup-war-43-*`)에 `egovVersion=5.0` 지정 시 예외 발생.
+> - 5.0 전용 키워드(`setup-war-50`, `setup-all-war-50`)에 `egovVersion=4.3` 지정 시 예외 발생.
+> - `webXmlFilter`는 **4.3 WAR XML Security 전용**. 5.0에서 단독 호출 시 오류 메시지 반환.
