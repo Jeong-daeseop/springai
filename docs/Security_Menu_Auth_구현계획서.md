@@ -1085,8 +1085,9 @@ suggestNextStep(String workflowType, String currentContext)
 
 ### 10-5. 잔여 후속 항목
 
-| 항목 | 분류 | 기준 |
-| --- | --- | --- |
-| `dbType` 파라미터 추가 또는 JDBC metadata 자동 감지 | Phase 4 후속 | 실제 Oracle 운영 적용 범위 확정 후 결정 |
-| `RolePatternFactory` 별도 추출 | Phase 5 후속 | ROLE_PTTRN 로직 확장 시 클래스 크기 기준으로 결정 |
-| WorkflowGuideTool 방식 A 전환 | Phase 6 후속 | workflow 종류 3개 이상 또는 suggestXxx 메서드 2개 이상 시 전환 |
+| 항목 | 분류 | 상태 | 기준 |
+| --- | --- | --- | --- |
+| `dbType` 파라미터 추가 또는 JDBC metadata 자동 감지 | Phase 4 후속 | 미해소 | 실제 Oracle 운영 적용 범위 확정 후 결정 |
+| `COMTNAUTHORROLERELATE.CREAT_DT` 추가 | Phase 5 후속 | 완료 (2026-06-10, `6614806`) | `SqlDialectRenderer.now()` 사용 |
+| `RolePatternFactory` 별도 추출 | Phase 5 후속 | 미해소 | ROLE_PTTRN 로직 확장 시 클래스 크기 기준으로 결정 |
+| WorkflowGuideTool 방식 A 전환 | Phase 6 후속 | 미해소 | workflow 종류 3개 이상 또는 suggestXxx 메서드 2개 이상 시 전환 |
