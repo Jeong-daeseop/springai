@@ -1,0 +1,388 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - link "Skip to content" [ref=e4] [cursor=pointer]:
+        - /url: "#start-of-content"
+      - banner [ref=e6]:
+        - heading "Navigation Menu" [level=2] [ref=e7]
+        - generic [ref=e8]:
+          - link "Homepage" [ref=e10] [cursor=pointer]:
+            - /url: /
+            - img [ref=e11]
+          - generic [ref=e13]:
+            - navigation "Global" [ref=e16]:
+              - list [ref=e17]:
+                - listitem [ref=e18]:
+                  - button "Platform" [ref=e20] [cursor=pointer]:
+                    - text: Platform
+                    - img [ref=e21]
+                - listitem [ref=e23]:
+                  - button "Solutions" [ref=e25] [cursor=pointer]:
+                    - text: Solutions
+                    - img [ref=e26]
+                - listitem [ref=e28]:
+                  - button "Resources" [ref=e30] [cursor=pointer]:
+                    - text: Resources
+                    - img [ref=e31]
+                - listitem [ref=e33]:
+                  - button "Open Source" [ref=e35] [cursor=pointer]:
+                    - text: Open Source
+                    - img [ref=e36]
+                - listitem [ref=e38]:
+                  - button "Enterprise" [ref=e40] [cursor=pointer]:
+                    - text: Enterprise
+                    - img [ref=e41]
+                - listitem [ref=e43]:
+                  - link "Pricing" [ref=e44] [cursor=pointer]:
+                    - /url: https://github.com/pricing
+                    - generic [ref=e45]: Pricing
+            - generic [ref=e46]:
+              - button "Search or jump to…" [ref=e49] [cursor=pointer]:
+                - img [ref=e51]
+              - link "Sign in" [ref=e54] [cursor=pointer]:
+                - /url: /login?return_to=https%3A%2F%2Fgithub.com%2FeGovFramework%2Fegovframe-ai-rag%2Ftree%2Fmain%2Fspring-ai-rag-redis-stack%2Fsrc%2Fmain%2Fjava%2Fcom%2Fexample%2Fchat%2Fdto
+              - link "Sign up" [ref=e55] [cursor=pointer]:
+                - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Ffiles%2Fdisambiguate&source=header-repo&source_repo=eGovFramework%2Fegovframe-ai-rag
+              - button "Appearance settings" [ref=e58] [cursor=pointer]:
+                - img
+    - main [ref=e62]:
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - generic [ref=e66]:
+            - img [ref=e67]
+            - link "eGovFramework" [ref=e70] [cursor=pointer]:
+              - /url: /eGovFramework
+            - generic [ref=e71]: /
+            - strong [ref=e72]:
+              - link "egovframe-ai-rag" [ref=e73] [cursor=pointer]:
+                - /url: /eGovFramework/egovframe-ai-rag
+            - generic [ref=e74]: Public
+          - generic [ref=e75]:
+            - list:
+              - listitem [ref=e76]:
+                - link "You must be signed in to change notification settings" [ref=e77] [cursor=pointer]:
+                  - /url: /login?return_to=%2FeGovFramework%2Fegovframe-ai-rag
+                  - img [ref=e78]
+                  - text: Notifications
+              - listitem [ref=e80]:
+                - link "Fork 14" [ref=e81] [cursor=pointer]:
+                  - /url: /login?return_to=%2FeGovFramework%2Fegovframe-ai-rag
+                  - img [ref=e82]
+                  - text: Fork
+                  - generic "14" [ref=e84]
+              - listitem [ref=e85]:
+                - link "You must be signed in to star a repository" [ref=e87] [cursor=pointer]:
+                  - /url: /login?return_to=%2FeGovFramework%2Fegovframe-ai-rag
+                  - img [ref=e88]
+                  - text: Star
+                  - generic "8 users starred this repository" [ref=e90]: "8"
+        - navigation "Repository" [ref=e91]:
+          - list [ref=e92]:
+            - listitem [ref=e93]:
+              - link "Code" [ref=e94] [cursor=pointer]:
+                - /url: /eGovFramework/egovframe-ai-rag
+                - img [ref=e95]
+                - generic [ref=e97]: Code
+            - listitem [ref=e98]:
+              - link "Issues" [ref=e99] [cursor=pointer]:
+                - /url: /eGovFramework/egovframe-ai-rag/issues
+                - img [ref=e100]
+                - generic [ref=e103]: Issues
+            - listitem [ref=e104]:
+              - link "Pull requests" [ref=e105] [cursor=pointer]:
+                - /url: /eGovFramework/egovframe-ai-rag/pulls
+                - img [ref=e106]
+                - generic [ref=e108]: Pull requests
+            - listitem [ref=e109]:
+              - link "Actions" [ref=e110] [cursor=pointer]:
+                - /url: /eGovFramework/egovframe-ai-rag/actions
+                - img [ref=e111]
+                - generic [ref=e113]: Actions
+            - listitem [ref=e114]:
+              - link "Projects" [ref=e115] [cursor=pointer]:
+                - /url: /eGovFramework/egovframe-ai-rag/projects
+                - img [ref=e116]
+                - generic [ref=e118]: Projects
+            - listitem [ref=e119]:
+              - link "Security and quality" [ref=e120] [cursor=pointer]:
+                - /url: /eGovFramework/egovframe-ai-rag/security
+                - img [ref=e121]
+                - generic [ref=e123]: Security and quality
+            - listitem [ref=e124]:
+              - link "Insights" [ref=e125] [cursor=pointer]:
+                - /url: /eGovFramework/egovframe-ai-rag/pulse
+                - img [ref=e126]
+                - generic [ref=e128]: Insights
+      - generic [ref=e136]:
+        - generic [ref=e138]:
+          - generic [ref=e141]:
+            - generic [ref=e142]:
+              - generic [ref=e143]:
+                - heading "Collapse file tree" [level=2] [ref=e144]:
+                  - button "Collapse file tree" [expanded] [ref=e145] [cursor=pointer]:
+                    - img [ref=e146]
+                - heading "Files" [level=2] [ref=e149]
+              - generic [ref=e150]:
+                - button "main branch" [ref=e152] [cursor=pointer]:
+                  - generic [ref=e153]:
+                    - generic [ref=e155]:
+                      - img [ref=e157]
+                      - generic [ref=e160]: main
+                    - generic:
+                      - img
+                - button "Search this repository (forward slash)" [ref=e162] [cursor=pointer]:
+                  - img [ref=e163]
+            - generic [ref=e166]:
+              - img [ref=e168]
+              - combobox "Go to file" [ref=e170]
+            - navigation "File Tree Navigation" [ref=e176]:
+              - tree "Files" [ref=e178]:
+                - treeitem ".github" [level=1] [ref=e179]:
+                  - generic [ref=e180] [cursor=pointer]:
+                    - img [ref=e182]
+                    - generic [ref=e184]:
+                      - img [ref=e188]
+                      - generic [ref=e190]: .github
+                - treeitem "langchain4j-ai-rag-postgre" [level=1] [ref=e191]:
+                  - generic [ref=e192] [cursor=pointer]:
+                    - img [ref=e194]
+                    - generic [ref=e196]:
+                      - img [ref=e200]
+                      - generic [ref=e202]: langchain4j-ai-rag-postgre
+                - treeitem "spring-ai-rag-redis-stack" [expanded] [level=1] [ref=e203]:
+                  - generic [ref=e204] [cursor=pointer]:
+                    - img [ref=e206]
+                    - generic [ref=e208]:
+                      - img [ref=e212]
+                      - generic [ref=e214]: spring-ai-rag-redis-stack
+                  - group "spring-ai-rag-redis-stack" [ref=e215]:
+                    - treeitem "src/main" [expanded] [level=2] [ref=e216]:
+                      - generic [ref=e217] [cursor=pointer]:
+                        - img [ref=e222]
+                        - generic [ref=e224]:
+                          - img [ref=e228]
+                          - generic [ref=e231]: src/main
+                      - group "src/main" [ref=e232]:
+                        - treeitem "java/com/example/chat" [expanded] [level=3] [ref=e233]:
+                          - generic [ref=e234] [cursor=pointer]:
+                            - img [ref=e240]
+                            - generic [ref=e242]:
+                              - img [ref=e246]
+                              - generic [ref=e249]: java/com/example/chat
+                          - group "java/com/example/chat" [ref=e250]:
+                            - treeitem "config" [level=4] [ref=e251]:
+                              - generic [ref=e252] [cursor=pointer]:
+                                - img [ref=e259]
+                                - generic [ref=e261]:
+                                  - img [ref=e265]
+                                  - generic [ref=e267]: config
+                            - treeitem "context" [level=4] [ref=e268]:
+                              - generic [ref=e269] [cursor=pointer]:
+                                - img [ref=e276]
+                                - generic [ref=e278]:
+                                  - img [ref=e282]
+                                  - generic [ref=e284]: context
+                            - treeitem "controller" [level=4] [ref=e285]:
+                              - generic [ref=e286] [cursor=pointer]:
+                                - img [ref=e293]
+                                - generic [ref=e295]:
+                                  - img [ref=e299]
+                                  - generic [ref=e301]: controller
+                            - treeitem "dto" [expanded] [level=4] [ref=e302]:
+                              - generic [ref=e303] [cursor=pointer]:
+                                - img [ref=e310]
+                                - generic [ref=e312]:
+                                  - img [ref=e316]
+                                  - generic [ref=e318]: dto
+                              - group "dto" [ref=e319]:
+                                - treeitem "ChatMessageDto.java" [level=5] [ref=e320]:
+                                  - generic [ref=e328] [cursor=pointer]:
+                                    - img [ref=e331]
+                                    - generic [ref=e333]: ChatMessageDto.java
+                                - treeitem "ChatSession.java" [level=5] [ref=e334]:
+                                  - generic [ref=e342] [cursor=pointer]:
+                                    - img [ref=e345]
+                                    - generic [ref=e347]: ChatSession.java
+                            - treeitem "repository" [level=4] [ref=e348]:
+                              - generic [ref=e349] [cursor=pointer]:
+                                - img [ref=e356]
+                                - generic [ref=e358]:
+                                  - img [ref=e362]
+                                  - generic [ref=e364]: repository
+                            - treeitem "response" [level=4] [ref=e365]:
+                              - generic [ref=e366] [cursor=pointer]:
+                                - img [ref=e373]
+                                - generic [ref=e375]:
+                                  - img [ref=e379]
+                                  - generic [ref=e381]: response
+                            - treeitem "service" [level=4] [ref=e382]:
+                              - generic [ref=e383] [cursor=pointer]:
+                                - img [ref=e390]
+                                - generic [ref=e392]:
+                                  - img [ref=e396]
+                                  - generic [ref=e398]: service
+                            - treeitem "util" [level=4] [ref=e399]:
+                              - generic [ref=e400] [cursor=pointer]:
+                                - img [ref=e407]
+                                - generic [ref=e409]:
+                                  - img [ref=e413]
+                                  - generic [ref=e415]: util
+                            - treeitem "SpringAiOllamaApplication.java" [level=4] [ref=e416]:
+                              - generic [ref=e423] [cursor=pointer]:
+                                - img [ref=e426]
+                                - generic [ref=e428]: SpringAiOllamaApplication.java
+                        - treeitem "resources" [level=3] [ref=e429]:
+                          - generic [ref=e430] [cursor=pointer]:
+                            - img [ref=e436]
+                            - generic [ref=e438]:
+                              - img [ref=e442]
+                              - generic [ref=e444]: resources
+                    - treeitem "docker-compose.yml" [level=2] [ref=e445]:
+                      - generic [ref=e450] [cursor=pointer]:
+                        - img [ref=e453]
+                        - generic [ref=e455]: docker-compose.yml
+                    - treeitem "pom.xml" [level=2] [ref=e456]:
+                      - generic [ref=e461] [cursor=pointer]:
+                        - img [ref=e464]
+                        - generic [ref=e466]: pom.xml
+                - treeitem ".gitignore" [level=1] [ref=e467]:
+                  - generic [ref=e469] [cursor=pointer]:
+                    - img [ref=e472]
+                    - generic [ref=e474]: .gitignore
+                - treeitem "LICENSE.txt" [level=1] [ref=e475]:
+                  - generic [ref=e477] [cursor=pointer]:
+                    - img [ref=e480]
+                    - generic [ref=e482]: LICENSE.txt
+                - treeitem "README-langchain4j-ai-rag-postgre.md" [level=1] [ref=e483]:
+                  - generic [ref=e485] [cursor=pointer]:
+                    - img [ref=e488]
+                    - generic [ref=e490]: README-langchain4j-ai-rag-postgre.md
+                - treeitem "README-spring-ai-rag-redis-stack.md" [level=1] [ref=e491]:
+                  - generic [ref=e493] [cursor=pointer]:
+                    - img [ref=e496]
+                    - generic [ref=e498]: README-spring-ai-rag-redis-stack.md
+                - treeitem "README.md" [level=1] [ref=e499]:
+                  - generic [ref=e501] [cursor=pointer]:
+                    - img [ref=e504]
+                    - generic [ref=e506]: README.md
+          - slider "Draggable pane splitter" [ref=e508]
+        - generic [ref=e511]:
+          - generic [ref=e515]:
+            - generic [ref=e517]:
+              - navigation "Breadcrumbs" [ref=e518]:
+                - heading "Breadcrumbs" [level=2] [ref=e519]
+                - list [ref=e520]:
+                  - listitem [ref=e521]:
+                    - link "egovframe-ai-rag" [ref=e522] [cursor=pointer]:
+                      - /url: /eGovFramework/egovframe-ai-rag/tree/main
+                  - listitem [ref=e523]:
+                    - text: /
+                    - link "spring-ai-rag-redis-stack" [ref=e524] [cursor=pointer]:
+                      - /url: /eGovFramework/egovframe-ai-rag/tree/main/spring-ai-rag-redis-stack
+                  - listitem [ref=e525]:
+                    - text: /
+                    - link "src" [ref=e526] [cursor=pointer]:
+                      - /url: /eGovFramework/egovframe-ai-rag/tree/main/spring-ai-rag-redis-stack/src
+                  - listitem [ref=e527]:
+                    - text: /
+                    - link "main" [ref=e528] [cursor=pointer]:
+                      - /url: /eGovFramework/egovframe-ai-rag/tree/main/spring-ai-rag-redis-stack/src/main
+                  - listitem [ref=e529]:
+                    - text: /
+                    - link "java" [ref=e530] [cursor=pointer]:
+                      - /url: /eGovFramework/egovframe-ai-rag/tree/main/spring-ai-rag-redis-stack/src/main/java
+                  - listitem [ref=e531]:
+                    - text: /
+                    - link "com" [ref=e532] [cursor=pointer]:
+                      - /url: /eGovFramework/egovframe-ai-rag/tree/main/spring-ai-rag-redis-stack/src/main/java/com
+                  - listitem [ref=e533]:
+                    - text: /
+                    - link "example" [ref=e534] [cursor=pointer]:
+                      - /url: /eGovFramework/egovframe-ai-rag/tree/main/spring-ai-rag-redis-stack/src/main/java/com/example
+                  - listitem [ref=e535]:
+                    - text: /
+                    - link "chat" [ref=e536] [cursor=pointer]:
+                      - /url: /eGovFramework/egovframe-ai-rag/tree/main/spring-ai-rag-redis-stack/src/main/java/com/example/chat
+              - generic [ref=e537]:
+                - text: /
+                - heading "dto" [level=1] [ref=e538]
+                - text: /
+              - button "Copy path" [ref=e539] [cursor=pointer]:
+                - img [ref=e540]
+            - generic [ref=e545]:
+              - heading "Directory actions" [level=2] [ref=e546]
+              - heading "More options" [level=2] [ref=e547]
+              - button "More options" [ref=e548] [cursor=pointer]:
+                - img [ref=e549]
+          - generic [ref=e551]:
+            - generic [ref=e553]:
+              - heading "Latest commit" [level=2] [ref=e554]
+              - generic [ref=e555]:
+                - generic [ref=e557]:
+                  - link "yongfire38" [ref=e558] [cursor=pointer]:
+                    - /url: /yongfire38
+                    - img "yongfire38" [ref=e559]
+                  - link "commits by yongfire38" [ref=e560] [cursor=pointer]:
+                    - /url: /eGovFramework/egovframe-ai-rag/commits?author=yongfire38
+                    - text: yongfire38
+                - link "egovframe-ai-rag 5.0.0" [ref=e564] [cursor=pointer]:
+                  - /url: /eGovFramework/egovframe-ai-rag/commit/4d09c367ac077dd0c460f74aad55c821e9cf92cf
+              - generic [ref=e565]:
+                - generic [ref=e567]:
+                  - link "Commit 4d09c36" [ref=e568] [cursor=pointer]:
+                    - /url: /eGovFramework/egovframe-ai-rag/commit/4d09c367ac077dd0c460f74aad55c821e9cf92cf
+                    - text: 4d09c36
+                  - text: ·
+                  - generic "Feb 13, 2026, 4:29 PM GMT+9" [ref=e569]: Feb 13, 20263 months ago
+                - generic [ref=e570]:
+                  - heading "History" [level=2] [ref=e571]
+                  - link "History" [ref=e572] [cursor=pointer]:
+                    - /url: /eGovFramework/egovframe-ai-rag/commits/main/spring-ai-rag-redis-stack/src/main/java/com/example/chat/dto
+                    - generic [ref=e573]:
+                      - generic:
+                        - img
+                      - generic [ref=e574]: History
+            - generic [ref=e576]:
+              - heading "Folders and files" [level=2] [ref=e577]
+              - table "Folders and files" [ref=e578]:
+                - rowgroup [ref=e579]:
+                  - row "Name Last commit message Last commit date" [ref=e580]:
+                    - columnheader "Name" [ref=e581]
+                    - columnheader "Last commit message" [ref=e582]:
+                      - generic "Last commit message" [ref=e583]
+                    - columnheader "Last commit date" [ref=e584]:
+                      - generic "Last commit date" [ref=e585]
+                - rowgroup [ref=e586]:
+                  - row "parent directory Parent directory" [ref=e587]:
+                    - cell "parent directory Parent directory" [ref=e588]:
+                      - heading "parent directory" [level=3] [ref=e589]
+                      - link "Parent directory" [ref=e590] [cursor=pointer]:
+                        - /url: /eGovFramework/egovframe-ai-rag/tree/main/spring-ai-rag-redis-stack/src/main/java/com/example/chat
+                        - generic [ref=e591]:
+                          - img [ref=e592]
+                          - text: ..
+                  - row "ChatMessageDto.java, (File) egovframe-ai-rag 5.0.0 Feb 13, 20263 months ago" [ref=e594]:
+                    - cell "ChatMessageDto.java, (File)" [ref=e595]:
+                      - generic [ref=e596]:
+                        - img [ref=e597]
+                        - link "ChatMessageDto.java, (File)" [ref=e602] [cursor=pointer]:
+                          - /url: /eGovFramework/egovframe-ai-rag/blob/main/spring-ai-rag-redis-stack/src/main/java/com/example/chat/dto/ChatMessageDto.java
+                          - text: ChatMessageDto.java
+                    - cell "egovframe-ai-rag 5.0.0" [ref=e603]:
+                      - link "egovframe-ai-rag 5.0.0" [ref=e606] [cursor=pointer]:
+                        - /url: /eGovFramework/egovframe-ai-rag/commit/4d09c367ac077dd0c460f74aad55c821e9cf92cf
+                    - cell "Feb 13, 20263 months ago" [ref=e607]:
+                      - generic [ref=e608]: Feb 13, 20263 months ago
+                  - row "ChatSession.java, (File) egovframe-ai-rag 5.0.0 Feb 13, 20263 months ago" [ref=e609]:
+                    - cell "ChatSession.java, (File)" [ref=e610]:
+                      - generic [ref=e611]:
+                        - img [ref=e612]
+                        - link "ChatSession.java, (File)" [ref=e617] [cursor=pointer]:
+                          - /url: /eGovFramework/egovframe-ai-rag/blob/main/spring-ai-rag-redis-stack/src/main/java/com/example/chat/dto/ChatSession.java
+                          - text: ChatSession.java
+                    - cell "egovframe-ai-rag 5.0.0" [ref=e618]:
+                      - link "egovframe-ai-rag 5.0.0" [ref=e621] [cursor=pointer]:
+                        - /url: /eGovFramework/egovframe-ai-rag/commit/4d09c367ac077dd0c460f74aad55c821e9cf92cf
+                    - cell "Feb 13, 20263 months ago" [ref=e622]:
+                      - generic [ref=e623]: Feb 13, 20263 months ago
+  - alert [ref=e627]

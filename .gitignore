@@ -40,3 +40,15 @@ tokenizer.json
 
 ### 환경변수 ###
 .env
+
+### 빌드 산출물 (루트) ###
+/BOOT-INF/
+/META-INF/
+/org/
+/logs/
+
+### 도구 상태 파일 ###
+.claude/
+.omc/
+.serena/
+.playwright-mcp/

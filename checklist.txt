@@ -1,0 +1,121 @@
+================================================================================
+  Hybrid Architecture 단계별 체크리스트
+  프로젝트: springai-mcp
+  작성일: 2026-05-16
+================================================================================
+
+--------------------------------------------------------------------------------
+Phase 1 — Service 레이어 분리
+--------------------------------------------------------------------------------
+
+[코드 작업]
+  [v] SchemaService 생성 및 SchemaReaderTool 연결
+  [v] CodeService 생성 및 CodeSaverTool 연결
+  [v] EmployeeService 생성 및 EmployeeTool 연결
+
+[검증]
+  [ ] Claude Desktop에서 getTableList() 호출 확인
+  [ ] Claude Desktop에서 getTableSchema() 호출 확인
+  [ ] Claude Desktop에서 getEmployee() 호출 확인
+  [ ] 기존 12개 Tool 정상 응답 확인
+
+--------------------------------------------------------------------------------
+Phase 2 — stdio → SSE 전환
+--------------------------------------------------------------------------------
+
+[코드 작업]
+  [v] build.gradle: spring-ai-starter-mcp-server-webmvc 변경
+  [v] application.yaml: web-application-type: servlet
+  [v] application.yaml: transport: sse
+  [v] application.yaml: mvc.async.request-timeout: -1 (SSE timeout 방지)
+  [v] logback-spring.xml: console appender 제거
+  [v] claude_desktop_config.json: mcp-remote 브릿지 방식으로 변경
+
+[검증]
+  [v] curl http://localhost:8080/sse → event:endpoint 응답 확인
+  [v] mcp-remote 0.1.37 연결 성공 로그 확인
+  [v] tools/list 12개 전달 확인
+  [ ] Claude Desktop 망치 아이콘 확인 후 Tool 실제 호출 검증
+  [ ] SSE 연결 장시간 유지 확인 (Body Timeout 재발 여부)
+
+--------------------------------------------------------------------------------
+Phase 3 — OpenAI 연동
+--------------------------------------------------------------------------------
+
+[코드 작업]
+  [v] build.gradle: spring-ai-starter-model-openai 추가
+  [v] build.gradle: spring-boot-starter-security 추가
+  [v] config/SecurityConfig.java 생성 (X-API-Key 인증)
+  [v] controller/ToolApiController.java 생성 (REST 5개 엔드포인트)
+  [v] service/LlmRouterService.java 생성 (라우팅 정책)
+  [v] application.yaml: openai.api-key 설정 (기본값: disabled)
+
+[환경 준비]
+  [ ] OPENAI_API_KEY 환경변수 설정
+
+[검증]
+  [ ] OPENAI_API_KEY 설정 후 서버 기동 확인
+  [ ] POST /api/tools/getTableSchema (X-API-Key: local-dev-key) 응답 확인
+  [ ] POST /api/tools/getTableList 응답 확인
+  [ ] POST /api/tools/getEmployee 응답 확인
+  [ ] POST /api/tools/chat (taskType: CLASSIFICATION) → OpenAI 응답 확인
+  [ ] API Key 없이 /api/** 접근 시 401 응답 확인
+  [ ] /sse 엔드포인트 인증 없이 접근 가능 확인
+
+--------------------------------------------------------------------------------
+Phase 4 — Ollama (Local LLM) 연동
+--------------------------------------------------------------------------------
+
+[코드 작업]
+  [v] build.gradle: spring-ai-starter-model-ollama 추가
+  [v] config/OllamaConfig.java 생성 (localhost:11434, mistral)
+  [v] service/LlmRouterService.java: chat() 메서드 추가
+  [v] controller/ToolApiController.java: POST /api/tools/chat 추가
+  [v] application.yaml: ollama 설정 추가
+
+[환경 준비]
+  [ ] brew install ollama
+  [ ] ollama pull mistral
+  [ ] ollama serve 실행 확인 (localhost:11434)
+
+[검증]
+  [ ] POST /api/tools/chat (taskType: SENSITIVE_DATA) → Ollama 응답 확인
+  [ ] POST /api/tools/chat (taskType: CLASSIFICATION) → OpenAI 응답 확인
+  [ ] POST /api/tools/chat (taskType: CODE_GENERATION) → 오류 메시지 확인
+  [ ] Ollama 처리 중 외부 네트워크 미호출 확인
+
+--------------------------------------------------------------------------------
+전체 통합 검증 (전 Phase 완료 후)
+--------------------------------------------------------------------------------
+
+  [ ] Claude Desktop → SSE → getTableSchema() → eGovFrame 소스 생성 → 파일 저장
+  [ ] OpenAI → REST /api/tools/* → 동일 Service 레이어 결과 확인
+  [ ] Ollama → REST /api/tools/chat (SENSITIVE_DATA) → 사내 처리 확인
+  [ ] 3개 클라이언트 동시 접속 시 서버 안정성 확인
+  [ ] egov-mysql Docker 컨테이너 재시작 후 DB 재연결 확인
+
+================================================================================
+  비고
+================================================================================
+
+  재빌드 명령어
+    ./gradlew clean bootJar
+
+  서버 실행 (OpenAI + 커스텀 API Key 포함)
+    OPENAI_API_KEY=sk-... APP_API_KEY=my-secret-key \
+      java -jar build/libs/springai-0.0.1-SNAPSHOT.jar
+
+  Ollama 서버 실행
+    ollama serve
+
+  로그 확인
+    tail -f /tmp/springai-mcp.log
+    tail -f ~/Library/Logs/Claude/mcp-server-springai-mcp.log
+
+  REST API 테스트 (X-API-Key 기본값: local-dev-key)
+    curl -X POST http://localhost:8080/api/tools/chat \
+      -H "X-API-Key: local-dev-key" \
+      -H "Content-Type: application/json" \
+      -d '{"taskType":"SENSITIVE_DATA","message":"테스트"}'
+
+================================================================================
