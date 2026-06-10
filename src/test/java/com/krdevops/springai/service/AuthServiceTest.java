@@ -141,4 +141,29 @@ class AuthServiceTest {
         assertThat("/emp/other/EgovOtherList.do").doesNotMatch(pattern);
         assertThat("/admin/employer/EgovEmpList.do").doesNotMatch(pattern);
     }
+
+    // --- Oracle renderer 회귀 테스트 ---
+
+    @Test
+    void Oracle_renderer_주입시_SYSDATE_포함() {
+        when(authRepository.findNextRoleNum(any())).thenReturn(1);
+        SqlDialectRenderer oracleRenderer = new SqlDialectRenderer(DbDialect.ORACLE);
+        AuthService oracleService = new AuthService(authRepository, oracleRenderer,
+                new AuthInputValidator(), new AuthSqlBuilder(oracleRenderer), new AuthResultBuilder());
+
+        String result = oracleService.generateAuthInsertSql("/emp/employer", "직원관리", "emp");
+
+        assertThat(result).contains("SYSDATE");
+        assertThat(result).doesNotContain("NOW()");
+    }
+
+    @Test
+    void MySQL_renderer_주입시_NOW_포함() {
+        when(authRepository.findNextRoleNum(any())).thenReturn(1);
+
+        String result = authService.generateAuthInsertSql("/emp/employer", "직원관리", "emp");
+
+        assertThat(result).contains("NOW()");
+        assertThat(result).doesNotContain("SYSDATE");
+    }
 }
