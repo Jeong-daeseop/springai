@@ -1,0 +1,70 @@
+package com.krdevops.springai.service.menu;
+
+import com.krdevops.springai.model.MenuRegistrationSpec;
+import com.krdevops.springai.model.SqlPlan;
+import com.krdevops.springai.service.sql.SqlDialectRenderer;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+public class MenuSqlBuilder {
+
+    private final SqlDialectRenderer renderer;
+
+    public MenuSqlBuilder(SqlDialectRenderer renderer) {
+        this.renderer = renderer;
+    }
+
+    public SqlPlan build(MenuRegistrationSpec spec, BigDecimal nextMenuNo, BigDecimal nextMenuOrdr) {
+        String url = spec.urlPrefix() + "/" + spec.progrmFileNm() + ".do";
+        String stre = spec.urlPrefix() + "/";
+
+        List<String> statements = new ArrayList<>();
+
+        statements.add(buildProgramSql(spec, url, stre));
+        statements.add(buildMenuSql(spec, nextMenuNo, nextMenuOrdr, url));
+
+        List<String> warnings = new ArrayList<>();
+        warnings.add("※ MENU_NO(" + nextMenuNo + "), MENU_ORDR(" + nextMenuOrdr + ")는 SQL 생성 시점 기준입니다. 실행 전 중복 여부를 재확인하세요.");
+        warnings.add("※ URL(" + url + ")이 실제 Controller RequestMapping과 일치하는지 확인하세요.");
+
+        List<String> nextSteps = List.of(
+                "1. 위 SQL을 DB에서 실행하세요.",
+                "2. AuthTool.generateAuthInsertSql() 을 호출하여 URL 권한 SQL을 생성하세요.",
+                "3. 권한 SQL 실행 후 서버 재기동 또는 Security 캐시 갱신이 필요합니다.",
+                "4. 메뉴 노출 및 URL 접근 테스트를 수행하세요."
+        );
+
+        return new SqlPlan("메뉴/프로그램 등록 SQL", statements, warnings, nextSteps);
+    }
+
+    private String buildProgramSql(MenuRegistrationSpec spec, String url, String stre) {
+        return "INSERT INTO COMTNPROGRMLIST (" +
+                "PROGRM_FILE_NM, PROGRM_KOREAN_NM, PROGRM_DC, URL, STRE_PATH, " +
+                "USE_AT, CREAT_DT, MDFCN_DT) VALUES (" +
+                "'" + esc(spec.progrmFileNm()) + "', " +
+                "'" + esc(spec.menuNm()) + "', " +
+                "'" + esc(spec.menuNm()) + " 프로그램', " +
+                "'" + esc(url) + "', " +
+                "'" + esc(stre) + "', " +
+                "'Y', " + renderer.now() + ", " + renderer.now() + ");";
+    }
+
+    private String buildMenuSql(MenuRegistrationSpec spec, BigDecimal nextMenuNo,
+                                 BigDecimal nextMenuOrdr, String url) {
+        return "INSERT INTO COMTNMENUINFO (" +
+                "MENU_NO, MENU_NM, UPPER_MENU_NO, MENU_ORDR, URL, " +
+                "USE_AT, CREAT_DT, MDFCN_DT) VALUES (" +
+                nextMenuNo + ", " +
+                "'" + esc(spec.menuNm()) + "', " +
+                spec.upperMenuNo() + ", " +
+                nextMenuOrdr + ", " +
+                "'" + esc(url) + "', " +
+                "'Y', " + renderer.now() + ", " + renderer.now() + ");";
+    }
+
+    private String esc(String value) {
+        return value == null ? "" : value.replace("'", "''");
+    }
+}

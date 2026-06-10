@@ -1,8 +1,15 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.model.MenuRegistrationSpec;
+import com.krdevops.springai.model.SqlPlan;
+import com.krdevops.springai.service.menu.MenuInputValidator;
+import com.krdevops.springai.service.menu.MenuRepository;
+import com.krdevops.springai.service.menu.MenuResultBuilder;
+import com.krdevops.springai.service.menu.MenuSqlBuilder;
+import com.krdevops.springai.service.sql.DbDialect;
+import com.krdevops.springai.service.sql.SqlDialectRenderer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -14,172 +21,108 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class MenuService {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final MenuRepository menuRepository;
 
-    // -------------------------------------------------------------------------
-    // getMenuStructure
-    // -------------------------------------------------------------------------
+    private final SqlDialectRenderer renderer = new SqlDialectRenderer(DbDialect.MYSQL_MARIADB);
+    private final MenuInputValidator validator = new MenuInputValidator();
+    private final MenuSqlBuilder sqlBuilder = new MenuSqlBuilder(renderer);
+    private final MenuResultBuilder resultBuilder = new MenuResultBuilder();
 
     public String getMenuStructure(String menuNo) {
-        boolean isRoot = "0".equals(menuNo.trim());
+        try {
+            validator.validateMenuNo(menuNo);
+        } catch (IllegalArgumentException e) {
+            return "오류: " + e.getMessage();
+        }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("=== 메뉴 구조 (MENU_NO: ").append(menuNo).append(") ===\n\n");
 
-        if (isRoot) {
-            // 전체 트리: root(0) 직계 자식부터 재귀 출력
-            List<Map<String, Object>> roots = jdbcTemplate.queryForList(
-                "SELECT MENU_NO, UPPER_MENU_NO, MENU_NM, PROGRM_FILE_NM, MENU_ORDR " +
-                "FROM COMTNMENUINFO WHERE UPPER_MENU_NO = 0 ORDER BY MENU_ORDR",
-                (Object[]) null
-            );
-            sb.append("[0] root\n");
+        if ("0".equals(menuNo.trim())) {
+            List<Map<String, Object>> roots = menuRepository.findRootMenus();
+            sb.append("=== 전체 메뉴 구조 ===\n");
             for (int i = 0; i < roots.size(); i++) {
                 boolean last = (i == roots.size() - 1);
-                appendNode(sb, roots.get(i), "  ", last, true);
+                appendNode(sb, roots.get(i), "", last, true);
             }
         } else {
-            // 지정 노드 기준 하위 트리
-            List<Map<String, Object>> node = jdbcTemplate.queryForList(
-                "SELECT MENU_NO, UPPER_MENU_NO, MENU_NM, PROGRM_FILE_NM, MENU_ORDR " +
-                "FROM COMTNMENUINFO WHERE MENU_NO = ?",
-                new BigDecimal(menuNo)
-            );
-            if (node.isEmpty()) {
-                return "MENU_NO " + menuNo + " 에 해당하는 메뉴가 없습니다.";
+            int menuNoInt = Integer.parseInt(menuNo.trim());
+            List<Map<String, Object>> menus = menuRepository.findMenuByNo(menuNoInt);
+            if (menus.isEmpty()) {
+                return "메뉴 번호 " + menuNo + " 를 찾을 수 없습니다.";
             }
-            Map<String, Object> root = node.get(0);
-            sb.append(String.format("[%s] %s  (UPPER: %s, 순서: %s)\n",
-                root.get("MENU_NO"), root.get("MENU_NM"),
-                root.get("UPPER_MENU_NO"), root.get("MENU_ORDR")));
+            Map<String, Object> menu = menus.get(0);
+            sb.append("=== 메뉴 구조 (MENU_NO: ").append(menuNo).append(") ===\n");
+            sb.append("[").append(menu.get("MENU_NO")).append("] ")
+              .append(menu.get("MENU_NM")).append("\n");
 
-            List<Map<String, Object>> children = getChildren(menuNo);
+            String upperMenuNo = String.valueOf(menu.get("MENU_NO"));
+            List<Map<String, Object>> children = menuRepository.findChildMenus(upperMenuNo);
             for (int i = 0; i < children.size(); i++) {
                 boolean last = (i == children.size() - 1);
                 appendNode(sb, children.get(i), "  ", last, false);
             }
-        }
-
-        // 신규 등록 권장값 계산
-        if (!isRoot) {
-            appendRecommendation(sb, menuNo);
+            appendRecommendation(sb, menuNoInt);
         }
 
         return sb.toString();
     }
 
-    private void appendNode(StringBuilder sb, Map<String, Object> row,
-                             String indent, boolean isLast, boolean recurse) {
-        String connector = isLast ? "└── " : "├── ";
-        String progrmFileNm = row.get("PROGRM_FILE_NM") != null
-            ? " → " + row.get("PROGRM_FILE_NM") : "";
-        sb.append(String.format("%s%s[%s] %s%s\n",
-            indent, connector,
-            row.get("MENU_NO"), row.get("MENU_NM"), progrmFileNm));
+    public String generateMenuInsertSql(String upperMenuNo, String urlPrefix,
+                                         String menuNm, String progrmFileNm) {
+        MenuRegistrationSpec spec;
+        try {
+            spec = validator.validateAndBuild(upperMenuNo, urlPrefix, menuNm, progrmFileNm);
+        } catch (IllegalArgumentException e) {
+            return "오류: " + e.getMessage();
+        }
+
+        if (!menuRepository.existsUpperMenu(spec.upperMenuNo())) {
+            return "오류: 상위 메뉴 번호 " + spec.upperMenuNo() + " 가 COMTNMENUINFO에 존재하지 않습니다.";
+        }
+
+        if (menuRepository.existsProgrmFileNm(spec.progrmFileNm())) {
+            return "오류: 프로그램 파일명 '" + spec.progrmFileNm() + "' 이 이미 COMTNPROGRMLIST에 등록되어 있습니다. " +
+                   "AuthTool.getProgramList()로 기존 프로그램을 확인하세요.";
+        }
+
+        String url = spec.urlPrefix() + "/" + spec.progrmFileNm() + ".do";
+        if (menuRepository.existsUrl(url)) {
+            return "경고: URL '" + url + "' 이 이미 COMTNPROGRMLIST에 등록되어 있습니다. " +
+                   "기존 프로그램과 URL이 겹칩니다. 계속 진행하려면 URL을 변경하세요.";
+        }
+
+        BigDecimal nextMenuNo = menuRepository.findMaxMenuNo(spec.upperMenuNo()).add(BigDecimal.valueOf(10000));
+        BigDecimal nextMenuOrdr = menuRepository.findMaxMenuOrdr(spec.upperMenuNo()).add(BigDecimal.ONE);
+
+        SqlPlan plan = sqlBuilder.build(spec, nextMenuNo, nextMenuOrdr);
+        return resultBuilder.render(plan);
+    }
+
+    private void appendNode(StringBuilder sb, Map<String, Object> menu,
+                             String indent, boolean last, boolean recurse) {
+        String connector = last ? "└── " : "├── ";
+        sb.append(indent).append(connector)
+          .append("[").append(menu.get("MENU_NO")).append("] ")
+          .append(menu.get("MENU_NM")).append("\n");
 
         if (recurse) {
-            String childIndent = indent + (isLast ? "    " : "│   ");
-            String menuNo = row.get("MENU_NO").toString();
-            List<Map<String, Object>> children = getChildren(menuNo);
+            String childIndent = indent + (last ? "    " : "│   ");
+            String upperMenuNo = String.valueOf(menu.get("MENU_NO"));
+            List<Map<String, Object>> children = menuRepository.findChildMenus(upperMenuNo);
             for (int i = 0; i < children.size(); i++) {
-                boolean last = (i == children.size() - 1);
-                appendNode(sb, children.get(i), childIndent, last, true);
+                appendNode(sb, children.get(i), childIndent, i == children.size() - 1, true);
             }
         }
     }
 
-    private List<Map<String, Object>> getChildren(String upperMenuNo) {
-        return jdbcTemplate.queryForList(
-            "SELECT MENU_NO, UPPER_MENU_NO, MENU_NM, PROGRM_FILE_NM, MENU_ORDR " +
-            "FROM COMTNMENUINFO WHERE UPPER_MENU_NO = ? ORDER BY MENU_ORDR",
-            new BigDecimal(upperMenuNo)
-        );
-    }
+    private void appendRecommendation(StringBuilder sb, int menuNo) {
+        BigDecimal maxMenuNo = menuRepository.findMaxMenuNo(menuNo);
+        BigDecimal maxOrdr = menuRepository.findMaxMenuOrdr(menuNo);
+        BigDecimal nextMenuNo = maxMenuNo.add(BigDecimal.valueOf(10000));
+        BigDecimal nextOrdr = maxOrdr.add(BigDecimal.ONE);
 
-    private void appendRecommendation(StringBuilder sb, String upperMenuNo) {
-        BigDecimal maxMenuNo = jdbcTemplate.queryForObject(
-            "SELECT MAX(MENU_NO) FROM COMTNMENUINFO WHERE UPPER_MENU_NO = ?",
-            BigDecimal.class, new BigDecimal(upperMenuNo)
-        );
-        BigDecimal maxOrdr = jdbcTemplate.queryForObject(
-            "SELECT MAX(MENU_ORDR) FROM COMTNMENUINFO WHERE UPPER_MENU_NO = ?",
-            BigDecimal.class, new BigDecimal(upperMenuNo)
-        );
-
-        BigDecimal base = new BigDecimal(upperMenuNo);
-        BigDecimal nextMenuNo = (maxMenuNo != null)
-            ? maxMenuNo.add(BigDecimal.valueOf(10000))
-            : base.add(BigDecimal.valueOf(10000));
-        int nextOrdr = (maxOrdr != null) ? maxOrdr.intValue() + 1 : 1;
-
-        sb.append("\n[신규 등록 시 권장값]\n");
-        sb.append("  MENU_NO   : ").append(nextMenuNo).append("\n");
-        sb.append("  MENU_ORDR : ").append(nextOrdr).append("\n");
-        sb.append("\n[다음 단계]\n");
-        sb.append("  generateMenuInsertSql(\"").append(upperMenuNo)
-          .append("\", \"/도메인/기능\", \"메뉴명\", \"ProgrmFileNm\")\n");
-    }
-
-    // -------------------------------------------------------------------------
-    // generateMenuInsertSql
-    // -------------------------------------------------------------------------
-
-    public String generateMenuInsertSql(String upperMenuNo, String urlPrefix,
-                                         String menuNm, String progrmFileNm) {
-        // MENU_NO 자동 계산
-        BigDecimal maxMenuNo = jdbcTemplate.queryForObject(
-            "SELECT MAX(MENU_NO) FROM COMTNMENUINFO WHERE UPPER_MENU_NO = ?",
-            BigDecimal.class, new BigDecimal(upperMenuNo)
-        );
-        BigDecimal base = new BigDecimal(upperMenuNo);
-        BigDecimal nextMenuNo = (maxMenuNo != null)
-            ? maxMenuNo.add(BigDecimal.valueOf(10000))
-            : base.add(BigDecimal.valueOf(10000));
-
-        // MENU_ORDR 자동 계산
-        BigDecimal maxOrdr = jdbcTemplate.queryForObject(
-            "SELECT MAX(MENU_ORDR) FROM COMTNMENUINFO WHERE UPPER_MENU_NO = ?",
-            BigDecimal.class, new BigDecimal(upperMenuNo)
-        );
-        int nextOrdr = (maxOrdr != null) ? maxOrdr.intValue() + 1 : 1;
-
-        // urlPrefix 정규화: 끝 슬래시 제거
-        String prefix = urlPrefix.endsWith("/") ? urlPrefix.substring(0, urlPrefix.length() - 1) : urlPrefix;
-        // 저장경로: 끝 슬래시 보장
-        String storePath = prefix.substring(prefix.lastIndexOf("/") + 1).isEmpty()
-            ? prefix + "/" : prefix + "/";
-        // URL
-        String url = prefix + "/" + progrmFileNm + ".do";
-        // 저장경로 (슬래시로 끝나는 디렉터리)
-        String stre = prefix + "/";
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("=== 메뉴·프로그램 등록 SQL ===\n\n");
-
-        sb.append("-- Step 1. 프로그램 등록\n");
-        sb.append("INSERT INTO COMTNPROGRMLIST (\n");
-        sb.append("    PROGRM_FILE_NM, PROGRM_STRE_PATH, PROGRM_KOREAN_NM, URL\n");
-        sb.append(") VALUES (\n");
-        sb.append("    '").append(progrmFileNm).append("',\n");
-        sb.append("    '").append(stre).append("',\n");
-        sb.append("    '").append(menuNm).append("',\n");
-        sb.append("    '").append(url).append("'\n");
-        sb.append(");\n\n");
-
-        sb.append("-- Step 2. 메뉴 등록\n");
-        sb.append("INSERT INTO COMTNMENUINFO (\n");
-        sb.append("    MENU_NO, UPPER_MENU_NO, MENU_NM, PROGRM_FILE_NM, MENU_ORDR\n");
-        sb.append(") VALUES (\n");
-        sb.append("    ").append(nextMenuNo).append(",\n");
-        sb.append("    ").append(upperMenuNo).append(",\n");
-        sb.append("    '").append(menuNm).append("',\n");
-        sb.append("    '").append(progrmFileNm).append("',\n");
-        sb.append("    ").append(nextOrdr).append("\n");
-        sb.append(");\n\n");
-
-        sb.append("※ SQL 실행 후 Spring Security 캐시 갱신 또는 서버 재기동이 필요합니다.\n");
-
-        log.info("generateMenuInsertSql: upperMenuNo={}, menuNo={}, ordr={}", upperMenuNo, nextMenuNo, nextOrdr);
-        return sb.toString();
+        sb.append("\n【권장값】\n");
+        sb.append("신규 MENU_NO: ").append(nextMenuNo).append("\n");
+        sb.append("신규 MENU_ORDR: ").append(nextOrdr).append("\n");
     }
 }

@@ -17,6 +17,7 @@ public class MenuTool {
             특정 menuNo를 지정하면 해당 메뉴의 하위 트리를 반환합니다.
             반환값에 신규 등록 시 권장 MENU_NO / MENU_ORDR 이 자동 계산되어 포함됩니다.
             menuNo: 조회할 메뉴 번호 (예: "0"=전체, "6000000"=시스템관리 하위)
+            ※ menuNo는 숫자 문자열이어야 합니다. null/빈값/비숫자 입력 시 오류 메시지를 반환합니다.
             새 메뉴 등록 위치 파악 후 generateMenuInsertSql() 을 호출하세요.
             """)
     public String getMenuStructure(String menuNo) {
@@ -28,6 +29,9 @@ public class MenuTool {
             SQL 1: COMTNPROGRMLIST INSERT (프로그램 등록)
             SQL 2: COMTNMENUINFO INSERT (메뉴 등록)
             MENU_NO와 MENU_ORDR은 기존 최대값 기준으로 자동 계산됩니다.
+            ※ 상위 메뉴 존재 여부, PROGRM_FILE_NM 중복, URL 중복을 자동 검증합니다.
+            ※ securityMapper가 DB 기반 URL 권한을 조회하는 구성이어야 이 SQL이 Security에 반영됩니다.
+            ※ 현재 MySQL/MariaDB 방언 기준. Oracle 전환 시 DbDialect 설정 변경 필요.
             이 Tool은 SQL을 반환만 합니다. 직접 DB에 INSERT하지 않으므로 사용자가 검토 후 실행하세요.
             upperMenuNo : 상위 메뉴 번호 (예: "6000000")
             urlPrefix   : URL 경로 접두사 (예: "/emp/employer")
