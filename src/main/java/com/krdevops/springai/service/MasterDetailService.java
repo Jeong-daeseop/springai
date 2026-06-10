@@ -144,7 +144,7 @@ public class MasterDetailService {
         sb.append("      <c:forEach items=\"${detailList}\" var=\"detail\">\n");
         sb.append("        <tr>\n");
         buildVoFieldNames(detailCols).forEach(f ->
-            sb.append("          <td>${detail.").append(toCamelCase(f)).append("}</td>\n"));
+            sb.append("          <td><c:out value=\"${detail.").append(toCamelCase(f)).append("}\"/></td>\n"));
         sb.append("        </tr>\n");
         sb.append("      </c:forEach>\n");
         sb.append("      </tbody>\n");

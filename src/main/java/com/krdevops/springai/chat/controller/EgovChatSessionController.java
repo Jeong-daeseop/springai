@@ -7,17 +7,22 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.*;
 import org.springframework.http.ResponseEntity;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
+@Validated
 @RestController
 @RequestMapping("/api/chat/sessions")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "${app.allowed-origins:http://localhost:8080}")
 public class EgovChatSessionController {
 
     private final EgovChatSessionService egovChatSessionService;
@@ -44,7 +49,8 @@ public class EgovChatSessionController {
     }
 
     @GetMapping("/{sessionId}/messages")
-    public ResponseEntity<List<ChatMessageDto>> getSessionMessages(@PathVariable String sessionId) {
+    public ResponseEntity<List<ChatMessageDto>> getSessionMessages(
+            @PathVariable @Pattern(regexp = "[a-zA-Z0-9\\-]{1,64}") String sessionId) {
         try {
             if (!egovChatSessionService.sessionExists(sessionId)) {
                 return ResponseEntity.notFound().build();
@@ -55,14 +61,7 @@ public class EgovChatSessionController {
                 if (m instanceof UserMessage u) content = u.getText();
                 else if (m instanceof AssistantMessage a) content = a.getText();
                 else if (m instanceof SystemMessage s) content = s.getText();
-                else {
-                    try {
-                        Method getText = m.getClass().getMethod("getText");
-                        content = (String) getText.invoke(m);
-                    } catch (Exception e) {
-                        content = "";
-                    }
-                }
+                else content = m.getText();
                 return new ChatMessageDto(m.getMessageType().name(), content);
             }).collect(Collectors.toList());
             return ResponseEntity.ok(dtos);
@@ -73,8 +72,9 @@ public class EgovChatSessionController {
     }
 
     @PutMapping("/{sessionId}/title")
-    public ResponseEntity<Void> updateSessionTitle(@PathVariable String sessionId,
-                                                    @RequestBody UpdateTitleRequest request) {
+    public ResponseEntity<Void> updateSessionTitle(
+            @PathVariable @Pattern(regexp = "[a-zA-Z0-9\\-]{1,64}") String sessionId,
+                                                    @RequestBody @Valid UpdateTitleRequest request) {
         try {
             if (!egovChatSessionService.sessionExists(sessionId)) return ResponseEntity.notFound().build();
             egovChatSessionService.updateSessionTitle(sessionId, request.getTitle());
@@ -86,7 +86,8 @@ public class EgovChatSessionController {
     }
 
     @DeleteMapping("/{sessionId}")
-    public ResponseEntity<Void> deleteSession(@PathVariable String sessionId) {
+    public ResponseEntity<Void> deleteSession(
+            @PathVariable @Pattern(regexp = "[a-zA-Z0-9\\-]{1,64}") String sessionId) {
         try {
             if (!egovChatSessionService.sessionExists(sessionId)) return ResponseEntity.notFound().build();
             egovChatSessionService.deleteSession(sessionId);
@@ -98,6 +99,8 @@ public class EgovChatSessionController {
     }
 
     public static class UpdateTitleRequest {
+        @NotBlank(message = "제목은 필수입니다.")
+        @Size(max = 100, message = "제목은 100자 이내여야 합니다.")
         private String title;
         public UpdateTitleRequest() {}
         public String getTitle() { return title; }

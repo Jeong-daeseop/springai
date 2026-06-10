@@ -54,10 +54,10 @@ public class EmployeeRepository {
         return jdbcTemplate.update(
             "INSERT INTO COMTNEMPLYRINFO " +
             "(EMPLYR_ID, USER_NM, EMAIL_ADRES, OFCPS_NM, MBTLNUM, EMPLYR_STTUS_CODE, ESNTL_ID, " +
-            " PASSWORD, HOUSE_ADRES, PASSWORD_HINT, PASSWORD_CNSR, HOUSE_END_TELNO, AREA_NO, ZIP) " +
-            "VALUES (?, ?, ?, ?, ?, 'A', ?, 'temp1234!', '', '', '', '', '', '')",
+            " PASSWORD, HOUSE_ADRES, PASSWORD_HINT, PASSWORD_CNSR, HOUSE_END_TELNO, HOUSE_MIDDLE_TELNO, AREA_NO, ZIP) " +
+            "VALUES (?, ?, ?, ?, ?, 'A', ?, ?, '', '', '', '', '', '', '')",
             vo.getEmplyrId(), vo.getUserNm(), vo.getEmailAdres(),
-            vo.getOfcpsNm(), vo.getMbtlnum(), vo.getEsntlId());
+            vo.getOfcpsNm(), vo.getMbtlnum(), vo.getEsntlId(), vo.getPassword());
     }
 
     public int updateEmployee(EmployeeVO vo) {

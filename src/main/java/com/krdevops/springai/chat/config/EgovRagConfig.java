@@ -16,7 +16,7 @@ import org.springframework.context.annotation.Primary;
 @Configuration
 public class EgovRagConfig {
 
-    @Value("${rag.similarity.threshold:0.70}")
+    @Value("${rag.similarity.threshold:0.30}")
     private double similarityThreshold;
 
     @Value("${rag.top-k:3}")

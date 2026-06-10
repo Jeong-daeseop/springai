@@ -91,8 +91,13 @@ public class CrudPromptBuilderService {
     public PlaceholderValues buildPlaceholderValues(String database, String tableName,
                                                     String domain, String packageName,
                                                     String outputPath, String egovVersion) {
-        // 컬럼 정보 조회
         List<Map<String, Object>> columns = fetchColumns(database, tableName);
+        return buildPlaceholderValuesFromColumns(columns, database, tableName, domain, packageName, outputPath, egovVersion);
+    }
+
+    private PlaceholderValues buildPlaceholderValuesFromColumns(
+            List<Map<String, Object>> columns, String database, String tableName,
+            String domain, String packageName, String outputPath, String egovVersion) {
         if (columns.isEmpty()) return null;
 
         // PK 탐지
@@ -149,14 +154,14 @@ public class CrudPromptBuilderService {
     public String buildFullCrudPrompt(String database, String tableName,
                                       String domain, String packageName, String outputPath,
                                       String egovVersion) {
-        // 1. 플레이스홀더 값 계산 (공통 메서드 재사용)
-        PlaceholderValues pv = buildPlaceholderValues(database, tableName, domain, packageName, outputPath, egovVersion);
+        // 1. 컬럼 정보 1회 조회 — 플레이스홀더 계산과 공통 코드 탐지에 재사용
+        List<Map<String, Object>> columns = fetchColumns(database, tableName);
+        PlaceholderValues pv = buildPlaceholderValuesFromColumns(columns, database, tableName, domain, packageName, outputPath, egovVersion);
         if (pv == null) {
             return "테이블을 찾을 수 없습니다: " + database + "." + tableName;
         }
 
-        // 2. 공통 코드 컬럼 탐지 및 조회
-        List<Map<String, Object>> columns = fetchColumns(database, tableName);
+        // 2. 공통 코드 컬럼 탐지 (조회된 컬럼 재사용)
         String commonCodeSection = buildCommonCodeSection(columns);
 
         // 3. 통합 프롬프트 조립
@@ -345,7 +350,7 @@ public class CrudPromptBuilderService {
                              !((String) col.get("COLUMN_COMMENT")).isBlank()
                            ? (String) col.get("COLUMN_COMMENT") : field;
             sb.append("                        <tr><th>").append(comment)
-              .append("</th><td>${result.").append(field).append("}</td></tr>\n");
+              .append("</th><td><c:out value=\"${result.").append(field).append("}\"/></td></tr>\n");
         }
         return sb.toString();
     }
@@ -360,7 +365,7 @@ public class CrudPromptBuilderService {
                            ? (String) col.get("COLUMN_COMMENT") : field;
             sb.append("                            <tr><th>").append(comment).append("</th><td>\n");
             sb.append("                                <input type=\"text\" name=\"").append(field)
-              .append("\" value=\"${").append(field).append("}\"");
+              .append("\" value=\"<c:out value='${").append(field).append("}'/>\"");
             if (colName.equals(pkColumn)) sb.append(" readonly=\"readonly\"");
             sb.append("/>\n                            </td></tr>\n");
         }

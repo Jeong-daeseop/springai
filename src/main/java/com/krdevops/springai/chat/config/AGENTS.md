@@ -1,45 +1,41 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-06-04 | Updated: 2026-06-04 -->
+<!-- Generated: 2026-06-08 | Updated: 2026-06-08 -->
 
 # chat/config
 
 ## Purpose
-채팅 기능 전용 설정 클래스. 비동기 처리, 채팅 메모리, RAG 파이프라인, Redis 연결 설정을 담당합니다.
+채팅 모듈 전용 설정 클래스 패키지. 비동기 처리, Redis 채팅 메모리, RAG 파이프라인을 구성합니다.
 
 ## Key Files
 
 | File | Description |
 |------|-------------|
-| `EgovAsyncConfig.java` | 스트리밍 응답용 비동기 실행기(TaskExecutor) 설정 |
-| `EgovChatMemoryConfig.java` | Spring AI ChatMemory 빈 설정 — 대화 이력 저장 전략 |
-| `EgovRagConfig.java` | RAG 파이프라인 설정 — QuestionAnswerAdvisor, 임베딩 모델, 검색 파라미터 |
-| `EgovRedisConfig.java` | Redis 연결 설정 — Lettuce 클라이언트, 직렬화 설정 |
+| `EgovAsyncConfig.java` | `@EnableAsync` + `ThreadPoolTaskExecutor` 설정 — SSE 스트리밍용 비동기 스레드 풀 |
+| `EgovChatMemoryConfig.java` | `MessageWindowChatMemory` 빈 설정 — Redis 기반, 최대 8개 메시지 윈도우 |
+| `EgovRagConfig.java` | RAG 파이프라인 구성 — `QuestionAnswerAdvisor` + `EgovCompressionQueryTransformer` 조합 |
+| `EgovRedisConfig.java` | Redis 연결 설정 — `RedisTemplate`, `EgovRedisChatMemoryRepository` 빈 등록 |
 
 ## Subdirectories
 
 | Directory | Purpose |
 |-----------|---------|
-| `rag/transformers/` | RAG 쿼리 변환기 (see `rag/transformers/AGENTS.md`) |
+| `rag/` | RAG 관련 커스텀 컴포넌트 (see `rag/AGENTS.md`) |
 
 ## For AI Agents
 
 ### Working In This Directory
-- `EgovRagConfig.java` 수정 시 `rag/transformers/` 내 커스텀 변환기와 연계 확인
-- Redis 설정 변경 시 `chat/repository/EgovRedisChatMemoryRepository.java`와 호환성 검토
-
-### Common Patterns
-- Spring AI `@Bean` 설정으로 Advisor 체인 구성
-- RAG 검색 파라미터(top-k, similarity threshold)는 `EgovRagConfig`에서 중앙 관리
+- `EgovChatMemoryConfig`: `chat.memory.max-messages` 값(`application.yaml`)으로 윈도우 크기 제어
+- `EgovRagConfig`: RAG 활성화 여부는 `rag.enable-query-compression` 설정으로 토글 가능
+- `EgovAsyncConfig`: SSE 스트리밍 타임아웃은 `server.tomcat.connection-timeout` (1시간) 참조
 
 ## Dependencies
 
 ### Internal
-- `chat/repository/EgovRedisChatMemoryRepository.java` — Redis 메모리 저장소
-- `rag/transformers/EgovCompressionQueryTransformer.java` — 쿼리 압축 변환기
+- `chat/repository/EgovRedisChatMemoryRepository.java`
+- `chat/config/rag/transformers/EgovCompressionQueryTransformer.java`
 
 ### External
-- Spring AI VectorStore / ChatMemory
-- Redis (Lettuce)
-- Ollama 임베딩 모델
+- Spring AI `MessageWindowChatMemory`, `QuestionAnswerAdvisor`
+- Spring Data Redis
 
 <!-- MANUAL: -->

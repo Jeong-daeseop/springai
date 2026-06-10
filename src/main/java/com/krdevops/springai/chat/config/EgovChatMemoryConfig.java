@@ -11,7 +11,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class EgovChatMemoryConfig {
 
-    @Value("${chat.memory.max-messages:20}")
+    @Value("${chat.memory.max-messages:8}")
     private int maxMessages;
 
     @Bean

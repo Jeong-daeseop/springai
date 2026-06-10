@@ -21,7 +21,7 @@ public class EgovCompressionQueryTransformer {
     private final ChatMemory chatMemory;
     private final ChatClient ollamaChatClient;
 
-    @Value("${rag.compression.model:qwen3:1.5b}")
+    @Value("${rag.compression.model:qwen3:1.7b}")
     private String compressionModel;
 
     public EgovCompressionQueryTransformer(ChatMemory chatMemory,

@@ -74,4 +74,16 @@ class DbDialectResolverTest {
         DbDialectResolver resolver = resolverWith("unknown_db", "H2");
         assertThat(resolver.resolve()).isEqualTo(DbDialect.MYSQL_MARIADB);
     }
+
+    @Test
+    void auto_알수없는DB_productName_MYSQL_MARIADB_fallback() throws SQLException {
+        DbDialectResolver resolver = resolverWith("auto", "PostgreSQL");
+        assertThat(resolver.resolve()).isEqualTo(DbDialect.MYSQL_MARIADB);
+    }
+
+    @Test
+    void auto_H2_productName_MYSQL_MARIADB_fallback() throws SQLException {
+        DbDialectResolver resolver = resolverWith("auto", "H2");
+        assertThat(resolver.resolve()).isEqualTo(DbDialect.MYSQL_MARIADB);
+    }
 }

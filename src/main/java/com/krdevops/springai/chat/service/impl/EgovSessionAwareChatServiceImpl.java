@@ -19,6 +19,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Slf4j
 @Service
@@ -67,11 +69,17 @@ public class EgovSessionAwareChatServiceImpl implements EgovSessionAwareChatServ
     public Flux<ChatResponse> streamRagResponse(String query, String model, String sessionId) {
         log.info("RAG 스트리밍 - 세션: {}, 질문: {}", sessionId, query);
 
-        try {
-            String searchQuery = enableQueryCompression
-                ? compressionTransformer.compress(query, sessionId)
-                : query;
+        // 쿼리 압축(Ollama 동기 호출)을 boundedElastic 스레드로 오프로드 — HTTP 요청 스레드 블로킹 방지
+        return Mono.fromCallable(() -> enableQueryCompression
+                    ? compressionTransformer.compress(query, sessionId)
+                    : query)
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMapMany(searchQuery -> streamRagFromQuery(searchQuery, model, sessionId))
+                .doOnError(e -> log.error("RAG 스트리밍 오류 - 세션: {}", sessionId, e));
+    }
 
+    private Flux<ChatResponse> streamRagFromQuery(String searchQuery, String model, String sessionId) {
+        try {
             String context = contextAssembler.build(searchQuery);
 
             var promptSpec = selectClient(model).prompt();
@@ -80,8 +88,6 @@ public class EgovSessionAwareChatServiceImpl implements EgovSessionAwareChatServ
                 log.info("통합 컨텍스트 적용 - 세션: {}, chars={}", sessionId, context.length());
                 promptSpec = promptSpec.system(promptBuilder.assembledSystemPrompt(context));
             } else {
-                // DB 컨텍스트 없는 일반 질문 — QuestionAnswerAdvisor가 VectorStore 검색 결과를
-                // user message에 추가하므로, 시스템 프롬프트에 "참고 문서 기반 답변" 지시를 포함해야 함
                 log.info("RAG 문서 모드 - 세션: {}", sessionId);
                 promptSpec = promptSpec.system(promptBuilder.ragSystemPrompt(""));
             }
@@ -113,7 +119,6 @@ public class EgovSessionAwareChatServiceImpl implements EgovSessionAwareChatServ
                     }
                 });
         } catch (Exception e) {
-            log.error("RAG 스트리밍 오류 - 세션: {}", sessionId, e);
             return Flux.error(e);
         }
     }

@@ -1,5 +1,10 @@
 # CLAUDE.md
 
+## 행동 규칙
+
+- 사용자가 명시적으로 수정을 요청하기 전까지 코드를 변경하지 않는다.
+- 분석·검토 결과는 문서나 설명으로만 제공하고, 구현은 별도 승인 후 진행한다.
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Commands

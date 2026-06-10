@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+// RAG 문서 검색은 QuestionAnswerAdvisor(EgovRagConfig)가 담당.
+// ContextAssembler는 DB 스키마·생성 이력·테이블 관계만 조립한다.
+
 /**
  * RAG 결과·DB 스키마·테이블 관계·생성 이력을 하나의 컨텍스트 블록으로 통합합니다.
  *
@@ -32,7 +35,7 @@ public class ContextAssembler {
      * 컨텍스트 최대 문자 수. Ollama mistral 4096 토큰 기준, 시스템 역할·사용자 질문
      * 여유분을 제외한 안전 예산 (한/영 혼재 기준 1토큰 ≈ 2~3자).
      */
-    private static final int MAX_CONTEXT_CHARS = 4_000;
+    private static final int MAX_CONTEXT_CHARS = 6_000;
 
     private static final String DEFAULT_DATABASE = "com";
 
@@ -43,7 +46,6 @@ public class ContextAssembler {
     private static final Pattern EGOV_TABLE_PATTERN =
         Pattern.compile("\\b(COMTN|COMTC|COMTH|LETGW)[A-Z0-9_]{2,}\\b");
 
-    private final RagService ragService;
     private final SchemaService schemaService;
     private final TableRelationService tableRelationService;
     private final GenerationHistoryService generationHistoryService;
@@ -53,13 +55,13 @@ public class ContextAssembler {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * 사용자 쿼리를 분석하여 Schema·이력·관계·RAG를 통합한 컨텍스트 문자열을 반환합니다.
+     * 사용자 쿼리를 분석하여 DB 스키마·생성 이력·테이블 관계를 통합한 컨텍스트 문자열을 반환합니다.
+     * RAG 문서 검색은 QuestionAnswerAdvisor가 별도로 처리하므로 여기서는 제외됩니다.
      *
-     * @param query 사용자 질문 (테이블명 자동 감지 + RAG 검색 키)
-     * @param topK  RAG 검색 상위 k개
+     * @param query 사용자 질문 (테이블명 자동 감지)
      * @return 통합 컨텍스트 블록 (빈 문자열이면 컨텍스트 없음)
      */
-    public String build(String query, int topK) {
+    public String build(String query) {
         String tableName = extractTableName(query);
         log.debug("ContextAssembler - 감지된 테이블: {}, 쿼리: {}", tableName,
             query.length() > 60 ? query.substring(0, 60) + "..." : query);
@@ -76,9 +78,6 @@ public class ContextAssembler {
             // 3순위: 테이블 관계
             appendRelations(ctx, tableName);
         }
-
-        // 4순위: RAG
-        appendRag(ctx, query, topK);
 
         String result = ctx.toString().trim();
         log.info("ContextAssembler 완료 - table={}, chars={}", tableName, result.length());
@@ -145,19 +144,6 @@ public class ContextAssembler {
             }
         } catch (Exception e) {
             log.warn("테이블 관계 조회 실패: table={}, {}", tableName, e.getMessage());
-        }
-    }
-
-    private void appendRag(StringBuilder ctx, String query, int topK) {
-        if (ctx.length() >= MAX_CONTEXT_CHARS) return;
-
-        try {
-            String ragContext = ragService.buildRagContext(query, topK);
-            if (!ragContext.isBlank()) {
-                append(ctx, ragContext + "\n");
-            }
-        } catch (Exception e) {
-            log.warn("RAG 검색 실패: {}", e.getMessage());
         }
     }
 

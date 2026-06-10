@@ -1,40 +1,38 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-06-04 | Updated: 2026-06-04 -->
+<!-- Generated: 2026-06-08 | Updated: 2026-06-08 -->
 
-# mapper (Repository)
+# mapper
 
 ## Purpose
-데이터 접근 레이어. `JdbcTemplate` 기반 Repository 클래스를 포함합니다.
-Spring Boot 4.x에서 MyBatis 미지원으로 인해 JdbcTemplate을 직접 사용합니다.
+JdbcTemplate 기반 Repository 클래스 패키지. eGovFrame MySQL DB(`egov-mysql`)에 직접 접근합니다.
+MyBatis 미사용 — Spring Boot 4.x 호환성으로 JdbcTemplate 사용.
 
 ## Key Files
 
 | File | Description |
 |------|-------------|
-| `EmployeeRepository.java` | `COMTNEMPLYRINFO` 테이블 CRUD — 직원 정보 조회/등록/수정/삭제 |
-| `GenerationHistoryRepository.java` | 코드 생성 이력 저장/조회 — 생성된 eGovFrame 소스 추적 |
+| `EmployeeRepository.java` | `COMTNEMPLYRINFO` 테이블 CRUD — 직원 목록 조회, 단건 조회, 등록/수정/삭제 |
+| `GenerationHistoryRepository.java` | eGovFrame 코드 생성 이력 저장/조회 — 생성된 파일 경로, 테이블명, 타임스탬프 |
 
 ## For AI Agents
 
 ### Working In This Directory
-- MyBatis 사용 불가 — 반드시 `JdbcTemplate` 사용
-- SQL 인라인 작성 시 `#{}`스타일 대신 `?` 플레이스홀더 사용 (JdbcTemplate 방식)
-- SQL Injection 방지를 위해 파라미터 바인딩 필수, 동적 SQL은 `StringBuilder` + 조건 분기
+- SQL은 클래스 내 `String` 상수 또는 인라인으로 관리 (MyBatis XML 없음)
+- SQL 파라미터는 반드시 `?` 플레이스홀더 사용 (SQL Injection 방지)
+- DB: `com` / User: `com` / Password: `com01` (Docker `egov-mysql`, port 3306)
 
 ### Common Patterns
 ```java
-@Repository
-@RequiredArgsConstructor
-public class MyRepository {
-    private final JdbcTemplate jdbcTemplate;
-    // ...
-}
+// JdbcTemplate 조회 패턴
+jdbcTemplate.query("SELECT * FROM COMTNEMPLYRINFO WHERE EMPLYR_ID = ?",
+    ps -> ps.setString(1, emplyrId),
+    (rs, rowNum) -> mapToVO(rs));
 ```
 
 ## Dependencies
 
 ### External
-- Spring JDBC (`JdbcTemplate`)
-- Docker `egov-mysql` 컨테이너 (DB: `com`, User: `com`, Password: `com01`)
+- Spring JDBC `JdbcTemplate`
+- Docker `egov-mysql` (mysql:8.0, port 3306)
 
 <!-- MANUAL: -->

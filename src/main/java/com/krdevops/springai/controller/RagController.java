@@ -59,7 +59,7 @@ public class RagController {
     @PostMapping("/search")
     public Map<String, Object> search(@RequestBody Map<String, Object> body) {
         String query = (String) body.get("query");
-        int topK = body.containsKey("topK") ? (int) body.get("topK") : 3;
+        int topK = body.containsKey("topK") ? ((Number) body.get("topK")).intValue() : 3;
 
         List<Document> docs = ragService.search(query, topK);
         List<Map<String, Object>> results = docs.stream()
@@ -85,23 +85,19 @@ public class RagController {
     public Map<String, String> ragChat(@RequestBody Map<String, Object> body) {
         String query    = (String) body.get("query");
         String taskType = (String) body.getOrDefault("taskType", "SIMPLE_QUERY");
-        int topK        = body.containsKey("topK") ? (int) body.get("topK") : 3;
+        int topK        = body.containsKey("topK") ? ((Number) body.get("topK")).intValue() : 3;
 
         String context = ragService.buildRagContext(query, topK);
         String prompt  = context.isEmpty()
             ? query
             : context + "\n\n위 참고 문서를 바탕으로 다음 질문에 답하세요:\n" + query;
 
-        try {
-            String answer = llmRouterService.chat(taskType, prompt);
-            return Map.of(
-                "query",     query,
-                "taskType",  taskType,
-                "hasContext", String.valueOf(!context.isEmpty()),
-                "answer",    answer
-            );
-        } catch (IllegalArgumentException e) {
-            return Map.of("error", e.getMessage());
-        }
+        String answer = llmRouterService.chat(taskType, prompt);
+        return Map.of(
+            "query",     query,
+            "taskType",  taskType,
+            "hasContext", String.valueOf(!context.isEmpty()),
+            "answer",    answer
+        );
     }
 }

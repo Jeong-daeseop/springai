@@ -1,5 +1,5 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-06-04 | Updated: 2026-06-04 -->
+<!-- Generated: 2026-06-08 | Updated: 2026-06-08 -->
 
 # chat/response
 
@@ -10,18 +10,13 @@
 
 | File | Description |
 |------|-------------|
-| `DocumentStatusResponse.java` | 문서 업로드/임베딩 상태 응답 — 성공/실패, 처리된 청크 수 등 |
-| `TechnologyResponse.java` | 기술 스택 정보 응답 DTO |
+| `DocumentStatusResponse.java` | 문서 업로드·임베딩 결과 응답 — 상태, 청크 수, 문서 ID |
+| `TechnologyResponse.java` | 기술 스택 정보 응답 — 현재 활성 LLM 모델, RAG 상태 등 |
 
 ## For AI Agents
 
 ### Working In This Directory
-- 응답 DTO는 불변(immutable) 설계 권장 (`@Value` 또는 Java record 사용)
-- 클라이언트 API 계약이므로 필드명 변경 시 프론트엔드 영향 확인 필요
-
-## Dependencies
-
-### Internal
-- `chat/controller/` — 컨트롤러에서 응답 객체 생성하여 반환
+- 불변 객체 권장: Lombok `@Value` 또는 Java `record`
+- 새 엔드포인트 추가 시 전용 Response 클래스 작성
 
 <!-- MANUAL: -->

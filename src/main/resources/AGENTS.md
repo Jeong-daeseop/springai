@@ -1,41 +1,45 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-06-04 | Updated: 2026-06-04 -->
+<!-- Generated: 2026-06-08 | Updated: 2026-06-08 -->
 
 # resources
 
 ## Purpose
-Spring Boot 애플리케이션 리소스 루트. 설정 파일, 로깅 설정, HTML 템플릿, 정적 자원을 포함합니다.
+애플리케이션 설정 파일, Thymeleaf 템플릿, 정적 자원, 로깅 설정이 위치하는 디렉터리입니다.
 
 ## Key Files
 
 | File | Description |
 |------|-------------|
-| `application.yaml` | Spring Boot 핵심 설정 — MCP stdio 모드, Redis, Ollama, VectorStore 설정 |
-| `logback-spring.xml` | Logback 로깅 설정 — 파일 출력(`/tmp/springai-mcp.log`), stdout 억제 |
+| `application.yaml` | 핵심 설정 — MCP Streamable HTTP, Ollama, OpenAI, Redis Vector Store, RAG, 보안, DB |
+| `logback-spring.xml` | Logback 로깅 설정 — `/tmp/springai-mcp.log` 파일 출력 전용 (stdout 오염 방지) |
 
 ## Subdirectories
 
 | Directory | Purpose |
 |-----------|---------|
 | `templates/` | Thymeleaf HTML 템플릿 (see `templates/AGENTS.md`) |
-| `static/` | CSS/JS 정적 자원 (see `static/AGENTS.md`) |
-| `mapper/` | MyBatis XML 매퍼 파일 (현재 미사용 — JdbcTemplate 사용 중) |
-| `model/` | ML 모델 파일 저장 디렉토리 (.gitkeep) |
+| `static/` | 정적 자원 (JS 라이브러리 등, see `static/AGENTS.md`) |
+| `mapper/` | MyBatis XML Mapper (현재 미사용 — JdbcTemplate 사용) |
+| `model/` | ONNX 모델 파일 위치 (gitkeep — 실제 파일은 `~/models/ko-sroberta/` 참조) |
 
 ## For AI Agents
 
 ### Working In This Directory
-- `application.yaml` 수정 시 `web-application-type: none`과 `transport: stdio` 절대 변경 금지
-  — 변경 시 Claude Desktop MCP 연결이 끊김
-- 로그 설정에서 stdout 출력을 활성화하면 JSON-RPC 프로토콜이 오염됨
+- `application.yaml` 수정 시 환경변수 기본값 패턴 유지: `${VAR:defaultValue}`
+- stdout 출력 추가 금지 — logback은 파일만 기록
+- `web-application-type: servlet`, `protocol: STREAMABLE` 변경 금지
 
 ### Common Patterns
-- 환경별 설정은 `application-{profile}.yaml`로 분리
-- 민감 정보(DB 비밀번호 등)는 환경 변수로 주입 권장
+```yaml
+# 환경변수 + 기본값 패턴
+url: ${REDIS_URI:redis://localhost:6379}
+model: ${OLLAMA_MODEL:qwen3:8b}
+```
 
 ## Dependencies
 
 ### External
-- Spring Boot Auto-configuration이 `application.yaml`을 자동 로드
+- Spring Boot 자동 설정 (`application.yaml` 키 바인딩)
+- Logback (`logback-spring.xml` 프로파일 기반 설정)
 
 <!-- MANUAL: -->

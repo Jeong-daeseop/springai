@@ -12,7 +12,7 @@ public interface EgovDocumentService {
     int getProcessedCount();
     int getTotalCount();
     int getChangedCount();
-    Map<String, Object> uploadMarkdownFiles(MultipartFile[] files);
+    Map<String, Object> uploadDocumentFiles(MultipartFile[] files);
     String reindexDocuments();
     DocumentStatusResponse getStatusResponse();
 }

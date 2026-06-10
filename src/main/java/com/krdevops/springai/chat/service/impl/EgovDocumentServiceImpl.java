@@ -25,6 +25,7 @@ import java.nio.file.Paths;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -70,12 +71,10 @@ public class EgovDocumentServiceImpl implements EgovDocumentService {
 
     @Override
     public CompletableFuture<Integer> loadDocumentsAsync() {
-        if (isProcessing.get()) {
+        if (!isProcessing.compareAndSet(false, true)) {
             log.info("이미 인덱싱 중입니다.");
             return CompletableFuture.completedFuture(0);
         }
-
-        isProcessing.set(true);
         processedCount.set(0);
         totalCount.set(0);
         changedCount.set(0);
@@ -104,38 +103,44 @@ public class EgovDocumentServiceImpl implements EgovDocumentService {
             totalCount.set(docFileMap.size());
             log.info("인덱싱 시작 — 파일 {}개 (경로 {}개)", docFileMap.size(), appProperties.getDocumentPaths().size());
 
-            int ingested = 0;
-            for (Map.Entry<String, Path> entry : docFileMap.entrySet()) {
-                String docId = entry.getKey();
-                Path file = entry.getValue();
-                try {
-                    String content = extractContent(file);
+            // maxPoolSize(4) - 1(outer task) = 3 동시 처리 — 메모리 폭증 방지
+            Semaphore semaphore = new Semaphore(3);
+            AtomicInteger ingested = new AtomicInteger(0);
 
-                    String newHash = EgovDocumentHashUtil.calculateHash(content);
-                    String hashKey = HASH_KEY_PREFIX + docId;
-                    Object savedHash = redisTemplate.opsForValue().get(hashKey);
-
-                    if (newHash.equals(savedHash)) {
-                        log.debug("변경 없음 — 스킵: {}", docId);
+            List<CompletableFuture<Void>> futures = docFileMap.entrySet().stream()
+                .map(entry -> CompletableFuture.runAsync(() -> {
+                    semaphore.acquireUninterruptibly();
+                    try {
+                        String docId = entry.getKey();
+                        Path file = entry.getValue();
+                        String content = extractContent(file);
+                        String newHash = EgovDocumentHashUtil.calculateHash(content);
+                        String hashKey = HASH_KEY_PREFIX + docId;
+                        Object savedHash = redisTemplate.opsForValue().get(hashKey);
+                        if (newHash.equals(savedHash)) {
+                            log.debug("변경 없음 — 스킵: {}", docId);
+                            processedCount.incrementAndGet();
+                            return;
+                        }
+                        ragService.ingestText(docId, content, "document");
+                        redisTemplate.opsForValue().set(hashKey, newHash);
                         processedCount.incrementAndGet();
-                        continue;
+                        changedCount.incrementAndGet();
+                        ingested.incrementAndGet();
+                        log.debug("임베딩 완료 (변경 감지): {}", docId);
+                    } catch (IOException e) {
+                        log.error("파일 읽기 실패: {}", entry.getValue(), e);
+                    } catch (Exception e) {
+                        log.error("임베딩 실패: {}", entry.getValue().getFileName(), e);
+                    } finally {
+                        semaphore.release();
                     }
+                }, documentProcessingExecutor))
+                .toList();
 
-                    ragService.ingestText(docId, content, "document");
-                    redisTemplate.opsForValue().set(hashKey, newHash);
-                    processedCount.incrementAndGet();
-                    changedCount.incrementAndGet();
-                    ingested++;
-                    log.debug("임베딩 완료 (변경 감지): {}", docId);
-                } catch (IOException e) {
-                    log.error("파일 읽기 실패: {}", file, e);
-                } catch (Exception e) {
-                    log.error("임베딩 실패: {}", file.getFileName(), e);
-                }
-            }
-
-            log.info("인덱싱 완료 — {}개 처리", ingested);
-            return ingested;
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            log.info("인덱싱 완료 — {}개 처리", ingested.get());
+            return ingested.get();
         }, documentProcessingExecutor).whenComplete((result, ex) -> {
             isProcessing.set(false);
             if (ex != null) {

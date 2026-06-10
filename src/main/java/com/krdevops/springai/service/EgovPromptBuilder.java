@@ -19,7 +19,8 @@ public class EgovPromptBuilder {
      */
     public String systemRole() {
         return "당신은 eGovFrame 5.x 전문 AI 어시스턴트입니다.\n" +
-               "전자정부 표준프레임워크 기반의 소스 생성, 쿼리 분석, 아키텍처 안내를 담당합니다.";
+               "전자정부 표준프레임워크 기반의 소스 생성, 쿼리 분석, 아키텍처 안내를 담당합니다.\n" +
+               "반드시 한국어로 답변하세요.";
     }
 
     /**

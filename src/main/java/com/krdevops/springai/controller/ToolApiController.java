@@ -30,26 +30,37 @@ public class ToolApiController {
 
     @PostMapping("/getTableList")
     public Map<String, String> getTableList(@RequestBody Map<String, String> body) {
-        String result = schemaService.getTableList(body.get("database"));
-        return Map.of("result", result);
+        String database = body.get("database");
+        if (database == null || database.isBlank()) throw new IllegalArgumentException("필수 파라미터 누락: database");
+        return Map.of("result", schemaService.getTableList(database));
     }
 
     @PostMapping("/getTableSchema")
     public Map<String, String> getTableSchema(@RequestBody Map<String, String> body) {
-        String result = schemaService.getTableSchema(body.get("database"), body.get("tableName"));
-        return Map.of("result", result);
+        String database  = body.get("database");
+        String tableName = body.get("tableName");
+        if (database == null || database.isBlank() || tableName == null || tableName.isBlank()) {
+            throw new IllegalArgumentException("필수 파라미터 누락: database, tableName");
+        }
+        return Map.of("result", schemaService.getTableSchema(database, tableName));
     }
 
     @PostMapping("/saveGeneratedCode")
     public Map<String, String> saveGeneratedCode(@RequestBody Map<String, String> body) {
-        String result = codeService.saveGeneratedCode(body.get("filePath"), body.get("code"));
-        return Map.of("result", result);
+        String filePath = body.get("filePath");
+        String code     = body.get("code");
+        if (filePath == null || filePath.isBlank() || code == null) {
+            throw new IllegalArgumentException("필수 파라미터 누락: filePath, code");
+        }
+        return Map.of("result", codeService.saveGeneratedCode(filePath, code));
     }
 
     @PostMapping("/getEmployee")
     public Map<String, Object> getEmployee(@RequestBody Map<String, String> body) {
-        EmployeeVO vo = employeeService.getEmployee(body.get("emplyrId"));
-        if (vo == null) return Map.of("result", "직원을 찾을 수 없습니다: " + body.get("emplyrId"));
+        String emplyrId = body.get("emplyrId");
+        if (emplyrId == null || emplyrId.isBlank()) throw new IllegalArgumentException("필수 파라미터 누락: emplyrId");
+        EmployeeVO vo = employeeService.getEmployee(emplyrId);
+        if (vo == null) return Map.of("result", "직원을 찾을 수 없습니다: " + emplyrId);
         return Map.of("result", vo);
     }
 
@@ -70,9 +81,14 @@ public class ToolApiController {
      */
     @PostMapping("/chat")
     public Map<String, String> chat(@RequestBody Map<String, String> body) {
+        String taskType = body.get("taskType");
+        String message  = body.get("message");
+        if (taskType == null || taskType.isBlank() || message == null || message.isBlank()) {
+            throw new IllegalArgumentException("필수 파라미터 누락: taskType, message");
+        }
         try {
-            String result = llmRouterService.chat(body.get("taskType"), body.get("message"));
-            return Map.of("result", result, "routedTo", body.get("taskType"));
+            String result = llmRouterService.chat(taskType, message);
+            return Map.of("result", result, "routedTo", taskType);
         } catch (IllegalArgumentException e) {
             return Map.of("error", e.getMessage());
         }

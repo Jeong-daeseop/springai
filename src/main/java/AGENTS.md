@@ -1,10 +1,10 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-06-04 | Updated: 2026-06-04 -->
+<!-- Generated: 2026-06-08 | Updated: 2026-06-08 -->
 
 # java
 
 ## Purpose
-Java 소스 루트. 단일 패키지 트리 `com.krdevops.springai`를 포함합니다.
+Java 소스 루트. `com.krdevops.springai` 패키지 하위에 전체 애플리케이션 코드가 위치합니다.
 
 ## Subdirectories
 
@@ -15,7 +15,7 @@ Java 소스 루트. 단일 패키지 트리 `com.krdevops.springai`를 포함합
 ## For AI Agents
 
 ### Working In This Directory
-- 모든 신규 Java 파일은 `com/krdevops/springai/` 하위 적절한 패키지에 배치
-- 패키지 선언은 `com.krdevops.springai.{하위패키지}` 형식 준수
+- 패키지 루트: `com.krdevops.springai`
+- 모든 클래스는 이 패키지 하위에 위치
 
 <!-- MANUAL: -->

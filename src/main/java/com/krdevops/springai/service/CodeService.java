@@ -1,5 +1,6 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.config.EgovProperties;
 import com.krdevops.springai.tools.CodeTemplateTool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 public class CodeService {
 
     private final CodeTemplateTool codeTemplateTool;
+    private final EgovProperties egovProperties;
 
     /**
      * 서버에서 직접 플레이스홀더를 치환하여 소스를 생성합니다.
@@ -49,10 +51,15 @@ public class CodeService {
 
     public String saveGeneratedCode(String filePath, String code) {
         try {
-            Path path = Paths.get(filePath);
-            Files.createDirectories(path.getParent());
-            Files.writeString(path, code);
-            return "파일 저장 완료: " + filePath + " (" + code.length() + " chars)";
+            Path base = Paths.get(egovProperties.getOutput().getBasePath()).toAbsolutePath().normalize();
+            Path target = base.resolve(filePath).normalize();
+            if (!target.startsWith(base)) {
+                log.warn("Path Traversal 시도 차단: {}", filePath);
+                return "파일 저장 실패: 허용 범위 밖 경로입니다.";
+            }
+            Files.createDirectories(target.getParent());
+            Files.writeString(target, code);
+            return "파일 저장 완료: " + target + " (" + code.length() + " chars)";
         } catch (IOException e) {
             return "파일 저장 실패: " + e.getMessage();
         }

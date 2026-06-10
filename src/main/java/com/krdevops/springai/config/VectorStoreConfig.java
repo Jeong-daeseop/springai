@@ -6,7 +6,7 @@ import org.springframework.ai.vectorstore.redis.RedisVectorStore.MetadataField;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import redis.clients.jedis.JedisPooled;
+import redis.clients.jedis.RedisClient;
 import java.net.URI;
 
 /**
@@ -29,13 +29,13 @@ public class VectorStoreConfig {
     private String prefix;
 
     @Bean
-    public JedisPooled jedisPooled() {
-        return new JedisPooled(URI.create(redisUri));
+    public RedisClient redisClient() {
+        return RedisClient.create(URI.create(redisUri));
     }
 
     @Bean
-    public RedisVectorStore vectorStore(JedisPooled jedisPooled, EmbeddingModel embeddingModel) {
-        return RedisVectorStore.builder(jedisPooled, embeddingModel)
+    public RedisVectorStore vectorStore(RedisClient redisClient, EmbeddingModel embeddingModel) {
+        return RedisVectorStore.builder(redisClient, embeddingModel)
                 .indexName(indexName)
                 .prefix(prefix)
                 .initializeSchema(true)

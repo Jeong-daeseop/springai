@@ -1,37 +1,32 @@
 <!-- Parent: ../AGENTS.md -->
-<!-- Generated: 2026-06-04 | Updated: 2026-06-04 -->
+<!-- Generated: 2026-06-08 | Updated: 2026-06-08 -->
 
 # chat/config/rag/transformers
 
 ## Purpose
-Spring AI RAG 파이프라인의 쿼리 변환기 커스터마이징 패키지.
-`org/springframework/ai/chat/client/advisor/` 참조 소스를 기반으로 구현된 커스텀 변환기를 포함합니다.
+RAG 쿼리 변환기 패키지. 벡터 검색 전 사용자 쿼리를 압축·정제하는 변환기를 포함합니다.
 
 ## Key Files
 
 | File | Description |
 |------|-------------|
-| `EgovCompressionQueryTransformer.java` | 대화 이력을 압축하여 독립적인 단일 질의로 변환 — 멀티턴 대화에서 RAG 검색 품질 향상 |
+| `EgovCompressionQueryTransformer.java` | 쿼리 압축 변환기 — qwen3:1.7b(경량 Ollama 모델)로 쿼리를 검색 최적화 문장으로 압축, `rag.enable-query-compression=false` 시 통과(passthrough) |
 
 ## For AI Agents
 
 ### Working In This Directory
-- Spring AI `QueryTransformer` 인터페이스 구현체
-- `org/springframework/ai/chat/client/advisor/vectorstore/` 참조 소스 변경 시 이 클래스와 호환성 확인
-- `EgovRagConfig.java`에서 이 변환기를 빈으로 주입하여 사용
-
-### Common Patterns
-- `QueryTransformer` 인터페이스 구현
-- 대화 이력(ChatMemory) + 현재 질의 → 압축된 독립 질의 생성
+- 압축 모델: `rag.compression.model` 설정값 (기본 `qwen3:1.7b`) — 항상 Ollama 로컬 처리
+- `rag.enable-query-compression: false`로 비활성화하면 원본 쿼리 그대로 사용
+- 압축 결과는 `QuestionAnswerAdvisor`에 전달되어 Vector Store 유사 검색에 사용됨
+- 주의: 압축 실패(Ollama 미실행 등) 시 원본 쿼리로 폴백 처리 여부 확인 필요
 
 ## Dependencies
 
 ### Internal
-- `chat/config/EgovRagConfig.java` — 변환기 등록
-- `org/springframework/ai/chat/client/advisor/vectorstore/QuestionAnswerAdvisor.java` — 참조 소스
+- `chat/config/EgovRagConfig.java` — 빈 등록 및 `QuestionAnswerAdvisor`와 연결
 
 ### External
-- Spring AI `QueryTransformer`
-- Ollama LLM (압축 쿼리 생성)
+- Spring AI `QueryTransformer` 인터페이스
+- Ollama ChatClient (qwen3:1.7b)
 
 <!-- MANUAL: -->

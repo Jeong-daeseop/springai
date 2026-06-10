@@ -39,11 +39,16 @@ public class DbDialectResolver {
         try (Connection conn = dataSource.getConnection()) {
             DatabaseMetaData meta = conn.getMetaData();
             String productName = meta.getDatabaseProductName();
-            if (productName != null && productName.toLowerCase().contains("oracle")) {
+            String lower = productName != null ? productName.toLowerCase() : "";
+            if (lower.contains("oracle")) {
                 log.info("DB Dialect 자동 감지: ORACLE (productName={})", productName);
                 return DbDialect.ORACLE;
             }
-            log.info("DB Dialect 자동 감지: MYSQL_MARIADB (productName={})", productName);
+            if (lower.contains("mysql") || lower.contains("mariadb")) {
+                log.info("DB Dialect 자동 감지: MYSQL_MARIADB (productName={})", productName);
+                return DbDialect.MYSQL_MARIADB;
+            }
+            log.warn("DB Dialect 자동 감지: 알 수 없는 DB '{}' — MYSQL_MARIADB로 fallback합니다.", productName);
             return DbDialect.MYSQL_MARIADB;
         } catch (SQLException e) {
             log.warn("DB Dialect 자동 감지 실패 — MYSQL_MARIADB 기본값 사용: {}", e.getMessage());

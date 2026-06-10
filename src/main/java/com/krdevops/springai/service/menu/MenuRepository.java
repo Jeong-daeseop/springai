@@ -57,7 +57,7 @@ public class MenuRepository {
 
     public List<Map<String, Object>> findRootMenus() {
         return jdbcTemplate.queryForList(
-                "SELECT MENU_NO, MENU_NM, UPPER_MENU_NO, MENU_ORDR FROM COMTNMENUINFO WHERE UPPER_MENU_NO = 0 ORDER BY MENU_ORDR",
+                "SELECT MENU_NO, MENU_NM, UPPER_MENU_NO, MENU_ORDR FROM COMTNMENUINFO WHERE UPPER_MENU_NO = 0 AND MENU_NO != 0 ORDER BY MENU_ORDR",
                 (Object[]) null);
     }
 

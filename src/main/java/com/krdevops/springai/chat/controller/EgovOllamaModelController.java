@@ -1,12 +1,14 @@
 package com.krdevops.springai.chat.controller;
 
 import com.krdevops.springai.chat.service.EgovOllamaModelService;
+import com.krdevops.springai.config.AppProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,8 +20,9 @@ import java.util.Map;
 public class EgovOllamaModelController {
 
     private final EgovOllamaModelService egovOllamaModelService;
+    private final AppProperties appProperties;
 
-    @Value("${spring.ai.ollama.chat.options.model:mistral}")
+    @Value("${spring.ai.ollama.chat.options.model:qwen3:8b}")
     private String defaultModel;
 
     @GetMapping("/models")
@@ -29,7 +32,10 @@ public class EgovOllamaModelController {
             boolean available = egovOllamaModelService.isOllamaAvailable();
             response.put("available", available);
             if (available) {
-                List<String> models = egovOllamaModelService.getInstalledModels();
+                List<String> ollamaModels = egovOllamaModelService.getInstalledModels();
+                List<String> models = new ArrayList<>();
+                models.addAll(appProperties.getOpenaiModels());
+                models.addAll(ollamaModels);
                 response.put("models", models);
                 response.put("count", models.size());
                 response.put("defaultModel", defaultModel);
