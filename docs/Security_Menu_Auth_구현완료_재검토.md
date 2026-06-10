@@ -132,7 +132,7 @@ return completed.stream().max(Integer::compareTo).orElse(0);
 
 실사용자가 전체 히스토리를 입력하지 않고 현재 완료 작업만 입력해도 다음 단계 안내가 가능하다.
 
-## 4. 남은 Findings
+## 4. 완료된 Findings
 
 ## [해소] DB Dialect가 실제 Tool 호출에서 MySQL/MariaDB로 고정됨
 
