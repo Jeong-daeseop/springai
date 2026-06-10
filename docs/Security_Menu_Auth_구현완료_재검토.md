@@ -244,7 +244,9 @@ ROLE_USER 주석 예시도 동일하게 반영.
   --tests 'com.krdevops.springai.service.WorkflowGuideServiceTest' \
   --tests 'com.krdevops.springai.service.SecurityTemplateServiceTest' \
   --tests 'com.krdevops.springai.service.security.SecurityFilePlanFactoryTest' \
-  --tests 'com.krdevops.springai.service.security.SecurityTemplateRendererIntegrationTest'
+  --tests 'com.krdevops.springai.service.security.SecurityTemplateRendererIntegrationTest' \
+  --tests 'com.krdevops.springai.service.sql.DbDialectResolverTest' \
+  --tests 'com.krdevops.springai.service.sql.SqlDialectRendererTest'
 ```
 
 결과:
@@ -252,6 +254,14 @@ ROLE_USER 주석 예시도 동일하게 반영.
 ```text
 BUILD SUCCESSFUL
 ```
+
+추가된 테스트 현황 (P2):
+
+| 테스트 클래스 | 테스트 수 | 내용 |
+| --- | --- | --- |
+| `DbDialectResolverTest` | 7 | mysql/oracle/auto/fallback 판정 |
+| `SqlDialectRendererTest` | 8 | now/limit/roleCodeMaxExpr/wrapLimit MySQL·Oracle 출력 |
+| `AuthServiceTest` (추가분) | 2 | Oracle renderer 주입 시 SYSDATE, MySQL 시 NOW() |
 
 컴파일 경고:
 
