@@ -129,73 +129,39 @@ return completed.stream().max(Integer::compareTo).orElse(0);
 
 ## 4. 남은 Findings
 
-## [P2] DB Dialect가 실제 Tool 호출에서 MySQL/MariaDB로 고정됨
+## [해소] DB Dialect가 실제 Tool 호출에서 MySQL/MariaDB로 고정됨
 
 ### 위치
 
+- `src/main/java/com/krdevops/springai/service/sql/SqlDialectProperties.java`
+- `src/main/java/com/krdevops/springai/service/sql/DbDialectResolver.java`
+- `src/main/java/com/krdevops/springai/service/sql/SqlDialectConfig.java`
 - `src/main/java/com/krdevops/springai/service/MenuService.java`
 - `src/main/java/com/krdevops/springai/service/AuthService.java`
-- `src/main/java/com/krdevops/springai/service/sql/DbDialect.java`
-- `src/main/java/com/krdevops/springai/service/sql/SqlDialectRenderer.java`
 
-### 현재 상태
+### 수정 내용
 
-`DbDialect`와 `SqlDialectRenderer`는 구현되어 있다.
+`application.yaml`에 `app.sql.dialect` 설정을 추가하고, `DbDialectResolver` → `SqlDialectRenderer` Bean 주입 구조로 전환했다.
 
-```java
-public enum DbDialect {
-    MYSQL_MARIADB,
-    ORACLE
-}
+```yaml
+app:
+  sql:
+    dialect: mysql_mariadb  # oracle / auto 지원
 ```
 
-`SqlDialectRenderer`도 다음 차이를 처리한다.
+`MenuService`, `AuthService`의 직접 `new SqlDialectRenderer(DbDialect.MYSQL_MARIADB)` 생성을 제거하고 생성자 주입으로 전환했다.
 
-- `LIMIT 50`
-- `FETCH FIRST 50 ROWS ONLY`
-- `NOW()`
-- `SYSDATE`
-- `CAST(SUBSTRING(...))`
-- `TO_NUMBER(REGEXP_SUBSTR(...))`
+`MenuInputValidator`, `MenuSqlBuilder`, `MenuResultBuilder`, `AuthInputValidator`, `AuthSqlBuilder`, `AuthResultBuilder`를 `@Component`로 Bean화했다.
 
-하지만 `MenuService`, `AuthService`는 renderer를 MySQL/MariaDB로 고정 생성한다.
-
-```java
-private final SqlDialectRenderer renderer =
-    new SqlDialectRenderer(DbDialect.MYSQL_MARIADB);
-```
-
-### 영향
-
-현재 Tool 호출 경로에서는 Oracle SQL을 선택할 수 없다.
-
-즉, Oracle 대응 코드는 존재하지만 실제 사용자 입력이나 설정으로 연결되어 있지 않다.
-
-다만 Tool description에 다음 취지가 명시되어 있어, 운영자가 현재 기본값을 오해할 가능성은 줄어들었다.
-
-```text
-현재 MySQL/MariaDB 방언 기준.
-Oracle 전환 시 DbDialect 설정 변경 필요.
-```
+Tool description도 `app.sql.dialect` 기준으로 갱신했다.
 
 ### 판단
 
-P2 후속 개선 항목이다.
+해소되었다.
 
-현재 기본 동작이 MySQL/MariaDB로 명확히 고정되어 있고 Tool 설명에도 노출되어 있으므로 P1은 아니다.
+커밋: `b341c32` feat: P2 DB Dialect 설정 기반 선택 구현 (app.sql.dialect)
 
-### 권장 후속 방향
-
-다음 중 하나를 선택해야 한다.
-
-| 방식 | 설명 |
-|---|---|
-| Tool 파라미터 추가 | `dbType`을 입력받아 `mysql`, `mariadb`, `oracle` 중 선택 |
-| 설정 기반 결정 | application 설정에서 DB 방언 결정 |
-| JDBC metadata 감지 | datasource productName으로 DB 방언 자동 감지 |
-| SQL 병기 | MySQL/MariaDB SQL과 Oracle SQL을 함께 출력 |
-
-기존 Tool 시그니처를 유지하려면 설정 기반 또는 JDBC metadata 감지가 적절하다.
+관련 설계 문서: `docs/Security_Menu_Auth_DB_Dialect_설계.md` 섹션 19
 
 ## [해소] COMTNAUTHORROLERELATE INSERT에 CREAT_DT가 생략됨
 
@@ -298,17 +264,15 @@ MenuTool: 사용 가능
 AuthTool: 사용 가능
 WorkflowGuideTool: 사용 가능
 테스트: 통과
-남은 이슈: P2/P3 후속 개선
+남은 이슈: 없음
 ```
 
 후속 정리 우선순위는 다음이다.
 
 ```text
-1. DB Dialect 선택 경로 연결  ← 미해소 (P2)
-2. COMTNAUTHORROLERELATE.CREAT_DT 포함 여부 결정  ← 해소 완료 (2026-06-10)
+1. DB Dialect 선택 경로 연결  ← 해소 완료 (2026-06-10, b341c32)
+2. COMTNAUTHORROLERELATE.CREAT_DT 포함 여부 결정  ← 해소 완료 (2026-06-10, 6614806)
 ```
 
-위 두 항목 중 P3(CREAT_DT)는 `6614806` 커밋에서 완료되었다.
-
-P2(DB Dialect 선택 경로)는 Oracle 운영 환경 적용 범위 확정 후 별도 구현 예정이다.
+모든 P2/P3 항목이 완료되었다.
 
