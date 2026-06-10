@@ -6,6 +6,7 @@
 
 - `docs/Security_Menu_Auth_구현계획서.md`
 - `docs/Security_Menu_Auth_구현완료_검토.md`
+- `docs/Security_Menu_Auth_DB_Dialect_설계.md`
 
 검토 대상 구현:
 
@@ -16,6 +17,7 @@
 - `AuthService`
 - `WorkflowGuideService`
 - `Menu/Auth/Workflow` 하위 구조화 클래스
+- `SqlDialectProperties` / `DbDialectResolver` / `SqlDialectConfig`
 - 관련 테스트
 
 ## 2. 전체 판단
