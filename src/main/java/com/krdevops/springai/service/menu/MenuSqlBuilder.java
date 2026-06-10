@@ -40,28 +40,27 @@ public class MenuSqlBuilder {
     }
 
     private String buildProgramSql(MenuRegistrationSpec spec, String url, String stre) {
+        // 스키마: COMTNPROGRMLIST (PROGRM_FILE_NM, PROGRM_STRE_PATH, PROGRM_KOREAN_NM, PROGRM_DC, URL)
         return "INSERT INTO COMTNPROGRMLIST (" +
-                "PROGRM_FILE_NM, PROGRM_KOREAN_NM, PROGRM_DC, URL, STRE_PATH, " +
-                "USE_AT, CREAT_DT, MDFCN_DT) VALUES (" +
+                "PROGRM_FILE_NM, PROGRM_STRE_PATH, PROGRM_KOREAN_NM, PROGRM_DC, URL) VALUES (" +
                 "'" + esc(spec.progrmFileNm()) + "', " +
+                "'" + esc(stre) + "', " +
                 "'" + esc(spec.menuNm()) + "', " +
                 "'" + esc(spec.menuNm()) + " 프로그램', " +
-                "'" + esc(url) + "', " +
-                "'" + esc(stre) + "', " +
-                "'Y', " + renderer.now() + ", " + renderer.now() + ");";
+                "'" + esc(url) + "');";
     }
 
     private String buildMenuSql(MenuRegistrationSpec spec, BigDecimal nextMenuNo,
                                  BigDecimal nextMenuOrdr, String url) {
+        // 스키마: COMTNMENUINFO (MENU_NO, UPPER_MENU_NO, MENU_NM, PROGRM_FILE_NM, MENU_ORDR)
+        // URL 컬럼 없음 — PROGRM_FILE_NM으로 프로그램 연결
         return "INSERT INTO COMTNMENUINFO (" +
-                "MENU_NO, MENU_NM, UPPER_MENU_NO, MENU_ORDR, URL, " +
-                "USE_AT, CREAT_DT, MDFCN_DT) VALUES (" +
+                "MENU_NO, UPPER_MENU_NO, MENU_NM, PROGRM_FILE_NM, MENU_ORDR) VALUES (" +
                 nextMenuNo + ", " +
-                "'" + esc(spec.menuNm()) + "', " +
                 spec.upperMenuNo() + ", " +
-                nextMenuOrdr + ", " +
-                "'" + esc(url) + "', " +
-                "'Y', " + renderer.now() + ", " + renderer.now() + ");";
+                "'" + esc(spec.menuNm()) + "', " +
+                "'" + esc(spec.progrmFileNm()) + "', " +
+                nextMenuOrdr + ");";
     }
 
     private String esc(String value) {

@@ -44,4 +44,12 @@ class WorkflowGuideServiceTest {
                 "security, securitymapper, 메뉴구조, 프로그램목록, 메뉴등록 완료");
         assertThat(result).contains("권한");
     }
+
+    @Test
+    void suggestSecurityMenuAuthWorkflow_단독완료문맥_비연속감지_다음단계_안내() {
+        // 사용자가 현재 완료 작업만 입력한 경우 (앞 단계 언급 없음)
+        // "메뉴등록" 키워드 → 5단계 감지 → 다음 단계로 권한 SQL 안내
+        String result = workflowGuideService.suggestSecurityMenuAuthWorkflow("메뉴등록 완료");
+        assertThat(result).contains("권한");
+    }
 }

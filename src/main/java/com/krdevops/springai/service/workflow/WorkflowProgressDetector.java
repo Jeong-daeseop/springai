@@ -25,6 +25,7 @@ public class WorkflowProgressDetector {
             return 0;
         }
 
+        // 1단계부터 연속 완료 단계 계산
         int maxContinuous = 0;
         for (WorkflowStep step : definition.steps()) {
             if (completed.contains(step.no())) {
@@ -33,6 +34,13 @@ public class WorkflowProgressDetector {
                 break;
             }
         }
-        return maxContinuous;
+
+        if (maxContinuous > 0) {
+            return maxContinuous;
+        }
+
+        // 연속 감지 없으면 감지된 최대 단계를 완료로 추정
+        // 예: "메뉴 SQL 생성 완료" → 5단계 감지 → completedStep = 5
+        return completed.stream().max(Integer::compareTo).orElse(0);
     }
 }

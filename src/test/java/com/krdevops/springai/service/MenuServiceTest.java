@@ -54,6 +54,8 @@ class MenuServiceTest {
         assertThat(result).contains("INSERT INTO COMTNMENUINFO");
         assertThat(result).contains("직원관리");
         assertThat(result).contains("1010000");
+        // COMTNMENUINFO는 URL 컬럼 없음 — PROGRM_FILE_NM으로 프로그램 연결
+        assertThat(result).contains("PROGRM_FILE_NM");
     }
 
     @Test
@@ -115,7 +117,7 @@ class MenuServiceTest {
     }
 
     @Test
-    void generateMenuInsertSql_storePath_데드코드_없음() {
+    void generateMenuInsertSql_올바른_스키마_컬럼명_사용() {
         when(menuRepository.existsUpperMenu(100)).thenReturn(true);
         when(menuRepository.existsProgrmFileNm(anyString())).thenReturn(false);
         when(menuRepository.existsUrl(anyString())).thenReturn(false);
@@ -124,8 +126,11 @@ class MenuServiceTest {
 
         String result = menuService.generateMenuInsertSql("100", "/emp/employer", "직원관리", "EgovEmpList");
 
-        assertThat(result).contains("STRE_PATH");
+        // COMTNPROGRMLIST: PROGRM_STRE_PATH (STRE_PATH 단독 사용 금지)
+        assertThat(result).contains("PROGRM_STRE_PATH");
         assertThat(result).contains("/emp/employer/");
+        // COMTNMENUINFO: URL 컬럼 없음, PROGRM_FILE_NM으로 연결
+        assertThat(result).contains("PROGRM_FILE_NM");
     }
 
     @Test
