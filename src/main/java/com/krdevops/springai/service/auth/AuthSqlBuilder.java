@@ -25,7 +25,7 @@ public class AuthSqlBuilder {
         statements.add(buildRoleInfoSql(roleCode, roleNm, rolePttrn, spec));
         statements.add(buildAuthorRoleRelateSql(roleCode));
         statements.add("-- 일반 사용자 권한도 부여하려면 아래 SQL을 추가 실행하세요:");
-        statements.add("-- INSERT INTO COMTNAUTHORROLERELATE (AUTHOR_CODE, ROLE_CODE) VALUES ('ROLE_USER', '" + esc(roleCode) + "');");
+        statements.add("-- INSERT INTO COMTNAUTHORROLERELATE (AUTHOR_CODE, ROLE_CODE, CREAT_DT) VALUES ('ROLE_USER', '" + esc(roleCode) + "', " + renderer.now() + ");");
 
         List<String> warnings = new ArrayList<>();
         warnings.add("※ ROLE_CODE(" + roleCode + ")는 SQL 생성 시점 기준입니다. 실행 직전 COMTNROLEINFO 중복 여부를 재확인하세요.");
@@ -66,7 +66,7 @@ public class AuthSqlBuilder {
     }
 
     private String buildAuthorRoleRelateSql(String roleCode) {
-        return "INSERT INTO COMTNAUTHORROLERELATE (AUTHOR_CODE, ROLE_CODE) VALUES ('ROLE_ADMIN', '" + esc(roleCode) + "');";
+        return "INSERT INTO COMTNAUTHORROLERELATE (AUTHOR_CODE, ROLE_CODE, CREAT_DT) VALUES ('ROLE_ADMIN', '" + esc(roleCode) + "', " + renderer.now() + ");";
     }
 
     private String esc(String value) {
