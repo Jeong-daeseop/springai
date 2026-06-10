@@ -221,6 +221,17 @@ ROLE_USER 주석 예시도 동일하게 반영.
 - `ROLE_PTTRN` positive / negative URL 매칭 검증
 - `ROLE_SORT` 숫자 출력
 - `securityMapper` 선행 안내
+- `SqlDialectProperties` 도입 (`app.sql.dialect` 설정 바인딩)
+- `DbDialectResolver` 도입 (설정값/auto JDBC metadata 분기, 감지 실패 시 MYSQL_MARIADB fallback)
+- `SqlDialectConfig` 도입 (`SqlDialectRenderer` Spring Bean 등록)
+- `MenuInputValidator` / `MenuSqlBuilder` / `MenuResultBuilder` Bean화 (`@Component`)
+- `AuthInputValidator` / `AuthSqlBuilder` / `AuthResultBuilder` Bean화 (`@Component`)
+- `MenuService` / `AuthService` 직접 `new SqlDialectRenderer(...)` 제거, 생성자 주입 전환
+- `application.yaml` `app.sql.dialect: mysql_mariadb` 기본값 추가
+- `MenuTool` / `AuthTool` description `app.sql.dialect` 기준으로 갱신
+- `DbDialectResolverTest` 추가 (auto/oracle/fallback 7개)
+- `SqlDialectRendererTest` 추가 (MySQL·Oracle 출력 8개)
+- `AuthServiceTest` Oracle renderer 회귀 테스트 추가 (2개)
 
 ## 6. 테스트 실행 결과
 
