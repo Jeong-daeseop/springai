@@ -20,17 +20,20 @@
 
 ## 2. 전체 판단
 
-현재 구현은 계획서 기준으로 거의 완료 상태로 볼 수 있다.
+현재 구현은 계획서 기준으로 완료 상태다.
 
 이전 검토에서 P1으로 지적했던 `MenuSqlBuilder`의 eGovFrame 스키마 컬럼 불일치는 수정되었다.
 
-또한 Workflow 진행 감지의 비연속 입력 문제도 보완되었다.
+Workflow 진행 감지의 비연속 입력 문제도 보완되었다.
 
-남은 항목은 P2/P3 수준의 후속 정리다.
+P2였던 DB Dialect 선택 경로는 `app.sql.dialect` 설정 기반 + auto JDBC metadata 감지 구조로 연결되었다.
+
+P3였던 `COMTNAUTHORROLERELATE.CREAT_DT` 누락과 Oracle SQL 생성 회귀 테스트도 완료되었다.
 
 ```text
-1. DB Dialect 선택 경로를 실제 Tool/설정/JDBC 감지 중 하나로 연결
-2. COMTNAUTHORROLERELATE INSERT에 CREAT_DT 포함 여부 결정
+1. DB Dialect 선택 경로 연결  ← 완료 (2026-06-10, b341c32)
+2. COMTNAUTHORROLERELATE.CREAT_DT 포함  ← 완료 (2026-06-10, 6614806)
+3. Oracle SQL 생성 회귀 테스트  ← 완료 (2026-06-10, 955b426)
 ```
 
 ## 3. 이전 P1 이슈 재검토
