@@ -273,9 +273,11 @@ GenericJackson2JsonRedisSerializer deprecated/removal warning
 
 ## 7. 최종 결론
 
-현재 구현은 계획서 기준으로 사용 가능한 수준이다.
+현재 구현은 계획서 기준으로 완료 상태다.
 
-이전 P1 이슈였던 `MenuSqlBuilder` 스키마 불일치는 해소되었고, Workflow 진행 감지도 보완되었다.
+P1 이슈였던 `MenuSqlBuilder` 스키마 불일치는 해소되었고, Workflow 진행 감지도 보완되었다.
+P2 이슈였던 DB Dialect 선택 경로도 설정 기반 + auto 감지 구조로 연결되었다.
+P3 이슈였던 `COMTNAUTHORROLERELATE.CREAT_DT` 누락도 수정되었다.
 
 따라서 현재 상태는 다음과 같이 판단한다.
 
@@ -284,16 +286,18 @@ GenericJackson2JsonRedisSerializer deprecated/removal warning
 MenuTool: 사용 가능
 AuthTool: 사용 가능
 WorkflowGuideTool: 사용 가능
+DB Dialect 선택: app.sql.dialect 설정 기반 (mysql_mariadb / oracle / auto)
 테스트: 통과
 남은 이슈: 없음
 ```
 
-후속 정리 우선순위는 다음이다.
+완료된 항목 전체:
 
 ```text
-1. DB Dialect 선택 경로 연결  ← 해소 완료 (2026-06-10, b341c32)
-2. COMTNAUTHORROLERELATE.CREAT_DT 포함 여부 결정  ← 해소 완료 (2026-06-10, 6614806)
+P1. MenuSqlBuilder 스키마 컬럼 불일치  ← 해소 완료 (4221934)
+P1. Workflow 비연속 완료 문맥 처리     ← 해소 완료 (4221934)
+P2. DB Dialect 선택 경로 연결          ← 해소 완료 (2026-06-10, b341c32)
+P3. COMTNAUTHORROLERELATE.CREAT_DT     ← 해소 완료 (2026-06-10, 6614806)
+P3. Oracle SQL 생성 회귀 테스트        ← 해소 완료 (2026-06-10, 955b426)
 ```
-
-모든 P2/P3 항목이 완료되었다.
 
