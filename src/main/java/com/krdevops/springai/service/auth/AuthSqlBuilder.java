@@ -3,17 +3,17 @@ package com.krdevops.springai.service.auth;
 import com.krdevops.springai.model.AuthRegistrationSpec;
 import com.krdevops.springai.model.SqlPlan;
 import com.krdevops.springai.service.sql.SqlDialectRenderer;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
+@Component
+@RequiredArgsConstructor
 public class AuthSqlBuilder {
 
     private final SqlDialectRenderer renderer;
-
-    public AuthSqlBuilder(SqlDialectRenderer renderer) {
-        this.renderer = renderer;
-    }
 
     public SqlPlan build(AuthRegistrationSpec spec, int nextRoleNum) {
         String roleCode = String.format("web-%06d", nextRoleNum);

@@ -1,7 +1,9 @@
 package com.krdevops.springai.service.auth;
 
 import com.krdevops.springai.model.SqlPlan;
+import org.springframework.stereotype.Component;
 
+@Component
 public class AuthResultBuilder {
 
     public String render(SqlPlan plan) {

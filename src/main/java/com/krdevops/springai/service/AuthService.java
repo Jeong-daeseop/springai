@@ -6,7 +6,6 @@ import com.krdevops.springai.service.auth.AuthInputValidator;
 import com.krdevops.springai.service.auth.AuthRepository;
 import com.krdevops.springai.service.auth.AuthResultBuilder;
 import com.krdevops.springai.service.auth.AuthSqlBuilder;
-import com.krdevops.springai.service.sql.DbDialect;
 import com.krdevops.springai.service.sql.SqlDialectRenderer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,11 +20,10 @@ import java.util.Map;
 public class AuthService {
 
     private final AuthRepository authRepository;
-
-    private final SqlDialectRenderer renderer = new SqlDialectRenderer(DbDialect.MYSQL_MARIADB);
-    private final AuthInputValidator validator = new AuthInputValidator();
-    private final AuthSqlBuilder sqlBuilder = new AuthSqlBuilder(renderer);
-    private final AuthResultBuilder resultBuilder = new AuthResultBuilder();
+    private final SqlDialectRenderer renderer;
+    private final AuthInputValidator validator;
+    private final AuthSqlBuilder sqlBuilder;
+    private final AuthResultBuilder resultBuilder;
 
     public String getProgramList(String keyword) {
         List<Map<String, Object>> rows = authRepository.searchPrograms(keyword, renderer);

@@ -1,7 +1,9 @@
 package com.krdevops.springai.service.menu;
 
 import com.krdevops.springai.model.SqlPlan;
+import org.springframework.stereotype.Component;
 
+@Component
 public class MenuResultBuilder {
 
     public String render(SqlPlan plan) {

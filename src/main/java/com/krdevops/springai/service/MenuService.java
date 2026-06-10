@@ -6,8 +6,6 @@ import com.krdevops.springai.service.menu.MenuInputValidator;
 import com.krdevops.springai.service.menu.MenuRepository;
 import com.krdevops.springai.service.menu.MenuResultBuilder;
 import com.krdevops.springai.service.menu.MenuSqlBuilder;
-import com.krdevops.springai.service.sql.DbDialect;
-import com.krdevops.springai.service.sql.SqlDialectRenderer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,11 +20,9 @@ import java.util.Map;
 public class MenuService {
 
     private final MenuRepository menuRepository;
-
-    private final SqlDialectRenderer renderer = new SqlDialectRenderer(DbDialect.MYSQL_MARIADB);
-    private final MenuInputValidator validator = new MenuInputValidator();
-    private final MenuSqlBuilder sqlBuilder = new MenuSqlBuilder(renderer);
-    private final MenuResultBuilder resultBuilder = new MenuResultBuilder();
+    private final MenuInputValidator validator;
+    private final MenuSqlBuilder sqlBuilder;
+    private final MenuResultBuilder resultBuilder;
 
     public String getMenuStructure(String menuNo) {
         try {

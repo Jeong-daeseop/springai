@@ -3,18 +3,18 @@ package com.krdevops.springai.service.menu;
 import com.krdevops.springai.model.MenuRegistrationSpec;
 import com.krdevops.springai.model.SqlPlan;
 import com.krdevops.springai.service.sql.SqlDialectRenderer;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+@Component
+@RequiredArgsConstructor
 public class MenuSqlBuilder {
 
     private final SqlDialectRenderer renderer;
-
-    public MenuSqlBuilder(SqlDialectRenderer renderer) {
-        this.renderer = renderer;
-    }
 
     public SqlPlan build(MenuRegistrationSpec spec, BigDecimal nextMenuNo, BigDecimal nextMenuOrdr) {
         String url = spec.urlPrefix() + "/" + spec.progrmFileNm() + ".do";

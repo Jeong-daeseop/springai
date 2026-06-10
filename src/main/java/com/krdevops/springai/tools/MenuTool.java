@@ -31,7 +31,7 @@ public class MenuTool {
             MENU_NO와 MENU_ORDR은 기존 최대값 기준으로 자동 계산됩니다.
             ※ 상위 메뉴 존재 여부, PROGRM_FILE_NM 중복, URL 중복을 자동 검증합니다.
             ※ securityMapper가 DB 기반 URL 권한을 조회하는 구성이어야 이 SQL이 Security에 반영됩니다.
-            ※ 현재 MySQL/MariaDB 방언 기준. Oracle 전환 시 DbDialect 설정 변경 필요.
+            ※ DB 방언은 app.sql.dialect 설정을 따릅니다. 지원값: mysql_mariadb, oracle, auto (JDBC metadata 자동 감지).
             이 Tool은 SQL을 반환만 합니다. 직접 DB에 INSERT하지 않으므로 사용자가 검토 후 실행하세요.
             upperMenuNo : 상위 메뉴 번호 (예: "6000000")
             urlPrefix   : URL 경로 접두사 (예: "/emp/employer")

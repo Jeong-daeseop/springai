@@ -1,6 +1,11 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.service.menu.MenuInputValidator;
 import com.krdevops.springai.service.menu.MenuRepository;
+import com.krdevops.springai.service.menu.MenuResultBuilder;
+import com.krdevops.springai.service.menu.MenuSqlBuilder;
+import com.krdevops.springai.service.sql.DbDialect;
+import com.krdevops.springai.service.sql.SqlDialectRenderer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +28,9 @@ class MenuServiceTest {
 
     @BeforeEach
     void setUp() {
-        menuService = new MenuService(menuRepository);
+        SqlDialectRenderer renderer = new SqlDialectRenderer(DbDialect.MYSQL_MARIADB);
+        menuService = new MenuService(menuRepository, new MenuInputValidator(),
+                new MenuSqlBuilder(renderer), new MenuResultBuilder());
     }
 
     @Test

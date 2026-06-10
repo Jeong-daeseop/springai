@@ -1,7 +1,9 @@
 package com.krdevops.springai.service.menu;
 
 import com.krdevops.springai.model.MenuRegistrationSpec;
+import org.springframework.stereotype.Component;
 
+@Component
 public class MenuInputValidator {
 
     public void validateMenuNo(String menuNo) {

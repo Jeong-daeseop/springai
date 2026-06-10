@@ -10,8 +10,9 @@ spring:
       server:
         name: springai-mcp-server
         version: 1.0.0
-        transport: sse
-        keep-alive-interval: 30s   # SSE 연결 유지 — 30초마다 ping 전송
+        protocol: STREAMABLE
+      streamable-http:
+        keep-alive-interval: 30s   # Streamable HTTP 연결 유지
     openai:
       api-key: ${OPENAI_API_KEY}
       chat:
@@ -80,6 +81,8 @@ chat:
     max-messages: 8       # 20 → 8: 토큰 예산 확보 (num-ctx 8192 기준)
 
 app:
+  sql:
+    dialect: mysql_mariadb
   api-key: ${APP_API_KEY}
   openai-models:
     - gpt-4o-mini
@@ -90,7 +93,7 @@ app:
 
 egov:
   output:
-    base-path: ${EGOV_OUTPUT_PATH:${user.home}/Desktop/egov-generated}
+    base-path: ${EGOV_OUTPUT_PATH:${user.home}/workspace-egov/egov-generated}
 
 logging:
   config: classpath:logback-spring.xml

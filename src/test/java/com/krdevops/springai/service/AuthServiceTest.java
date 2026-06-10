@@ -1,6 +1,8 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.service.auth.AuthInputValidator;
 import com.krdevops.springai.service.auth.AuthRepository;
+import com.krdevops.springai.service.auth.AuthResultBuilder;
 import com.krdevops.springai.service.auth.AuthSqlBuilder;
 import com.krdevops.springai.service.sql.DbDialect;
 import com.krdevops.springai.service.sql.SqlDialectRenderer;
@@ -26,7 +28,9 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        authService = new AuthService(authRepository);
+        SqlDialectRenderer renderer = new SqlDialectRenderer(DbDialect.MYSQL_MARIADB);
+        authService = new AuthService(authRepository, renderer, new AuthInputValidator(),
+                new AuthSqlBuilder(renderer), new AuthResultBuilder());
     }
 
     @Test
