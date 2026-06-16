@@ -49,13 +49,13 @@ CrudPromptBuilderTool (MCP Tool 진입점)
 
 | # | layerKey | 파일명 (domain=Employer) | 저장 경로 |
 |---|---|---|---|
-| 1 | `vo` | `EmployerVO.java` | `egovframework/let/emp/employer/service/` |
-| 2 | `mapper` | `EmployerMapper.java` | `egovframework/let/emp/employer/service/impl/` |
-| 3 | `mapperXml` | `EmployerMapper.xml` | `egovframework/let/emp/employer/service/impl/` |
-| 4 | `service` | `EmployerService.java` | `egovframework/let/emp/employer/service/` |
-| 5 | `serviceImpl` | `EgovEmployerServiceImpl.java` | `egovframework/let/emp/employer/service/impl/` |
-| 6 | `controller` | `EgovEmployerController.java` | `egovframework/let/emp/employer/web/` |
-| 7 | `controlleradvice` | `EgovEmployerValidationHandler.java` | `egovframework/let/emp/employer/web/` |
+| 1 | `vo` | `EmployerVO.java` | `egovframework/let/emp/service/` |
+| 2 | `mapper` | `EmployerMapper.java` | `egovframework/let/emp/service/impl/` |
+| 3 | `mapperXml` | `EmployerMapper.xml` | `egovframework/let/emp/service/impl/` |
+| 4 | `service` | `EmployerService.java` | `egovframework/let/emp/service/` |
+| 5 | `serviceImpl` | `EgovEmployerServiceImpl.java` | `egovframework/let/emp/service/impl/` |
+| 6 | `controller` | `EgovEmployerController.java` | `egovframework/let/emp/web/` |
+| 7 | `controlleradvice` | `EgovEmployerValidationHandler.java` | `egovframework/let/emp/web/` |
 | 8 | `jspList` | `EgovEmployerList.jsp` | `jsp/employer/` |
 | 9 | `jspDetail` | `EgovEmployerDetail.jsp` | `jsp/employer/` |
 | 10 | `jspRegist` | `EgovEmployerRegist.jsp` | `jsp/employer/` |

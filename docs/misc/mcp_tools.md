@@ -1,6 +1,6 @@
 # MCP Tool 전체 가이드
 
-> 총 19개 클래스 / 43개 메서드
+> 총 19개 클래스 / 44개 메서드
 
 ---
 
@@ -50,7 +50,7 @@ USER010 직원 삭제해줘
 | --- | --- |
 | `getTableList(database)` | 테이블 목록 조회 |
 | `getTableSchema(...)` | 컬럼 상세 정보 조회 |
-| `analyzeRelations(...)` | 테이블 연관관계 분석 |
+| `getTableRelations(database, tableName)` | 테이블 연관관계 분석 |
 
 **요청 예시**
 ```
@@ -65,8 +65,8 @@ COMTNEMPLYRINFO 테이블의 연관관계 분석해줘
 
 | 메서드 | 설명 |
 | --- | --- |
-| `executeSelect(sql)` | SELECT 쿼리 직접 실행 |
-| `getSampleData(table)` | 샘플 데이터 조회 |
+| `executeQuery(sql)` | 읽기 전용 SQL 실행 (`SELECT`, `SHOW`, `EXPLAIN`, `DESC`) |
+| `getSampleData(database, tableName, limit)` | 샘플 데이터 조회 |
 | `explainQuery(sql)` | 쿼리 실행계획 분석 |
 
 **요청 예시**
@@ -82,13 +82,13 @@ SELECT * FROM COMTNEMPLYRINFO 쿼리의 실행계획 분석해줘
 
 | 메서드 | 설명 |
 | --- | --- |
-| `getCodeTemplate(...)` | eGovFrame 5.x 표준 템플릿 반환 |
-| `buildCrudPrompt(...)` | CRUD 통합 프롬프트 생성 |
+| `getCodeTemplate(layer)` | eGovFrame 레이어별 표준 템플릿 반환 |
+| `buildFullCrudPrompt(...)` | CRUD 통합 프롬프트 생성 또는 자동 생성 |
 | `buildMasterDetailPrompt(...)` | 1:N 마스터-디테일 프롬프트 생성 |
-| `buildJoinPrompt(...)` | JOIN 쿼리/VO 자동 생성 |
-| `saveCode(filePath, code)` | 생성 소스 파일 저장 |
-| `getOutputBasePath()` | 저장 기본 경로 확인 |
-| `generateCodeOnServer(...)` | 서버에서 직접 소스 생성 |
+| `buildJoinSelectPrompt(database, tableName)` | JOIN 쿼리/VO 자동 생성 |
+| `saveGeneratedCode(filePath, code)` | 생성 소스 파일 저장 |
+| `checkOutputDirectory(baseDir)` | 저장 디렉터리 상태 확인 |
+| `generateSource(layer, valuesJson)` | 서버 템플릿 기반 소스 생성 |
 
 **요청 예시**
 ```
@@ -123,8 +123,8 @@ COMTNEMPLYRINFO 테이블로 eGovFrame 5.x CRUD 소스를 서버에서 직접 �
 
 | 메서드 | 설명 |
 | --- | --- |
-| `validateFile(filePath)` | 단건 파일 검증 |
-| `validateDirectory(dir)` | 디렉토리 전체 일괄 검증 |
+| `validateGeneratedCode(filePath)` | 단건 파일 검증 |
+| `validateGeneratedCodeDirectory(directoryPath)` | 디렉토리 전체 일괄 검증 |
 
 **요청 예시**
 ```
@@ -139,11 +139,11 @@ COMTNEMPLYRINFO 테이블로 eGovFrame 5.x CRUD 소스를 서버에서 직접 �
 | 메서드 | 설명 |
 | --- | --- |
 | `initializeProject(...)` | 프로젝트 파일 직접 생성 |
-| `getConfigTemplate()` | eGovFrame 설정 템플릿 반환 |
-| `scanProject(path)` | 프로젝트 구조 스캔 |
-| `checkDomainHealth(...)` | 도메인 소스 완성도 점검 |
-| `getOutputPath()` | CRUD 저장 경로 반환 |
-| `resolveOutputPath(path)` | 실제 저장 경로 분석 |
+| `getConfigTemplate(configType, packageName)` | eGovFrame 설정 템플릿 반환 |
+| `scanProjectStructure(projectRootPath)` | 프로젝트 구조 스캔 |
+| `checkProjectHealth(projectRootPath, domain)` | 도메인 소스 완성도 점검 |
+| `getDefaultOutputPath(domain)` | CRUD 저장 기본 경로 반환 |
+| `resolveProjectOutputPath(projectRootPath, packageName, domain)` | 실제 저장 경로 분석 |
 
 **요청 예시**
 ```
@@ -170,11 +170,11 @@ emp 도메인 소스 생성 완성도 점검해줘
 
 | 메서드 | 설명 |
 | --- | --- |
-| `embedDocument(text)` | 문서 Vector Store 임베딩 |
-| `embedJavaFiles(dir)` | .java 파일 일괄 임베딩 |
-| `embedUrl(url)` | URL 크롤링 후 임베딩 |
-| `embedUrls(urls)` | 다중 URL 일괄 임베딩 |
-| `searchDocument(query)` | 유사 문서 검색 |
+| `ragIngest(docId, content, type)` | 문서 Vector Store 임베딩 |
+| `ragIngestDirectory(directoryPath)` | 로컬 디렉터리 일괄 임베딩 |
+| `ragIngestUrl(url, docId)` | URL 크롤링 후 임베딩 |
+| `ragIngestUrls(urls)` | 다중 URL 일괄 임베딩 |
+| `ragSearch(query, topK)` | 유사 문서 검색 |
 
 **요청 예시**
 ```
@@ -204,12 +204,12 @@ Spring Security 설정 관련 문서 찾아줘
 
 | 메서드 | 설명 |
 | --- | --- |
-| `getCommonCodeDetail(...)` | 공통코드 상세 조회 |
-| `searchCommonCodeGroup(...)` | 공통코드 그룹 검색 |
-| `getMenuTree()` | 메뉴 트리 조회 |
-| `getMenuInsertSql(...)` | 메뉴 등록 SQL 반환 |
-| `searchProgram(keyword)` | 프로그램 목록 검색 |
-| `getAuthInsertSql(...)` | 접근제어 SQL 반환 |
+| `getCommonCode(codeId)` | 공통코드 상세 조회 |
+| `searchCommonCode(keyword)` | 공통코드 그룹 검색 |
+| `getMenuStructure(menuNo)` | 메뉴 트리 조회 |
+| `generateMenuInsertSql(...)` | 메뉴 등록 SQL 반환 |
+| `getProgramList(keyword)` | 프로그램 목록 검색 |
+| `generateAuthInsertSql(urlPrefix, programNm, domain)` | 접근제어 SQL 반환 |
 
 **요청 예시**
 ```
@@ -232,10 +232,11 @@ COM001 그룹의 공통코드 상세 목록 보여줘
 
 | 메서드 | 설명 |
 | --- | --- |
-| `getSecurityTemplate()` | Spring Security 설정 템플릿 반환 |
-| `saveHistory(...)` | 소스 생성 이력 저장 |
-| `getHistory(...)` | 소스 생성 이력 조회 |
-| `guideNextStep(...)` | 워크플로우 다음 단계 제안 |
+| `getSecurityTemplate(...)` | Spring Security 설정 템플릿 반환 |
+| `saveGenerationHistory(...)` | 소스 생성 이력 저장 |
+| `getGenerationHistory(keyword)` | 소스 생성 이력 조회 |
+| `suggestNextStep(currentContext)` | 워크플로우 다음 단계 제안 |
+| `suggestSecurityMenuAuthWorkflow(currentContext)` | Security/Menu/Auth 워크플로우 제안 |
 | `getCurrentDateTime(timezone)` | 현재 날짜/시간 반환 |
 | `celsiusToFahrenheit(celsius)` | 섭씨→화씨 변환 |
 

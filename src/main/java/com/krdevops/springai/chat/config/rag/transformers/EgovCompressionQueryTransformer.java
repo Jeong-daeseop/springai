@@ -6,7 +6,7 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -85,7 +85,12 @@ public class EgovCompressionQueryTransformer {
         try {
             String compressed = ollamaChatClient.prompt()
                 .user(prompt)
-                .options(ChatOptions.builder().model(compressionModel).temperature(0.0))
+                .options(OllamaChatOptions.builder()
+                    .model(compressionModel)
+                    .temperature(0.0)
+                    .numCtx(2048)
+                    .numPredict(128)
+                    .disableThinking())
                 .call()
                 .content();
 

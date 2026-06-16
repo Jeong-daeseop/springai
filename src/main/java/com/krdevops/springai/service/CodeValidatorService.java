@@ -112,6 +112,9 @@ public class CodeValidatorService {
             checkMapperXml(content, passed, failed);
         } else if (fileName.endsWith(".jsp")) {
             checkJsp(content, passed, failed);
+            if (fileName.endsWith("List.jsp")) {
+                check(content, "pageIndex", "페이지 인덱스 처리", passed, failed);
+            }
         } else {
             passed.add("검증 대상 아님 (규칙 없음)");
         }
@@ -139,8 +142,8 @@ public class CodeValidatorService {
         // 구조 검사
         checkPattern(content, "public class \\w+ServiceImpl extends EgovAbstractServiceImpl",
                      "EgovAbstractServiceImpl 상속 구조",                              passed, failed);
-        checkPattern(content, "implements Egov\\w+Service",
-                     "Egov{Domain}Service 인터페이스 구현",                            passed, failed);
+        checkPattern(content, "implements \\w+Service",
+                     "{Domain}Service 인터페이스 구현",                               passed, failed);
         checkNoUnresolved(content, passed, failed);
     }
 
@@ -150,8 +153,8 @@ public class CodeValidatorService {
         check(content, "TotCnt",                    "전체 건수 조회 메서드 (TotCnt)",   passed, failed);
         check(content, "throws Exception",          "throws Exception 선언",           passed, failed);
         // 구조 검사
-        checkPattern(content, "interface Egov\\w+Service",
-                     "Egov{Domain}Service 명명 규칙",                                  passed, failed);
+        checkPattern(content, "interface \\w+Service",
+                     "{Domain}Service 명명 규칙",                                      passed, failed);
         checkNoUnresolved(content, passed, failed);
     }
 
@@ -187,11 +190,12 @@ public class CodeValidatorService {
         check(content, "searchCondition",           "검색 조건 sql 블록",               passed, failed);
         check(content, "<include refid=",           "<include refid> 재사용",          passed, failed);
         check(content, "paginationInfo.firstRecordIndex", "페이징 LIMIT 처리",         passed, failed);
-        // 구조 검사 — 5개 필수 쿼리 ID
-        for (String id : List.of("selectList", "selectTotCnt", "insert", "update", "delete")) {
-            checkPattern(content, "id=\"" + id + "\"",
-                         id + " 쿼리 ID 존재",                                         passed, failed);
-        }
+        // 구조 검사 — 5개 필수 쿼리 ID (도메인명 포함 패턴: selectXxxList, insertXxx 등)
+        checkPattern(content, "id=\"select\\w+List\"",   "selectXxxList 쿼리 ID 존재",   passed, failed);
+        checkPattern(content, "id=\"select\\w+TotCnt\"", "selectXxxTotCnt 쿼리 ID 존재", passed, failed);
+        checkPattern(content, "id=\"insert\\w+\"",       "insertXxx 쿼리 ID 존재",       passed, failed);
+        checkPattern(content, "id=\"update\\w+\"",       "updateXxx 쿼리 ID 존재",       passed, failed);
+        checkPattern(content, "id=\"delete\\w+\"",       "deleteXxx 쿼리 ID 존재",       passed, failed);
         checkNoUnresolved(content, passed, failed);
     }
 
@@ -199,7 +203,6 @@ public class CodeValidatorService {
         check(content, "contentType=\"text/html; charset=UTF-8\"", "UTF-8 인코딩 선언", passed, failed);
         check(content, "taglib prefix=\"c\"",       "JSTL core 태그 선언",             passed, failed);
         check(content, "<c:url",                    "<c:url> URL 처리",                passed, failed);
-        check(content, "pageIndex",                 "페이지 인덱스 처리",               passed, failed);
         checkNoUnresolved(content, passed, failed);
     }
 

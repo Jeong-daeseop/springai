@@ -1,7 +1,7 @@
 # eGovFrame 생성형 AI MCP 서버
 
-Spring Boot 4.0.6 + Spring AI 2.0.0-M6 기반 **Model Context Protocol(MCP) 서버**.  
-Claude Desktop과 `stdio` 트랜스포트로 연결되어 eGovFrame 5.0 표준 소스 자동 생성, RAG 기반 문서 검색, 보안 설정 자동화를 제공합니다.
+Spring Boot 4.1.0-RC1 + Spring AI 2.0.0-RC1 기반 **Model Context Protocol(MCP) 서버**.  
+Claude Desktop/Web과 Streamable HTTP 트랜스포트로 연결되어 eGovFrame 4.3/5.0 표준 소스 자동 생성, RAG 기반 문서 검색, 보안 설정 자동화를 제공합니다.
 
 ---
 
@@ -12,11 +12,12 @@ Claude Desktop과 `stdio` 트랜스포트로 연결되어 eGovFrame 5.0 표준 �
   │ 대화
   ▼
 Claude Desktop
-  │ JSON-RPC over stdio
+  │ JSON-RPC over Streamable HTTP
   ▼
-이 Spring Boot MCP 서버  (HTTP 서버 없음 — web-application-type: none)
+이 Spring Boot MCP 서버  (Servlet HTTP 서버 — /mcp)
   │
-  ├── @Tool 메서드 19종 자동 라우팅
+  ├── @Tool 메서드 44개 자동 라우팅
+  ├── MCP Resources/Prompts 제공
   ├── Ollama (로컬 LLM)
   ├── Redis VectorStore (RAG)
   └── MySQL (eGovFrame 표준 테이블)
@@ -28,8 +29,8 @@ Claude Desktop
 
 | 구분 | 내용 |
 |------|------|
-| 프레임워크 | Spring Boot 4.0.6 + Spring AI 2.0.0-M6 |
-| MCP 트랜스포트 | `stdio` (Claude Desktop이 JAR 직접 실행) |
+| 프레임워크 | Spring Boot 4.1.0-RC1 + Spring AI 2.0.0-RC1 |
+| MCP 트랜스포트 | Streamable HTTP (`/mcp`, `http-only`) |
 | LLM | Ollama (로컬 실행, 인터넷 불필요) |
 | 벡터 DB | Spring AI VectorStore + Redis |
 | 세션 메모리 | Redis (채팅 이력 영속화) |
@@ -77,7 +78,7 @@ eGovFrame 관련 문서를 벡터 DB에 임베딩해두고 질의 시 관련 문
 
 ---
 
-## MCP Tool 목록 (19종)
+## MCP Tool 목록 (19개 클래스 / 44개 메서드)
 
 | 분류 | Tool | 설명 |
 |------|------|------|
@@ -189,23 +190,33 @@ IntelliJ IDEA: `Run > Edit Configurations > Environment variables`에 추가
 
 ### 5. Claude Desktop 연동
 
+MCP 서버 애플리케이션을 먼저 실행합니다.
+
+```bash
+./gradlew bootRun
+```
+
 `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "springai-mcp": {
-      "command": "java",
+      "command": "npx",
       "args": [
-        "-jar",
-        "/절대경로/springai-0.0.1-SNAPSHOT.jar"
+        "-y",
+        "mcp-remote@0.1.38",
+        "http://localhost:8080/mcp",
+        "--allow-http",
+        "--transport",
+        "http-only"
       ]
     }
   }
 }
 ```
 
-설정 후 Claude Desktop 재시작 → MCP 도구 자동 연결
+애플리케이션을 먼저 실행한 뒤 Claude Desktop을 재시작하면 MCP 도구가 자동 연결됩니다.
 
 ---
 
@@ -247,7 +258,7 @@ com.krdevops.springai
 ├── controller/      # HTTP API (RagController, ToolApiController)
 ├── mapper/          # JdbcTemplate Repository
 ├── service/         # 비즈니스 로직 서비스 21종
-├── tools/           # MCP Tool 구현체 19종
+├── tools/           # MCP Tool 구현체 19개 클래스 / 44개 메서드
 ├── vo/              # Value Object
 └── chat/            # 채팅 서브 도메인
     ├── config/      # 채팅 설정 (RAG, Redis, ChatMemory)

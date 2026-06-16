@@ -1,0 +1,23 @@
+[mcp_servers.egovframe-mcp]
+command = "npx"
+args = [
+    "-y",
+    "mcp-remote@0.1.38",
+    "http://localhost:8080/mcp",
+    "--allow-http",
+]
+
+[mcp_servers.egovframe-mcp.env]
+NODE_TLS_REJECT_UNAUTHORIZED = "0"
+
+[mcp_servers.egovframe-mcp.tools.generateAuthInsertSql]
+approval_mode = "approve"
+
+[mcp_servers.egovframe-mcp.tools.checkProjectHealth]
+approval_mode = "approve"
+
+[mcp_servers.egovframe-mcp.tools.saveGeneratedCode]
+approval_mode = "approve"
+
+[mcp_servers.egovframe-mcp.tools.initializeProject]
+approval_mode = "approve"

@@ -94,6 +94,8 @@ app:
 egov:
   output:
     base-path: ${EGOV_OUTPUT_PATH:${user.home}/workspace-egov/egov-generated}
+    allowed-paths:
+      - ${user.home}/workspace-egov/egov-boot-web
 
 logging:
   config: classpath:logback-spring.xml

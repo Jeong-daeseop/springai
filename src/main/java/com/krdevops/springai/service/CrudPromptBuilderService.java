@@ -17,6 +17,7 @@ public class CrudPromptBuilderService {
     private final JdbcTemplate jdbcTemplate;
     private final CommonCodeService commonCodeService;
     private final EgovPromptBuilder promptBuilder;
+    private final CrudSchemaQueryService crudSchemaQueryService;
 
     /**
      * 플레이스홀더 치환에 필요한 모든 값을 담는 레코드.
@@ -204,26 +205,27 @@ public class CrudPromptBuilderService {
         sb.append(promptBuilder.crudConstraints());
 
         sb.append("[생성 지시]\n");
-        sb.append("generateSource(layer, valuesJson)로 소스를 생성하고 saveGeneratedCode()로 저장하세요.\n");
-        sb.append("valuesJson은 위 [플레이스홀더 치환 규칙]의 키-값을 JSON으로 전달하면 됩니다.\n");
+        sb.append("위 스키마와 플레이스홀더 값을 바탕으로 11개 레이어 소스를 직접 작성하고,\n");
+        sb.append("각 파일을 saveGeneratedCode(filePath, code)로 저장하세요.\n");
         sb.append("출력 경로: ").append(outputPath).append("\n\n");
 
+        String packagePath = pv.packageName().replace(".", "/");
         String[][] layers = {
-            {"vo",               pv.domain() + "VO.java"},
-            {"mapper",           pv.domain() + "Mapper.java"},
-            {"mapperXml",        pv.domain() + "Mapper.xml"},
-            {"service",          pv.domain() + "Service.java"},
-            {"serviceImpl",      "Egov" + pv.domain() + "ServiceImpl.java"},
-            {"controller",       "Egov" + pv.domain() + "Controller.java"},
-            {"controlleradvice", "Egov" + pv.domain() + "ValidationHandler.java"},
-            {"jspList",          "Egov" + pv.domain() + "List.jsp"},
-            {"jspDetail",        "Egov" + pv.domain() + "Detail.jsp"},
-            {"jspRegist",        "Egov" + pv.domain() + "Regist.jsp"},
-            {"jspUpdt",          "Egov" + pv.domain() + "Updt.jsp"},
+            {pv.domain() + "VO.java",                         packagePath + "/service/"},
+            {pv.domain() + "Mapper.java",                     packagePath + "/service/impl/"},
+            {pv.domain() + "Mapper.xml",                      packagePath + "/service/impl/"},
+            {pv.domain() + "Service.java",                    packagePath + "/service/"},
+            {"Egov" + pv.domain() + "ServiceImpl.java",       packagePath + "/service/impl/"},
+            {"Egov" + pv.domain() + "Controller.java",        packagePath + "/web/"},
+            {"Egov" + pv.domain() + "ValidationHandler.java", packagePath + "/web/"},
+            {"Egov" + pv.domain() + "List.jsp",               "jsp/" + pv.domainLc() + "/"},
+            {"Egov" + pv.domain() + "Detail.jsp",             "jsp/" + pv.domainLc() + "/"},
+            {"Egov" + pv.domain() + "Regist.jsp",             "jsp/" + pv.domainLc() + "/"},
+            {"Egov" + pv.domain() + "Updt.jsp",               "jsp/" + pv.domainLc() + "/"},
         };
         for (int i = 0; i < layers.length; i++) {
-            sb.append(String.format("  Step %2d: getCodeTemplate(\"%s\") → %s\n",
-                i + 1, layers[i][0], layers[i][1]));
+            sb.append(String.format("  Step %2d: saveGeneratedCode(\"%s/%s%s\", code)\n",
+                i + 1, outputPath, layers[i][1], layers[i][0]));
         }
 
         sb.append("\n").append(promptBuilder.postGeneration(outputPath, tableName, domain, packageName, pv.domainLc(), "11개 파일"));
@@ -235,18 +237,7 @@ public class CrudPromptBuilderService {
     // -------------------------------------------------------------------------
 
     private List<Map<String, Object>> fetchColumns(String database, String tableName) {
-        return jdbcTemplate.queryForList(
-            "SELECT c.COLUMN_NAME, c.DATA_TYPE, c.CHARACTER_MAXIMUM_LENGTH, " +
-            "  c.IS_NULLABLE, c.COLUMN_COMMENT, " +
-            "  CASE WHEN kcu.COLUMN_NAME IS NOT NULL THEN 'PRI' ELSE '' END AS COLUMN_KEY " +
-            "FROM INFORMATION_SCHEMA.COLUMNS c " +
-            "LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu " +
-            "  ON kcu.TABLE_SCHEMA = c.TABLE_SCHEMA AND kcu.TABLE_NAME = c.TABLE_NAME " +
-            "  AND kcu.COLUMN_NAME = c.COLUMN_NAME AND kcu.CONSTRAINT_NAME = 'PRIMARY' " +
-            "WHERE c.TABLE_SCHEMA = ? AND c.TABLE_NAME = ? " +
-            "ORDER BY c.ORDINAL_POSITION",
-            database, tableName
-        );
+        return crudSchemaQueryService.fetchColumns(database, tableName);
     }
 
     private String buildVoFields(List<Map<String, Object>> columns) {

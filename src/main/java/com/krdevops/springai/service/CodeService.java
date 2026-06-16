@@ -1,7 +1,6 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.config.EgovProperties;
-import com.krdevops.springai.tools.CodeTemplateTool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -11,51 +10,50 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Map;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class CodeService {
 
-    private final CodeTemplateTool codeTemplateTool;
     private final EgovProperties egovProperties;
 
     /**
-     * 서버에서 직접 플레이스홀더를 치환하여 소스를 생성합니다.
-     * LLM 개입 없이 100% 결정적으로 동일한 소스를 생성합니다.
-     *
-     * @param layer  vo, controller, service, serviceImpl, mapper, mapperXml, jspList, jspDetail, jspRegist, jspUpdt
-     * @param values buildFullCrudPrompt()가 계산한 플레이스홀더 Map
-     * @return 치환 완료된 소스 코드
+     * @deprecated text-block 치환 방식은 FreeMarker 전환으로 제거되었습니다.
+     *             buildFullCrudPrompt(llmProvider="auto")를 사용하세요.
      */
+    @Deprecated
     public String generateSource(String layer, Map<String, String> values) {
-        String template = codeTemplateTool.getCodeTemplate(layer);
-        if (template.startsWith("지원하지 않는")) {
-            return template;
-        }
-        for (Map.Entry<String, String> entry : values.entrySet()) {
-            template = template.replace("{{" + entry.getKey() + "}}", entry.getValue());
-        }
-        // 미치환 플레이스홀더 감지
-        if (Pattern.compile("\\{\\{\\w+\\}\\}").matcher(template).find()) {
-            String remaining = template.lines()
-                .filter(l -> l.contains("{{"))
-                .collect(Collectors.joining("\n"));
-            log.warn("미치환 플레이스홀더 감지 [layer={}]:\n{}", layer, remaining);
-            return template + "\n\n/* ⚠ 미치환 플레이스홀더 발견 — values Map을 확인하세요:\n" + remaining + "\n*/";
-        }
-        return template;
+        return "[DEPRECATED] generateSource()는 더 이상 지원되지 않습니다. "
+            + "buildFullCrudPrompt(llmProvider=\"auto\")를 사용하세요.";
     }
 
     public String saveGeneratedCode(String filePath, String code) {
         try {
-            Path base = Paths.get(egovProperties.getOutput().getBasePath()).toAbsolutePath().normalize();
-            Path target = base.resolve(filePath).normalize();
-            if (!target.startsWith(base)) {
-                log.warn("Path Traversal 시도 차단: {}", filePath);
-                return "파일 저장 실패: 허용 범위 밖 경로입니다.";
+            Path target = Paths.get(filePath);
+            if (target.isAbsolute()) {
+                target = target.normalize();
+                // 절대경로 allowlist: basePath, 그 부모(workspace root), 명시 allowedPaths 하위만 허용
+                // e.g., basePath=~/Desktop/egov-generated -> workspace=~/Desktop 까지 허용
+                Path basePath      = Paths.get(egovProperties.getOutput().getBasePath()).toAbsolutePath().normalize();
+                Path workspaceRoot = basePath.getParent();
+                boolean underBase      = target.startsWith(basePath);
+                boolean underWorkspace = workspaceRoot != null && target.startsWith(workspaceRoot);
+                boolean underAllowedPath = egovProperties.getOutput().getAllowedPaths().stream()
+                    .map(path -> Paths.get(path).toAbsolutePath().normalize())
+                    .anyMatch(target::startsWith);
+                if (!underBase && !underWorkspace && !underAllowedPath) {
+                    log.warn("허용 범위 밖 절대경로 차단: {}", filePath);
+                    return "파일 저장 실패: 허용 범위 밖 경로입니다 (egov.output.base-path, workspace 또는 allowed-paths 하위만 허용).";
+                }
+            } else {
+                // 상대경로: base-path 아래로 한정 (Path Traversal 방어)
+                Path base = Paths.get(egovProperties.getOutput().getBasePath()).toAbsolutePath().normalize();
+                target = base.resolve(filePath).normalize();
+                if (!target.startsWith(base)) {
+                    log.warn("Path Traversal 시도 차단: {}", filePath);
+                    return "파일 저장 실패: 허용 범위 밖 경로입니다.";
+                }
             }
             Files.createDirectories(target.getParent());
             Files.writeString(target, code);

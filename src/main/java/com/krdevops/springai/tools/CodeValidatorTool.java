@@ -21,7 +21,8 @@ public class CodeValidatorTool {
               *Mapper.java      → @Mapper, EgovAbstractMapper 상속 등
               *VO.java          → @Getter/@Setter, PaginationInfo, 검색 필드 등
               *Mapper.xml       → namespace, resultMap, 페이징 LIMIT, searchCondition 등
-              *.jsp             → UTF-8, JSTL, <c:url>, pageIndex 등
+              *List.jsp         → UTF-8, JSTL, <c:url>, pageIndex 등
+              *Detail/Regist/Updt.jsp → UTF-8, JSTL, <c:url> 등 (pageIndex 검사 없음)
             미준수 항목은 ❌, 통과 항목은 ✅ 로 표시합니다.
             """)
     public String validateGeneratedCode(String filePath) {

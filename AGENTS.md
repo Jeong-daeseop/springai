@@ -61,3 +61,5 @@ Streamable HTTP 트랜스포트로 클라이언트와 JSON-RPC 통신하며, 웹
 - Docker `egov-mysql` — eGovFrame MySQL DB (port 3306)
 
 <!-- MANUAL: -->
+
+## Imported Claude Cowork project instructions

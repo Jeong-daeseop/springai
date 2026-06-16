@@ -37,47 +37,13 @@ public class CodeSaverTool {
     }
 
     @Tool(description = """
-            eGovFrame 소스를 서버에서 직접 생성합니다. (LLM 치환 불필요 — 100% 일관성 보장)
+            [DEPRECATED] 이 Tool은 더 이상 사용되지 않습니다.
 
-            [동작 방식]
-            getCodeTemplate(layer)로 템플릿을 가져와 서버에서 직접 String.replace()로 플레이스홀더를 치환합니다.
-            LLM이 소스를 생성하거나 수정하지 않으므로 동일 입력 → 항상 동일 소스가 보장됩니다.
+            text-block {{플레이스홀더}} 방식은 FreeMarker 템플릿으로 전환되었으며,
+            generateSource()를 호출하면 deprecation 안내 메시지만 반환됩니다.
 
-            [layer] 생성할 레이어:
-              vo, controller, service, serviceImpl, mapper, mapperXml,
-              jspList, jspDetail, jspRegist, jspUpdt
-
-            [valuesJson] buildFullCrudPrompt()의 [플레이스홀더 치환 규칙] 섹션을 JSON으로 전달:
-              {
-                "PACKAGE":        "egovframework.let.emp",
-                "DOMAIN":         "Employer",
-                "DOMAIN_LC":      "employer",
-                "DOMAIN_KR":      "직원",
-                "TABLE_NAME":     "COMTNEMPLYRINFO",
-                "PK_FIELD":       "emplyrId",
-                "PK_COLUMN":      "EMPLYR_ID",
-                "PK_TYPE":        "String",
-                "URL_PREFIX":     "/emp/employer",
-                "DATE":           "2026-05-20",
-                "VO_FIELDS":      "    private String emplyrId;\\n    private String userNm;",
-                "MAPPER_COLUMNS": "EMPLYR_ID, USER_NM",
-                "INSERT_COLUMNS": "EMPLYR_ID, USER_NM",
-                "INSERT_VALUES":  "#{emplyrId}, #{userNm}",
-                "UPDATE_SET":     "USER_NM = #{userNm}",
-                "RESULT_MAP_FIELDS": "...",
-                "JSP_LIST_TH":    "...",
-                "JSP_LIST_TD":    "...",
-                "JSP_DETAIL_ROWS": "...",
-                "JSP_FORM_INPUTS": "..."
-              }
-
-            [사용 순서]
-            1. buildFullCrudPrompt()로 플레이스홀더 값을 확인합니다.
-            2. generateSource(layer, valuesJson)로 소스를 생성합니다.
-            3. saveGeneratedCode(filePath, code)로 파일을 저장합니다.
-            4. 모든 레이어 생성 후 validateGeneratedCodeDirectory()로 검증합니다.
-
-            getCodeTemplate() + LLM 치환 방식 대신 이 Tool을 우선 사용하세요.
+            eGovFrame CRUD 소스 생성은 buildFullCrudPrompt(llmProvider="auto")를 사용하세요.
+            auto 모드는 FreeMarker 템플릿으로 11개 파일을 한 번에 생성·저장합니다.
             """)
     public String generateSource(String layer, String valuesJson) {
         Map<String, String> values;

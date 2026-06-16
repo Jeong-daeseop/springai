@@ -1,11 +1,7 @@
 {
   "mcpServers": {
-    "springai-mcp": {
-      "command": "npx",
-      "args": ["-y", "mcp-remote@0.1.38", "http://localhost:8080/mcp", "--allow-http"],
-      "env": {
-        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
-      }
+    "egovframe-mcp": {
+      "url": "http://localhost:8080/mcp"
     }
   }
 }
