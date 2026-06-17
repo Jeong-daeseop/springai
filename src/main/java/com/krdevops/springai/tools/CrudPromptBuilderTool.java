@@ -29,7 +29,7 @@ public class CrudPromptBuilderTool {
             packageName: 패키지명 (예: egovframework.let.emp)
             outputPath : 소스 저장 절대경로 (예: /Users/user/Desktop/egov-gen/emp)
             llmProvider: 소스 생성 주체 선택 (생략 시 "auto" 기본값)
-              - "auto"  : 내부 오케스트레이션 — Tool 내부에서 11개 파일을 직접 생성·저장 (Claude 토큰 97% 절감)
+              - "auto"  : 서버 내부 오케스트레이션 — CrudOrchestrationService가 11개 파일을 생성·저장 (Claude 토큰 97% 절감)
               - "claude": 스키마 정보와 지시를 반환하고 Claude가 소스를 직접 작성·저장
             egovVersion: eGovFrame 버전 (선택, 기본값 "5.0")
               - "5.0" 또는 "latest" : jakarta.validation.* import 사용

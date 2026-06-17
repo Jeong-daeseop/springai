@@ -52,6 +52,12 @@ public class CrudOrchestrationService {
         }
 
         // 2. FreeMarker 모델 생성
+        // ⚠️ CrudLayerDefinition 템플릿은 egovframework/let/{PKG}/... 고정이므로
+        //    packageName이 egovframework.let.* 형식이 아니면 경로 오계산 발생 — 조기 실패 처리
+        if (packageName == null || !packageName.startsWith("egovframework.let.")) {
+            throw new IllegalArgumentException(
+                "packageName은 egovframework.let.* 형식이어야 합니다: " + packageName);
+        }
         String pkgSub = packageName
                 .replace("egovframework.let.", "").replace(".", "/");
         CrudTemplateModel model =

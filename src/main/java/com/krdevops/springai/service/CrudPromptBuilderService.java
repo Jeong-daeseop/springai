@@ -211,7 +211,9 @@ public class CrudPromptBuilderService {
         sb.append("출력 경로: ").append(outputPath).append("\n\n");
 
         // CrudLayerDefinition.LAYERS 공유 — auto 모드(CrudOrchestrationService)와 경로 정의 일원화
-        String pkgSub = pv.packageName().replace("egovframework.let.", "").replace(".", "/");
+        // ⚠️ CrudLayerDefinition 템플릿은 egovframework/let/{PKG}/... 고정이므로
+        //    packageName이 egovframework.let.* 형식이 아니면 경로 오계산 발생 — 조기 실패 처리
+        String pkgSub = extractPkgSub(pv.packageName());
         int step = 1;
         for (CrudLayerDefinition layer : CrudLayerDefinition.LAYERS) {
             String fileName = CrudLayerDefinition.resolveFileName(
@@ -403,6 +405,19 @@ public class CrudPromptBuilderService {
             }
         }
         return sb.toString();
+    }
+
+    /**
+     * packageName에서 CrudLayerDefinition {PKG} 플레이스홀더용 서브 경로를 추출한다.
+     * CrudLayerDefinition 템플릿은 egovframework/let/{PKG}/... 고정이므로
+     * egovframework.let.* 형식만 허용한다.
+     */
+    private static String extractPkgSub(String packageName) {
+        if (packageName == null || !packageName.startsWith("egovframework.let.")) {
+            throw new IllegalArgumentException(
+                "packageName은 egovframework.let.* 형식이어야 합니다: " + packageName);
+        }
+        return packageName.replace("egovframework.let.", "").replace(".", "/");
     }
 
     private String toCamelCase(String columnName) {
