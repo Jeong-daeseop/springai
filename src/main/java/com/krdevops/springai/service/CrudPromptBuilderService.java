@@ -1,5 +1,6 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.model.crud.CrudLayerDefinition;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -209,23 +210,15 @@ public class CrudPromptBuilderService {
         sb.append("각 파일을 saveGeneratedCode(filePath, code)로 저장하세요.\n");
         sb.append("출력 경로: ").append(outputPath).append("\n\n");
 
-        String packagePath = pv.packageName().replace(".", "/");
-        String[][] layers = {
-            {pv.domain() + "VO.java",                         packagePath + "/service/"},
-            {pv.domain() + "Mapper.java",                     packagePath + "/service/impl/"},
-            {pv.domain() + "Mapper.xml",                      packagePath + "/service/impl/"},
-            {pv.domain() + "Service.java",                    packagePath + "/service/"},
-            {"Egov" + pv.domain() + "ServiceImpl.java",       packagePath + "/service/impl/"},
-            {"Egov" + pv.domain() + "Controller.java",        packagePath + "/web/"},
-            {"Egov" + pv.domain() + "ValidationHandler.java", packagePath + "/web/"},
-            {"Egov" + pv.domain() + "List.jsp",               "jsp/" + pv.domainLc() + "/"},
-            {"Egov" + pv.domain() + "Detail.jsp",             "jsp/" + pv.domainLc() + "/"},
-            {"Egov" + pv.domain() + "Regist.jsp",             "jsp/" + pv.domainLc() + "/"},
-            {"Egov" + pv.domain() + "Updt.jsp",               "jsp/" + pv.domainLc() + "/"},
-        };
-        for (int i = 0; i < layers.length; i++) {
+        // CrudLayerDefinition.LAYERS 공유 — auto 모드(CrudOrchestrationService)와 경로 정의 일원화
+        String pkgSub = pv.packageName().replace("egovframework.let.", "").replace(".", "/");
+        int step = 1;
+        for (CrudLayerDefinition layer : CrudLayerDefinition.LAYERS) {
+            String fileName = CrudLayerDefinition.resolveFileName(
+                    layer.layerKey(), pv.domain(), layer.fileNameSuffix());
+            String subPath  = layer.resolveSubPath(pkgSub, pv.domainLc());
             sb.append(String.format("  Step %2d: saveGeneratedCode(\"%s/%s%s\", code)\n",
-                i + 1, outputPath, layers[i][1], layers[i][0]));
+                    step++, outputPath, subPath, fileName));
         }
 
         sb.append("\n").append(promptBuilder.postGeneration(outputPath, tableName, domain, packageName, pv.domainLc(), "11개 파일"));

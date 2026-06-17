@@ -1,13 +1,8 @@
 package com.krdevops.springai.tools;
 
-import com.krdevops.springai.model.crud.CrudTemplateModel;
-import com.krdevops.springai.service.CodeService;
-import com.krdevops.springai.service.CodeValidatorService;
-import com.krdevops.springai.service.CrudModelFactory;
+import com.krdevops.springai.service.CrudOrchestrationResult;
+import com.krdevops.springai.service.CrudOrchestrationService;
 import com.krdevops.springai.service.CrudPromptBuilderService;
-import com.krdevops.springai.service.CrudSchemaQueryService;
-import com.krdevops.springai.service.CrudTemplateRenderer;
-import com.krdevops.springai.service.GenerationHistoryService;
 import com.krdevops.springai.service.MasterDetailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,46 +10,14 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
-import java.util.Map;
-
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class CrudPromptBuilderTool {
 
+    private final CrudOrchestrationService crudOrchestrationService;
     private final CrudPromptBuilderService crudPromptBuilderService;
-    private final MasterDetailService masterDetailService;
-    private final CodeService codeService;
-    private final CodeValidatorService codeValidatorService;
-    private final GenerationHistoryService generationHistoryService;
-    private final CrudSchemaQueryService crudSchemaQueryService;
-    private final CrudModelFactory crudModelFactory;
-    private final CrudTemplateRenderer crudTemplateRenderer;
-
-    /** 레이어별 [layerKey, 파일명 접두사, 파일명 접미사, 하위 경로] 정의 */
-    private static final String[][] LAYERS = {
-        // layerKey, 파일명, 하위경로 (outputPath 기준)
-        {"vo",               "VO.java",               "egovframework/let/{PKG}/service/"},
-        {"mapper",           "Mapper.java",            "egovframework/let/{PKG}/service/impl/"},
-        {"mapperXml",        "Mapper.xml",             "egovframework/let/{PKG}/service/impl/"},
-        {"service",          "Service.java",           "egovframework/let/{PKG}/service/"},
-        {"serviceImpl",      "ServiceImpl.java",       "egovframework/let/{PKG}/service/impl/"},
-        {"controller",       "Controller.java",        "egovframework/let/{PKG}/web/"},
-        {"controlleradvice", "ValidationHandler.java", "egovframework/let/{PKG}/web/"},
-        {"jspList",          "List.jsp",               "jsp/{DOMAIN_LC}/"},
-        {"jspDetail",        "Detail.jsp",             "jsp/{DOMAIN_LC}/"},
-        {"jspRegist",        "Regist.jsp",             "jsp/{DOMAIN_LC}/"},
-        {"jspUpdt",          "Updt.jsp",               "jsp/{DOMAIN_LC}/"},
-    };
-
-    /** 레이어별 파일명 결정 — vo/mapper/mapperXml/service는 {Domain}Xxx, 나머지는 Egov{Domain}Xxx */
-    private static String resolveFileName(String layerKey, String domain, String suffix) {
-        return switch (layerKey) {
-            case "vo", "mapper", "mapperXml", "service" -> domain + suffix;
-            default                                      -> "Egov" + domain + suffix;
-        };
-    }
+    private final MasterDetailService      masterDetailService;
 
     @Tool(description = """
             eGovFrame 5.x CRUD 전체 소스 생성에 필요한 통합 프롬프트를 반환합니다.
@@ -85,105 +48,17 @@ public class CrudPromptBuilderTool {
                                       String domain, String packageName,
                                       String outputPath, String llmProvider,
                                       @Nullable String egovVersion) {
-        // egovVersion 기본값 처리 (미입력 시 5.0)
         String resolved = (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
-
-        // llmProvider 기본값 처리
-        String provider = (llmProvider == null || llmProvider.isBlank()) ? "auto" : llmProvider.trim().toLowerCase();
+        String provider = (llmProvider == null || llmProvider.isBlank()) ? "auto"
+                          : llmProvider.trim().toLowerCase();
 
         if ("auto".equals(provider)) {
-            return orchestrateAuto(database, tableName, domain, packageName, outputPath, resolved);
+            CrudOrchestrationResult result = crudOrchestrationService.orchestrate(
+                    database, tableName, domain, packageName, outputPath, resolved);
+            return formatResult(result);
         }
-        // "claude" 또는 그 외 — 기존 프롬프트 반환 방식
         return crudPromptBuilderService.buildFullCrudPrompt(
-            database, tableName, domain, packageName, outputPath, resolved);
-    }
-
-    /**
-     * auto 모드: FreeMarker 템플릿으로 11개 파일을 직접 생성·저장합니다.
-     * LLM 개입 없이 결정적으로 소스를 생성하므로 Claude 토큰을 대폭 절감합니다.
-     */
-    private String orchestrateAuto(String database, String tableName,
-                                   String domain, String packageName, String outputPath,
-                                   String egovVersion) {
-        log.info("[auto] CRUD 오케스트레이션 시작: table={}, domain={}, outputPath={}, egovVersion={}",
-                 tableName, domain, outputPath, egovVersion);
-
-        // 패키지 서브 경로 (egovframework.let.emp → emp)
-        String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
-
-        StringBuilder result = new StringBuilder();
-        result.append("=== [auto] eGovFrame 5.x CRUD 소스 생성 완료 ===\n\n");
-        result.append("DB: ").append(database).append(" | 테이블: ").append(tableName)
-              .append(" | 도메인: ").append(domain).append("\n");
-        result.append("출력 경로: ").append(outputPath).append("\n\n");
-        result.append("[생성 파일 목록]\n");
-
-        int successCount = 0;
-        int failCount = 0;
-
-        List<Map<String, Object>> rawColumns = crudSchemaQueryService.fetchColumns(database, tableName);
-        if (rawColumns.isEmpty()) {
-            return "테이블을 찾을 수 없습니다: " + database + "." + tableName;
-        }
-        CrudTemplateModel model = crudModelFactory.fromSchema(
-            tableName, domain, packageName, egovVersion, rawColumns);
-
-        for (String[] layer : LAYERS) {
-            String layerKey = layer[0];
-            String suffix   = layer[1];
-            String subPath  = layer[2]
-                .replace("{PKG}",       pkgSub)
-                .replace("{DOMAIN_LC}", model.domainLc());
-
-            String fileName = resolveFileName(layerKey, domain, suffix);
-            String filePath = outputPath + "/" + subPath + fileName;
-
-            try {
-                String code = crudTemplateRenderer.renderByLayerKey(layerKey, model);
-                String saveResult = codeService.saveGeneratedCode(filePath, code);
-                if (saveResult.startsWith("파일 저장 실패")) {
-                    result.append("  ❌ ").append(fileName).append(" — ").append(saveResult).append("\n");
-                    log.error("[auto] 파일 저장 실패: layer={}, file={}, result={}", layerKey, filePath, saveResult);
-                    failCount++;
-                } else {
-                    result.append("  ✅ ").append(fileName).append("\n");
-                    log.info("[auto] 저장 완료: {}", filePath);
-                    successCount++;
-                }
-            } catch (Exception e) {
-                result.append("  ❌ ").append(fileName).append(" — 오류: ").append(e.getMessage()).append("\n");
-                log.error("[auto] 파일 생성 실패: layer={}, file={}, error={}", layerKey, filePath, e.getMessage());
-                failCount++;
-            }
-        }
-
-        result.append("\n총 ").append(successCount).append("개 성공");
-        if (failCount > 0) result.append(", ").append(failCount).append("개 실패");
-        result.append("\n");
-
-        // 생성된 코드 일괄 검증
-        result.append("\n[코드 검증 결과]\n");
-        try {
-            String validation = codeValidatorService.validateDirectory(outputPath);
-            result.append(validation).append("\n");
-        } catch (Exception e) {
-            result.append("검증 실패: ").append(e.getMessage()).append("\n");
-            log.warn("[auto] 코드 검증 실패: {}", e.getMessage());
-        }
-
-        // 생성 이력 저장
-        try {
-            String historyResult = generationHistoryService.saveHistory(
-                tableName, domain, packageName, outputPath, successCount + "개 파일");
-            result.append("\n[생성 이력]\n").append(historyResult).append("\n");
-        } catch (Exception e) {
-            result.append("\n생성 이력 저장 실패: ").append(e.getMessage()).append("\n");
-            log.warn("[auto] 생성 이력 저장 실패: {}", e.getMessage());
-        }
-
-        log.info("[auto] CRUD 오케스트레이션 완료: successCount={}, failCount={}", successCount, failCount);
-        return result.toString();
+                database, tableName, domain, packageName, outputPath, resolved);
     }
 
     @Tool(description = """
@@ -209,7 +84,7 @@ public class CrudPromptBuilderTool {
     public String buildMasterDetailPrompt(String database, String masterTable, String detailTable,
                                           String domain, String packageName, String outputPath) {
         return masterDetailService.buildMasterDetailPrompt(
-            database, masterTable, detailTable, domain, packageName, outputPath);
+                database, masterTable, detailTable, domain, packageName, outputPath);
     }
 
     @Tool(description = """
@@ -222,5 +97,29 @@ public class CrudPromptBuilderTool {
             """)
     public String buildJoinSelectPrompt(String database, String tableName) {
         return masterDetailService.buildJoinSelectPrompt(database, tableName);
+    }
+
+    // ── 결과 포맷터 ───────────────────────────────────────────────────────────
+    // 기존 orchestrateAuto() 출력 형식과 동일하게 유지하여 MCP 사용자 UX 회귀 방지
+
+    private String formatResult(CrudOrchestrationResult r) {
+        if (r.tableNotFound()) {
+            return "테이블을 찾을 수 없습니다: " + r.database() + "." + r.tableName();
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== [auto] eGovFrame 5.x CRUD 소스 생성 완료 ===\n\n");
+        sb.append("DB: ").append(r.database())
+          .append(" | 테이블: ").append(r.tableName())
+          .append(" | 도메인: ").append(r.domain()).append("\n");
+        sb.append("출력 경로: ").append(r.outputPath()).append("\n\n");
+        sb.append("[생성 파일 목록]\n");
+        r.succeededFiles().forEach(f -> sb.append("  ✅ ").append(f).append("\n"));
+        r.failedFiles().forEach(f    -> sb.append("  ❌ ").append(f).append("\n"));
+        sb.append("\n총 ").append(r.successCount()).append("개 성공");
+        if (r.hasFailure()) sb.append(", ").append(r.failCount()).append("개 실패");
+        sb.append("\n");
+        sb.append("\n[코드 검증 결과]\n").append(r.validationSummary()).append("\n");
+        sb.append("\n[생성 이력]\n").append(r.historySummary()).append("\n");
+        return sb.toString();
     }
 }
