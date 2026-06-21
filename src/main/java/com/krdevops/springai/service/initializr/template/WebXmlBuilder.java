@@ -39,7 +39,7 @@ public class WebXmlBuilder {
 
     <context-param>
         <param-name>contextConfigLocation</param-name>
-        <param-value>classpath*:egovframework/spring/context-*.xml</param-value>
+        <param-value>/WEB-INF/spring/root-context.xml</param-value>
     </context-param>
     <listener>
         <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
@@ -61,7 +61,7 @@ public class WebXmlBuilder {
         <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
         <init-param>
             <param-name>contextConfigLocation</param-name>
-            <param-value>/WEB-INF/config/egovframework/springmvc/dispatcher-servlet.xml</param-value>
+            <param-value>/WEB-INF/spring/appServlet/servlet-context.xml</param-value>
         </init-param>
         <load-on-startup>1</load-on-startup>%s
     </servlet>

@@ -17,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -29,6 +30,7 @@ class CrudOrchestrationServiceTest {
     @Mock CodeService              codeService;
     @Mock CodeValidatorService     codeValidatorService;
     @Mock GenerationHistoryService generationHistoryService;
+    @Mock ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
 
     @InjectMocks
     CrudOrchestrationService sut;
@@ -100,6 +102,74 @@ class CrudOrchestrationServiceTest {
                 .contains("EgovEmployerDetail.jsp")
                 .contains("EgovEmployerRegist.jsp")
                 .contains("EgovEmployerUpdt.jsp");
+    }
+
+    @Test
+    void orchestrate_savePaths_followProjectInitializrWarLayout() {
+        given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
+        given(crudModelFactory.fromSchema(any(), any(), any(), any(), any())).willReturn(fakeModel());
+        given(crudTemplateRenderer.renderByLayerKey(any(), any())).willReturn("// code");
+        given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 완료: ...");
+        given(codeValidatorService.validateDirectory(any())).willReturn("OK");
+        given(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).willReturn("OK");
+
+        sut.orchestrate("com", "COMTNEMPLYRINFO", "Employer",
+                "egovframework.let.emp", "/tmp/egov-test", "5.0");
+
+        verify(codeService, atLeastOnce()).saveGeneratedCode(
+                "/tmp/egov-test/src/main/java/egovframework/let/emp/service/EmployerVO.java", "// code");
+        verify(codeService, atLeastOnce()).saveGeneratedCode(
+                "/tmp/egov-test/src/main/resources/egovframework/mapper/employer/EmployerMapper.xml", "// code");
+        verify(codeService, atLeastOnce()).saveGeneratedCode(
+                "/tmp/egov-test/src/main/webapp/WEB-INF/jsp/employer/EgovEmployerList.jsp", "// code");
+    }
+
+    @Test
+    void orchestrate_thymeleafViewType_savesHtmlUnderResourcesTemplates() {
+        given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
+        given(crudModelFactory.fromSchema(any(), any(), any(), any(), any())).willReturn(fakeModel());
+        given(crudTemplateRenderer.renderByLayerKey(any(), any())).willReturn("// code");
+        given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 완료: ...");
+        given(codeValidatorService.validateDirectory(any())).willReturn("OK");
+        given(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).willReturn("OK");
+
+        CrudOrchestrationResult result = sut.orchestrate("com", "COMTNEMPLYRINFO", "Employer",
+                "egovframework.let.emp", "/tmp/egov-test", "5.0", "thymeleaf");
+
+        // Thymeleaf는 layout/default.html 포함 12개
+        assertThat(result.successCount()).isEqualTo(12);
+        assertThat(result.succeededFiles())
+                .contains("layout/default.html")
+                .contains("EgovEmployerList.html")
+                .contains("EgovEmployerDetail.html")
+                .contains("EgovEmployerRegist.html")
+                .contains("EgovEmployerUpdt.html")
+                .doesNotContain("EgovEmployerList.jsp");
+        verify(crudTemplateRenderer, atLeastOnce()).renderByLayerKey("thymeleafList", fakeModel());
+        verify(codeService, atLeastOnce()).saveGeneratedCode(
+                "/tmp/egov-test/src/main/resources/templates/employer/EgovEmployerList.html", "// code");
+        verify(codeService, atLeastOnce()).saveGeneratedCode(
+                "/tmp/egov-test/src/main/resources/templates/layout/default.html", "// code");
+    }
+
+    @Test
+    void orchestrate_updatesIndexJspToGeneratedListUrl() {
+        given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
+        given(crudModelFactory.fromSchema(any(), any(), any(), any(), any())).willReturn(fakeModel());
+        given(crudTemplateRenderer.renderByLayerKey(any(), any())).willReturn("// code");
+        given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 완료: ...");
+        given(codeValidatorService.validateDirectory(any())).willReturn("OK");
+        given(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).willReturn("OK");
+
+        sut.orchestrate("com", "COMTNEMPLYRINFO", "Employer",
+                "egovframework.let.emp", "/tmp/egov-test", "5.0");
+
+        verify(codeService).saveGeneratedCode(
+                "/tmp/egov-test/src/main/webapp/index.jsp",
+                """
+<%@ page contentType="text/html;charset=UTF-8" %>
+<jsp:forward page="/emp/employerList.do"/>
+""");
     }
 
     // ── 저장 실패 ────────────────────────────────────────────────────────────
@@ -201,6 +271,6 @@ class CrudOrchestrationServiceTest {
         return new CrudTemplateModel(
                 "egovframework.let.emp", "Employer", "employer", "직원",
                 "COMTNEMPLYRINFO", "/emp/employer", "2026-06-17", "5.0", true,
-                pk, List.of(pkField), List.of());
+                pk, List.of(pkField), List.of(pkField), List.of());
     }
 }

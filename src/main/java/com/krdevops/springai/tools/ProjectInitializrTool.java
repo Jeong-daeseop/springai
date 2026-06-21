@@ -21,7 +21,7 @@ public class ProjectInitializrTool {
 
             [projectType]
               war  — 전통 eGovFrame WAR 배포 방식
-                     web.xml + context-*.xml + dispatcher-servlet.xml 구성
+                     web.xml + root-context.xml + servlet-context.xml + context-*.xml 구성
                      외부 Tomcat에 WAR 배포
               boot — Spring Boot 기반 eGovFrame
                      application.yml + @SpringBootApplication 구성
@@ -41,8 +41,9 @@ public class ProjectInitializrTool {
 
             [생성 파일]
               공통 : 표준 디렉터리 구조, pom.xml 또는 build.gradle, .gitignore
-              war  : context-common/datasource/transaction.xml, dispatcher-servlet.xml,
-                     web.xml, log4j2.xml, index.jsp
+              war  : root-context.xml, servlet-context.xml, context-common/datasource/transaction.xml,
+                     web.xml, log4j2.xml, index.jsp,
+                     resources/css/krds.min.css, resources/js/krds.min.js
               boot : application.yml, logback-spring.xml,
                      {Domain}Application.java, {Domain}ApplicationTests.java
 
@@ -79,7 +80,7 @@ public class ProjectInitializrTool {
                                    HikariCP DataSource 설정 (DB 연결 정보 포함)
               contextTransaction — context-transaction.xml
                                    DataSourceTransactionManager + AOP 트랜잭션 설정
-              dispatcherServlet  — dispatcher-servlet.xml
+              dispatcherServlet  — servlet-context.xml (DispatcherServlet 웹 계층 설정)
                                    Spring MVC 컨트롤러 스캔, ViewResolver, 파일 업로드 설정
               webXml             — web.xml (Jakarta EE 6.0 기준)
                                    ContextLoaderListener, DispatcherServlet, 인코딩 필터 설정

@@ -35,6 +35,11 @@ public class CrudTemplateRenderer {
         LAYER_TEMPLATE_MAP.put("jspDetail",         "jsp-detail.jsp.ftl");
         LAYER_TEMPLATE_MAP.put("jspRegist",         "jsp-regist.jsp.ftl");
         LAYER_TEMPLATE_MAP.put("jspUpdt",           "jsp-updt.jsp.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutHtml",        "layout/default.html.ftl");
+        LAYER_TEMPLATE_MAP.put("thymeleafList",     "thymeleaf-list.html.ftl");
+        LAYER_TEMPLATE_MAP.put("thymeleafDetail",   "thymeleaf-detail.html.ftl");
+        LAYER_TEMPLATE_MAP.put("thymeleafRegist",   "thymeleaf-regist.html.ftl");
+        LAYER_TEMPLATE_MAP.put("thymeleafUpdt",     "thymeleaf-updt.html.ftl");
     }
 
     private final Configuration freemarkerConfig;
@@ -103,6 +108,7 @@ public class CrudTemplateRenderer {
         data.put("jakartaValidation", model.jakartaValidation());
         data.put("pk",                model.pk());
         data.put("fields",            model.fields());
+        data.put("listFields",        model.listFields());
         data.put("nonPkFields",       model.nonPkFields());
         return data;
     }

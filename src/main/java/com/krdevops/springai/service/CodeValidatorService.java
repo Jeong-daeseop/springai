@@ -163,8 +163,8 @@ public class CodeValidatorService {
         check(content, "List<",                     "목록 조회 메서드 (List<>)",        passed, failed);
         check(content, "TotCnt",                    "전체 건수 조회 메서드 (TotCnt)",   passed, failed);
         // 구조 검사
-        checkPattern(content, "interface \\w+Mapper extends EgovAbstractMapper",
-                     "EgovAbstractMapper 상속 구조",                                   passed, failed);
+        checkPattern(content, "interface \\w+Mapper\\s*\\{",
+                     "MyBatis Mapper 인터페이스 구조",                                  passed, failed);
         checkNoUnresolved(content, passed, failed);
     }
 

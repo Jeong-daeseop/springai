@@ -43,10 +43,10 @@ public class SecurityConfig {
         http
             // CSRF: STATELESS 세션이므로 현재 쿠키 인증 없어 실질 위험 없음.
             // 브라우저 쿠키 인증 도입 시 ignoringRequestMatchers 범위 재검토 필요.
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/mcp/**"))
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/mcp/**", "/sse/**"))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/mcp/**", "/", "/ai/**",
+                .requestMatchers("/mcp/**", "/sse/**", "/", "/ai/**",
                     "/api/chat/**", "/api/ollama/**", "/api/documents/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().denyAll()

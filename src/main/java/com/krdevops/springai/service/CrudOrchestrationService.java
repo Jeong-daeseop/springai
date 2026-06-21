@@ -2,6 +2,7 @@ package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.crud.CrudLayerDefinition;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
+import com.krdevops.springai.model.crud.CrudViewType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -11,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * eGovFrame CRUD 11개 레이어 소스를 결정적으로 생성·저장하는 오케스트레이터.
+ * eGovFrame CRUD 레이어 소스를 결정적으로 생성·저장하는 오케스트레이터 (JSP: 11개, Thymeleaf: 12개).
  *
  * <p>LLM 미개입 — FreeMarker 템플릿 렌더링으로 처리하므로 Claude 토큰을 대폭 절감한다.
  * 기존 {@code CrudPromptBuilderTool.orchestrateAuto()}의 로직을 Service 레이어로 이전하여
@@ -28,9 +29,10 @@ public class CrudOrchestrationService {
     private final CodeService              codeService;
     private final CodeValidatorService     codeValidatorService;
     private final GenerationHistoryService generationHistoryService;
+    private final ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
 
     /**
-     * 지정 테이블의 CRUD 소스 11개를 생성·저장하고 결과를 반환한다.
+     * 지정 테이블의 CRUD 소스를 viewType별 레이어 수(JSP: 11개, Thymeleaf: 12개)만큼 생성·저장하고 결과를 반환한다.
      *
      * <p>테이블 미존재 시 예외 대신 {@link CrudOrchestrationResult#notFound}를 반환한다.
      * Tool 레이어는 이 결과를 문자열로 포맷팅하여 MCP 응답을 구성한다.
@@ -39,9 +41,17 @@ public class CrudOrchestrationService {
             String database, String tableName,
             String domain, String packageName,
             String outputPath, String egovVersion) {
+        return orchestrate(database, tableName, domain, packageName, outputPath, egovVersion, "jsp");
+    }
 
-        log.info("[orchestrate] 시작: table={}, domain={}, outputPath={}, egovVersion={}",
-                 tableName, domain, outputPath, egovVersion);
+    public CrudOrchestrationResult orchestrate(
+            String database, String tableName,
+            String domain, String packageName,
+            String outputPath, String egovVersion, String viewType) {
+
+        CrudViewType resolvedViewType = CrudViewType.from(viewType);
+        log.info("[orchestrate] 시작: table={}, domain={}, outputPath={}, egovVersion={}, viewType={}",
+                 tableName, domain, outputPath, egovVersion, resolvedViewType.value());
 
         // 1. 스키마 조회
         List<Map<String, Object>> rawColumns =
@@ -63,11 +73,11 @@ public class CrudOrchestrationService {
         CrudTemplateModel model =
                 crudModelFactory.fromSchema(tableName, domain, packageName, egovVersion, rawColumns);
 
-        // 3. CrudLayerDefinition.LAYERS 기준으로 렌더링 + 저장
+        // 3. viewType별 CrudLayerDefinition 기준으로 렌더링 + 저장
         List<String> succeeded = new ArrayList<>();
         List<String> failed    = new ArrayList<>();
 
-        for (CrudLayerDefinition layer : CrudLayerDefinition.LAYERS) {
+        for (CrudLayerDefinition layer : CrudLayerDefinition.forViewType(resolvedViewType)) {
             String fileName = CrudLayerDefinition.resolveFileName(
                     layer.layerKey(), domain, layer.fileNameSuffix());
             String subPath  = layer.resolveSubPath(pkgSub, model.domainLc());
@@ -87,6 +97,11 @@ public class CrudOrchestrationService {
                 failed.add(fileName + " — 오류: " + e.getMessage());
                 log.error("[orchestrate] 렌더링/저장 실패: layer={}, error={}", layer.layerKey(), e.getMessage());
             }
+        }
+
+        updateDefaultIndexForward(outputPath, model, resolvedViewType, succeeded, failed);
+        if (resolvedViewType == CrudViewType.THYMELEAF) {
+            thymeleafRuntimeConfigurer.ensureThymeleafRuntime(outputPath, egovVersion, failed);
         }
 
         // 4. 코드 검증
@@ -112,5 +127,31 @@ public class CrudOrchestrationService {
         return new CrudOrchestrationResult(
                 false, database, tableName, domain, outputPath,
                 succeeded, failed, validationSummary, historySummary);
+    }
+
+    private void updateDefaultIndexForward(
+            String outputPath, CrudTemplateModel model, CrudViewType viewType,
+            List<String> succeeded, List<String> failed) {
+        String listViewName = "Egov" + model.domain() + "List"
+                + (viewType == CrudViewType.THYMELEAF ? ".html" : ".jsp");
+        if (!succeeded.contains(listViewName)) {
+            log.info("[orchestrate] 목록 화면 저장 전이므로 index.jsp 기본 진입점 갱신 생략: {}", listViewName);
+            return;
+        }
+
+        String indexPath = outputPath + "/src/main/webapp/index.jsp";
+        String listUrl = model.urlPrefix() + "List.do";
+        String indexJsp = """
+<%%@ page contentType="text/html;charset=UTF-8" %%>
+<jsp:forward page="%s"/>
+""".formatted(listUrl);
+
+        String saveResult = codeService.saveGeneratedCode(indexPath, indexJsp);
+        if (saveResult == null || saveResult.startsWith("파일 저장 실패")) {
+            failed.add("index.jsp — " + saveResult);
+            log.error("[orchestrate] index.jsp 기본 진입점 갱신 실패: {}", indexPath);
+        } else {
+            log.info("[orchestrate] index.jsp 기본 진입점 갱신 완료: {} -> {}", indexPath, listUrl);
+        }
     }
 }

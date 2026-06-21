@@ -18,12 +18,18 @@ public class WarBuildGradleBuilder {
     // eGovFrame 5.0 (새 artifactId 명명 규칙)
     implementation "org.egovframe.rte:egovframe-rte-ptl-mvc:${egovVersion}"
     implementation "org.egovframe.rte:egovframe-rte-psl-dataaccess:${egovVersion}"
-    implementation "org.egovframe.rte:egovframe-rte-fdl-cmmn:${egovVersion}" """
+    implementation "org.egovframe.rte:egovframe-rte-fdl-cmmn:${egovVersion}"
+    implementation "org.egovframe.rte:egovframe-rte-fdl-property:${egovVersion}"
+    implementation "org.egovframe.rte:egovframe-rte-fdl-idgnr:${egovVersion}"
+    implementation "org.egovframe.rte:egovframe-rte-fdl-logging:${egovVersion}" """
             : """
     // eGovFrame 4.3 (기존 artifactId 명명 규칙)
     implementation "org.egovframe.rte:org.egovframe.rte.ptl.mvc:${egovVersion}"
     implementation "org.egovframe.rte:org.egovframe.rte.psl.dataaccess:${egovVersion}"
-    implementation "org.egovframe.rte:org.egovframe.rte.fdl.cmmn:${egovVersion}" """;
+    implementation "org.egovframe.rte:org.egovframe.rte.fdl.cmmn:${egovVersion}"
+    implementation "org.egovframe.rte:org.egovframe.rte.fdl.property:${egovVersion}"
+    implementation "org.egovframe.rte:org.egovframe.rte.fdl.idgnr:${egovVersion}"
+    implementation "org.egovframe.rte:org.egovframe.rte.fdl.logging:${egovVersion}" """;
         String servletDeps = s.cap().jakarta()
             ? """
     providedCompile 'jakarta.servlet:jakarta.servlet-api:6.0.0'

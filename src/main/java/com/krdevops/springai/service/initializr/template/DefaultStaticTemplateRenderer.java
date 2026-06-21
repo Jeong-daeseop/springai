@@ -15,7 +15,7 @@ public class DefaultStaticTemplateRenderer implements StaticTemplateRenderer {
     @Override
     public String contextCommon(ProjectSpec s) {
         return loader.load("context-common.xml.tpl",
-                Map.of("packageName", s.packageName()));
+                Map.of("scanBasePackage", PackageScanBase.from(s.packageName())));
     }
 
     @Override
@@ -26,6 +26,11 @@ public class DefaultStaticTemplateRenderer implements StaticTemplateRenderer {
     @Override
     public String contextTransaction() {
         return loader.load("context-transaction.xml.tpl");
+    }
+
+    @Override
+    public String rootContext() {
+        return loader.load("root-context.xml.tpl");
     }
 
     @Override
@@ -57,6 +62,16 @@ public class DefaultStaticTemplateRenderer implements StaticTemplateRenderer {
     @Override
     public String indexJsp() {
         return loader.load("index.jsp.tpl");
+    }
+
+    @Override
+    public String krdsCss() {
+        return loader.load("krds.min.css.tpl");
+    }
+
+    @Override
+    public String krdsJs() {
+        return loader.load("krds.min.js.tpl");
     }
 
     @Override

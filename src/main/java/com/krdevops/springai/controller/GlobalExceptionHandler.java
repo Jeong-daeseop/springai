@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import java.io.IOException;
 import java.util.Map;
@@ -70,6 +71,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AsyncRequestNotUsableException.class)
     public void handleAsyncNotUsable(AsyncRequestNotUsableException ex) {
         log.debug("SSE 클라이언트 연결 종료: {}", ex.getMessage());
+    }
+
+    /** MCP Streamable HTTP DeferredResult timeout — 클라이언트 재연결 시 정상 발생, 에러 아님 */
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public void handleAsyncTimeout(AsyncRequestTimeoutException ex) {
+        log.debug("MCP async 연결 timeout (클라이언트 재연결 정상 사이클): {}", ex.getMessage());
     }
 
     /** 그 외 미처리 예외 → 500 Internal Server Error

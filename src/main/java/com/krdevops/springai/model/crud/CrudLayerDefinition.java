@@ -3,7 +3,7 @@ package com.krdevops.springai.model.crud;
 import java.util.List;
 
 /**
- * eGovFrame CRUD 11개 레이어의 파일명·경로 정의.
+ * eGovFrame CRUD 레이어의 파일명·경로 정의 (JSP: 11개, Thymeleaf: 12개).
  *
  * <p>auto 모드(FreeMarker)와 claude 모드(프롬프트) 양쪽에서 이 정의를 공유하여
  * 레이어 경로 불일치를 방지한다.
@@ -20,19 +20,45 @@ public record CrudLayerDefinition(
         String subPathTemplate
 ) {
 
-    public static final List<CrudLayerDefinition> LAYERS = List.of(
-            new CrudLayerDefinition("vo",               "VO.java",               "egovframework/let/{PKG}/service/"),
-            new CrudLayerDefinition("mapper",           "Mapper.java",            "egovframework/let/{PKG}/service/impl/"),
-            new CrudLayerDefinition("mapperXml",        "Mapper.xml",             "egovframework/let/{PKG}/service/impl/"),
-            new CrudLayerDefinition("service",          "Service.java",           "egovframework/let/{PKG}/service/"),
-            new CrudLayerDefinition("serviceImpl",      "ServiceImpl.java",       "egovframework/let/{PKG}/service/impl/"),
-            new CrudLayerDefinition("controller",       "Controller.java",        "egovframework/let/{PKG}/web/"),
-            new CrudLayerDefinition("controlleradvice", "ValidationHandler.java", "egovframework/let/{PKG}/web/"),
-            new CrudLayerDefinition("jspList",          "List.jsp",               "jsp/{DOMAIN_LC}/"),
-            new CrudLayerDefinition("jspDetail",        "Detail.jsp",             "jsp/{DOMAIN_LC}/"),
-            new CrudLayerDefinition("jspRegist",        "Regist.jsp",             "jsp/{DOMAIN_LC}/"),
-            new CrudLayerDefinition("jspUpdt",          "Updt.jsp",               "jsp/{DOMAIN_LC}/")
+    private static final List<CrudLayerDefinition> COMMON_LAYERS = List.of(
+            new CrudLayerDefinition("vo",               "VO.java",               "src/main/java/egovframework/let/{PKG}/service/"),
+            new CrudLayerDefinition("mapper",           "Mapper.java",            "src/main/java/egovframework/let/{PKG}/service/impl/"),
+            new CrudLayerDefinition("mapperXml",        "Mapper.xml",             "src/main/resources/egovframework/mapper/{DOMAIN_LC}/"),
+            new CrudLayerDefinition("service",          "Service.java",           "src/main/java/egovframework/let/{PKG}/service/"),
+            new CrudLayerDefinition("serviceImpl",      "ServiceImpl.java",       "src/main/java/egovframework/let/{PKG}/service/impl/"),
+            new CrudLayerDefinition("controller",       "Controller.java",        "src/main/java/egovframework/let/{PKG}/web/"),
+            new CrudLayerDefinition("controlleradvice", "ValidationHandler.java", "src/main/java/egovframework/let/{PKG}/web/")
     );
+
+    public static final List<CrudLayerDefinition> JSP_LAYERS = concat(
+            COMMON_LAYERS,
+            new CrudLayerDefinition("jspList",          "List.jsp",               "src/main/webapp/WEB-INF/jsp/{DOMAIN_LC}/"),
+            new CrudLayerDefinition("jspDetail",        "Detail.jsp",             "src/main/webapp/WEB-INF/jsp/{DOMAIN_LC}/"),
+            new CrudLayerDefinition("jspRegist",        "Regist.jsp",             "src/main/webapp/WEB-INF/jsp/{DOMAIN_LC}/"),
+            new CrudLayerDefinition("jspUpdt",          "Updt.jsp",               "src/main/webapp/WEB-INF/jsp/{DOMAIN_LC}/")
+    );
+
+    public static final List<CrudLayerDefinition> THYMELEAF_LAYERS = concat(
+            COMMON_LAYERS,
+            new CrudLayerDefinition("layoutHtml",        "layout/default.html",    "src/main/resources/templates/"),
+            new CrudLayerDefinition("thymeleafList",     "List.html",              "src/main/resources/templates/{DOMAIN_LC}/"),
+            new CrudLayerDefinition("thymeleafDetail",   "Detail.html",            "src/main/resources/templates/{DOMAIN_LC}/"),
+            new CrudLayerDefinition("thymeleafRegist",   "Regist.html",            "src/main/resources/templates/{DOMAIN_LC}/"),
+            new CrudLayerDefinition("thymeleafUpdt",     "Updt.html",              "src/main/resources/templates/{DOMAIN_LC}/")
+    );
+
+    public static final List<CrudLayerDefinition> LAYERS = JSP_LAYERS;
+
+    public static List<CrudLayerDefinition> forViewType(CrudViewType viewType) {
+        return viewType == CrudViewType.THYMELEAF ? THYMELEAF_LAYERS : JSP_LAYERS;
+    }
+
+    private static List<CrudLayerDefinition> concat(
+            List<CrudLayerDefinition> common, CrudLayerDefinition... views) {
+        java.util.ArrayList<CrudLayerDefinition> layers = new java.util.ArrayList<>(common);
+        layers.addAll(List.of(views));
+        return List.copyOf(layers);
+    }
 
     /**
      * vo / mapper / mapperXml / service 는 {Domain}Xxx,
@@ -40,6 +66,7 @@ public record CrudLayerDefinition(
      */
     public static String resolveFileName(String layerKey, String domain, String suffix) {
         return switch (layerKey) {
+            case "layoutHtml"                            -> "layout/default.html";
             case "vo", "mapper", "mapperXml", "service" -> domain + suffix;
             default                                      -> "Egov" + domain + suffix;
         };

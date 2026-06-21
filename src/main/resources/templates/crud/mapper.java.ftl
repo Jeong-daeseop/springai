@@ -1,7 +1,6 @@
 package ${packageName}.service.impl;
 
 import ${packageName}.service.${domain}VO;
-import org.egovframe.rte.psl.dataaccess.EgovAbstractMapper;
 import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
@@ -12,7 +11,7 @@ import java.util.List;
  * @since ${date}
  */
 @Mapper
-public interface ${domain}Mapper extends EgovAbstractMapper {
+public interface ${domain}Mapper {
 
     List<${domain}VO> select${domain}List(${domain}VO searchVO);
 

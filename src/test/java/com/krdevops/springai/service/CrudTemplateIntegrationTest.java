@@ -33,6 +33,7 @@ class CrudTemplateIntegrationTest {
     );
 
     private static final List<FieldModel> NON_PK = FIELDS.stream().filter(f -> !f.pk()).toList();
+    private static final List<FieldModel> LIST_FIELDS = List.of(FIELDS.get(0), FIELDS.get(1));
 
     private static final CrudTemplateModel MODEL_50 = new CrudTemplateModel(
         "egovframework.let.emp",
@@ -46,6 +47,7 @@ class CrudTemplateIntegrationTest {
         true,
         PK,
         FIELDS,
+        LIST_FIELDS,
         NON_PK
     );
 
@@ -61,6 +63,7 @@ class CrudTemplateIntegrationTest {
         false,
         PK,
         FIELDS,
+        LIST_FIELDS,
         NON_PK
     );
 
@@ -137,10 +140,10 @@ class CrudTemplateIntegrationTest {
     // ─── Mapper ───────────────────────────────────────────────────────────────
 
     @Test
-    void mapper_extendsEgovAbstractMapper() {
+    void mapper_isMyBatisMapperInterface() {
         String result = renderer.renderByLayerKey("mapper", MODEL_50);
 
-        assertThat(result).contains("extends EgovAbstractMapper");
+        assertThat(result).doesNotContain("EgovAbstractMapper");
         assertThat(result).contains("@Mapper");
         assertThat(result).contains("interface EmployerMapper");
     }
@@ -202,8 +205,8 @@ class CrudTemplateIntegrationTest {
         String result = renderer.renderByLayerKey("jspList", MODEL_50);
 
         // 컬럼 코멘트가 <th>로 생성됐는지 확인
-        assertThat(result).contains("<th>직원ID</th>");
-        assertThat(result).contains("<th>사용자명</th>");
+        assertThat(result).contains("<th scope=\"col\">직원ID</th>");
+        assertThat(result).contains("<th scope=\"col\">사용자명</th>");
         // JSP EL이 이스케이프되어 출력됐는지 확인
         assertThat(result).contains("${resultList}");
         assertThat(result).contains("ui:pagination");
@@ -221,7 +224,7 @@ class CrudTemplateIntegrationTest {
     void jspDetail_containsAllFieldRows() {
         String result = renderer.renderByLayerKey("jspDetail", MODEL_50);
 
-        assertThat(result).contains("<th>직원ID</th>");
+        assertThat(result).contains("<th scope=\"row\">직원ID</th>");
         assertThat(result).contains("<c:out value=\"${result.emplyrId}\"");
         assertThat(result).contains("<c:out value=\"${result.userNm}\"");
     }
@@ -235,6 +238,35 @@ class CrudTemplateIntegrationTest {
         // nonPK 필드도 form:input으로 생성
         assertThat(result).contains("path=\"userNm\"");
         assertThat(result).contains("path=\"age\"");
+    }
+
+    @Test
+    void thymeleafList_usesThymeleafAndKrdsSearchComponents() {
+        String result = renderer.renderByLayerKey("thymeleafList", MODEL_50);
+
+        assertThat(result).contains("xmlns:th=\"http://www.thymeleaf.org\"");
+        assertThat(result).contains("th:action=\"@{/emp/employerList.do}\"");
+        // egov-boot-web 레이아웃 데코레이트 적용
+        assertThat(result).contains("layout:decorate=\"~{layout/default}\"");
+        // 검색 폼 GET 전환
+        assertThat(result).contains("method=\"get\"");
+        // 전체 페이지 번호 페이지네이션
+        assertThat(result).contains("#numbers.sequence(paginationInfo.firstPageNoOnPageList, paginationInfo.lastPageNoOnPageList)");
+        assertThat(result).contains("th:each=\"item, status : ${resultList}\"");
+        assertThat(result).doesNotContain("<%@");
+        assertThat(result).doesNotContain("<c:");
+        assertThat(result).doesNotContain("ui:pagination");
+    }
+
+    @Test
+    void thymeleafForm_usesThObjectAndThField() {
+        String result = renderer.renderByLayerKey("thymeleafRegist", MODEL_50);
+
+        assertThat(result).contains("th:object=\"${employerVO}\"");
+        assertThat(result).contains("th:field=\"*{emplyrId}\"");
+        assertThat(result).contains("th:field=\"*{userNm}\"");
+        assertThat(result).contains("th:errors=\"*{userNm}\"");
+        assertThat(result).doesNotContain("<form:");
     }
 
     @Test

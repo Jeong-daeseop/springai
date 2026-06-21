@@ -31,6 +31,7 @@ class CrudTemplateRendererTest {
     );
 
     private static final List<FieldModel> NON_PK = FIELDS.stream().filter(f -> !f.pk()).toList();
+    private static final List<FieldModel> LIST_FIELDS = List.of(FIELDS.get(0), FIELDS.get(1));
     private static final PkModel PK = new PkModel("EMPLYR_ID", "emplyrId", "String");
 
     private CrudTemplateModel model(boolean jakarta) {
@@ -46,6 +47,7 @@ class CrudTemplateRendererTest {
             jakarta,
             PK,
             FIELDS,
+            LIST_FIELDS,
             NON_PK
         );
     }

@@ -32,13 +32,18 @@ public class WarPomBuilder {
             ? """
         <java.version>%s</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <egov.version>%s</egov.version>""".formatted(javaVer, egovVer)
+        <egov.version>%s</egov.version>
+        <mybatis.version>%s</mybatis.version>
+        <junit.jupiter.version>5.12.1</junit.jupiter.version>
+        <lombok.version>1.18.46</lombok.version>""".formatted(javaVer, egovVer, MYBATIS_35)
             : """
         <java.version>%s</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <egov.version>%s</egov.version>
         <spring.version>%s</spring.version>
-        <mybatis.version>%s</mybatis.version>""".formatted(javaVer, egovVer, springVer, MYBATIS_35);
+        <mybatis.version>%s</mybatis.version>
+        <junit.jupiter.version>5.10.2</junit.jupiter.version>
+        <lombok.version>1.18.46</lombok.version>""".formatted(javaVer, egovVer, springVer, MYBATIS_35);
 
         String egovDeps = useParent
             ? """
@@ -54,6 +59,29 @@ public class WarPomBuilder {
                 <dependency>
                     <groupId>org.egovframe.rte</groupId>
                     <artifactId>egovframe-rte-fdl-cmmn</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>org.egovframe.rte</groupId>
+                    <artifactId>egovframe-rte-fdl-property</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>org.egovframe.rte</groupId>
+                    <artifactId>egovframe-rte-fdl-idgnr</artifactId>
+                </dependency>
+                <dependency>
+                    <groupId>org.egovframe.rte</groupId>
+                    <artifactId>egovframe-rte-fdl-logging</artifactId>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>org.apache.logging.log4j</groupId>
+                            <artifactId>log4j-slf4j-impl</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-slf4j2-impl</artifactId>
+                    <version>2.25.2</version>
                 </dependency>
                 <dependency>
                     <groupId>org.egovframe.rte</groupId>
@@ -84,22 +112,37 @@ public class WarPomBuilder {
                 </dependency>
                 <dependency>
                     <groupId>org.egovframe.rte</groupId>
+                    <artifactId>org.egovframe.rte.fdl.property</artifactId>
+                    <version>${egov.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.egovframe.rte</groupId>
+                    <artifactId>org.egovframe.rte.fdl.idgnr</artifactId>
+                    <version>${egov.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.egovframe.rte</groupId>
+                    <artifactId>org.egovframe.rte.fdl.logging</artifactId>
+                    <version>${egov.version}</version>
+                    <exclusions>
+                        <exclusion>
+                            <groupId>org.apache.logging.log4j</groupId>
+                            <artifactId>log4j-slf4j-impl</artifactId>
+                        </exclusion>
+                    </exclusions>
+                </dependency>
+                <dependency>
+                    <groupId>org.apache.logging.log4j</groupId>
+                    <artifactId>log4j-slf4j2-impl</artifactId>
+                    <version>2.25.2</version>
+                </dependency>
+                <dependency>
+                    <groupId>org.egovframe.rte</groupId>
                     <artifactId>org.egovframe.rte.fdl.security</artifactId>
                     <version>${egov.version}</version>
                 </dependency>""";
 
-        String mybatisBlock = useParent
-            ? """
-        <!-- MyBatis — version managed by egovframe-web-config-parent -->
-        <dependency>
-            <groupId>org.mybatis</groupId>
-            <artifactId>mybatis</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.mybatis</groupId>
-            <artifactId>mybatis-spring</artifactId>
-        </dependency>"""
-            : """
+        String mybatisBlock = """
         <!-- MyBatis -->
         <dependency>
             <groupId>org.mybatis</groupId>
@@ -196,10 +239,11 @@ public class WarPomBuilder {
 
         String testBlock = useParent
             ? """
-        <!-- Test — version managed by egovframe-web-config-parent (Spring chain) -->
+        <!-- Test -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <version>${junit.jupiter.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -212,7 +256,7 @@ public class WarPomBuilder {
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
-            <version>5.10.2</version>
+            <version>${junit.jupiter.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -222,7 +266,7 @@ public class WarPomBuilder {
             <scope>test</scope>
         </dependency>""";
 
-        String buildSection = useParent ? "" : """
+        String buildSection = """
 
     <build>
         <plugins>
@@ -233,6 +277,13 @@ public class WarPomBuilder {
                 <configuration>
                     <release>${java.version}</release>
                     <encoding>UTF-8</encoding>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
                 </configuration>
             </plugin>
             <plugin>

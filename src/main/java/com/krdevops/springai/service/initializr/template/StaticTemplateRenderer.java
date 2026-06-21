@@ -10,11 +10,14 @@ public interface StaticTemplateRenderer {
     String contextCommon(ProjectSpec s);
     String contextDatasource();
     String contextTransaction();
+    String rootContext();
     String applicationYml(ProjectSpec s);
     String logback(ProjectSpec s);
     String log4j2(ProjectSpec s);
     String gitignore(ProjectSpec s);
     String indexJsp();
+    String krdsCss();
+    String krdsJs();
     String bootMain(ProjectSpec s);
     String bootTest(ProjectSpec s);
 }

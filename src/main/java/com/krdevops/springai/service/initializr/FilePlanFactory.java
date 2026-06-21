@@ -27,7 +27,7 @@ public class FilePlanFactory {
     public static final String EGOV_50            = "5.0.0";
     public static final String SPRING_6           = "6.2.11";
     public static final String SPRING_BOOT_3      = "3.5.6";
-    public static final String MYBATIS_SPRING_3   = "3.0.3";
+    public static final String MYBATIS_SPRING_3   = "3.0.5";
     public static final String MYBATIS_SB3        = "3.0.3";
 
     public static final String JAVA_11            = "11";
@@ -63,8 +63,11 @@ public class FilePlanFactory {
             dirs.add("src/main/resources/static/js");
             dirs.add("src/main/resources/templates");
         } else {
+            dirs.add("src/main/java/" + s.packagePath() + "/web");
+            dirs.add("src/main/java/" + s.packagePath() + "/service");
+            dirs.add("src/main/java/" + s.packagePath() + "/service/impl");
             dirs.add("src/main/resources/egovframework/spring");
-            dirs.add("src/main/webapp/WEB-INF/config/egovframework/springmvc");
+            dirs.add("src/main/webapp/WEB-INF/spring/appServlet");
             dirs.add("src/main/webapp/WEB-INF/jsp/egovframework");
             dirs.add("src/main/webapp/resources/css");
             dirs.add("src/main/webapp/resources/js");
@@ -93,12 +96,18 @@ public class FilePlanFactory {
                         CONFIG, stpl::contextDatasource),
             FilePlan.of("src/main/resources/egovframework/spring/context-transaction.xml",
                         CONFIG, stpl::contextTransaction),
-            FilePlan.of("src/main/webapp/WEB-INF/config/egovframework/springmvc/dispatcher-servlet.xml",
+            FilePlan.of("src/main/webapp/WEB-INF/spring/root-context.xml",
+                        CONFIG, stpl::rootContext),
+            FilePlan.of("src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml",
                         CONFIG, () -> bld.dispatcherServlet(s)),
             FilePlan.of("src/main/webapp/WEB-INF/web.xml",
                         WEB,    () -> bld.webXml(s)),
             FilePlan.of("src/main/webapp/index.jsp",
                         WEB,    stpl::indexJsp),
+            FilePlan.of("src/main/webapp/resources/css/krds.min.css",
+                        WEB,    stpl::krdsCss),
+            FilePlan.of("src/main/webapp/resources/js/krds.min.js",
+                        WEB,    stpl::krdsJs),
             FilePlan.of("src/main/webapp/WEB-INF/jsp/egovframework/error/error404.jsp",
                         WEB,    () -> error404Jsp()),
             FilePlan.of("src/main/webapp/WEB-INF/jsp/egovframework/error/error500.jsp",

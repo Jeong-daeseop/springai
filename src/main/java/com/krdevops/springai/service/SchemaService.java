@@ -1,12 +1,14 @@
 package com.krdevops.springai.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SchemaService {
@@ -14,6 +16,7 @@ public class SchemaService {
     private final JdbcTemplate jdbcTemplate;
 
     public String getTableList(String database) {
+        log.info("getTableList 호출 — database={}", database);
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
             "SELECT TABLE_NAME, TABLE_COMMENT " +
             "FROM INFORMATION_SCHEMA.TABLES " +

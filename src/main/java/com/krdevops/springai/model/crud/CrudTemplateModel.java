@@ -22,5 +22,6 @@ public record CrudTemplateModel(
         boolean jakartaValidation,   // true → jakarta.validation, false → javax.validation
         PkModel pk,                  // PK 컬럼 정보
         List<FieldModel> fields,     // 전체 필드 목록 (PK 포함)
+        List<FieldModel> listFields, // 목록 화면 노출 필드 (핵심/비민감 컬럼)
         List<FieldModel> nonPkFields // PK 제외 필드 (UPDATE SET, form input 기준)
 ) {}

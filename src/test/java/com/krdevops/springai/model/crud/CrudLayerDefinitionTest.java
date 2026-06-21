@@ -14,9 +14,11 @@ class CrudLayerDefinitionTest {
     }
 
     @Test
-    void javaLayers_subPathTemplate_doesNotContainDomainFolder() {
+    void javaSourceLayers_subPathTemplate_doesNotContainDomainFolder() {
+        // mapperXml은 resources/ 하위에 도메인별로 분류되므로 {DOMAIN_LC} 사용 — 별도 검증
         List<CrudLayerDefinition> javaLayers = CrudLayerDefinition.LAYERS.stream()
                 .filter(l -> !l.layerKey().startsWith("jsp"))
+                .filter(l -> !l.layerKey().equals("mapperXml"))
                 .toList();
 
         assertThat(javaLayers).isNotEmpty();
@@ -24,6 +26,17 @@ class CrudLayerDefinitionTest {
                 .allSatisfy(l -> assertThat(l.subPathTemplate())
                         .doesNotContain("{DOMAIN_LC}")
                         .contains("{PKG}"));
+    }
+
+    @Test
+    void mapperXmlLayer_subPathTemplate_containsDomainFolder() {
+        CrudLayerDefinition mapperXml = CrudLayerDefinition.LAYERS.stream()
+                .filter(l -> l.layerKey().equals("mapperXml"))
+                .findFirst().orElseThrow();
+
+        assertThat(mapperXml.subPathTemplate())
+                .contains("{DOMAIN_LC}")
+                .doesNotContain("{PKG}");
     }
 
     @Test
@@ -70,7 +83,7 @@ class CrudLayerDefinitionTest {
                 .findFirst().orElseThrow();
 
         assertThat(vo.resolveSubPath("emp", "employer"))
-                .isEqualTo("egovframework/let/emp/service/");
+                .isEqualTo("src/main/java/egovframework/let/emp/service/");
     }
 
     @Test
@@ -80,7 +93,7 @@ class CrudLayerDefinitionTest {
                 .findFirst().orElseThrow();
 
         assertThat(jspList.resolveSubPath("emp", "employer"))
-                .isEqualTo("jsp/employer/");
+                .isEqualTo("src/main/webapp/WEB-INF/jsp/employer/");
     }
 
     @Test

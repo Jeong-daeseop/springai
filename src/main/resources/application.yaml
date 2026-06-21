@@ -1,6 +1,25 @@
 spring:
   application:
     name: springai-mcp
+  thymeleaf:
+    cache: false
+    prefix: file:src/main/resources/templates/
+    suffix: .html
+  web:
+    resources:
+      static-locations: file:src/main/resources/static/
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+  mvc:
+    async:
+      request-timeout: -1           # SSE async 요청 timeout 비활성화
   main:
     banner-mode: off
     web-application-type: servlet   # SSE HTTP 서버 활성화
@@ -12,7 +31,7 @@ spring:
         version: 1.0.0
         protocol: STREAMABLE
       streamable-http:
-        keep-alive-interval: 30s   # Streamable HTTP 연결 유지
+        keep-alive-interval: 30s
     openai:
       api-key: ${OPENAI_API_KEY}
       chat:
@@ -55,13 +74,11 @@ spring:
     username: ${DB_USERNAME:com}
     password: ${DB_PASSWORD:com01}
     driver-class-name: com.mysql.cj.jdbc.Driver
-  servlet:
-    multipart:
-      max-file-size: 50MB
-      max-request-size: 100MB
-  mvc:
-    async:
-      request-timeout: -1           # SSE async 요청 timeout 비활성화
+    hikari:
+      keepalive-time: 60000       # Mac 슬립 후 재연결 속도 향상
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
 server:
   port: 8080

@@ -1,5 +1,7 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.service.BoardOrchestrationResult;
+import com.krdevops.springai.service.BoardOrchestrationService;
 import com.krdevops.springai.service.CrudOrchestrationResult;
 import com.krdevops.springai.service.CrudOrchestrationService;
 import com.krdevops.springai.service.CrudPromptBuilderService;
@@ -18,19 +20,24 @@ public class CrudPromptBuilderTool {
     private final CrudOrchestrationService crudOrchestrationService;
     private final CrudPromptBuilderService crudPromptBuilderService;
     private final MasterDetailService      masterDetailService;
+    private final BoardOrchestrationService boardOrchestrationService;
 
     @Tool(description = """
             eGovFrame 5.x CRUD 전체 소스 생성에 필요한 통합 프롬프트를 반환합니다.
             이 Tool 하나로 getTableSchema + 공통코드 조회 + 플레이스홀더 매핑을 한 번에 처리합니다.
-            반환된 프롬프트의 지시에 따라 11개 레이어 소스를 순서대로 생성하고 저장하세요.
+            반환된 프롬프트의 지시에 따라 viewType별 레이어 소스를 순서대로 생성하고 저장하세요.
+            (JSP: 11개, Thymeleaf: layout/default.html 포함 12개)
             database   : 데이터베이스명 (예: com)
             tableName  : 테이블명 (예: COMTNEMPLYRINFO)
             domain     : 도메인명 대문자 시작 (예: Employer)
             packageName: 패키지명 (예: egovframework.let.emp)
             outputPath : 소스 저장 절대경로 (예: /Users/user/Desktop/egov-gen/emp)
             llmProvider: 소스 생성 주체 선택 (생략 시 "auto" 기본값)
-              - "auto"  : 서버 내부 오케스트레이션 — CrudOrchestrationService가 11개 파일을 생성·저장 (Claude 토큰 97% 절감)
+              - "auto"  : 서버 내부 오케스트레이션 — CrudOrchestrationService가 viewType별 파일을 생성·저장 (Claude 토큰 97% 절감)
               - "claude": 스키마 정보와 지시를 반환하고 Claude가 소스를 직접 작성·저장
+            viewType   : 화면 템플릿 종류 (선택, 기본값 "jsp")
+              - "jsp"       : /WEB-INF/jsp/{domainLc}/Egov{Domain}*.jsp 생성
+              - "thymeleaf" : src/main/resources/templates/{domainLc}/Egov{Domain}*.html 생성
             egovVersion: eGovFrame 버전 (선택, 기본값 "5.0")
               - "5.0" 또는 "latest" : jakarta.validation.* import 사용
               - "4.3"               : javax.validation.* import 사용
@@ -47,18 +54,20 @@ public class CrudPromptBuilderTool {
     public String buildFullCrudPrompt(String database, String tableName,
                                       String domain, String packageName,
                                       String outputPath, String llmProvider,
-                                      @Nullable String egovVersion) {
+                                      @Nullable String egovVersion,
+                                      @Nullable String viewType) {
         String resolved = (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
         String provider = (llmProvider == null || llmProvider.isBlank()) ? "auto"
                           : llmProvider.trim().toLowerCase();
+        String resolvedViewType = (viewType == null || viewType.isBlank()) ? "jsp" : viewType;
 
         if ("auto".equals(provider)) {
             CrudOrchestrationResult result = crudOrchestrationService.orchestrate(
-                    database, tableName, domain, packageName, outputPath, resolved);
+                    database, tableName, domain, packageName, outputPath, resolved, resolvedViewType);
             return formatResult(result);
         }
         return crudPromptBuilderService.buildFullCrudPrompt(
-                database, tableName, domain, packageName, outputPath, resolved);
+                database, tableName, domain, packageName, outputPath, resolved, resolvedViewType);
     }
 
     @Tool(description = """
@@ -97,6 +106,73 @@ public class CrudPromptBuilderTool {
             """)
     public String buildJoinSelectPrompt(String database, String tableName) {
         return masterDetailService.buildJoinSelectPrompt(database, tableName);
+    }
+
+    @Tool(description = """
+            eGovFrame 게시판(BBS) 소스를 업무 단위로 생성합니다.
+            COMTNBBS(게시글), COMTNBBSMASTER(게시판마스터), COMTNBBSUSE(사용권한) 연동 포함.
+            목록/상세/등록/수정/논리삭제 + 조회수 증가 + 마스터 이름 조회를 한 번에 생성합니다.
+            database        : 데이터베이스명 (예: com)
+            domain          : 도메인명 PascalCase (예: Bbs)
+            packageName     : 패키지명 (예: egovframework.let.bbs)
+            outputPath      : 소스 저장 절대경로
+            mainTable       : 게시글 테이블 (기본값: COMTNBBS)
+            masterTable     : 게시판 마스터 테이블 (기본값: COMTNBBSMASTER)
+            useTable        : 게시판 사용/권한 테이블 (기본값: COMTNBBSUSE, 생략 가능)
+            fileTable       : 첨부파일 묶음 테이블 (기본값: COMTNFILE, 생략 가능)
+            fileDetailTable : 첨부파일 상세 테이블 (기본값: COMTNFILEDETAIL, 생략 가능)
+            egovVersion     : eGovFrame 버전 (기본값: "5.0")
+            viewType        : 화면 종류 (기본값: "jsp", "thymeleaf" 선택 가능)
+            """)
+    public String buildBoardFeature(
+            String database,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String mainTable,
+            @Nullable String masterTable,
+            @Nullable String useTable,
+            @Nullable String fileTable,
+            @Nullable String fileDetailTable,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+
+        String resolvedMain       = (mainTable == null || mainTable.isBlank())       ? "COMTNBBS"         : mainTable;
+        String resolvedMaster     = (masterTable == null || masterTable.isBlank())   ? "COMTNBBSMASTER"   : masterTable;
+        String resolvedUse        = (useTable == null || useTable.isBlank())         ? "COMTNBBSUSE"      : useTable;
+        String resolvedFile       = (fileTable == null || fileTable.isBlank())       ? "COMTNFILE"        : fileTable;
+        String resolvedFileDetail = (fileDetailTable == null || fileDetailTable.isBlank()) ? "COMTNFILEDETAIL" : fileDetailTable;
+        String resolvedVersion    = (egovVersion == null || egovVersion.isBlank())   ? "5.0"              : egovVersion;
+        String resolvedViewType   = (viewType == null || viewType.isBlank())         ? "jsp"              : viewType;
+
+        BoardOrchestrationResult result = boardOrchestrationService.orchestrate(
+            database, domain, packageName, outputPath,
+            resolvedMain, resolvedMaster, resolvedUse,
+            resolvedFile, resolvedFileDetail,
+            resolvedVersion, resolvedViewType);
+
+        return formatBoardResult(result);
+    }
+
+    private String formatBoardResult(BoardOrchestrationResult r) {
+        if (r.tableNotFound()) {
+            return "게시판 테이블을 찾을 수 없습니다: " + r.database() + "." + r.mainTable();
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== [auto] eGovFrame 게시판(BBS) 소스 생성 완료 ===\n\n");
+        sb.append("DB: ").append(r.database())
+          .append(" | 메인 테이블: ").append(r.mainTable())
+          .append(" | 도메인: ").append(r.domain()).append("\n");
+        sb.append("출력 경로: ").append(r.outputPath()).append("\n\n");
+        sb.append("[생성 파일 목록]\n");
+        r.succeededFiles().forEach(f -> sb.append("  ✅ ").append(f).append("\n"));
+        r.failedFiles().forEach(f    -> sb.append("  ❌ ").append(f).append("\n"));
+        sb.append("\n총 ").append(r.successCount()).append("개 성공");
+        if (r.hasFailure()) sb.append(", ").append(r.failCount()).append("개 실패");
+        sb.append("\n");
+        sb.append("\n[코드 검증 결과]\n").append(r.validationSummary()).append("\n");
+        sb.append("\n[생성 이력]\n").append(r.historySummary()).append("\n");
+        return sb.toString();
     }
 
     // ── 결과 포맷터 ───────────────────────────────────────────────────────────

@@ -211,6 +211,7 @@ public class McpKnowledgeConfig {
             optional("projectRootPath", "프로젝트 루트 경로"),
             optional("egovVersion", "eGovFrame 버전"),
             optional("llmProvider", "LLM provider"),
+            optional("viewType", "화면 템플릿 종류(jsp/thymeleaf)"),
             optional("outputPathResolverMethod", "출력 경로 결정 Tool"),
             optional("crudPromptMethod", "CRUD Prompt Tool"),
             optional("tableSchema", "테이블 스키마"),

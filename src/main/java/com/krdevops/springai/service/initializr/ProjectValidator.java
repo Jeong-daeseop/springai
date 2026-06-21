@@ -34,7 +34,11 @@ public class ProjectValidator {
             ? List.of("src/main/resources/application.yml")
             : List.of(
                 "src/main/resources/egovframework/spring/context-common.xml",
-                "src/main/webapp/WEB-INF/web.xml");
+                "src/main/webapp/WEB-INF/spring/root-context.xml",
+                "src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml",
+                "src/main/webapp/WEB-INF/web.xml",
+                "src/main/webapp/resources/css/krds.min.css",
+                "src/main/webapp/resources/js/krds.min.js");
 
         for (String path : required) {
             if (!Files.exists(s.root().resolve(path))) {

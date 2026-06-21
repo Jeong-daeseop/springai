@@ -1,6 +1,7 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.crud.CrudLayerDefinition;
+import com.krdevops.springai.model.crud.CrudViewType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -156,6 +157,13 @@ public class CrudPromptBuilderService {
     public String buildFullCrudPrompt(String database, String tableName,
                                       String domain, String packageName, String outputPath,
                                       String egovVersion) {
+        return buildFullCrudPrompt(database, tableName, domain, packageName, outputPath, egovVersion, "jsp");
+    }
+
+    public String buildFullCrudPrompt(String database, String tableName,
+                                      String domain, String packageName, String outputPath,
+                                      String egovVersion, String viewType) {
+        CrudViewType resolvedViewType = CrudViewType.from(viewType);
         // 1. 컬럼 정보 1회 조회 — 플레이스홀더 계산과 공통 코드 탐지에 재사용
         List<Map<String, Object>> columns = fetchColumns(database, tableName);
         PlaceholderValues pv = buildPlaceholderValuesFromColumns(columns, database, tableName, domain, packageName, outputPath, egovVersion);
@@ -204,18 +212,22 @@ public class CrudPromptBuilderService {
         }
 
         sb.append(promptBuilder.crudConstraints());
-
-        sb.append("[생성 지시]\n");
-        sb.append("위 스키마와 플레이스홀더 값을 바탕으로 11개 레이어 소스를 직접 작성하고,\n");
-        sb.append("각 파일을 saveGeneratedCode(filePath, code)로 저장하세요.\n");
-        sb.append("출력 경로: ").append(outputPath).append("\n\n");
+        appendViewTypeInstruction(sb, resolvedViewType);
 
         // CrudLayerDefinition.LAYERS 공유 — auto 모드(CrudOrchestrationService)와 경로 정의 일원화
         // ⚠️ CrudLayerDefinition 템플릿은 egovframework/let/{PKG}/... 고정이므로
         //    packageName이 egovframework.let.* 형식이 아니면 경로 오계산 발생 — 조기 실패 처리
         String pkgSub = extractPkgSub(pv.packageName());
+        List<CrudLayerDefinition> layers = CrudLayerDefinition.forViewType(resolvedViewType);
+        int layerCount = layers.size();
+
+        sb.append("[생성 지시]\n");
+        sb.append("위 스키마와 플레이스홀더 값을 바탕으로 ").append(layerCount).append("개 레이어 소스를 직접 작성하고,\n");
+        sb.append("각 파일을 saveGeneratedCode(filePath, code)로 저장하세요.\n");
+        sb.append("출력 경로: ").append(outputPath).append("\n\n");
+
         int step = 1;
-        for (CrudLayerDefinition layer : CrudLayerDefinition.LAYERS) {
+        for (CrudLayerDefinition layer : layers) {
             String fileName = CrudLayerDefinition.resolveFileName(
                     layer.layerKey(), pv.domain(), layer.fileNameSuffix());
             String subPath  = layer.resolveSubPath(pkgSub, pv.domainLc());
@@ -223,10 +235,32 @@ public class CrudPromptBuilderService {
                     step++, outputPath, subPath, fileName));
         }
 
-        sb.append("\n").append(promptBuilder.postGeneration(outputPath, tableName, domain, packageName, pv.domainLc(), "11개 파일"));
+        sb.append("\n").append(promptBuilder.postGeneration(outputPath, tableName, domain, packageName, pv.domainLc(), layerCount + "개 파일"));
 
         log.info("CRUD 프롬프트 빌드 완료: table={}, domain={}", tableName, domain);
         return sb.toString();
+    }
+
+    private void appendViewTypeInstruction(StringBuilder sb, CrudViewType viewType) {
+        if (viewType == CrudViewType.THYMELEAF) {
+            sb.append("[화면 템플릿 지시]\n");
+            sb.append("- JSP 파일은 생성하지 말고 Thymeleaf HTML 파일을 생성하세요.\n");
+            sb.append("- 공통 레이아웃 파일을 먼저 생성하세요.\n");
+            sb.append("  경로: src/main/resources/templates/layout/default.html\n");
+            sb.append("  내용: Bootstrap 5.3.3 CDN + Bootstrap Icons 1.11.3 CDN + /resources/css/krds.min.css 링크,\n");
+            sb.append("        고정 상단 헤더(52px), 좌측 사이드바(220px), layout:fragment=\"content\" 슬롯 포함.\n");
+            sb.append("  xmlns:layout=\"http://www.ultraq.net.nz/thymeleaf/layout\" 네임스페이스 선언 필수.\n");
+            sb.append("- 화면 파일(목록/상세/등록/수정) 경로: src/main/resources/templates/{{DOMAIN_LC}}/Egov{{DOMAIN}}*.html\n");
+            sb.append("- 각 화면 파일 최상단에 layout:decorate=\"~{layout/default}\" 선언 필수.\n");
+            sb.append("- 콘텐츠는 <th:block layout:fragment=\"content\"> 블록으로 감싸세요.\n");
+            sb.append("- JSTL, form taglib, <c:url>, <ui:pagination>은 사용하지 마세요.\n");
+            sb.append("- Thymeleaf 문법 th:*, @{...}, ${...}, *{...}를 사용하세요.\n");
+            sb.append("- 정적 리소스 경로는 /resources/css/, /resources/js/ 형식을 유지하세요 (WAR 기준).\n");
+            sb.append("- 페이지네이션은 #numbers.sequence(paginationInfo.firstPageNoOnPageList, paginationInfo.lastPageNoOnPageList)로 생성하세요.\n");
+            sb.append("- 목록 검색 폼은 method=\"get\"을 사용하세요.\n");
+            sb.append("- 등록·수정·삭제 후에는 redirect: + RedirectAttributes.addFlashAttribute(\"message\", ...) PRG 패턴을 사용하세요.\n");
+            sb.append("- 상단 flash 메시지 출력: th:if=\"${message}\" Bootstrap alert 박스.\n\n");
+        }
     }
 
     // -------------------------------------------------------------------------

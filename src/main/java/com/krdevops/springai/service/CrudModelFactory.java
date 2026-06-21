@@ -53,6 +53,7 @@ public class CrudModelFactory {
         List<FieldModel> nonPkFields = fields.stream()
                 .filter(f -> !f.javaName().equals(pkField.javaName()))
                 .toList();
+        List<FieldModel> listFields = buildListFields(fields, pkField);
 
         // jakartaValidation: "5.x" 또는 "latest" → true (CrudPromptBuilderService:118-119 동일)
         boolean jakartaValidation = egovVersion != null
@@ -78,8 +79,58 @@ public class CrudModelFactory {
                 jakartaValidation,
                 pk,
                 fields,
+                listFields,
                 nonPkFields
         );
+    }
+
+    private List<FieldModel> buildListFields(List<FieldModel> fields, FieldModel pkField) {
+        List<String> preferred = List.of(
+                "userNm", "emplNo", "ofcpsNm", "emailAdres", "mbtlnum",
+                "orgnztId", "emplyrSttusCode", "brthdy", "sexdstnCode"
+        );
+        java.util.ArrayList<FieldModel> selected = new java.util.ArrayList<>();
+        selected.add(pkField);
+
+        for (String javaName : preferred) {
+            fields.stream()
+                    .filter(f -> f.javaName().equals(javaName))
+                    .filter(f -> !f.javaName().equals(pkField.javaName()))
+                    .filter(f -> !isSensitiveListField(f))
+                    .findFirst()
+                    .ifPresent(f -> addIfAbsent(selected, f));
+            if (selected.size() >= 6) {
+                return List.copyOf(selected);
+            }
+        }
+
+        for (FieldModel field : fields) {
+            if (selected.size() >= 6) {
+                break;
+            }
+            if (!isSensitiveListField(field)) {
+                addIfAbsent(selected, field);
+            }
+        }
+        return List.copyOf(selected);
+    }
+
+    private static void addIfAbsent(List<FieldModel> selected, FieldModel field) {
+        if (selected.stream().noneMatch(f -> f.javaName().equals(field.javaName()))) {
+            selected.add(field);
+        }
+    }
+
+    private boolean isSensitiveListField(FieldModel field) {
+        String name = field.javaName().toLowerCase(java.util.Locale.ROOT);
+        return name.contains("password")
+                || name.contains("ihid")
+                || name.contains("esntl")
+                || name.contains("cert")
+                || name.contains("dn")
+                || name.contains("lock")
+                || name.contains("uniq")
+                || name.contains("secret");
     }
 
     /**

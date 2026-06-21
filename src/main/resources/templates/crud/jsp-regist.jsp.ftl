@@ -1,48 +1,60 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib prefix="c"    uri="http://java.sun.com/jsp/jstl/core"%>
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form"%>
+<%
+    String contextPath = request.getContextPath();
+%>
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>${domainKr} 등록</title>
-    <style>.error-msg { color: red; font-size: 0.85em; }</style>
+    <link rel="stylesheet" href="<%=contextPath%>/resources/css/krds.min.css">
 </head>
 <body>
 <div class="container">
-    <h2>${domainKr} 등록</h2>
+    <h2 class="page-title">${domainKr} 등록</h2>
 
     <form:form modelAttribute="${domainLc}VO"
                action="${'$'}{pageContext.request.contextPath}${urlPrefix}Regist.do"
                method="post">
 
-        <table>
-            <tbody>
+        <div class="fieldset">
 <#list fields as f><#if f.pk>
-            <tr>
-                <th><label for="${f.javaName}">${f.comment}</label></th>
-                <td>
-                    <form:input path="${f.javaName}"<#if f.maxLength??> maxlength="${f.maxLength}"</#if> id="${f.javaName}"/>
-                    <form:errors path="${f.javaName}" cssClass="error-msg"/>
-                </td>
-            </tr>
+            <div class="form-group">
+                <div class="form-tit">
+                    <label for="${f.javaName}">${f.comment}</label>
+                </div>
+                <div class="form-conts">
+                    <form:input path="${f.javaName}" id="${f.javaName}" cssClass="krds-input"
+                                <#if f.maxLength??>maxlength="${f.maxLength}"</#if>
+                                placeholder="${f.comment}을(를) 입력하세요"/>
+                    <form:errors path="${f.javaName}" cssClass="form-hint-invalid" element="p"/>
+                </div>
+            </div>
 </#if></#list>
 <#list nonPkFields as f>
-            <tr>
-                <th><label for="${f.javaName}">${f.comment}</label></th>
-                <td>
-                    <form:input path="${f.javaName}"<#if f.maxLength??> maxlength="${f.maxLength}"</#if> id="${f.javaName}"/>
-                    <form:errors path="${f.javaName}" cssClass="error-msg"/>
-                </td>
-            </tr>
+            <div class="form-group">
+                <div class="form-tit">
+                    <label for="${f.javaName}">${f.comment}</label>
+                </div>
+                <div class="form-conts">
+                    <form:input path="${f.javaName}" id="${f.javaName}" cssClass="krds-input"
+                                <#if f.maxLength??>maxlength="${f.maxLength}"</#if>
+                                placeholder="${f.comment}을(를) 입력하세요"/>
+                    <form:errors path="${f.javaName}" cssClass="form-hint-invalid" element="p"/>
+                </div>
+            </div>
 </#list>
-            </tbody>
-        </table>
+        </div>
 
-        <div>
-            <button type="submit">저장</button>
-            <a href="<c:url value='${urlPrefix}List.do'/>">취소</a>
+        <!-- 버튼 -->
+        <div class="btn-area">
+            <a href="<c:url value='${urlPrefix}List.do'/>" class="krds-btn secondary medium">취소</a>
+            <button type="submit" class="krds-btn primary medium">저장</button>
         </div>
     </form:form>
 </div>
+<script src="<%=contextPath%>/resources/js/krds.min.js"></script>
 </body>
 </html>

@@ -9,7 +9,7 @@ import static com.krdevops.springai.service.initializr.FilePlanFactory.supportsS
 public class DispatcherServletBuilder {
 
     public String build(ProjectSpec s) {
-        String packageName  = s.packageName();
+        String scanBasePackage = PackageScanBase.from(s.packageName());
         String egovVersion  = s.egovVersion();
 
         String multipartBean = supportsSpring6(egovVersion)
@@ -71,6 +71,6 @@ public class DispatcherServletBuilder {
 %s
 
 </beans>
-""".formatted(packageName, validatorBean, methodValidationBean, multipartBean);
+""".formatted(scanBasePackage, validatorBean, methodValidationBean, multipartBean);
     }
 }

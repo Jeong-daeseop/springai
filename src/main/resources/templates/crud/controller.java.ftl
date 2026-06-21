@@ -8,8 +8,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 <#if jakartaValidation>
 import jakarta.validation.Valid;
 <#else>
@@ -32,7 +34,7 @@ public class Egov${domain}Controller {
     /**
      * ${domainKr} 목록 조회
      */
-    @RequestMapping("${urlPrefix}List.do")
+    @GetMapping("${urlPrefix}List.do")
     public String select${domain}List(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
@@ -59,7 +61,7 @@ public class Egov${domain}Controller {
     /**
      * ${domainKr} 상세 조회
      */
-    @RequestMapping("${urlPrefix}Detail.do")
+    @GetMapping("${urlPrefix}Detail.do")
     public String select${domain}(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
@@ -72,7 +74,7 @@ public class Egov${domain}Controller {
     /**
      * ${domainKr} 등록 화면
      */
-    @RequestMapping("${urlPrefix}RegistView.do")
+    @GetMapping("${urlPrefix}RegistView.do")
     public String insert${domain}View(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
@@ -83,23 +85,25 @@ public class Egov${domain}Controller {
     /**
      * ${domainKr} 등록
      */
-    @RequestMapping("${urlPrefix}Regist.do")
+    @PostMapping("${urlPrefix}Regist.do")
     public String insert${domain}(
             @ModelAttribute("${domainLc}VO") @Valid ${domain}VO ${domainLc}VO,
             BindingResult bindingResult,
-            ModelMap model) throws Exception {
+            ModelMap model,
+            RedirectAttributes redirectAttributes) throws Exception {
 
         if (bindingResult.hasErrors()) {
             return "${domainLc}/Egov${domain}Regist";
         }
         ${domainLc}Service.insert${domain}(${domainLc}VO);
-        return "forward:${urlPrefix}List.do";
+        redirectAttributes.addFlashAttribute("message", "${domainKr}이(가) 등록되었습니다.");
+        return "redirect:${urlPrefix}List.do";
     }
 
     /**
      * ${domainKr} 수정 화면
      */
-    @RequestMapping("${urlPrefix}UpdtView.do")
+    @GetMapping("${urlPrefix}UpdtView.do")
     public String update${domain}View(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
@@ -112,28 +116,32 @@ public class Egov${domain}Controller {
     /**
      * ${domainKr} 수정
      */
-    @RequestMapping("${urlPrefix}Updt.do")
+    @PostMapping("${urlPrefix}Updt.do")
     public String update${domain}(
             @ModelAttribute("${domainLc}VO") @Valid ${domain}VO ${domainLc}VO,
             BindingResult bindingResult,
-            ModelMap model) throws Exception {
+            ModelMap model,
+            RedirectAttributes redirectAttributes) throws Exception {
 
         if (bindingResult.hasErrors()) {
             return "${domainLc}/Egov${domain}Updt";
         }
         ${domainLc}Service.update${domain}(${domainLc}VO);
-        return "forward:${urlPrefix}List.do";
+        redirectAttributes.addFlashAttribute("message", "${domainKr}이(가) 수정되었습니다.");
+        return "redirect:${urlPrefix}Detail.do?${pk.javaName}=" + ${domainLc}VO.get${pk.javaName?cap_first}();
     }
 
     /**
      * ${domainKr} 삭제
      */
-    @RequestMapping("${urlPrefix}Delete.do")
+    @PostMapping("${urlPrefix}Delete.do")
     public String delete${domain}(
             ${domain}VO ${domainLc}VO,
-            ModelMap model) throws Exception {
+            ModelMap model,
+            RedirectAttributes redirectAttributes) throws Exception {
 
         ${domainLc}Service.delete${domain}(${domainLc}VO);
-        return "forward:${urlPrefix}List.do";
+        redirectAttributes.addFlashAttribute("message", "${domainKr}이(가) 삭제되었습니다.");
+        return "redirect:${urlPrefix}List.do";
     }
 }
