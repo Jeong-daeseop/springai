@@ -2,12 +2,14 @@ package ${packageName}.service.impl;
 
 import ${packageName}.service.${domain}VO;
 import java.util.List;
+import org.apache.ibatis.annotations.Mapper;
 
 /**
  * ${domainKr} Mapper
  * @author Claude AI
  * @since ${date}
  */
+@Mapper
 public interface ${domain}Mapper {
 
     /** ${domainKr} 목록 조회 */

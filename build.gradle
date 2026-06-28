@@ -22,6 +22,10 @@ ext {
     set('springAiVersion', "2.0.0-RC1")
 }
 
+def isMacOs = System.getProperty('os.name').toLowerCase(Locale.ROOT).contains('mac')
+def macOsArch = System.getProperty('os.arch').toLowerCase(Locale.ROOT)
+def nettyMacClassifier = (macOsArch.contains('aarch64') || macOsArch.contains('arm64')) ? 'osx-aarch_64' : 'osx-x86_64'
+
 dependencies {
     implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc'
     implementation 'org.springframework.ai:spring-ai-starter-model-openai'
@@ -38,6 +42,9 @@ dependencies {
     implementation 'org.freemarker:freemarker:2.3.33'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     runtimeOnly 'com.mysql:mysql-connector-j'
+    if (isMacOs) {
+        runtimeOnly group: 'io.netty', name: 'netty-resolver-dns-native-macos', classifier: nettyMacClassifier
+    }
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
     annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
@@ -51,6 +58,10 @@ dependencyManagement {
     imports {
         mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
     }
+}
+
+dependencyLocking {
+    lockAllConfigurations()
 }
 
 tasks.named('test') {

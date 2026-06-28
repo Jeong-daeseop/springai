@@ -32,6 +32,12 @@
 - `egovVersion`
 - `outputPath`
 
+주의:
+
+- `initializeProject`는 프로젝트 골격 생성만 수행한다.
+- CRUD/게시판 생성은 자동으로 이어서 호출하지 않는다.
+- 사용자가 CRUD/게시판 생성을 별도로 요청했을 때만 해당 Tool을 사용한다.
+
 보조 Tool:
 
 - 설정 파일만 필요하면 `ProjectInitializrTool.getConfigTemplate`
@@ -60,6 +66,11 @@
 - 목록/상세/등록/수정/삭제 화면 생성
 - VO, Mapper, Service, Controller 생성
 - eGovFrame 소스 생성
+
+주의:
+
+- `initializeProject` 요청만 있으면 CRUD/게시판 Tool을 호출하지 않는다.
+- 게시판 생성은 명시적으로 `buildBoardFeature` 요청이 있을 때만 수행한다.
 
 Tool 순서:
 

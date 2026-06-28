@@ -1,8 +1,9 @@
 package ${packageName}.uat.uia.service.impl;
 
-import egovframework.rte.fdl.security.userdetails.EgovUserDetails;
-import org.springframework.jdbc.core.RowMapper;
+import org.egovframe.rte.fdl.security.userdetails.EgovUserDetails;
+import org.egovframe.rte.fdl.security.userdetails.EgovUsersByUsernameMapping;
 
+import javax.sql.DataSource;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
@@ -18,14 +19,17 @@ import java.sql.SQLException;
  *   (나머지 컬럼은 loginVO에 담아 4번째 인자로 전달)
  *
  * ⚠️ 프로젝트 사용자 테이블 컬럼명에 맞게 수정 필요
- *    bopr: TN_USERS (USER_ID, PASSWORD, USER_NM, DEPT_ID)
- *    COM계열: COMTNEMPLYRINFO (EMPLYR_ID, PASSWORD, ...)
+ *    COM계열: COMTNEMPLYRINFO (USER_ID, PASSWORD, USER_NM, DEPT_ID)
  * ⚠️ loginVO는 프로젝트 LoginVO 클래스로 교체 후 주석 해제
  */
-public class EgovSessionMapping implements RowMapper<EgovUserDetails> {
+public class EgovSessionMapping extends EgovUsersByUsernameMapping {
+
+    public EgovSessionMapping(DataSource dataSource, String sql) {
+        super(dataSource, sql);
+    }
 
     @Override
-    public EgovUserDetails mapRow(ResultSet rs, int rowNum) throws SQLException {
+    public EgovUserDetails mapRow(ResultSet rs, int rownum) throws SQLException {
         String userId   = rs.getString("USER_ID");   // ⚠️ 컬럼명 확인
         String password = rs.getString("PASSWORD");  // ⚠️ 컬럼명 확인
 

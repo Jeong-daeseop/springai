@@ -22,7 +22,7 @@ public class EgovOllamaModelController {
     private final EgovOllamaModelService egovOllamaModelService;
     private final AppProperties appProperties;
 
-    @Value("${spring.ai.ollama.chat.options.model:qwen3:8b}")
+    @Value("${spring.ai.ollama.chat.model:qwen3:8b}")
     private String defaultModel;
 
     @GetMapping("/models")

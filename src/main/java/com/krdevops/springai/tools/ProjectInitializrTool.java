@@ -43,7 +43,7 @@ public class ProjectInitializrTool {
               공통 : 표준 디렉터리 구조, pom.xml 또는 build.gradle, .gitignore
               war  : root-context.xml, servlet-context.xml, context-common/datasource/transaction.xml,
                      web.xml, log4j2.xml, index.jsp,
-                     resources/css/krds.min.css, resources/js/krds.min.js
+                     resources/css/krds.min.css, resources/css/egov-layout.css, resources/js/krds.min.js
               boot : application.yml, logback-spring.xml,
                      {Domain}Application.java, {Domain}ApplicationTests.java
 
@@ -59,6 +59,8 @@ public class ProjectInitializrTool {
 
             ⚠️ 사용자가 "프로젝트 생성", "새 프로젝트 만들어줘", "프로젝트 초기화" 요청 시
                반드시 이 Tool을 직접 호출하세요. Desktop Commander나 Bash로 대체하지 마세요.
+            이 Tool은 프로젝트 골격 생성 전용입니다. CRUD/게시판 소스 생성은 자동으로 이어서 호출하지 마세요.
+            CRUD/게시판 생성은 사용자가 별도로 요청했을 때만 해당 Tool을 사용하세요.
             projectType 또는 egovVersion 미입력 시 사용자에게 물어보세요.
             """)
     public String initializeProject(String projectName, String groupId, String artifactId,

@@ -6,7 +6,7 @@ spring:
 
   datasource:
     # 환경변수로 주입하세요 (예: export DB_URL=jdbc:mysql://host:3306/dbname)
-    url: ${DB_URL:jdbc:mysql://localhost:3306/com?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul}
+    url: jdbc:mysql://localhost:3306/com?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
     username: ${DB_USERNAME:com}
     password: ${DB_PASSWORD:com01}
     driver-class-name: com.mysql.cj.jdbc.Driver

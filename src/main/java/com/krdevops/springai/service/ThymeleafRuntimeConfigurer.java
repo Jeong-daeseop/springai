@@ -7,6 +7,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Thymeleaf 런타임 보강 전용 Service.
@@ -110,9 +112,7 @@ public class ThymeleafRuntimeConfigurer {
 
             // ViewResolver 자체가 없으면 LayoutDialect 포함 전체 bean 블록 삽입
             if (!xml.contains(vrClass)) {
-                String updated = xml.replace(
-                        "<property name=\"suffix\" value=\".jsp\"/>",
-                        "<property name=\"suffix\" value=\".jsp\"/>\n        <property name=\"order\" value=\"2\"/>");
+                String updated = ensureJspViewResolverOrder(xml);
                 String thymeleafBeans = String.format("""
 
     <bean id="thymeleafTemplateResolver"
@@ -182,5 +182,29 @@ public class ThymeleafRuntimeConfigurer {
             failed.add("servlet-context.xml — Thymeleaf ViewResolver 추가 실패: " + e.getMessage());
             log.warn("[thymeleaf-configurer] Thymeleaf ViewResolver 추가 실패: {}", e.getMessage());
         }
+    }
+
+    private String ensureJspViewResolverOrder(String xml) {
+        Pattern pattern = Pattern.compile(
+                "(?s)(<bean\\s+class=\"org\\.springframework\\.web\\.servlet\\.view\\.InternalResourceViewResolver\"[^>]*>)(.*?)(</bean>)");
+        Matcher matcher = pattern.matcher(xml);
+        if (!matcher.find()) {
+            return xml;
+        }
+
+        String body = matcher.group(2);
+        String updatedBody;
+        if (body.contains("<property name=\"order\"")) {
+            updatedBody = body.replaceFirst(
+                    "<property name=\"order\"\\s+value=\"[^\"]*\"\\s*/>",
+                    "<property name=\"order\" value=\"2\"/>");
+        } else {
+            updatedBody = body.replace(
+                    "<property name=\"suffix\" value=\".jsp\"/>",
+                    "<property name=\"suffix\" value=\".jsp\"/>\n        <property name=\"order\" value=\"2\"/>");
+        }
+
+        return matcher.replaceFirst(Matcher.quoteReplacement(
+                matcher.group(1) + updatedBody + matcher.group(3)));
     }
 }

@@ -7,6 +7,7 @@ import org.egovframe.rte.fdl.idgnr.EgovIdGnrService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import jakarta.annotation.Resource;
 import java.util.List;
 
@@ -25,16 +26,19 @@ public class Egov${domain}ServiceImpl extends EgovAbstractServiceImpl implements
     private EgovIdGnrService egovIdGnrService;
 
     @Override
+    @Transactional(readOnly = true)
     public List<${domain}VO> select${domain}List(${domain}VO vo) throws Exception {
         return ${domainLc}Mapper.select${domain}List(vo);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public int select${domain}ListTotCnt(${domain}VO vo) throws Exception {
         return ${domainLc}Mapper.select${domain}ListTotCnt(vo);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ${domain}VO select${domain}(${domain}VO vo) throws Exception {
         ${domain}VO result = ${domainLc}Mapper.select${domain}(vo);
         if (result != null) {
@@ -44,6 +48,7 @@ public class Egov${domain}ServiceImpl extends EgovAbstractServiceImpl implements
     }
 
     @Override
+    @Transactional
     public void insert${domain}(${domain}VO vo) throws Exception {
         LOGGER.debug("insert${domain}: {}", vo);
 <#if nttId.javaType == "String">
@@ -63,16 +68,19 @@ public class Egov${domain}ServiceImpl extends EgovAbstractServiceImpl implements
     }
 
     @Override
+    @Transactional
     public void update${domain}(${domain}VO vo) throws Exception {
         ${domainLc}Mapper.update${domain}(vo);
     }
 
     @Override
+    @Transactional
     public void delete${domain}(${domain}VO vo) throws Exception {
         ${domainLc}Mapper.delete${domain}(vo);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public String selectBoardUseAt(${domain}VO vo) throws Exception {
         return ${domainLc}Mapper.selectBoardUseAt(vo);
     }

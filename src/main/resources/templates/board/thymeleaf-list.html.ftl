@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
 <head>
-    <meta charset="UTF-8"/>
     <title>${domainKr} 목록</title>
 </head>
-<body>
-<main>
+<th:block layout:fragment="content">
 <h1>${domainKr} 목록</h1>
 
 <form id="searchForm" th:action="@{${urlPrefix}List.do}" method="get">
@@ -46,6 +47,5 @@
 </div>
 
 <a th:href="@{${urlPrefix}RegistView.do(bbsId=${r"${searchVO.bbsId}"})}">등록</a>
-</main>
-</body>
+</th:block>
 </html>

@@ -106,6 +106,8 @@ public class FilePlanFactory {
                         WEB,    stpl::indexJsp),
             FilePlan.of("src/main/webapp/resources/css/krds.min.css",
                         WEB,    stpl::krdsCss),
+            FilePlan.of("src/main/webapp/resources/css/egov-layout.css",
+                        WEB,    stpl::egovLayoutCss),
             FilePlan.of("src/main/webapp/resources/js/krds.min.js",
                         WEB,    stpl::krdsJs),
             FilePlan.of("src/main/webapp/WEB-INF/jsp/egovframework/error/error404.jsp",
@@ -235,14 +237,19 @@ public class FilePlanFactory {
 
     private static String error404Jsp() {
         return """
-<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
 <!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>404 Not Found</title></head>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>404 - 페이지를 찾을 수 없습니다</title>
+</head>
 <body>
+<c:url var="homeUrl" value="/"/>
 <h2>404 - 페이지를 찾을 수 없습니다.</h2>
 <p>요청하신 페이지가 존재하지 않습니다.</p>
-<a href="javascript:history.back()">이전 페이지로</a>
+<p><a href="${homeUrl}">메인으로 이동</a></p>
 </body>
 </html>
 """;
@@ -250,14 +257,19 @@ public class FilePlanFactory {
 
     private static String error500Jsp() {
         return """
-<%@ page contentType="text/html;charset=UTF-8" %>
+<%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
 <!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>500 Server Error</title></head>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>500 - 서버 오류</title>
+</head>
 <body>
+<c:url var="homeUrl" value="/"/>
 <h2>500 - 서버 오류가 발생했습니다.</h2>
 <p>일시적인 오류입니다. 잠시 후 다시 시도해 주세요.</p>
-<a href="javascript:history.back()">이전 페이지로</a>
+<p><a href="${homeUrl}">메인으로 이동</a></p>
 </body>
 </html>
 """;

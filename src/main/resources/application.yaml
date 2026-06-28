@@ -30,6 +30,8 @@ spring:
         name: springai-mcp-server
         version: 1.0.0
         protocol: STREAMABLE
+        annotation-scanner:
+          enabled: false
       streamable-http:
         keep-alive-interval: 30s
     openai:
@@ -57,11 +59,10 @@ spring:
     ollama:
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
       chat:
-        options:
-          model: ${OLLAMA_MODEL:qwen3:8b}
-          num-predict: 2048         # 최대 생성 토큰 수
-          num-ctx: 8192             # 컨텍스트 윈도우 — ChatMemory(8) + RAG + Schema 합산 수용
-          temperature: 0.0          # 소스 생성 일관성 — 완전 결정적 출력
+        model: ${OLLAMA_MODEL:qwen3:8b}
+        num-predict: 2048         # 최대 생성 토큰 수
+        num-ctx: 8192             # 컨텍스트 윈도우 — ChatMemory(8) + RAG + Schema 합산 수용
+        temperature: 0.0          # 소스 생성 일관성 — 완전 결정적 출력
       # embedding 블록 제거 — ONNX Transformers로 대체
     vectorstore:
       redis:
@@ -101,9 +102,6 @@ app:
   sql:
     dialect: mysql_mariadb
   api-key: ${APP_API_KEY}
-  openai-models:
-    - gpt-4o-mini
-    - gpt-4o
   document-paths:
     - /Users/EGOVEDU/eGovFrame-5.0.0/md
     - /Users/EGOVEDU/eGovFrame-5.0.0/docs

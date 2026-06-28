@@ -41,6 +41,7 @@ class ProjectInitializrWar50ManualWorkflowTest {
                 "src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml",
                 "src/main/webapp/WEB-INF/web.xml",
                 "src/main/webapp/resources/css/krds.min.css",
+                "src/main/webapp/resources/css/egov-layout.css",
                 "src/main/webapp/resources/js/krds.min.js"
         );
         assertThat(paths).doesNotContain(
@@ -149,6 +150,7 @@ class ProjectInitializrWar50ManualWorkflowTest {
             @Override public String gitignore(ProjectSpec s) { return "gitignore"; }
             @Override public String indexJsp() { return "index"; }
             @Override public String krdsCss() { return "krds-css"; }
+            @Override public String egovLayoutCss() { return "egov-layout-css"; }
             @Override public String krdsJs() { return "krds-js"; }
             @Override public String bootMain(ProjectSpec s) { return "boot-main"; }
             @Override public String bootTest(ProjectSpec s) { return "boot-test"; }

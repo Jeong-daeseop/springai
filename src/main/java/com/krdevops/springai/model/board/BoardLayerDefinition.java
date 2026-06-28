@@ -43,6 +43,7 @@ public record BoardLayerDefinition(
 
     public static final List<BoardLayerDefinition> THYMELEAF_LAYERS = concat(
             COMMON_LAYERS,
+            new BoardLayerDefinition("layoutHtml",      "layout/default.html", "src/main/resources/templates/"),
             new BoardLayerDefinition("thymeleafList",   "List.html",   "src/main/resources/templates/{DOMAIN_LC}/"),
             new BoardLayerDefinition("thymeleafDetail", "Detail.html", "src/main/resources/templates/{DOMAIN_LC}/"),
             new BoardLayerDefinition("thymeleafRegist", "Regist.html", "src/main/resources/templates/{DOMAIN_LC}/"),
@@ -66,8 +67,9 @@ public record BoardLayerDefinition(
      */
     public static String resolveFileName(String layerKey, String domain, String suffix) {
         return switch (layerKey) {
+            case "layoutHtml"                                        -> "layout/default.html";
             case "vo", "searchVo", "mapper", "mapperXml", "service" -> domain + suffix;
-            default                                                 -> "Egov" + domain + suffix;
+            default                                                  -> "Egov" + domain + suffix;
         };
     }
 

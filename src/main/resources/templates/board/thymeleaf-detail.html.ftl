@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
 <head>
-    <meta charset="UTF-8"/>
     <title>${domainKr} 상세</title>
 </head>
-<body>
-<main>
+<th:block layout:fragment="content">
 <h1>${domainKr} 상세</h1>
 <table>
     <tbody>
@@ -30,6 +31,5 @@
     <input type="hidden" th:name="${nttId.javaName}" th:value="${r"${result."}${nttId.javaName}${r"}"}"/>
     <button type="submit" onclick="return confirm('삭제하시겠습니까?')">삭제</button>
 </form>
-</main>
-</body>
+</th:block>
 </html>

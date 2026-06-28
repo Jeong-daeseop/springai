@@ -22,6 +22,12 @@ public class MasterDetailService {
     // ── buildMasterDetailPrompt ───────────────────────────────────────────────
     public String buildMasterDetailPrompt(String database, String masterTable, String detailTable,
                                           String domain, String packageName, String outputPath) {
+        return buildMasterDetailPrompt(database, masterTable, detailTable, domain, packageName, outputPath, "jsp");
+    }
+
+    public String buildMasterDetailPrompt(String database, String masterTable, String detailTable,
+                                          String domain, String packageName, String outputPath,
+                                          String viewType) {
         List<Map<String, Object>> masterCols = fetchColumns(database, masterTable);
         List<Map<String, Object>> detailCols = fetchColumns(database, detailTable);
 
@@ -53,6 +59,9 @@ public class MasterDetailService {
         String domainLc       = domain.substring(0, 1).toLowerCase() + domain.substring(1);
         String urlPrefix      = "/" + packageName.replace("egovframework.let.", "").replace(".", "/") + "/" + domainLc;
         String date           = LocalDate.now().toString();
+        String resolvedViewType = normalizeViewType(viewType);
+        boolean thymeleaf = "thymeleaf".equals(resolvedViewType);
+        String fileCount = thymeleaf ? "14개 파일" : "13개 파일";
 
         StringBuilder sb = new StringBuilder();
         sb.append("=== eGovFrame 5.x 마스터-디테일 CRUD 소스 생성 지시 ===\n\n");
@@ -71,6 +80,14 @@ public class MasterDetailService {
         sb.append("  {{PK_COLUMN}}     = ").append(masterPkColumn).append("\n");
         sb.append("  {{URL_PREFIX}}    = ").append(urlPrefix).append("\n");
         sb.append("  {{DATE}}          = ").append(date).append("\n\n");
+        sb.append("[화면 타입]\n");
+        sb.append("  viewType          = ").append(resolvedViewType).append("\n");
+        if (thymeleaf) {
+            sb.append("  화면 경로         = src/main/resources/templates/").append(domainLc).append("/Egov").append(domain).append("*.html\n");
+            sb.append("  레이아웃 경로     = src/main/resources/templates/layout/default.html\n\n");
+        } else {
+            sb.append("  화면 경로         = src/main/webapp/WEB-INF/jsp/").append(domainLc).append("/Egov").append(domain).append("*.jsp\n\n");
+        }
 
         sb.append("[플레이스홀더 — 디테일]\n");
         sb.append("  DETAIL_DOMAIN     = ").append(detailDomain).append("\n");
@@ -83,7 +100,7 @@ public class MasterDetailService {
         sb.append("[마스터 VO 필드]\n").append(buildVoFields(masterCols)).append("\n");
         sb.append("[디테일 VO 필드]\n").append(buildVoFields(detailCols)).append("\n");
 
-        sb.append("[생성 파일 목록 — 13개]\n");
+        sb.append("[생성 파일 목록 — ").append(fileCount).append("]\n");
         sb.append("  Step  1: ").append(domain).append("VO.java                    ← 마스터 VO\n");
         sb.append("  Step  2: ").append(detailDomain).append("VO.java                ← 디테일 VO\n");
         sb.append("  Step  3: ").append(domain).append("Mapper.java                ← 마스터 Mapper 인터페이스\n");
@@ -94,9 +111,16 @@ public class MasterDetailService {
         sb.append("  Step  8: Egov").append(domain).append("ServiceImpl.java        ← 마스터+디테일 목록 조회\n");
         sb.append("  Step  9: Egov").append(domain).append("Controller.java         ← 상세 진입 시 디테일 로드\n");
         sb.append("  Step 10: Egov").append(domain).append("ValidationHandler.java  ← Validation 전역 예외 핸들러\n");
-        sb.append("  Step 11: Egov").append(domain).append("List.jsp                ← 마스터 목록\n");
-        sb.append("  Step 12: Egov").append(domain).append("Detail.jsp              ← 마스터 상세 + 디테일 그리드 탭\n");
-        sb.append("  Step 13: Egov").append(domain).append("Regist.jsp              ← 마스터 등록\n\n");
+        if (thymeleaf) {
+            sb.append("  Step 11: layout/default.html              ← Thymeleaf 공통 레이아웃\n");
+            sb.append("  Step 12: Egov").append(domain).append("List.html               ← 마스터 목록\n");
+            sb.append("  Step 13: Egov").append(domain).append("Detail.html             ← 마스터 상세 + 디테일 그리드 탭\n");
+            sb.append("  Step 14: Egov").append(domain).append("Regist.html             ← 마스터 등록\n\n");
+        } else {
+            sb.append("  Step 11: Egov").append(domain).append("List.jsp                ← 마스터 목록\n");
+            sb.append("  Step 12: Egov").append(domain).append("Detail.jsp              ← 마스터 상세 + 디테일 그리드 탭\n");
+            sb.append("  Step 13: Egov").append(domain).append("Regist.jsp              ← 마스터 등록\n\n");
+        }
 
         sb.append("[Step 5 — 마스터 Mapper XML 핵심 패턴]\n");
         sb.append("  <!-- 디테일 목록 조회 (마스터 PK로 조회) -->\n");
@@ -127,31 +151,13 @@ public class MasterDetailService {
         sb.append("      return \"").append(domainLc).append("/Egov").append(domain).append("Detail\";\n");
         sb.append("  }\n\n");
 
-        sb.append("[Step 12 — Detail JSP 디테일 그리드 탭 패턴]\n");
-        sb.append("  <!-- 마스터 정보 섹션 -->\n");
-        sb.append("  <div id=\"masterSection\">\n");
-        sb.append("    <table>...마스터 필드...</table>\n");
-        sb.append("  </div>\n\n");
-        sb.append("  <!-- 디테일 그리드 탭 -->\n");
-        sb.append("  <div id=\"detailSection\">\n");
-        sb.append("    <h3>").append(detailDomain).append(" 목록</h3>\n");
-        sb.append("    <table>\n");
-        sb.append("      <thead><tr>\n");
-        buildVoFieldNames(detailCols).forEach(f ->
-            sb.append("        <th>").append(f).append("</th>\n"));
-        sb.append("      </tr></thead>\n");
-        sb.append("      <tbody>\n");
-        sb.append("      <c:forEach items=\"${detailList}\" var=\"detail\">\n");
-        sb.append("        <tr>\n");
-        buildVoFieldNames(detailCols).forEach(f ->
-            sb.append("          <td><c:out value=\"${detail.").append(toCamelCase(f)).append("}\"/></td>\n"));
-        sb.append("        </tr>\n");
-        sb.append("      </c:forEach>\n");
-        sb.append("      </tbody>\n");
-        sb.append("    </table>\n");
-        sb.append("  </div>\n\n");
+        if (thymeleaf) {
+            appendThymeleafDetailPattern(sb, detailCols, detailDomain, domain);
+        } else {
+            appendJspDetailPattern(sb, detailCols, detailDomain);
+        }
 
-        sb.append(promptBuilder.postGeneration(outputPath, masterTable + "+" + detailTable, domain, packageName, domainLc, "13개 파일"));
+        sb.append(promptBuilder.postGeneration(outputPath, masterTable + "+" + detailTable, domain, packageName, domainLc, fileCount));
 
         log.info("마스터-디테일 프롬프트 빌드 완료: master={}, detail={}", masterTable, detailTable);
         return sb.toString();
@@ -316,6 +322,92 @@ public class MasterDetailService {
         return columns.stream()
             .map(c -> (String) c.get("COLUMN_NAME"))
             .toList();
+    }
+
+    private void appendJspDetailPattern(StringBuilder sb, List<Map<String, Object>> detailCols,
+                                        String detailDomain) {
+        sb.append("[Step 12 — Detail JSP 디테일 그리드 탭 패턴]\n");
+        sb.append("  <!-- 마스터 정보 섹션 -->\n");
+        sb.append("  <div id=\"masterSection\">\n");
+        sb.append("    <table>...마스터 필드...</table>\n");
+        sb.append("  </div>\n\n");
+        sb.append("  <!-- 디테일 그리드 탭 -->\n");
+        sb.append("  <div id=\"detailSection\">\n");
+        sb.append("    <h3>").append(detailDomain).append(" 목록</h3>\n");
+        sb.append("    <table>\n");
+        sb.append("      <thead><tr>\n");
+        buildVoFieldNames(detailCols).forEach(f ->
+            sb.append("        <th>").append(f).append("</th>\n"));
+        sb.append("      </tr></thead>\n");
+        sb.append("      <tbody>\n");
+        sb.append("      <c:forEach items=\"${detailList}\" var=\"detail\">\n");
+        sb.append("        <tr>\n");
+        buildVoFieldNames(detailCols).forEach(f ->
+            sb.append("          <td><c:out value=\"${detail.").append(toCamelCase(f)).append("}\"/></td>\n"));
+        sb.append("        </tr>\n");
+        sb.append("      </c:forEach>\n");
+        sb.append("      </tbody>\n");
+        sb.append("    </table>\n");
+        sb.append("  </div>\n\n");
+    }
+
+    private void appendThymeleafDetailPattern(StringBuilder sb, List<Map<String, Object>> detailCols,
+                                              String detailDomain, String domain) {
+        sb.append("[Step 11 — Thymeleaf layout/default.html 핵심 패턴]\n");
+        sb.append("  <!DOCTYPE html>\n");
+        sb.append("  <html xmlns:th=\"http://www.thymeleaf.org\" xmlns:layout=\"http://www.ultraq.net.nz/thymeleaf/layout\">\n");
+        sb.append("  <body>\n");
+        sb.append("    <main layout:fragment=\"content\"></main>\n");
+        sb.append("  </body>\n");
+        sb.append("  </html>\n\n");
+
+        sb.append("[Step 13 — Detail Thymeleaf 디테일 그리드 탭 패턴]\n");
+        sb.append("  <html xmlns:th=\"http://www.thymeleaf.org\"\n");
+        sb.append("        xmlns:layout=\"http://www.ultraq.net.nz/thymeleaf/layout\"\n");
+        sb.append("        layout:decorate=\"~{layout/default}\">\n");
+        sb.append("  <main layout:fragment=\"content\">\n");
+        sb.append("    <!-- 마스터 정보 섹션 -->\n");
+        sb.append("    <section id=\"masterSection\">\n");
+        sb.append("      <table>...마스터 필드...</table>\n");
+        sb.append("    </section>\n\n");
+        sb.append("    <!-- 디테일 그리드 탭 -->\n");
+        sb.append("    <section id=\"detailSection\">\n");
+        sb.append("      <h3>").append(detailDomain).append(" 목록</h3>\n");
+        sb.append("      <table>\n");
+        sb.append("        <thead><tr>\n");
+        buildVoFieldNames(detailCols).forEach(f ->
+            sb.append("          <th>").append(f).append("</th>\n"));
+        sb.append("        </tr></thead>\n");
+        sb.append("        <tbody>\n");
+        sb.append("          <tr th:each=\"detail : ${detailList}\">\n");
+        buildVoFieldNames(detailCols).forEach(f ->
+            sb.append("            <td th:text=\"${detail.").append(toCamelCase(f)).append("}\"></td>\n"));
+        sb.append("          </tr>\n");
+        sb.append("          <tr th:if=\"${#lists.isEmpty(detailList)}\">\n");
+        sb.append("            <td colspan=\"").append(detailCols.size()).append("\">등록된 ").append(detailDomain).append(" 정보가 없습니다.</td>\n");
+        sb.append("          </tr>\n");
+        sb.append("        </tbody>\n");
+        sb.append("      </table>\n");
+        sb.append("    </section>\n");
+        sb.append("  </main>\n");
+        sb.append("  </html>\n\n");
+        sb.append("[Thymeleaf 생성 제약]\n");
+        sb.append("  - JSP taglib, <c:forEach>, <c:out>, form 태그는 사용하지 마세요.\n");
+        sb.append("  - 화면 파일은 src/main/resources/templates/").append(domain.substring(0, 1).toLowerCase()).append(domain.substring(1))
+          .append("/Egov").append(domain).append("*.html 경로로 생성하세요.\n");
+        sb.append("  - Controller return 값은 기존과 동일하게 \"").append(domain.substring(0, 1).toLowerCase()).append(domain.substring(1))
+          .append("/Egov").append(domain).append("Detail\" 형식을 유지하세요.\n\n");
+    }
+
+    private String normalizeViewType(String viewType) {
+        if (viewType == null || viewType.isBlank()) {
+            return "jsp";
+        }
+        return switch (viewType.trim().toLowerCase()) {
+            case "thymeleaf", "th", "html" -> "thymeleaf";
+            case "jsp" -> "jsp";
+            default -> throw new IllegalArgumentException("지원하지 않는 viewType: " + viewType + " (지원값: jsp, thymeleaf)");
+        };
     }
 
     private String deriveDetailDomain(String tableName) {

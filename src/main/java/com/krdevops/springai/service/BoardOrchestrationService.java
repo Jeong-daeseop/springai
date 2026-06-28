@@ -91,6 +91,7 @@ public class BoardOrchestrationService {
         if (resolvedViewType == CrudViewType.THYMELEAF) {
             thymeleafRuntimeConfigurer.ensureThymeleafRuntime(outputPath, egovVersion, failed);
         }
+        updateDefaultIndexForward(outputPath, model, resolvedViewType, succeeded, failed);
 
         // 4. 검증
         String validationSummary;
@@ -113,5 +114,31 @@ public class BoardOrchestrationService {
         return new BoardOrchestrationResult(
             false, database, mainTable, domain, outputPath,
             succeeded, failed, validationSummary, historySummary);
+    }
+
+    private void updateDefaultIndexForward(
+            String outputPath, BoardTemplateModel model, CrudViewType viewType,
+            List<String> succeeded, List<String> failed) {
+        String listViewName = "Egov" + model.domain() + "List"
+                + (viewType == CrudViewType.THYMELEAF ? ".html" : ".jsp");
+        if (!succeeded.contains(listViewName)) {
+            log.info("[board-orchestrate] 목록 화면 저장 전이므로 index.jsp 기본 진입점 갱신 생략: {}", listViewName);
+            return;
+        }
+
+        String indexPath = outputPath + "/src/main/webapp/index.jsp";
+        String listUrl = model.urlPrefix() + "List.do";
+        String indexJsp = """
+<%%@ page contentType="text/html;charset=UTF-8" %%>
+<jsp:forward page="%s"/>
+""".formatted(listUrl);
+
+        String saveResult = codeService.saveGeneratedCode(indexPath, indexJsp);
+        if (saveResult == null || saveResult.startsWith("파일 저장 실패")) {
+            failed.add("index.jsp — " + saveResult);
+            log.error("[board-orchestrate] index.jsp 기본 진입점 갱신 실패: {}", indexPath);
+        } else {
+            log.info("[board-orchestrate] index.jsp 기본 진입점 갱신 완료: {} -> {}", indexPath, listUrl);
+        }
     }
 }

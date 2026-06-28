@@ -16,7 +16,7 @@ public class ProjectHealthTool {
             projectRootPath: 프로젝트 루트 절대경로 (예: /Users/user/project) 또는 소스 출력 경로
             domain: 도메인명 소문자 (예: employer, bbs, board)
             점검 항목:
-              - 레이어별 파일 존재 여부 (VO/Mapper/MapperXML/Service/ServiceImpl/Controller/JSP 4종)
+              - 레이어별 파일 존재 여부 (VO/Mapper/MapperXML/Service/ServiceImpl/Controller/화면 4종: JSP 또는 Thymeleaf)
               - eGovFrame 표준 준수 여부 (validateGeneratedCode 연동)
               - COMTNMENUINFO 메뉴 등록 여부
               - COMTNPROGRMLIST 권한 등록 여부

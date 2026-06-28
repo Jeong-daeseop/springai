@@ -32,9 +32,12 @@ public class ${domain}VO extends ${domain}SearchVO {
     @NotNull
 </#if>
 <#if f.maxLength??>
-    @Size(max = ${f.maxLength})
+    @Size(max = ${f.maxLength?c})
 </#if>
     private ${f.javaType} ${f.javaName};
 
 </#list>
+    /** 게시판명 (COMTNBBSMASTER.BBS_NM 조인 표시용) */
+    private String bbsNm;
+
 }

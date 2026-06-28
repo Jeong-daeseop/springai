@@ -17,6 +17,7 @@ public interface StaticTemplateRenderer {
     String gitignore(ProjectSpec s);
     String indexJsp();
     String krdsCss();
+    String egovLayoutCss();
     String krdsJs();
     String bootMain(ProjectSpec s);
     String bootTest(ProjectSpec s);

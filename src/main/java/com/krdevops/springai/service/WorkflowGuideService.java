@@ -21,6 +21,13 @@ public class WorkflowGuideService {
         return guideRenderer.render(definition, completed);
     }
 
+    public String suggestProjectSetupCrudWorkflow(String currentContext) {
+        WorkflowDefinition definition = registry.find("project-setup-crud")
+                .orElseThrow(() -> new IllegalStateException("project-setup-crud workflow not found"));
+        int completedStep = progressDetector.detectCompletedStep(definition, currentContext);
+        return guideRenderer.render(definition, completedStep);
+    }
+
     public String suggestSecurityMenuAuthWorkflow(String currentContext) {
         WorkflowDefinition definition = registry.find("security-menu-auth")
                 .orElseThrow(() -> new IllegalStateException("security-menu-auth workflow not found"));

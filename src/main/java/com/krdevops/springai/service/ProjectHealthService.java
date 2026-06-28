@@ -79,15 +79,23 @@ public class ProjectHealthService {
             {domainCap + "Service.java",               "Service 인터페이스"},
             {"Egov" + domainCap + "ServiceImpl.java",  "ServiceImpl"},
             {"Egov" + domainCap + "Controller.java",   "Controller"},
-            {"Egov" + domainCap + "List.jsp",          "목록 JSP"},
-            {"Egov" + domainCap + "Detail.jsp",        "상세 JSP"},
-            {"Egov" + domainCap + "Regist.jsp",        "등록 JSP"},
-            {"Egov" + domainCap + "Updt.jsp",          "수정 JSP"},
         };
         for (String[] target : targets) {
             result.put(target[1] + " (" + target[0] + ")", fileIndex.containsKey(target[0]));
         }
+        putViewStatus(result, fileIndex, "목록 화면", "Egov" + domainCap + "List");
+        putViewStatus(result, fileIndex, "상세 화면", "Egov" + domainCap + "Detail");
+        putViewStatus(result, fileIndex, "등록 화면", "Egov" + domainCap + "Regist");
+        putViewStatus(result, fileIndex, "수정 화면", "Egov" + domainCap + "Updt");
         return result;
+    }
+
+    private void putViewStatus(Map<String, Boolean> result, Map<String, Path> fileIndex,
+                               String label, String baseName) {
+        String jspFile = baseName + ".jsp";
+        String htmlFile = baseName + ".html";
+        result.put(label + " (" + jspFile + " 또는 " + htmlFile + ")",
+                   fileIndex.containsKey(jspFile) || fileIndex.containsKey(htmlFile));
     }
 
     private Map<String, String> checkStandardCompliance(Map<String, Path> fileIndex,
@@ -231,10 +239,10 @@ public class ProjectHealthService {
         fileToTemplate.put("Service 인터페이스", "getCodeTemplate(\"service\")");
         fileToTemplate.put("ServiceImpl",    "getCodeTemplate(\"serviceImpl\")");
         fileToTemplate.put("Controller",     "getCodeTemplate(\"controller\")");
-        fileToTemplate.put("목록 JSP",       "getCodeTemplate(\"jspList\")");
-        fileToTemplate.put("상세 JSP",       "getCodeTemplate(\"jspDetail\")");
-        fileToTemplate.put("등록 JSP",       "getCodeTemplate(\"jspRegist\")");
-        fileToTemplate.put("수정 JSP",       "getCodeTemplate(\"jspUpdt\")");
+        fileToTemplate.put("목록 화면",      "getCodeTemplate(\"jspList\") 또는 getCodeTemplate(\"thymeleafList\")");
+        fileToTemplate.put("상세 화면",      "getCodeTemplate(\"jspDetail\") 또는 getCodeTemplate(\"thymeleafDetail\")");
+        fileToTemplate.put("등록 화면",      "getCodeTemplate(\"jspRegist\") 또는 getCodeTemplate(\"thymeleafRegist\")");
+        fileToTemplate.put("수정 화면",      "getCodeTemplate(\"jspUpdt\") 또는 getCodeTemplate(\"thymeleafUpdt\")");
 
         fileStatus.forEach((label, exists) -> {
             if (!exists) {

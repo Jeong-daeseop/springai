@@ -16,7 +16,8 @@ public class WorkflowDefinitionRegistry {
     public WorkflowDefinitionRegistry() {
         List<WorkflowDefinition> definitions = List.of(
                 buildCrudWorkflow(),
-                buildSecurityMenuAuthWorkflow()
+                buildSecurityMenuAuthWorkflow(),
+                buildProjectSetupCrudWorkflow()
         );
         registry = definitions.stream()
                 .collect(Collectors.toMap(WorkflowDefinition::type, Function.identity()));
@@ -46,6 +47,29 @@ public class WorkflowDefinitionRegistry {
                 new WorkflowStep(12, "입력값 검증", "검토", "유효성 검증 확인", new String[]{"검증", "validation"}),
                 new WorkflowStep(13, "생성 이력 저장", "saveGenerationHistory", "이력 기록", new String[]{"이력", "history"}),
                 new WorkflowStep(14, "프로젝트 상태 확인", "checkProjectHealth", "최종 확인", new String[]{"확인", "health"})
+        ));
+    }
+
+    private WorkflowDefinition buildProjectSetupCrudWorkflow() {
+        return new WorkflowDefinition("project-setup-crud", "프로젝트 초기화 후 CRUD 생성 워크플로우", List.of(
+                new WorkflowStep(1, "프로젝트 초기화", "initializeProject", "eGovFrame 프로젝트 골격 생성",
+                        new String[]{"PROJECT_CONTEXT", "initializeProject", "프로젝트 초기화", "초기화 완료"}),
+                new WorkflowStep(2, "DB 설정", "수동 설정", "DB 접속 정보 설정",
+                        new String[]{"DB 정보 설정 완료", "datasource 설정 완료", "DB 연결 완료", "DB 접속 완료"}),
+                new WorkflowStep(3, "DB 스키마 조회", "getTableSchema", "테이블 구조 파악",
+                        new String[]{"getTableSchema 완료", "스키마 조회 완료", "테이블 조회 완료"}),
+                new WorkflowStep(4, "CRUD 프롬프트 생성", "buildFullCrudPrompt", "CRUD 생성 프롬프트 작성",
+                        new String[]{"buildFullCrudPrompt 완료", "buildCrudPrompt 완료", "CRUD 프롬프트 완료"}),
+                new WorkflowStep(5, "CRUD 코드 저장", "saveGeneratedCode", "CRUD 파일 저장",
+                        new String[]{"saveGeneratedCode 완료", "코드 저장 완료", "파일 저장 완료"}),
+                new WorkflowStep(6, "생성 이력 저장", "saveGenerationHistory", "이력 기록",
+                        new String[]{"saveGenerationHistory 완료", "이력 저장 완료", "history 완료"}),
+                new WorkflowStep(7, "빌드 검증", "빌드", "컴파일 및 패키징 확인",
+                        new String[]{"빌드 완료", "빌드 성공", "BUILD SUCCESS"}),
+                new WorkflowStep(8, "프로젝트 상태 확인", "checkProjectHealth", "최종 상태 확인",
+                        new String[]{"checkProjectHealth 완료", "상태 확인 완료", "health 확인 완료"}),
+                new WorkflowStep(9, "Security/Menu/Auth 선택", "suggestSecurityMenuAuthWorkflow", "선택 보안 workflow 안내",
+                        new String[]{"Security 적용 완료", "메뉴 등록 완료", "권한 등록 완료"})
         ));
     }
 

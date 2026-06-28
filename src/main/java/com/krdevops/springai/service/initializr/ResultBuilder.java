@@ -38,18 +38,20 @@ public class ResultBuilder {
             report.warnings().forEach(w -> sb.append("  ⚠ ").append(w).append("\n"));
         }
 
+        String dbConfig = s.boot() ? "application.yml" : "context-datasource.xml";
+
         sb.append("\n📋 다음 단계\n");
-        sb.append("  1. ").append(s.boot() ? "application.yml" : "context-datasource.xml")
-          .append(" DB 정보 설정\n");
-        sb.append("  2. Spring Security 설정 추가 (선택)\n");
-        if (!s.boot() && !s.cap().spring6()) {
-            sb.append("     → getSecurityTemplate(\"webxmlfilter\",    \"<packageName>\", \"").append(egovLabel).append("\")\n");
-            sb.append("     → getSecurityTemplate(\"contextsecurity\", \"<packageName>\", \"").append(egovLabel).append("\")\n");
-        } else {
-            sb.append("     → getSecurityTemplate(\"javaconfig\", \"<packageName>\", \"").append(egovLabel).append("\")\n");
-        }
-        sb.append("  3. buildFullCrudPrompt(..., egovVersion=\"").append(egovLabel).append("\") 로 CRUD 소스 생성\n");
-        sb.append("  4. ").append(buildCmd).append(" 로 빌드/실행\n");
+        sb.append("  1. ").append(dbConfig).append(" DB 정보 설정\n");
+        sb.append("  2. buildFullCrudPrompt(..., egovVersion=\"").append(egovLabel)
+          .append("\", viewType=\"jsp\") 로 CRUD 소스 생성\n");
+        sb.append("     - viewType: \"jsp\" 또는 \"thymeleaf\" 선택 가능\n");
+        sb.append("     - buildFullCrudPrompt는 내부에서 getTableSchema와 공통코드 조회를 함께 처리합니다.\n");
+        sb.append("  3. saveGeneratedCode 또는 auto orchestration 결과에 따라 파일 저장 확인\n");
+        sb.append("  4. ").append(buildCmd).append(" 로 빌드 검증\n");
+        sb.append("\n후속 workflow를 단계별로 확인하려면\n");
+        sb.append("  → suggestProjectSetupCrudWorkflow(PROJECT_CONTEXT 블록 + \"프로젝트 초기화 완료\")\n");
+        sb.append("\n선택: Security/Menu/Auth 적용이 필요하면\n");
+        sb.append("  → suggestSecurityMenuAuthWorkflow(PROJECT_CONTEXT 블록)\n");
 
         sb.append("\n").append(ctx.toBlock()).append("\n");
         return sb.toString();

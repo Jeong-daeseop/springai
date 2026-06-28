@@ -5,6 +5,8 @@ import com.krdevops.springai.service.BoardOrchestrationService;
 import com.krdevops.springai.service.CrudOrchestrationResult;
 import com.krdevops.springai.service.CrudOrchestrationService;
 import com.krdevops.springai.service.CrudPromptBuilderService;
+import com.krdevops.springai.service.MasterDetailOrchestrationResult;
+import com.krdevops.springai.service.MasterDetailOrchestrationService;
 import com.krdevops.springai.service.MasterDetailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ public class CrudPromptBuilderTool {
     private final CrudOrchestrationService crudOrchestrationService;
     private final CrudPromptBuilderService crudPromptBuilderService;
     private final MasterDetailService      masterDetailService;
+    private final MasterDetailOrchestrationService masterDetailOrchestrationService;
     private final BoardOrchestrationService boardOrchestrationService;
 
     @Tool(description = """
@@ -80,7 +83,15 @@ public class CrudPromptBuilderTool {
             domain      : 마스터 도메인명 대문자 시작 (예: Employer)
             packageName : 패키지명 (예: egovframework.let.emp)
             outputPath  : 소스 저장 절대경로 (예: /Users/user/Desktop/egov-gen/emp)
-            생성 파일: 마스터 VO+Mapper+Service+ServiceImpl+Controller + 디테일 VO+Mapper + JSP 5개 (총 12개)
+            llmProvider : 소스 생성 주체 선택 (생략 시 "auto" 기본값)
+              - "auto"  : 서버 내부 오케스트레이션 — MasterDetailOrchestrationService가 파일을 생성·저장
+              - "claude": 스키마 정보와 지시를 반환하고 Claude가 소스를 직접 작성·저장
+            egovVersion : eGovFrame 버전 (선택, 기본값 "5.0")
+              - "5.0" 또는 "latest" : jakarta.validation.* import 사용
+              - "4.3"               : javax.validation.* import 사용
+            viewType    : 화면 템플릿 종류 (선택, 기본값 "jsp")
+              - "jsp"       : /WEB-INF/jsp/{domainLc}/Egov{Domain}*.jsp 생성 (총 13개)
+              - "thymeleaf" : src/main/resources/templates/{domainLc}/Egov{Domain}*.html + layout/default.html 생성 (총 14개)
 
             [중요] outputPath 결정 규칙 — 반드시 아래 순서를 따르세요:
             1. 사용자가 저장 경로를 명시한 경우 → 그 경로를 그대로 사용
@@ -91,9 +102,23 @@ public class CrudPromptBuilderTool {
             outputPath를 확정한 후 사용자에게 "이 경로에 생성합니다: {path}" 라고 먼저 알리고 진행하세요.
             """)
     public String buildMasterDetailPrompt(String database, String masterTable, String detailTable,
-                                          String domain, String packageName, String outputPath) {
+                                          String domain, String packageName, String outputPath,
+                                          @Nullable String viewType,
+                                          @Nullable String egovVersion,
+                                          @Nullable String llmProvider) {
+        String resolvedViewType = (viewType == null || viewType.isBlank()) ? "jsp" : viewType;
+        String resolvedVersion = (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
+        String provider = (llmProvider == null || llmProvider.isBlank()) ? "auto"
+                          : llmProvider.trim().toLowerCase();
+
+        if ("auto".equals(provider)) {
+            MasterDetailOrchestrationResult result = masterDetailOrchestrationService.orchestrate(
+                    database, masterTable, detailTable, domain, packageName,
+                    outputPath, resolvedVersion, resolvedViewType);
+            return formatMasterDetailResult(result);
+        }
         return masterDetailService.buildMasterDetailPrompt(
-                database, masterTable, detailTable, domain, packageName, outputPath);
+                database, masterTable, detailTable, domain, packageName, outputPath, resolvedViewType);
     }
 
     @Tool(description = """
@@ -110,6 +135,8 @@ public class CrudPromptBuilderTool {
 
     @Tool(description = """
             eGovFrame 게시판(BBS) 소스를 업무 단위로 생성합니다.
+            이 Tool은 프로젝트 초기화용이 아닙니다. initializeProject()와는 별도 단계입니다.
+            사용자가 게시판(BBS) 생성을 명시했을 때만 호출하세요.
             COMTNBBS(게시글), COMTNBBSMASTER(게시판마스터), COMTNBBSUSE(사용권한) 연동 포함.
             목록/상세/등록/수정/논리삭제 + 조회수 증가 + 마스터 이름 조회를 한 번에 생성합니다.
             database        : 데이터베이스명 (예: com)
@@ -123,6 +150,8 @@ public class CrudPromptBuilderTool {
             fileDetailTable : 첨부파일 상세 테이블 (기본값: COMTNFILEDETAIL, 생략 가능)
             egovVersion     : eGovFrame 버전 (기본값: "5.0")
             viewType        : 화면 종류 (기본값: "jsp", "thymeleaf" 선택 가능)
+              - "jsp"       : JSP 화면 4개 포함 12개 파일 생성
+              - "thymeleaf" : layout/default.html + HTML 화면 4개 포함 13개 파일 생성
             """)
     public String buildBoardFeature(
             String database,
@@ -162,6 +191,29 @@ public class CrudPromptBuilderTool {
         sb.append("=== [auto] eGovFrame 게시판(BBS) 소스 생성 완료 ===\n\n");
         sb.append("DB: ").append(r.database())
           .append(" | 메인 테이블: ").append(r.mainTable())
+          .append(" | 도메인: ").append(r.domain()).append("\n");
+        sb.append("출력 경로: ").append(r.outputPath()).append("\n\n");
+        sb.append("[생성 파일 목록]\n");
+        r.succeededFiles().forEach(f -> sb.append("  ✅ ").append(f).append("\n"));
+        r.failedFiles().forEach(f    -> sb.append("  ❌ ").append(f).append("\n"));
+        sb.append("\n총 ").append(r.successCount()).append("개 성공");
+        if (r.hasFailure()) sb.append(", ").append(r.failCount()).append("개 실패");
+        sb.append("\n");
+        sb.append("\n[코드 검증 결과]\n").append(r.validationSummary()).append("\n");
+        sb.append("\n[생성 이력]\n").append(r.historySummary()).append("\n");
+        return sb.toString();
+    }
+
+    private String formatMasterDetailResult(MasterDetailOrchestrationResult r) {
+        if (r.tableNotFound()) {
+            return "마스터 또는 디테일 테이블을 찾을 수 없습니다: "
+                    + r.database() + "." + r.masterTable() + " / " + r.detailTable();
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== [auto] eGovFrame 마스터-디테일 CRUD 소스 생성 완료 ===\n\n");
+        sb.append("DB: ").append(r.database())
+          .append(" | 마스터: ").append(r.masterTable())
+          .append(" | 디테일: ").append(r.detailTable())
           .append(" | 도메인: ").append(r.domain()).append("\n");
         sb.append("출력 경로: ").append(r.outputPath()).append("\n\n");
         sb.append("[생성 파일 목록]\n");

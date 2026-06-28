@@ -129,6 +129,27 @@ class ThymeleafRuntimeConfigurerTest {
         assertThat(xml).contains("org.thymeleaf.spring6.view.ThymeleafViewResolver");
         assertThat(xml).contains("nz.net.ultraq.thymeleaf.layoutdialect.LayoutDialect");
         assertThat(xml).doesNotContain("org.thymeleaf.spring5");
+        assertThat(xml).contains("<property name=\"order\" value=\"2\"/>");
+        assertThat(xml).contains("<property name=\"order\" value=\"1\"/>");
+    }
+
+    @Test
+    void ensureThymeleafRuntime_existingJspResolverOrder_replacesWith2WithoutDuplicate(@TempDir Path dir) throws IOException {
+        writePom(dir, minimalPom());
+        writeServletContext(dir, servletContextWithJspResolverOrder1());
+        List<String> failed = new ArrayList<>();
+
+        sut.ensureThymeleafRuntime(dir.toString(), "5.0", failed);
+
+        String xml = readServletContext(dir);
+        assertThat(failed).isEmpty();
+        assertThat(xml).contains("org.thymeleaf.spring6.view.ThymeleafViewResolver");
+        assertThat(xml).contains("<property name=\"order\" value=\"2\"/>");
+        assertThat(xml).contains("<property name=\"order\" value=\"1\"/>");
+        assertThat(xml.lines()
+                .filter(line -> line.contains("<property name=\"order\""))
+                .count()).isEqualTo(2);
+        assertThat(xml).doesNotContain("<property name=\"order\"  value=\"1\"/>");
     }
 
     // ── servlet-context.xml — Spring 5 클래스 주입 ──────────────────────────────
@@ -214,6 +235,19 @@ class ThymeleafRuntimeConfigurerTest {
                     <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
                         <property name="prefix" value="/WEB-INF/jsp/"/>
                         <property name="suffix" value=".jsp"/>
+                    </bean>
+                </beans>
+                """;
+    }
+
+    private static String servletContextWithJspResolverOrder1() {
+        return """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <beans xmlns="http://www.springframework.org/schema/beans">
+                    <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+                        <property name="prefix" value="/WEB-INF/jsp/"/>
+                        <property name="suffix" value=".jsp"/>
+                        <property name="order"  value="1"/>
                     </bean>
                 </beans>
                 """;

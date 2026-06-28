@@ -38,6 +38,7 @@ public class ProjectValidator {
                 "src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml",
                 "src/main/webapp/WEB-INF/web.xml",
                 "src/main/webapp/resources/css/krds.min.css",
+                "src/main/webapp/resources/css/egov-layout.css",
                 "src/main/webapp/resources/js/krds.min.js");
 
         for (String path : required) {

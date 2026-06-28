@@ -70,6 +70,11 @@ public class DefaultStaticTemplateRenderer implements StaticTemplateRenderer {
     }
 
     @Override
+    public String egovLayoutCss() {
+        return loader.load("egov-layout.css.tpl");
+    }
+
+    @Override
     public String krdsJs() {
         return loader.load("krds.min.js.tpl");
     }
