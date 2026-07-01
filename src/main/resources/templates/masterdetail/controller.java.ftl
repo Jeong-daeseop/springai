@@ -19,7 +19,10 @@ import jakarta.validation.Valid;
 import javax.validation.Valid;
 </#if>
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * ${master.domainKr} Controller
@@ -54,6 +57,7 @@ public class Egov${master.domain}Controller {
                 ${master.domainLc}Service.select${master.domain}List(searchVO);
         model.addAttribute("resultList", ${master.domainLc}List);
         model.addAttribute("paginationInfo", paginationInfo);
+        populateLayoutModel(model, "masterdetail-list", "${master.domainKr} 목록");
 
         return "${master.domainLc}/Egov${master.domain}List";
     }
@@ -68,6 +72,7 @@ public class Egov${master.domain}Controller {
                 ${master.domainLc}Service.select${detail.domain}List(searchVO.get${master.pk.javaName?cap_first}());
         model.addAttribute("result", vo);
         model.addAttribute("detailList", detailList);
+        populateLayoutModel(model, "masterdetail-list", "상세");
         return "${master.domainLc}/Egov${master.domain}Detail";
     }
 
@@ -76,6 +81,7 @@ public class Egov${master.domain}Controller {
             @ModelAttribute("searchVO") ${master.domain}VO searchVO,
             ModelMap model) throws Exception {
         model.addAttribute("${master.domainLc}VO", new ${master.domain}VO());
+        populateLayoutModel(model, "masterdetail-regist", "등록");
         return "${master.domainLc}/Egov${master.domain}Regist";
     }
 
@@ -87,6 +93,7 @@ public class Egov${master.domain}Controller {
             RedirectAttributes redirectAttributes) throws Exception {
 
         if (bindingResult.hasErrors()) {
+            populateLayoutModel(model, "masterdetail-regist", "등록");
             return "${master.domainLc}/Egov${master.domain}Regist";
         }
         ${master.domainLc}Service.insert${master.domain}(${master.domainLc}VO);
@@ -102,5 +109,35 @@ public class Egov${master.domain}Controller {
         ${master.domainLc}Service.delete${master.domain}(${master.domainLc}VO);
         redirectAttributes.addFlashAttribute("message", "${master.domainKr}이(가) 삭제되었습니다.");
         return "redirect:${urlPrefix}List.do";
+    }
+
+    private void populateLayoutModel(ModelMap model, String currentMenuId, String currentPageLabel) {
+        String listUrl = "${urlPrefix}List.do";
+        model.addAttribute("currentMenuId", currentMenuId);
+        model.addAttribute("lnbTitle", "${master.domainKr} 관리");
+        model.addAttribute("lnbMenus", List.of(
+                menu("masterdetail-list", "목록", listUrl),
+                menu("masterdetail-regist", "등록", "${urlPrefix}RegistView.do")
+        ));
+
+        List<Map<String, String>> breadcrumbs = new ArrayList<>();
+        breadcrumbs.add(crumb("홈", "/"));
+        breadcrumbs.add(crumb("업무관리", "/"));
+        if (!"${master.domainKr} 목록".equals(currentPageLabel)) {
+            breadcrumbs.add(crumb("${master.domainKr} 목록", listUrl));
+        }
+        breadcrumbs.add(crumb(currentPageLabel, null));
+        model.addAttribute("breadcrumbs", breadcrumbs);
+    }
+
+    private Map<String, String> menu(String menuId, String label, String url) {
+        return Map.of("menuId", menuId, "label", label, "url", url);
+    }
+
+    private Map<String, String> crumb(String label, String url) {
+        Map<String, String> item = new LinkedHashMap<>();
+        item.put("label", label);
+        item.put("url", url);
+        return item;
     }
 }

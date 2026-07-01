@@ -2,10 +2,12 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
 <%@ taglib prefix="ui" uri="http://egovframework.gov/ctl/ui"%>
 <%@ taglib prefix="spring" uri="http://www.springframework.org/tags"%>
+<% String contextPath = request.getContextPath(); %>
 <!DOCTYPE html>
 <html>
 <head>
     <title>${domainKr} 목록</title>
+    <link rel="stylesheet" href="<%=contextPath%>/resources/css/styles.css">
 </head>
 <body>
 <h1>${domainKr} 목록</h1>
@@ -64,5 +66,6 @@ function ${domainLc}LinkPage(pageNo) {
     document.getElementById("searchForm").submit();
 }
 </script>
+<script src="<%=contextPath%>/resources/js/krds.min.js"></script>
 </body>
 </html>

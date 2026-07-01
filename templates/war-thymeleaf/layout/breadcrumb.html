@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  ============================================================
+  FTC 스타일 브레드크럼 프래그먼트
+  egov-boot-web 적용 경로:
+    src/main/resources/templates/layout/breadcrumb.html
+
+  Controller 에서 model 에 담아야 할 값:
+    - breadcrumbs : List<BreadcrumbVO>
+        BreadcrumbVO { label: String, url: String (null이면 현재 페이지) }
+
+  예시 (Controller):
+    List<BreadcrumbVO> bc = List.of(
+      new BreadcrumbVO("홈",         "/"),
+      new BreadcrumbVO("소식·뉴스",  "/news"),
+      new BreadcrumbVO("공지·공고",  "/board/list"),
+      new BreadcrumbVO("상세",       null)   // 현재 페이지 — 링크 없음
+    );
+    model.addAttribute("breadcrumbs", bc);
+  ============================================================
+-->
+<body>
+<nav th:fragment="breadcrumb"
+     aria-label="breadcrumb"
+     style="display:flex;align-items:center;gap:6px;font-size:13px;color:#8a949e;margin-bottom:20px;flex-wrap:nowrap;white-space:nowrap;font-family:'Pretendard GOV Variable',-apple-system,sans-serif;">
+
+  <!-- 홈 아이콘 -->
+  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="flex:none;">
+    <path d="M2 6.5L6.5 2l4.5 4.5" stroke="#8a949e" stroke-width="1.4"/>
+    <rect x="3.5" y="6" width="6" height="5.5" rx="0.5" stroke="#8a949e" stroke-width="1.4"/>
+  </svg>
+
+  <!-- 브레드크럼 항목 루프 -->
+  <th:block th:each="crumb, cStat : ${breadcrumbs}">
+
+    <!-- 링크 있음 (중간 경로) -->
+    <a th:unless="${crumb.url == null}"
+       th:href="${crumb.url}"
+       th:text="${crumb.label}"
+       style="color:#8a949e;text-decoration:none;transition:color 0.15s;"
+       onmouseover="this.style.color='#256ef4'"
+       onmouseout="this.style.color='#8a949e'">
+      경로
+    </a>
+
+    <!-- 링크 없음 (현재 페이지) -->
+    <span th:if="${crumb.url == null}"
+          th:text="${crumb.label}"
+          aria-current="page"
+          style="color:#464c53;font-weight:600;">
+      현재 페이지
+    </span>
+
+    <!-- 구분자 (마지막 항목 제외) -->
+    <span th:unless="${cStat.last}"
+          style="color:#cdd1d5;font-size:12px;flex:none;">›</span>
+
+  </th:block>
+
+</nav>
+</body>
+</html>

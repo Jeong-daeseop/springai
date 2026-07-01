@@ -84,4 +84,16 @@ public class Egov${domain}ServiceImpl extends EgovAbstractServiceImpl implements
     public String selectBoardUseAt(${domain}VO vo) throws Exception {
         return ${domainLc}Mapper.selectBoardUseAt(vo);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ${domain}VO selectPrev${domain}(${domain}VO vo) throws Exception {
+        return ${domainLc}Mapper.selectPrev${domain}(vo);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ${domain}VO selectNext${domain}(${domain}VO vo) throws Exception {
+        return ${domainLc}Mapper.selectNext${domain}(vo);
+    }
 }

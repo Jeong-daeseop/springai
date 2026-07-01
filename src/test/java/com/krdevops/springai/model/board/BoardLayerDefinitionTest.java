@@ -9,8 +9,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BoardLayerDefinitionTest {
 
     @Test
-    void thymeleafLayers_total_13() {
-        assertThat(BoardLayerDefinition.THYMELEAF_LAYERS).hasSize(13);
+    void thymeleafLayers_total_17() {
+        assertThat(BoardLayerDefinition.THYMELEAF_LAYERS).hasSize(17);
     }
 
     @Test
@@ -23,7 +23,8 @@ class BoardLayerDefinitionTest {
         List<String> keys = BoardLayerDefinition.THYMELEAF_LAYERS.stream()
                 .map(BoardLayerDefinition::layerKey)
                 .toList();
-        assertThat(keys).contains("layoutHtml");
+        assertThat(keys).contains("layoutHtml", "layoutGnbHtml", "layoutLnbHtml",
+                "layoutBreadcrumbHtml", "layoutFooterHtml");
     }
 
     @Test
@@ -39,6 +40,14 @@ class BoardLayerDefinitionTest {
     void resolveFileName_layoutHtml_returnsFixedPath() {
         assertThat(BoardLayerDefinition.resolveFileName("layoutHtml", "Bbs", "layout/default.html"))
                 .isEqualTo("layout/default.html");
+        assertThat(BoardLayerDefinition.resolveFileName("layoutGnbHtml", "Bbs", "layout/gnb.html"))
+                .isEqualTo("layout/gnb.html");
+        assertThat(BoardLayerDefinition.resolveFileName("layoutLnbHtml", "Bbs", "layout/lnb.html"))
+                .isEqualTo("layout/lnb.html");
+        assertThat(BoardLayerDefinition.resolveFileName("layoutBreadcrumbHtml", "Bbs", "layout/breadcrumb.html"))
+                .isEqualTo("layout/breadcrumb.html");
+        assertThat(BoardLayerDefinition.resolveFileName("layoutFooterHtml", "Bbs", "layout/footer.html"))
+                .isEqualTo("layout/footer.html");
     }
 
     @Test

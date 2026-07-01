@@ -61,7 +61,7 @@ public class MasterDetailService {
         String date           = LocalDate.now().toString();
         String resolvedViewType = normalizeViewType(viewType);
         boolean thymeleaf = "thymeleaf".equals(resolvedViewType);
-        String fileCount = thymeleaf ? "14개 파일" : "13개 파일";
+        String fileCount = thymeleaf ? "18개 파일" : "13개 파일";
 
         StringBuilder sb = new StringBuilder();
         sb.append("=== eGovFrame 5.x 마스터-디테일 CRUD 소스 생성 지시 ===\n\n");
@@ -82,9 +82,14 @@ public class MasterDetailService {
         sb.append("  {{DATE}}          = ").append(date).append("\n\n");
         sb.append("[화면 타입]\n");
         sb.append("  viewType          = ").append(resolvedViewType).append("\n");
+        sb.append("  정적 리소스       = /resources/css/styles.css, /resources/js/krds.min.js\n");
+        sb.append("  자산 URL 정책     = WAR/BOOT 모두 /resources/** 유지 (BOOT 파일은 static/resources/** 에 생성)\n");
+        sb.append("  전제 조건         = initializeProject()가 styles.css, _ds_bundle.css, krds.min.js를 생성해야 합니다.\n");
+        sb.append("  모델 속성 계약     = lnbTitle, lnbMenus, breadcrumbs, currentMenuId\n");
         if (thymeleaf) {
             sb.append("  화면 경로         = src/main/resources/templates/").append(domainLc).append("/Egov").append(domain).append("*.html\n");
-            sb.append("  레이아웃 경로     = src/main/resources/templates/layout/default.html\n\n");
+            sb.append("  레이아웃 경로     = src/main/resources/templates/layout/default.html\n");
+            sb.append("  partial 경로      = src/main/resources/templates/layout/{gnb,lnb,breadcrumb,footer}.html\n\n");
         } else {
             sb.append("  화면 경로         = src/main/webapp/WEB-INF/jsp/").append(domainLc).append("/Egov").append(domain).append("*.jsp\n\n");
         }
@@ -113,9 +118,13 @@ public class MasterDetailService {
         sb.append("  Step 10: Egov").append(domain).append("ValidationHandler.java  ← Validation 전역 예외 핸들러\n");
         if (thymeleaf) {
             sb.append("  Step 11: layout/default.html              ← Thymeleaf 공통 레이아웃\n");
-            sb.append("  Step 12: Egov").append(domain).append("List.html               ← 마스터 목록\n");
-            sb.append("  Step 13: Egov").append(domain).append("Detail.html             ← 마스터 상세 + 디테일 그리드 탭\n");
-            sb.append("  Step 14: Egov").append(domain).append("Regist.html             ← 마스터 등록\n\n");
+            sb.append("  Step 12: layout/gnb.html                  ← 상단 GNB partial\n");
+            sb.append("  Step 13: layout/lnb.html                  ← 좌측 LNB partial\n");
+            sb.append("  Step 14: layout/breadcrumb.html           ← breadcrumb partial\n");
+            sb.append("  Step 15: layout/footer.html               ← footer partial\n");
+            sb.append("  Step 16: Egov").append(domain).append("List.html               ← 마스터 목록\n");
+            sb.append("  Step 17: Egov").append(domain).append("Detail.html             ← 마스터 상세 + 디테일 그리드 탭\n");
+            sb.append("  Step 18: Egov").append(domain).append("Regist.html             ← 마스터 등록\n\n");
         } else {
             sb.append("  Step 11: Egov").append(domain).append("List.jsp                ← 마스터 목록\n");
             sb.append("  Step 12: Egov").append(domain).append("Detail.jsp              ← 마스터 상세 + 디테일 그리드 탭\n");
@@ -356,8 +365,12 @@ public class MasterDetailService {
         sb.append("[Step 11 — Thymeleaf layout/default.html 핵심 패턴]\n");
         sb.append("  <!DOCTYPE html>\n");
         sb.append("  <html xmlns:th=\"http://www.thymeleaf.org\" xmlns:layout=\"http://www.ultraq.net.nz/thymeleaf/layout\">\n");
+        sb.append("  <head>\n");
+        sb.append("    <link rel=\"stylesheet\" th:href=\"@{/resources/css/styles.css}\">\n");
+        sb.append("  </head>\n");
         sb.append("  <body>\n");
         sb.append("    <main layout:fragment=\"content\"></main>\n");
+        sb.append("    <script th:src=\"@{/resources/js/krds.min.js}\"></script>\n");
         sb.append("  </body>\n");
         sb.append("  </html>\n\n");
 
@@ -393,6 +406,9 @@ public class MasterDetailService {
         sb.append("  </html>\n\n");
         sb.append("[Thymeleaf 생성 제약]\n");
         sb.append("  - JSP taglib, <c:forEach>, <c:out>, form 태그는 사용하지 마세요.\n");
+        sb.append("  - layout/default.html은 /resources/css/styles.css와 /resources/js/krds.min.js만 직접 링크하세요.\n");
+        sb.append("  - _ds_bundle.css는 styles.css 내부 @import로 포함되므로 화면 템플릿에서 별도 링크하지 마세요.\n");
+        sb.append("  - Controller는 lnbTitle, lnbMenus, breadcrumbs, currentMenuId를 모든 Thymeleaf 화면 진입 전에 설정하세요.\n");
         sb.append("  - 화면 파일은 src/main/resources/templates/").append(domain.substring(0, 1).toLowerCase()).append(domain.substring(1))
           .append("/Egov").append(domain).append("*.html 경로로 생성하세요.\n");
         sb.append("  - Controller return 값은 기존과 동일하게 \"").append(domain.substring(0, 1).toLowerCase()).append(domain.substring(1))

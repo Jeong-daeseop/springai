@@ -3,7 +3,7 @@ package com.krdevops.springai.model.crud;
 import java.util.List;
 
 /**
- * eGovFrame CRUD 레이어의 파일명·경로 정의 (JSP: 11개, Thymeleaf: 12개).
+ * eGovFrame CRUD 레이어의 파일명·경로 정의 (JSP: 11개, Thymeleaf: 16개).
  *
  * <p>auto 모드(FreeMarker)와 claude 모드(프롬프트) 양쪽에서 이 정의를 공유하여
  * 레이어 경로 불일치를 방지한다.
@@ -41,6 +41,10 @@ public record CrudLayerDefinition(
     public static final List<CrudLayerDefinition> THYMELEAF_LAYERS = concat(
             COMMON_LAYERS,
             new CrudLayerDefinition("layoutHtml",        "layout/default.html",    "src/main/resources/templates/"),
+            new CrudLayerDefinition("layoutGnbHtml",     "layout/gnb.html",        "src/main/resources/templates/"),
+            new CrudLayerDefinition("layoutLnbHtml",     "layout/lnb.html",        "src/main/resources/templates/"),
+            new CrudLayerDefinition("layoutBreadcrumbHtml", "layout/breadcrumb.html", "src/main/resources/templates/"),
+            new CrudLayerDefinition("layoutFooterHtml",  "layout/footer.html",     "src/main/resources/templates/"),
             new CrudLayerDefinition("thymeleafList",     "List.html",              "src/main/resources/templates/{DOMAIN_LC}/"),
             new CrudLayerDefinition("thymeleafDetail",   "Detail.html",            "src/main/resources/templates/{DOMAIN_LC}/"),
             new CrudLayerDefinition("thymeleafRegist",   "Regist.html",            "src/main/resources/templates/{DOMAIN_LC}/"),
@@ -67,6 +71,10 @@ public record CrudLayerDefinition(
     public static String resolveFileName(String layerKey, String domain, String suffix) {
         return switch (layerKey) {
             case "layoutHtml"                            -> "layout/default.html";
+            case "layoutGnbHtml"                         -> "layout/gnb.html";
+            case "layoutLnbHtml"                         -> "layout/lnb.html";
+            case "layoutBreadcrumbHtml"                  -> "layout/breadcrumb.html";
+            case "layoutFooterHtml"                      -> "layout/footer.html";
             case "vo", "mapper", "mapperXml", "service" -> domain + suffix;
             default                                      -> "Egov" + domain + suffix;
         };

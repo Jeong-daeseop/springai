@@ -13,4 +13,6 @@ public interface ${domain}Service {
     void update${domain}(${domain}VO vo) throws Exception;
     void delete${domain}(${domain}VO vo) throws Exception;
     String selectBoardUseAt(${domain}VO vo) throws Exception;
+    ${domain}VO selectPrev${domain}(${domain}VO vo) throws Exception;
+    ${domain}VO selectNext${domain}(${domain}VO vo) throws Exception;
 }

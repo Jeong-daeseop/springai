@@ -43,7 +43,7 @@ public class CodeSaverTool {
             generateSource()를 호출하면 deprecation 안내 메시지만 반환됩니다.
 
             eGovFrame CRUD 소스 생성은 buildFullCrudPrompt(llmProvider="auto")를 사용하세요.
-            auto 모드는 FreeMarker 템플릿으로 viewType별 파일을 한 번에 생성·저장합니다 (JSP: 11개, Thymeleaf: 12개).
+            auto 모드는 FreeMarker 템플릿으로 viewType별 파일을 한 번에 생성·저장합니다 (JSP: 11개, Thymeleaf: 16개).
             """)
     public String generateSource(String layer, String valuesJson) {
         Map<String, String> values;

@@ -136,10 +136,14 @@ class CrudOrchestrationServiceTest {
         CrudOrchestrationResult result = sut.orchestrate("com", "COMTNEMPLYRINFO", "Employer",
                 "egovframework.let.emp", "/tmp/egov-test", "5.0", "thymeleaf");
 
-        // Thymeleaf는 layout/default.html 포함 12개
-        assertThat(result.successCount()).isEqualTo(12);
+        // Thymeleaf는 layout partial 포함 16개
+        assertThat(result.successCount()).isEqualTo(16);
         assertThat(result.succeededFiles())
                 .contains("layout/default.html")
+                .contains("layout/gnb.html")
+                .contains("layout/lnb.html")
+                .contains("layout/breadcrumb.html")
+                .contains("layout/footer.html")
                 .contains("EgovEmployerList.html")
                 .contains("EgovEmployerDetail.html")
                 .contains("EgovEmployerRegist.html")
@@ -150,6 +154,8 @@ class CrudOrchestrationServiceTest {
                 "/tmp/egov-test/src/main/resources/templates/employer/EgovEmployerList.html", "// code");
         verify(codeService, atLeastOnce()).saveGeneratedCode(
                 "/tmp/egov-test/src/main/resources/templates/layout/default.html", "// code");
+        verify(codeService, atLeastOnce()).saveGeneratedCode(
+                "/tmp/egov-test/src/main/resources/templates/layout/gnb.html", "// code");
     }
 
     @Test

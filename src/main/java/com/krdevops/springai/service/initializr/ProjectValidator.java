@@ -31,14 +31,18 @@ public class ProjectValidator {
     public void validateResult(ProjectSpec s, GenerationReport report) {
         // 1. 필수 파일 존재 검증
         List<String> required = s.boot()
-            ? List.of("src/main/resources/application.yml")
+            ? List.of(
+                "src/main/resources/application.yml",
+                "src/main/resources/static/resources/css/styles.css",
+                "src/main/resources/static/resources/css/_ds_bundle.css",
+                "src/main/resources/static/resources/js/krds.min.js")
             : List.of(
                 "src/main/resources/egovframework/spring/context-common.xml",
                 "src/main/webapp/WEB-INF/spring/root-context.xml",
                 "src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml",
                 "src/main/webapp/WEB-INF/web.xml",
-                "src/main/webapp/resources/css/krds.min.css",
-                "src/main/webapp/resources/css/egov-layout.css",
+                "src/main/webapp/resources/css/styles.css",
+                "src/main/webapp/resources/css/_ds_bundle.css",
                 "src/main/webapp/resources/js/krds.min.js");
 
         for (String path : required) {

@@ -139,6 +139,17 @@ class CrudTemplateRendererTest {
         assertThat(result).contains("PaginationInfo");
     }
 
+    @Test
+    void controller_populatesLayoutModelContract() {
+        String result = renderer.renderByLayerKey("controller", model(true));
+
+        assertThat(result).contains("populateLayoutModel(model, \"crud-list\", \"직원 목록\")");
+        assertThat(result).contains("model.addAttribute(\"lnbTitle\", \"직원 관리\")");
+        assertThat(result).contains("model.addAttribute(\"lnbMenus\"");
+        assertThat(result).contains("model.addAttribute(\"breadcrumbs\", breadcrumbs)");
+        assertThat(result).contains("model.addAttribute(\"currentMenuId\", currentMenuId)");
+    }
+
     // ─── Mapper XML 렌더링 ────────────────────────────────────────────────────
 
     @Test

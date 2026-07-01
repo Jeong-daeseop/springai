@@ -1,18 +1,36 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.model.board.BoardLayerDefinition;
+import com.krdevops.springai.model.board.BoardTemplateModel;
+import com.krdevops.springai.model.crud.CrudLayerDefinition;
+import com.krdevops.springai.model.crud.CrudTemplateModel;
+import com.krdevops.springai.model.crud.CrudViewType;
+import com.krdevops.springai.model.masterdetail.MasterDetailLayerDefinition;
+import com.krdevops.springai.model.masterdetail.MasterDetailTemplateModel;
+import com.krdevops.springai.service.BoardModelFactory;
 import com.krdevops.springai.service.BoardOrchestrationResult;
 import com.krdevops.springai.service.BoardOrchestrationService;
+import com.krdevops.springai.service.BoardSchemaService;
+import com.krdevops.springai.service.BoardTemplateRenderer;
+import com.krdevops.springai.service.CrudModelFactory;
 import com.krdevops.springai.service.CrudOrchestrationResult;
 import com.krdevops.springai.service.CrudOrchestrationService;
 import com.krdevops.springai.service.CrudPromptBuilderService;
+import com.krdevops.springai.service.CrudSchemaQueryService;
+import com.krdevops.springai.service.CrudTemplateRenderer;
 import com.krdevops.springai.service.MasterDetailOrchestrationResult;
 import com.krdevops.springai.service.MasterDetailOrchestrationService;
 import com.krdevops.springai.service.MasterDetailService;
+import com.krdevops.springai.service.MasterDetailTemplateRenderer;
+import com.krdevops.springai.util.CrudMappingUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -20,16 +38,23 @@ import org.springframework.stereotype.Component;
 public class CrudPromptBuilderTool {
 
     private final CrudOrchestrationService crudOrchestrationService;
+    private final CrudSchemaQueryService crudSchemaQueryService;
+    private final CrudModelFactory crudModelFactory;
+    private final CrudTemplateRenderer crudTemplateRenderer;
     private final CrudPromptBuilderService crudPromptBuilderService;
     private final MasterDetailService      masterDetailService;
+    private final MasterDetailTemplateRenderer masterDetailTemplateRenderer;
     private final MasterDetailOrchestrationService masterDetailOrchestrationService;
+    private final BoardSchemaService boardSchemaService;
+    private final BoardModelFactory boardModelFactory;
+    private final BoardTemplateRenderer boardTemplateRenderer;
     private final BoardOrchestrationService boardOrchestrationService;
 
     @Tool(description = """
             eGovFrame 5.x CRUD 전체 소스 생성에 필요한 통합 프롬프트를 반환합니다.
             이 Tool 하나로 getTableSchema + 공통코드 조회 + 플레이스홀더 매핑을 한 번에 처리합니다.
             반환된 프롬프트의 지시에 따라 viewType별 레이어 소스를 순서대로 생성하고 저장하세요.
-            (JSP: 11개, Thymeleaf: layout/default.html 포함 12개)
+            (JSP: 11개, Thymeleaf: layout partial 포함 16개)
             database   : 데이터베이스명 (예: com)
             tableName  : 테이블명 (예: COMTNEMPLYRINFO)
             domain     : 도메인명 대문자 시작 (예: Employer)
@@ -41,6 +66,9 @@ public class CrudPromptBuilderTool {
             viewType   : 화면 템플릿 종류 (선택, 기본값 "jsp")
               - "jsp"       : /WEB-INF/jsp/{domainLc}/Egov{Domain}*.jsp 생성
               - "thymeleaf" : src/main/resources/templates/{domainLc}/Egov{Domain}*.html 생성
+            정적 리소스: 생성 화면은 initializeProject()가 만든 /resources/css/styles.css와 /resources/js/krds.min.js를 사용합니다.
+              - WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되며 URL은 /resources/** 로 동일하게 유지합니다.
+              - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.
             egovVersion: eGovFrame 버전 (선택, 기본값 "5.0")
               - "5.0" 또는 "latest" : jakarta.validation.* import 사용
               - "4.3"               : javax.validation.* import 사용
@@ -91,7 +119,10 @@ public class CrudPromptBuilderTool {
               - "4.3"               : javax.validation.* import 사용
             viewType    : 화면 템플릿 종류 (선택, 기본값 "jsp")
               - "jsp"       : /WEB-INF/jsp/{domainLc}/Egov{Domain}*.jsp 생성 (총 13개)
-              - "thymeleaf" : src/main/resources/templates/{domainLc}/Egov{Domain}*.html + layout/default.html 생성 (총 14개)
+              - "thymeleaf" : src/main/resources/templates/{domainLc}/Egov{Domain}*.html + layout/*.html 생성 (총 18개)
+            정적 리소스: 생성 화면은 initializeProject()가 만든 /resources/css/styles.css와 /resources/js/krds.min.js를 사용합니다.
+              - WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되며 URL은 /resources/** 로 동일하게 유지합니다.
+              - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.
 
             [중요] outputPath 결정 규칙 — 반드시 아래 순서를 따르세요:
             1. 사용자가 저장 경로를 명시한 경우 → 그 경로를 그대로 사용
@@ -125,6 +156,7 @@ public class CrudPromptBuilderTool {
             단일 테이블에 JOIN이 필요한 경우 SELECT 쿼리·resultMap·VO 추가 필드를 자동 생성합니다.
             getTableRelations()에서 공통코드·부서 등 JOIN 후보 컬럼이 탐지된 경우 사용하세요.
             기존 buildFullCrudPrompt()로 생성된 소스에 JOIN을 추가할 때 활용합니다.
+            이 Tool은 Mapper XML/VO 보강 지시만 반환하며 HTML/CSS/JS 화면 파일은 생성하지 않습니다.
             database  : 데이터베이스명 (예: com)
             tableName : JOIN을 추가할 테이블명 (예: COMTNEMPLYRINFO)
             반환값: JOIN SELECT 쿼리 초안 + resultMap 추가 항목 + VO 추가 필드 목록
@@ -151,7 +183,10 @@ public class CrudPromptBuilderTool {
             egovVersion     : eGovFrame 버전 (기본값: "5.0")
             viewType        : 화면 종류 (기본값: "jsp", "thymeleaf" 선택 가능)
               - "jsp"       : JSP 화면 4개 포함 12개 파일 생성
-              - "thymeleaf" : layout/default.html + HTML 화면 4개 포함 13개 파일 생성
+              - "thymeleaf" : layout/*.html + HTML 화면 4개 포함 17개 파일 생성
+            정적 리소스    : 생성 화면은 initializeProject()가 만든 /resources/css/styles.css와 /resources/js/krds.min.js를 사용합니다.
+              - WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되며 URL은 /resources/** 로 동일하게 유지합니다.
+              - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.
             """)
     public String buildBoardFeature(
             String database,
@@ -181,6 +216,452 @@ public class CrudPromptBuilderTool {
             resolvedVersion, resolvedViewType);
 
         return formatBoardResult(result);
+    }
+
+    @Tool(description = """
+            단일 테이블 CRUD 목록 화면 1개만 렌더링하여 반환합니다.
+            Java/Mapper 전체 세트를 만들지 않고 List 화면 소스만 확인하거나 미세 조정할 때 사용하세요.
+            파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
+            database    : 데이터베이스명
+            tableName   : 단일 CRUD 대상 테이블명
+            domain      : 도메인명 PascalCase
+            packageName : 패키지명 (egovframework.let.*)
+            outputPath  : 저장 기준 절대경로
+            egovVersion : eGovFrame 버전 (기본값 5.0)
+            viewType    : jsp 또는 thymeleaf (기본값 jsp)
+            """)
+    public String generateCrudList(
+            String database,
+            String tableName,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+        return generateCrudScreen(database, tableName, domain, packageName, outputPath,
+                egovVersion, viewType, "List", "jspList", "thymeleafList");
+    }
+
+    @Tool(description = """
+            단일 테이블 CRUD 상세 화면 1개만 렌더링하여 반환합니다.
+            파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
+            database    : 데이터베이스명
+            tableName   : 단일 CRUD 대상 테이블명
+            domain      : 도메인명 PascalCase
+            packageName : 패키지명 (egovframework.let.*)
+            outputPath  : 저장 기준 절대경로
+            egovVersion : eGovFrame 버전 (기본값 5.0)
+            viewType    : jsp 또는 thymeleaf (기본값 jsp)
+            """)
+    public String generateCrudDetail(
+            String database,
+            String tableName,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+        return generateCrudScreen(database, tableName, domain, packageName, outputPath,
+                egovVersion, viewType, "Detail", "jspDetail", "thymeleafDetail");
+    }
+
+    @Tool(description = """
+            단일 테이블 CRUD 등록 화면 1개만 렌더링하여 반환합니다.
+            파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
+            database    : 데이터베이스명
+            tableName   : 단일 CRUD 대상 테이블명
+            domain      : 도메인명 PascalCase
+            packageName : 패키지명 (egovframework.let.*)
+            outputPath  : 저장 기준 절대경로
+            egovVersion : eGovFrame 버전 (기본값 5.0)
+            viewType    : jsp 또는 thymeleaf (기본값 jsp)
+            """)
+    public String generateCrudRegist(
+            String database,
+            String tableName,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+        return generateCrudScreen(database, tableName, domain, packageName, outputPath,
+                egovVersion, viewType, "Regist", "jspRegist", "thymeleafRegist");
+    }
+
+    @Tool(description = """
+            단일 테이블 CRUD 수정 화면 1개만 렌더링하여 반환합니다.
+            파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
+            database    : 데이터베이스명
+            tableName   : 단일 CRUD 대상 테이블명
+            domain      : 도메인명 PascalCase
+            packageName : 패키지명 (egovframework.let.*)
+            outputPath  : 저장 기준 절대경로
+            egovVersion : eGovFrame 버전 (기본값 5.0)
+            viewType    : jsp 또는 thymeleaf (기본값 jsp)
+            """)
+    public String generateCrudUpdt(
+            String database,
+            String tableName,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+        return generateCrudScreen(database, tableName, domain, packageName, outputPath,
+                egovVersion, viewType, "Updt", "jspUpdt", "thymeleafUpdt");
+    }
+
+    @Tool(description = """
+            게시판(BBS) 목록 화면 1개만 렌더링하여 반환합니다.
+            `generateBoardList`는 기존 README의 화면별 MCP Tool 패턴과 호환하기 위해 추가된 세분 Tool입니다.
+            파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
+            database        : 데이터베이스명
+            domain          : 도메인명 PascalCase
+            packageName     : 패키지명 (egovframework.let.*)
+            outputPath      : 저장 기준 절대경로
+            mainTable       : 게시글 테이블 (기본값 COMTNBBS)
+            masterTable     : 게시판 마스터 테이블 (기본값 COMTNBBSMASTER)
+            useTable        : 게시판 사용/권한 테이블 (기본값 COMTNBBSUSE)
+            fileTable       : 첨부파일 묶음 테이블 (기본값 COMTNFILE)
+            fileDetailTable : 첨부파일 상세 테이블 (기본값 COMTNFILEDETAIL)
+            egovVersion     : eGovFrame 버전 (기본값 5.0)
+            viewType        : jsp 또는 thymeleaf (기본값 jsp)
+            """)
+    public String generateBoardList(
+            String database,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String mainTable,
+            @Nullable String masterTable,
+            @Nullable String useTable,
+            @Nullable String fileTable,
+            @Nullable String fileDetailTable,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+        return generateBoardScreen(database, domain, packageName, outputPath,
+                mainTable, masterTable, useTable, fileTable, fileDetailTable,
+                egovVersion, viewType, "List", "jspList", "thymeleafList");
+    }
+
+    @Tool(description = """
+            게시판(BBS) 상세 화면 1개만 렌더링하여 반환합니다.
+            파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
+            """)
+    public String generateBoardDetail(
+            String database,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String mainTable,
+            @Nullable String masterTable,
+            @Nullable String useTable,
+            @Nullable String fileTable,
+            @Nullable String fileDetailTable,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+        return generateBoardScreen(database, domain, packageName, outputPath,
+                mainTable, masterTable, useTable, fileTable, fileDetailTable,
+                egovVersion, viewType, "Detail", "jspDetail", "thymeleafDetail");
+    }
+
+    @Tool(description = """
+            게시판(BBS) 등록 화면 1개만 렌더링하여 반환합니다.
+            파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
+            """)
+    public String generateBoardRegist(
+            String database,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String mainTable,
+            @Nullable String masterTable,
+            @Nullable String useTable,
+            @Nullable String fileTable,
+            @Nullable String fileDetailTable,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+        return generateBoardScreen(database, domain, packageName, outputPath,
+                mainTable, masterTable, useTable, fileTable, fileDetailTable,
+                egovVersion, viewType, "Regist", "jspRegist", "thymeleafRegist");
+    }
+
+    @Tool(description = """
+            게시판(BBS) 수정 화면 1개만 렌더링하여 반환합니다.
+            파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
+            """)
+    public String generateBoardUpdt(
+            String database,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String mainTable,
+            @Nullable String masterTable,
+            @Nullable String useTable,
+            @Nullable String fileTable,
+            @Nullable String fileDetailTable,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+        return generateBoardScreen(database, domain, packageName, outputPath,
+                mainTable, masterTable, useTable, fileTable, fileDetailTable,
+                egovVersion, viewType, "Updt", "jspUpdt", "thymeleafUpdt");
+    }
+
+    @Tool(description = """
+            마스터-디테일 구조의 마스터 목록 화면 1개만 렌더링하여 반환합니다.
+            파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
+            database    : 데이터베이스명
+            masterTable : 마스터 테이블명
+            detailTable : 디테일 테이블명
+            domain      : 마스터 도메인명 PascalCase
+            packageName : 패키지명 (egovframework.let.*)
+            outputPath  : 저장 기준 절대경로
+            egovVersion : eGovFrame 버전 (기본값 5.0)
+            viewType    : jsp 또는 thymeleaf (기본값 jsp)
+            """)
+    public String generateMasterList(
+            String database,
+            String masterTable,
+            String detailTable,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+        return generateMasterDetailScreen(database, masterTable, detailTable, domain, packageName, outputPath,
+                egovVersion, viewType, "List", "jspList", "thymeleafList");
+    }
+
+    @Tool(description = """
+            마스터-디테일 구조의 마스터 상세 화면 1개만 렌더링하여 반환합니다.
+            파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
+            """)
+    public String generateMasterDetail(
+            String database,
+            String masterTable,
+            String detailTable,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+        return generateMasterDetailScreen(database, masterTable, detailTable, domain, packageName, outputPath,
+                egovVersion, viewType, "Detail", "jspDetail", "thymeleafDetail");
+    }
+
+    @Tool(description = """
+            마스터-디테일 구조의 마스터 등록 화면 1개만 렌더링하여 반환합니다.
+            파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
+            """)
+    public String generateMasterRegist(
+            String database,
+            String masterTable,
+            String detailTable,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String egovVersion,
+            @Nullable String viewType) {
+        return generateMasterDetailScreen(database, masterTable, detailTable, domain, packageName, outputPath,
+                egovVersion, viewType, "Regist", "jspRegist", "thymeleafRegist");
+    }
+
+    private String generateCrudScreen(
+            String database,
+            String tableName,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String egovVersion,
+            @Nullable String viewType,
+            String screenName,
+            String jspLayerKey,
+            String thymeleafLayerKey) {
+
+        List<Map<String, Object>> columns = crudSchemaQueryService.fetchColumns(database, tableName);
+        if (columns.isEmpty()) {
+            return "테이블을 찾을 수 없습니다: " + database + "." + tableName;
+        }
+
+        String resolvedVersion = resolveEgovVersion(egovVersion);
+        CrudViewType resolvedViewType = CrudViewType.from(viewType);
+        CrudTemplateModel model = crudModelFactory.fromSchema(
+                tableName, domain, packageName, resolvedVersion, columns);
+        String layerKey = selectLayerKey(resolvedViewType, jspLayerKey, thymeleafLayerKey);
+        String code = crudTemplateRenderer.renderByLayerKey(layerKey, model);
+        String filePath = resolveCrudScreenPath(outputPath, packageName, model.domainLc(), domain, resolvedViewType, layerKey);
+        return formatGeneratedScreen("CRUD", domain, screenName, resolvedViewType, layerKey, filePath, code);
+    }
+
+    private String generateBoardScreen(
+            String database,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String mainTable,
+            @Nullable String masterTable,
+            @Nullable String useTable,
+            @Nullable String fileTable,
+            @Nullable String fileDetailTable,
+            @Nullable String egovVersion,
+            @Nullable String viewType,
+            String screenName,
+            String jspLayerKey,
+            String thymeleafLayerKey) {
+
+        String resolvedMain       = defaultIfBlank(mainTable, "COMTNBBS");
+        String resolvedMaster     = defaultIfBlank(masterTable, "COMTNBBSMASTER");
+        String resolvedUse        = defaultIfBlank(useTable, "COMTNBBSUSE");
+        String resolvedFile       = defaultIfBlank(fileTable, "COMTNFILE");
+        String resolvedFileDetail = defaultIfBlank(fileDetailTable, "COMTNFILEDETAIL");
+        String resolvedVersion    = resolveEgovVersion(egovVersion);
+        CrudViewType resolvedViewType = CrudViewType.from(viewType);
+
+        Map<String, List<Map<String, Object>>> schemas;
+        try {
+            schemas = boardSchemaService.fetchBoardSchemas(
+                    database, resolvedMain, resolvedMaster, resolvedUse, resolvedFile, resolvedFileDetail);
+        } catch (IllegalArgumentException e) {
+            return e.getMessage();
+        }
+
+        BoardTemplateModel model = boardModelFactory.fromSchemas(
+                resolvedMain, resolvedMaster, resolvedUse, resolvedFileDetail,
+                domain, packageName, resolvedVersion, schemas);
+        String layerKey = selectLayerKey(resolvedViewType, jspLayerKey, thymeleafLayerKey);
+        String code = boardTemplateRenderer.renderByLayerKey(layerKey, model);
+        String filePath = resolveBoardScreenPath(outputPath, packageName, model.domainLc(), domain, resolvedViewType, layerKey);
+        return formatGeneratedScreen("BOARD", domain, screenName, resolvedViewType, layerKey, filePath, code);
+    }
+
+    private String generateMasterDetailScreen(
+            String database,
+            String masterTable,
+            String detailTable,
+            String domain,
+            String packageName,
+            String outputPath,
+            @Nullable String egovVersion,
+            @Nullable String viewType,
+            String screenName,
+            String jspLayerKey,
+            String thymeleafLayerKey) {
+
+        List<Map<String, Object>> masterColumns = crudSchemaQueryService.fetchColumns(database, masterTable);
+        if (masterColumns.isEmpty()) {
+            return "마스터 테이블을 찾을 수 없습니다: " + database + "." + masterTable;
+        }
+        List<Map<String, Object>> detailColumns = crudSchemaQueryService.fetchColumns(database, detailTable);
+        if (detailColumns.isEmpty()) {
+            return "디테일 테이블을 찾을 수 없습니다: " + database + "." + detailTable;
+        }
+
+        String resolvedVersion = resolveEgovVersion(egovVersion);
+        CrudViewType resolvedViewType = CrudViewType.from(viewType);
+        String detailDomain = deriveDetailDomain(detailTable);
+        CrudTemplateModel masterModel =
+                crudModelFactory.fromSchema(masterTable, domain, packageName, resolvedVersion, masterColumns);
+        CrudTemplateModel detailModel =
+                crudModelFactory.fromSchema(detailTable, detailDomain, packageName, resolvedVersion, detailColumns);
+        String fkColumn = detectFkColumn(masterModel.pk().columnName(), detailColumns);
+        MasterDetailTemplateModel model = new MasterDetailTemplateModel(
+                masterModel, detailModel, fkColumn, CrudMappingUtils.toCamelCase(fkColumn));
+        String layerKey = selectLayerKey(resolvedViewType, jspLayerKey, thymeleafLayerKey);
+        String code = masterDetailTemplateRenderer.renderByLayerKey(layerKey, model);
+        String filePath = resolveMasterDetailScreenPath(outputPath, packageName, masterModel.domainLc(),
+                domain, detailDomain, resolvedViewType, layerKey);
+        return formatGeneratedScreen("MASTER_DETAIL", domain, screenName, resolvedViewType, layerKey, filePath, code);
+    }
+
+    private String resolveCrudScreenPath(
+            String outputPath, String packageName, String domainLc, String domain,
+            CrudViewType viewType, String layerKey) {
+        CrudLayerDefinition layer = CrudLayerDefinition.forViewType(viewType).stream()
+                .filter(candidate -> candidate.layerKey().equals(layerKey))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("지원하지 않는 layerKey: " + layerKey));
+        String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
+        String fileName = CrudLayerDefinition.resolveFileName(layerKey, domain, layer.fileNameSuffix());
+        return outputPath + "/" + layer.resolveSubPath(pkgSub, domainLc) + fileName;
+    }
+
+    private String resolveBoardScreenPath(
+            String outputPath, String packageName, String domainLc, String domain,
+            CrudViewType viewType, String layerKey) {
+        BoardLayerDefinition layer = BoardLayerDefinition.forViewType(viewType).stream()
+                .filter(candidate -> candidate.layerKey().equals(layerKey))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("지원하지 않는 layerKey: " + layerKey));
+        String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
+        String fileName = BoardLayerDefinition.resolveFileName(layer.layerKey(), domain, layer.fileNameSuffix());
+        return outputPath + "/" + layer.resolveSubPath(pkgSub, domainLc) + fileName;
+    }
+
+    private String resolveMasterDetailScreenPath(
+            String outputPath, String packageName, String domainLc, String masterDomain, String detailDomain,
+            CrudViewType viewType, String layerKey) {
+        MasterDetailLayerDefinition layer = MasterDetailLayerDefinition.forViewType(viewType).stream()
+                .filter(candidate -> candidate.layerKey().equals(layerKey))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("지원하지 않는 layerKey: " + layerKey));
+        String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
+        String fileName = MasterDetailLayerDefinition.resolveFileName(layer, masterDomain, detailDomain);
+        return outputPath + "/" + layer.resolveSubPath(pkgSub, domainLc) + fileName;
+    }
+
+    private String formatGeneratedScreen(
+            String featureType,
+            String domain,
+            String screenName,
+            CrudViewType viewType,
+            String layerKey,
+            String filePath,
+            String code) {
+        return """
+                === 화면 소스 생성 완료 ===
+
+                featureType: %s
+                domain: %s
+                screen: %s
+                viewType: %s
+                layerKey: %s
+                권장 저장 경로: %s
+
+                [source]
+                %s
+                """.formatted(featureType, domain, screenName, viewType.value(), layerKey, filePath, code);
+    }
+
+    private String selectLayerKey(CrudViewType viewType, String jspLayerKey, String thymeleafLayerKey) {
+        return viewType == CrudViewType.THYMELEAF ? thymeleafLayerKey : jspLayerKey;
+    }
+
+    private String resolveEgovVersion(@Nullable String egovVersion) {
+        return (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
+    }
+
+    private String defaultIfBlank(@Nullable String value, String defaultValue) {
+        return (value == null || value.isBlank()) ? defaultValue : value;
+    }
+
+    private String detectFkColumn(String masterPkColumn, List<Map<String, Object>> detailColumns) {
+        return detailColumns.stream()
+                .map(c -> (String) c.get("COLUMN_NAME"))
+                .filter(masterPkColumn::equals)
+                .findFirst()
+                .orElse(masterPkColumn);
+    }
+
+    private String deriveDetailDomain(String tableName) {
+        String base = tableName.replace("COMTN", "").replace("COMTS", "").replace("COMTC", "");
+        String[] parts = base.toLowerCase().split("_");
+        StringBuilder sb = new StringBuilder();
+        for (String part : parts) {
+            if (!part.isBlank()) {
+                sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
+            }
+        }
+        return sb.toString();
     }
 
     private String formatBoardResult(BoardOrchestrationResult r) {

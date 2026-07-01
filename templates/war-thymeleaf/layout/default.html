@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<!--
+  ============================================================
+  FTC 스타일 공통 레이아웃 (Thymeleaf Layout Dialect)
+  egov-boot-web 적용 경로:
+    src/main/resources/templates/layout/default.html
+
+  build.gradle 의존성 확인:
+    implementation 'nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect:3.3.0'
+  ============================================================
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+  <!-- 타이틀: 페이지제목 - 기관명 -->
+  <title layout:title-pattern="$CONTENT_TITLE - 공정거래위원회">공정거래위원회</title>
+
+  <!-- Pretendard GOV 폰트 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-gov.min.css">
+
+  <!-- 공통 CSS -->
+  <link rel="stylesheet" th:href="@{/css/ftc-portal.css}">
+
+  <!-- 페이지별 추가 head (CSS 등) -->
+  <th:block layout:fragment="head"></th:block>
+</head>
+<body>
+
+  <!-- ① GNB (상단바 + 헤더 + 내비게이션) -->
+  <div th:replace="~{layout/gnb :: gnb}"></div>
+
+  <!-- ② MAIN 영역 -->
+  <main id="main-content" style="min-height:600px;">
+    <th:block layout:fragment="content">
+      <!-- 각 페이지 콘텐츠가 이곳에 삽입됨 -->
+    </th:block>
+  </main>
+
+  <!-- ③ FOOTER -->
+  <div th:replace="~{layout/footer :: footer}"></div>
+
+  <!-- 공통 JS -->
+  <script th:src="@{/js/jquery.min.js}"></script>
+  <script th:src="@{/js/ftc-portal.js}"></script>
+
+  <!-- 페이지별 추가 스크립트 -->
+  <th:block layout:fragment="script"></th:block>
+
+</body>
+</html>

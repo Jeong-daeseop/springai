@@ -59,8 +59,8 @@ public class FilePlanFactory {
             "src/test/java/" + s.packagePath()
         ));
         if (s.boot()) {
-            dirs.add("src/main/resources/static/css");
-            dirs.add("src/main/resources/static/js");
+            dirs.add("src/main/resources/static/resources/css");
+            dirs.add("src/main/resources/static/resources/js");
             dirs.add("src/main/resources/templates");
         } else {
             dirs.add("src/main/java/" + s.packagePath() + "/web");
@@ -104,10 +104,10 @@ public class FilePlanFactory {
                         WEB,    () -> bld.webXml(s)),
             FilePlan.of("src/main/webapp/index.jsp",
                         WEB,    stpl::indexJsp),
-            FilePlan.of("src/main/webapp/resources/css/krds.min.css",
-                        WEB,    stpl::krdsCss),
-            FilePlan.of("src/main/webapp/resources/css/egov-layout.css",
-                        WEB,    stpl::egovLayoutCss),
+            FilePlan.of("src/main/webapp/resources/css/styles.css",
+                        WEB,    stpl::stylesCss),
+            FilePlan.of("src/main/webapp/resources/css/_ds_bundle.css",
+                        WEB,    stpl::dsBundleCss),
             FilePlan.of("src/main/webapp/resources/js/krds.min.js",
                         WEB,    stpl::krdsJs),
             FilePlan.of("src/main/webapp/WEB-INF/jsp/egovframework/error/error404.jsp",
@@ -128,6 +128,12 @@ public class FilePlanFactory {
                         RESOURCE, () -> stpl.applicationYml(s)),
             FilePlan.of("src/main/resources/logback-spring.xml",
                         RESOURCE, () -> stpl.logback(s)),
+            FilePlan.of("src/main/resources/static/resources/css/styles.css",
+                        RESOURCE, stpl::stylesCss),
+            FilePlan.of("src/main/resources/static/resources/css/_ds_bundle.css",
+                        RESOURCE, stpl::dsBundleCss),
+            FilePlan.of("src/main/resources/static/resources/js/krds.min.js",
+                        RESOURCE, stpl::krdsJs),
             FilePlan.of(base + "/" + cls + "Application.java",
                         SOURCE,   () -> stpl.bootMain(s)),
             FilePlan.of(test + "/" + cls + "ApplicationTests.java",

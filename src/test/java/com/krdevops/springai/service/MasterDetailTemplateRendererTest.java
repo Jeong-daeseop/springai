@@ -68,7 +68,8 @@ class MasterDetailTemplateRendererTest {
                 "masterVo", "detailVo", "masterMapper", "detailMapper",
                 "masterMapperXml", "detailMapperXml", "service", "serviceImpl",
                 "controller", "validationHandler", "jspList", "jspDetail", "jspRegist",
-                "layoutHtml", "thymeleafList", "thymeleafDetail", "thymeleafRegist"
+                "layoutHtml", "layoutGnbHtml", "layoutLnbHtml", "layoutBreadcrumbHtml",
+                "layoutFooterHtml", "thymeleafList", "thymeleafDetail", "thymeleafRegist"
         );
 
         for (String layer : layers) {
@@ -85,6 +86,17 @@ class MasterDetailTemplateRendererTest {
 
         assertThat(result).contains("selectBbsuseList(searchVO.getBbsId())");
         assertThat(result).contains("model.addAttribute(\"detailList\", detailList)");
+    }
+
+    @Test
+    void controller_populatesLayoutModelContract() {
+        String result = renderer.renderByLayerKey("controller", model());
+
+        assertThat(result).contains("populateLayoutModel(model, \"masterdetail-list\", \"게시판마스터 목록\")");
+        assertThat(result).contains("model.addAttribute(\"lnbTitle\", \"게시판마스터 관리\")");
+        assertThat(result).contains("model.addAttribute(\"lnbMenus\"");
+        assertThat(result).contains("model.addAttribute(\"breadcrumbs\", breadcrumbs)");
+        assertThat(result).contains("model.addAttribute(\"currentMenuId\", currentMenuId)");
     }
 
     @Test

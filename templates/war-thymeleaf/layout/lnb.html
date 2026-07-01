@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  ============================================================
+  FTC 스타일 LNB 프래그먼트
+  egov-boot-web 적용 경로:
+    src/main/resources/templates/layout/lnb.html
+
+  Controller 에서 model 에 담아야 할 값:
+    - lnbTitle      : String          (LNB 섹션 제목, 예: "소식·뉴스")
+    - lnbMenus      : List<LnbMenuVO>
+        LnbMenuVO {
+          label     : String,
+          url       : String,
+          active    : boolean,         // 현재 활성 여부
+          children  : List<LnbChildVO> (nullable)
+        }
+        LnbChildVO { label, url, active }
+  ============================================================
+-->
+<body>
+<aside th:fragment="lnb"
+       style="width:200px;flex:none;font-family:'Pretendard GOV Variable',-apple-system,sans-serif;">
+
+  <!-- LNB 섹션 제목 -->
+  <div th:text="${lnbTitle}"
+       style="font-size:18px;font-weight:800;color:#083891;padding-bottom:14px;border-bottom:2px solid #083891;margin-bottom:8px;">
+    메뉴 섹션
+  </div>
+
+  <!-- LNB 메뉴 루프 -->
+  <div th:each="menu : ${lnbMenus}" style="margin-bottom:2px;">
+
+    <!-- 자식 없는 1단 메뉴 -->
+    <a th:if="${#lists.isEmpty(menu.children)}"
+       th:href="${menu.url}"
+       th:text="${menu.label}"
+       th:style="${menu.active} ? 'display:block;padding:10px 12px;font-size:14px;font-weight:700;color:#256ef4;border-left:3px solid #256ef4;background:#eef3fe;' : 'display:block;padding:10px 12px;font-size:14px;color:#464c53;border-left:3px solid transparent;text-decoration:none;'">
+      메뉴
+    </a>
+
+    <!-- 자식 있는 아코디언 메뉴 -->
+    <div th:unless="${#lists.isEmpty(menu.children)}">
+      <!-- 부모 토글 버튼 -->
+      <button th:attr="data-lnb-toggle='true', data-open=${menu.active}"
+              th:style="${menu.active} ? 'width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f6f8fc;border:none;border-left:3px solid #256ef4;cursor:pointer;font-size:14px;font-weight:700;color:#256ef4;font-family:inherit;' : 'width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#fff;border:none;border-left:3px solid transparent;cursor:pointer;font-size:14px;color:#464c53;font-family:inherit;'"
+              type="button">
+        <span th:text="${menu.label}">카테고리</span>
+        <svg th:attr="data-arrow='true'" width="10" height="6" viewBox="0 0 10 6" fill="none"
+             th:style="${menu.active} ? 'transform:rotate(0deg);transition:transform 0.2s;' : 'transform:rotate(-180deg);transition:transform 0.2s;'">
+          <path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none"/>
+        </svg>
+      </button>
+
+      <!-- 자식 메뉴 목록 -->
+      <ul th:style="${menu.active} ? 'display:block;padding:4px 0 4px 16px;list-style:none;margin:0;' : 'display:none;padding:4px 0 4px 16px;list-style:none;margin:0;'"
+          style="list-style:none;margin:0;">
+        <li th:each="child : ${menu.children}">
+          <a th:href="${child.url}"
+             th:text="${child.label}"
+             th:style="${child.active} ? 'display:block;padding:7px 12px;font-size:14px;font-weight:700;color:#256ef4;background:#eef3fe;border-radius:3px;text-decoration:none;' : 'display:block;padding:7px 12px;font-size:13px;color:#58616a;text-decoration:none;'">
+            하위메뉴
+          </a>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+</aside>
+
+<!-- LNB 아코디언 스크립트 -->
+<script>
+document.querySelectorAll('[data-lnb-toggle]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var isOpen  = btn.getAttribute('data-open') === 'true';
+    var ul      = btn.nextElementSibling;
+    var arrow   = btn.querySelector('[data-arrow]');
+    if (isOpen) {
+      ul.style.display = 'none';
+      btn.setAttribute('data-open', 'false');
+      btn.style.borderLeft = '3px solid transparent';
+      btn.style.color = '#464c53';
+      btn.style.fontWeight = '400';
+      btn.style.background = '#fff';
+      if (arrow) arrow.style.transform = 'rotate(-180deg)';
+    } else {
+      ul.style.display = 'block';
+      btn.setAttribute('data-open', 'true');
+      btn.style.borderLeft = '3px solid #256ef4';
+      btn.style.color = '#256ef4';
+      btn.style.fontWeight = '700';
+      btn.style.background = '#f6f8fc';
+      if (arrow) arrow.style.transform = 'rotate(0deg)';
+    }
+  });
+});
+</script>
+
+</body>
+</html>

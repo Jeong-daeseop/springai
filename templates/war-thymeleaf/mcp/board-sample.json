@@ -1,0 +1,59 @@
+{
+  "_comment": "board 템플릿 생성 샘플 변수 — 공지·공고 게시판",
+  "_comment2": "Claude / SpringAI MCP 프롬프트에 이 JSON을 그대로 전달하면 됩니다.",
+
+  "classLabel" : "공지·공고",
+  "classVar"   : "board",
+  "ClassName"  : "Board",
+  "packageName": "kr.go.ftc.board",
+  "mappingUrl" : "/board",
+  "pkName"     : "boardNo",
+
+  "listFields": [
+    { "name": "nttSj", "label": "제목" },
+    { "name": "wrterNm", "label": "작성자", "width": "100px" }
+  ],
+
+  "searchFields": [
+    { "name": "nttSj",   "label": "제목" },
+    { "name": "nttCn",   "label": "내용" },
+    { "name": "wrterNm", "label": "작성자" }
+  ],
+
+  "detailFields": [
+    { "name": "nttSj",   "label": "제목" },
+    { "name": "wrterNm", "label": "작성자" },
+    { "name": "ctgrCode","label": "카테고리" },
+    { "name": "deptNm",  "label": "담당부서" }
+  ],
+
+  "formFields": [
+    {
+      "name": "ctgrCode", "label": "카테고리", "type": "select", "required": "Y",
+      "options": [
+        { "value": "NOTICE",   "label": "공지" },
+        { "value": "RECRUIT",  "label": "채용공고" },
+        { "value": "BID",      "label": "입찰공고" },
+        { "value": "GENERAL",  "label": "일반공고" }
+      ]
+    },
+    {
+      "name": "openYn", "label": "공개여부", "type": "radio", "required": "Y",
+      "options": [
+        { "value": "Y", "label": "공개" },
+        { "value": "N", "label": "비공개" }
+      ]
+    },
+    { "name": "nttSj",   "label": "제목",   "type": "text",     "required": "Y" },
+    { "name": "wrterNm", "label": "작성자", "type": "text",     "required": "Y" },
+    { "name": "deptNm",  "label": "담당부서","type": "text",    "required": "N" },
+    { "name": "nttCn",   "label": "내용",   "type": "textarea", "required": "Y" }
+  ],
+
+  "hasFileYn"   : "Y",
+  "hasContentYn": "Y",
+  "hasNoticeYn" : "Y",
+  "isUpdate"    : false,
+
+  "_sample_prompt": "다음 변수로 공지·공고 게시판 목록 Thymeleaf 템플릿을 생성해줘: classLabel=공지·공고, mappingUrl=/board ..."
+}

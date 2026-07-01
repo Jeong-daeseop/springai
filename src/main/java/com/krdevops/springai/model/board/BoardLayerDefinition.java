@@ -44,6 +44,10 @@ public record BoardLayerDefinition(
     public static final List<BoardLayerDefinition> THYMELEAF_LAYERS = concat(
             COMMON_LAYERS,
             new BoardLayerDefinition("layoutHtml",      "layout/default.html", "src/main/resources/templates/"),
+            new BoardLayerDefinition("layoutGnbHtml",   "layout/gnb.html", "src/main/resources/templates/"),
+            new BoardLayerDefinition("layoutLnbHtml",   "layout/lnb.html", "src/main/resources/templates/"),
+            new BoardLayerDefinition("layoutBreadcrumbHtml", "layout/breadcrumb.html", "src/main/resources/templates/"),
+            new BoardLayerDefinition("layoutFooterHtml", "layout/footer.html", "src/main/resources/templates/"),
             new BoardLayerDefinition("thymeleafList",   "List.html",   "src/main/resources/templates/{DOMAIN_LC}/"),
             new BoardLayerDefinition("thymeleafDetail", "Detail.html", "src/main/resources/templates/{DOMAIN_LC}/"),
             new BoardLayerDefinition("thymeleafRegist", "Regist.html", "src/main/resources/templates/{DOMAIN_LC}/"),
@@ -68,6 +72,10 @@ public record BoardLayerDefinition(
     public static String resolveFileName(String layerKey, String domain, String suffix) {
         return switch (layerKey) {
             case "layoutHtml"                                        -> "layout/default.html";
+            case "layoutGnbHtml"                                     -> "layout/gnb.html";
+            case "layoutLnbHtml"                                     -> "layout/lnb.html";
+            case "layoutBreadcrumbHtml"                              -> "layout/breadcrumb.html";
+            case "layoutFooterHtml"                                  -> "layout/footer.html";
             case "vo", "searchVo", "mapper", "mapperXml", "service" -> domain + suffix;
             default                                                  -> "Egov" + domain + suffix;
         };

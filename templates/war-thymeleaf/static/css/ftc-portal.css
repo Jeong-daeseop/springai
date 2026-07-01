@@ -1,0 +1,386 @@
+/*
+  ============================================================
+  FTC 포털 공통 CSS
+  egov-boot-web 적용 경로:
+    src/main/resources/static/css/ftc-portal.css
+  ============================================================
+*/
+
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: 'Pretendard GOV Variable', 'Pretendard GOV', -apple-system, BlinkMacSystemFont,
+               'Segoe UI', sans-serif;
+  color: #1e2124;
+  background: #fff;
+  line-height: 1.5;
+  word-break: keep-all;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration: underline; }
+img { max-width: 100%; height: auto; vertical-align: middle; }
+button { font-family: inherit; cursor: pointer; }
+ul, ol { list-style: none; margin: 0; padding: 0; }
+
+/* ── FTC 색상 변수 ── */
+:root {
+  --ftc-primary:   #083891;
+  --ftc-blue:      #256ef4;
+  --ftc-dark:      #1e2124;
+  --ftc-gray-dark: #464c53;
+  --ftc-gray-mid:  #8a949e;
+  --ftc-gray-line: #e8eaec;
+  --ftc-gray-bg:   #f6f7f8;
+  --ftc-red:       #d9363e;
+  --ftc-green:     #1a7f42;
+}
+
+/* ── 레이아웃 래퍼 ── */
+.ftc-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.ftc-content-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.ftc-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── 페이지 제목 ── */
+.ftc-page-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #1e2124;
+  margin-bottom: 20px;
+}
+
+.ftc-page-title h1 {
+  font-size: 28px;
+  font-weight: 800;
+  color: #1e2124;
+  margin: 0;
+}
+
+/* ── 섹션 제목 ── */
+.ftc-section-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #083891;
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.ftc-section-title::before {
+  content: '';
+  display: inline-block;
+  width: 4px;
+  height: 18px;
+  background: #256ef4;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* ── 버튼 (krds-btn) ── */
+.ftc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 22px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  transition: opacity 0.15s, background 0.15s;
+  text-decoration: none;
+}
+
+.ftc-btn:hover { opacity: 0.88; text-decoration: none; }
+
+.ftc-btn-primary {
+  background: #083891;
+  color: #fff;
+  border: none;
+}
+
+.ftc-btn-secondary {
+  background: #256ef4;
+  color: #fff;
+  border: none;
+}
+
+.ftc-btn-outline {
+  background: #fff;
+  color: #464c53;
+  border: 1px solid #cdd1d5;
+}
+
+.ftc-btn-outline-blue {
+  background: #fff;
+  color: #256ef4;
+  border: 1px solid #256ef4;
+}
+
+.ftc-btn-danger {
+  background: #fff;
+  color: #d9363e;
+  border: 1px solid #d9363e;
+}
+
+.ftc-btn-sm { padding: 6px 14px; font-size: 13px; }
+.ftc-btn-lg { padding: 11px 40px; font-size: 15px; font-weight: 700; }
+
+/* ── 검색 폼 박스 ── */
+.ftc-search-box {
+  background: #f6f7f8;
+  border: 1px solid #e8eaec;
+  border-radius: 6px;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ── 입력 필드 (krds-input) ── */
+.ftc-input {
+  width: 100%;
+  padding: 9px 14px;
+  border: 1px solid #cdd1d5;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #1e2124;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+
+.ftc-input:focus { outline: 2px solid #256ef4; outline-offset: -1px; }
+.ftc-input::placeholder { color: #b0b8c1; }
+.ftc-input.is-error { border-color: #d9363e; }
+
+/* ── 셀렉트 (krds-form-select) ── */
+.ftc-select {
+  padding: 9px 32px 9px 12px;
+  border: 1px solid #cdd1d5;
+  border-radius: 4px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #1e2124;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238a949e' stroke-width='1.5' fill='none'/%3E%3C/svg%3E") no-repeat right 10px center;
+  appearance: none;
+  cursor: pointer;
+}
+
+.ftc-select:focus { outline: 2px solid #256ef4; outline-offset: -1px; }
+
+/* ── 테이블 (krds-table-wrap tbl col) ── */
+.ftc-table-wrap {
+  border: 1px solid #e8eaec;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.ftc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.ftc-table thead tr {
+  background: #f6f7f8;
+  border-top: 2px solid #1e2124;
+}
+
+.ftc-table thead th {
+  padding: 12px 12px;
+  text-align: left;
+  font-weight: 700;
+  color: #464c53;
+  border-bottom: 1px solid #e8eaec;
+}
+
+.ftc-table thead th.center { text-align: center; }
+
+.ftc-table tbody tr { border-bottom: 1px solid #f0f1f3; }
+.ftc-table tbody tr:hover td { background: #f0f5ff; }
+
+.ftc-table tbody td {
+  padding: 12px 12px;
+  color: #1e2124;
+  vertical-align: middle;
+}
+
+.ftc-table tbody td.center { text-align: center; }
+.ftc-table tbody td.muted  { color: #8a949e; font-size: 13px; }
+
+/* 정의 테이블 (상세/등록 화면) */
+.ftc-def-table { width: 100%; border-collapse: collapse; font-size: 14px; border-top: 2px solid #1e2124; }
+.ftc-def-table th {
+  padding: 14px 16px;
+  background: #f6f7f8;
+  font-weight: 700;
+  color: #464c53;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid #e8eaec;
+  vertical-align: top;
+}
+.ftc-def-table td {
+  padding: 14px 16px;
+  color: #1e2124;
+  border-bottom: 1px solid #e8eaec;
+  vertical-align: middle;
+}
+
+/* ── 상태 배지 ── */
+.ftc-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ftc-badge-active   { background: #e8f5ee; color: #1a7f42; }
+.ftc-badge-inactive { background: #f6f7f8; color: #8a949e; }
+.ftc-badge-notice   { background: #083891; color: #fff; font-size: 11px; padding: 2px 7px; border-radius: 3px; }
+
+/* ── 페이지네이션 (krds-pagination) ── */
+.ftc-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: 24px;
+}
+
+.ftc-page-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e8eaec;
+  border-radius: 4px;
+  background: #fff;
+  color: #464c53;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.1s;
+}
+
+.ftc-page-btn:hover { background: #f6f7f8; text-decoration: none; }
+
+.ftc-page-btn.active {
+  border-color: #083891;
+  background: #083891;
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ── 유효성 오류 ── */
+.ftc-err-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: #fff6f6;
+  border: 1px solid #f5c0c2;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #d9363e;
+}
+
+.ftc-err-msg {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #d9363e;
+  margin-top: 5px;
+}
+
+/* ── 모달 오버레이 ── */
+.ftc-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ftc-modal {
+  background: #fff;
+  border-radius: 10px;
+  padding: 32px 36px;
+  width: 380px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+
+/* ── 토스트 ── */
+.ftc-toast {
+  position: fixed;
+  bottom: 32px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 22px;
+  background: #1e2124;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  z-index: 999;
+  white-space: nowrap;
+  animation: ftcToastIn 0.25s ease;
+}
+
+@keyframes ftcToastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── 유틸리티 ── */
+.sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
+.text-primary { color: #083891; }
+.text-blue    { color: #256ef4; }
+.text-muted   { color: #8a949e; }
+.text-danger  { color: #d9363e; }
+.fw-bold      { font-weight: 700; }
+.fw-black     { font-weight: 800; }
+.text-center  { text-align: center; }
+.d-flex       { display: flex; }
+.align-center { align-items: center; }
+.gap-8        { gap: 8px; }
+.mt-8         { margin-top: 8px; }
+.mt-16        { margin-top: 16px; }
+.mt-24        { margin-top: 24px; }
+.mt-32        { margin-top: 32px; }

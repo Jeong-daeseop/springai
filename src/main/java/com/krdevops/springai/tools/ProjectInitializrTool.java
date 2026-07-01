@@ -43,8 +43,10 @@ public class ProjectInitializrTool {
               공통 : 표준 디렉터리 구조, pom.xml 또는 build.gradle, .gitignore
               war  : root-context.xml, servlet-context.xml, context-common/datasource/transaction.xml,
                      web.xml, log4j2.xml, index.jsp,
-                     resources/css/krds.min.css, resources/css/egov-layout.css, resources/js/krds.min.js
+                     resources/css/styles.css, resources/css/_ds_bundle.css, resources/js/krds.min.js
               boot : application.yml, logback-spring.xml,
+                     static/resources/css/styles.css, static/resources/css/_ds_bundle.css,
+                     static/resources/js/krds.min.js,
                      {Domain}Application.java, {Domain}ApplicationTests.java
 
             [파라미터]

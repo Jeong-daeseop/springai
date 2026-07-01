@@ -66,7 +66,7 @@ class BoardOrchestrationServiceTest {
     // ─── Thymeleaf 파일 수 ────────────────────────────────────────────────────
 
     @Test
-    void thymeleaf_succeededFiles_is13() {
+    void thymeleaf_succeededFiles_is17() {
         stubSuccess(dummyModel());
 
         BoardOrchestrationResult result = service.orchestrate(
@@ -74,7 +74,7 @@ class BoardOrchestrationServiceTest {
                 "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
                 "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf");
 
-        assertThat(result.succeededFiles()).hasSize(13);
+        assertThat(result.succeededFiles()).hasSize(17);
         assertThat(result.failedFiles()).isEmpty();
     }
 
@@ -108,6 +108,8 @@ class BoardOrchestrationServiceTest {
 
         assertThat(pathCaptor.getAllValues())
                 .anyMatch(p -> p.contains("templates/layout/default.html"));
+        assertThat(pathCaptor.getAllValues())
+                .anyMatch(p -> p.contains("templates/layout/gnb.html"));
     }
 
     @Test

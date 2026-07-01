@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * eGovFrame CRUD 레이어 소스를 결정적으로 생성·저장하는 오케스트레이터 (JSP: 11개, Thymeleaf: 12개).
+ * eGovFrame CRUD 레이어 소스를 결정적으로 생성·저장하는 오케스트레이터 (JSP: 11개, Thymeleaf: 16개).
  *
  * <p>LLM 미개입 — FreeMarker 템플릿 렌더링으로 처리하므로 Claude 토큰을 대폭 절감한다.
  * 기존 {@code CrudPromptBuilderTool.orchestrateAuto()}의 로직을 Service 레이어로 이전하여
@@ -32,7 +32,7 @@ public class CrudOrchestrationService {
     private final ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
 
     /**
-     * 지정 테이블의 CRUD 소스를 viewType별 레이어 수(JSP: 11개, Thymeleaf: 12개)만큼 생성·저장하고 결과를 반환한다.
+     * 지정 테이블의 CRUD 소스를 viewType별 레이어 수(JSP: 11개, Thymeleaf: 16개)만큼 생성·저장하고 결과를 반환한다.
      *
      * <p>테이블 미존재 시 예외 대신 {@link CrudOrchestrationResult#notFound}를 반환한다.
      * Tool 레이어는 이 결과를 문자열로 포맷팅하여 MCP 응답을 구성한다.

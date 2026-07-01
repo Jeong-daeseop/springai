@@ -35,4 +35,10 @@ public interface ${domain}Mapper {
 
     /** 게시판 사용 여부 조회 */
     String selectBoardUseAt(${domain}VO vo);
+
+    /** 이전 게시글 조회 */
+    ${domain}VO selectPrev${domain}(${domain}VO vo);
+
+    /** 다음 게시글 조회 */
+    ${domain}VO selectNext${domain}(${domain}VO vo);
 }

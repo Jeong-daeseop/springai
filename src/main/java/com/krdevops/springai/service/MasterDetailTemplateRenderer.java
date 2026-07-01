@@ -37,6 +37,10 @@ public class MasterDetailTemplateRenderer {
         LAYER_TEMPLATE_MAP.put("jspDetail",         "masterdetail/jsp-detail.jsp.ftl");
         LAYER_TEMPLATE_MAP.put("jspRegist",         "masterdetail/jsp-regist.jsp.ftl");
         LAYER_TEMPLATE_MAP.put("layoutHtml",        "masterdetail/layout/default.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutGnbHtml",     "masterdetail/layout/gnb.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutLnbHtml",     "masterdetail/layout/lnb.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutBreadcrumbHtml", "masterdetail/layout/breadcrumb.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutFooterHtml",  "masterdetail/layout/footer.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafList",     "masterdetail/thymeleaf-list.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafDetail",   "masterdetail/thymeleaf-detail.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafRegist",   "masterdetail/thymeleaf-regist.html.ftl");

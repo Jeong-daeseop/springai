@@ -38,7 +38,11 @@ public class BoardTemplateRenderer {
         LAYER_TEMPLATE_MAP.put("jspDetail",       "board/jsp-detail.jsp.ftl");
         LAYER_TEMPLATE_MAP.put("jspRegist",       "board/jsp-regist.jsp.ftl");
         LAYER_TEMPLATE_MAP.put("jspUpdt",         "board/jsp-updt.jsp.ftl");
-        LAYER_TEMPLATE_MAP.put("layoutHtml",      "crud/layout/default.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutHtml",      "board/layout/default.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutGnbHtml",   "board/layout/gnb.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutLnbHtml",   "board/layout/lnb.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutBreadcrumbHtml", "board/layout/breadcrumb.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutFooterHtml", "board/layout/footer.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafList",   "board/thymeleaf-list.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafDetail", "board/thymeleaf-detail.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafRegist", "board/thymeleaf-regist.html.ftl");

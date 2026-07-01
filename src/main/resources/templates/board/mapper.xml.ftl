@@ -100,4 +100,28 @@
          WHERE BBS_ID = ${r"#"}{bbsId}
     </select>
 
+    <!-- 이전 게시글 조회 -->
+    <select id="selectPrev${domain}" parameterType="${packageName}.service.${domain}VO"
+            resultMap="${domainLc}Map">
+        SELECT b.${nttId.columnName}, b.NTT_SJ
+          FROM ${tableName} b
+         WHERE b.BBS_ID = ${r"#"}{${bbsId.javaName}}
+           AND b.USE_AT = 'Y'
+           AND b.${nttId.columnName} &lt; ${r"#"}{${nttId.javaName}}
+         ORDER BY b.${nttId.columnName} DESC
+         LIMIT 1
+    </select>
+
+    <!-- 다음 게시글 조회 -->
+    <select id="selectNext${domain}" parameterType="${packageName}.service.${domain}VO"
+            resultMap="${domainLc}Map">
+        SELECT b.${nttId.columnName}, b.NTT_SJ
+          FROM ${tableName} b
+         WHERE b.BBS_ID = ${r"#"}{${bbsId.javaName}}
+           AND b.USE_AT = 'Y'
+           AND b.${nttId.columnName} &gt; ${r"#"}{${nttId.javaName}}
+         ORDER BY b.${nttId.columnName} ASC
+         LIMIT 1
+    </select>
+
 </mapper>

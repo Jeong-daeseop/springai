@@ -37,6 +37,10 @@ public record MasterDetailLayerDefinition(
     public static final List<MasterDetailLayerDefinition> THYMELEAF_LAYERS = concat(
             COMMON_LAYERS,
             new MasterDetailLayerDefinition("layoutHtml",      "layout", "layout/default.html", "src/main/resources/templates/"),
+            new MasterDetailLayerDefinition("layoutGnbHtml",   "layout", "layout/gnb.html", "src/main/resources/templates/"),
+            new MasterDetailLayerDefinition("layoutLnbHtml",   "layout", "layout/lnb.html", "src/main/resources/templates/"),
+            new MasterDetailLayerDefinition("layoutBreadcrumbHtml", "layout", "layout/breadcrumb.html", "src/main/resources/templates/"),
+            new MasterDetailLayerDefinition("layoutFooterHtml", "layout", "layout/footer.html", "src/main/resources/templates/"),
             new MasterDetailLayerDefinition("thymeleafList",   "master", "List.html",           "src/main/resources/templates/{DOMAIN_LC}/"),
             new MasterDetailLayerDefinition("thymeleafDetail", "master", "Detail.html",         "src/main/resources/templates/{DOMAIN_LC}/"),
             new MasterDetailLayerDefinition("thymeleafRegist", "master", "Regist.html",         "src/main/resources/templates/{DOMAIN_LC}/")
@@ -54,9 +58,11 @@ public record MasterDetailLayerDefinition(
     }
 
     public static String resolveFileName(MasterDetailLayerDefinition layer, String masterDomain, String detailDomain) {
-        if ("layoutHtml".equals(layer.layerKey())) {
-            return "layout/default.html";
-        }
+        if ("layoutHtml".equals(layer.layerKey())) return "layout/default.html";
+        if ("layoutGnbHtml".equals(layer.layerKey())) return "layout/gnb.html";
+        if ("layoutLnbHtml".equals(layer.layerKey())) return "layout/lnb.html";
+        if ("layoutBreadcrumbHtml".equals(layer.layerKey())) return "layout/breadcrumb.html";
+        if ("layoutFooterHtml".equals(layer.layerKey())) return "layout/footer.html";
         String domain = "detail".equals(layer.fileNameRole()) ? detailDomain : masterDomain;
         return switch (layer.layerKey()) {
             case "masterVo", "detailVo", "masterMapper", "detailMapper", "masterMapperXml", "detailMapperXml", "service" ->

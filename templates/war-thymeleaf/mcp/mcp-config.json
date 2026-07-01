@@ -1,0 +1,69 @@
+{
+  "_comment": "SpringAI MCP CrudPromptBuilderTool 설정 파일",
+  "_comment2": "egov-boot-web 적용 경로: src/main/resources/mcp/mcp-config.json",
+
+  "templateBasePath": "classpath:/mcp-templates",
+  "outputBasePath"  : "src/main/resources/templates",
+  "cssOutputPath"   : "src/main/resources/static/css",
+
+  "tools": [
+    {
+      "name"       : "generateBoardList",
+      "description": "FTC 스타일 게시판 목록 Thymeleaf 템플릿을 생성합니다.",
+      "templateFile": "board/thymeleaf-list.html.ftl",
+      "outputFile"  : "{mappingUrl}/list.html",
+      "requiredVars": ["classLabel","classVar","mappingUrl","pkName","listFields"],
+      "optionalVars": ["searchFields","hasNoticeYn","hasFileYn"]
+    },
+    {
+      "name"       : "generateBoardDetail",
+      "description": "FTC 스타일 게시판 상세 Thymeleaf 템플릿을 생성합니다.",
+      "templateFile": "board/thymeleaf-detail.html.ftl",
+      "outputFile"  : "{mappingUrl}/detail.html",
+      "requiredVars": ["classLabel","classVar","mappingUrl","pkName","detailFields"],
+      "optionalVars": ["hasFileYn","hasContentYn"]
+    },
+    {
+      "name"       : "generateBoardRegist",
+      "description": "FTC 스타일 게시판 등록/수정 Thymeleaf 템플릿을 생성합니다.",
+      "templateFile": "board/thymeleaf-regist.html.ftl",
+      "outputFile"  : "{mappingUrl}/regist.html",
+      "requiredVars": ["classLabel","classVar","mappingUrl","pkName","formFields"],
+      "optionalVars": ["hasFileYn","isUpdate"]
+    },
+    {
+      "name"       : "generateMasterList",
+      "description": "FTC 스타일 마스터-디테일 목록 Thymeleaf 템플릿을 생성합니다.",
+      "templateFile": "masterdetail/thymeleaf-list.html.ftl",
+      "outputFile"  : "{mMappingUrl}/list.html",
+      "requiredVars": ["mClassLabel","mClassVar","mMappingUrl","mPkName","mListFields"],
+      "optionalVars": ["mSearchFields"]
+    },
+    {
+      "name"       : "generateMasterDetail",
+      "description": "FTC 스타일 마스터-디테일 상세(1:N) Thymeleaf 템플릿을 생성합니다.",
+      "templateFile": "masterdetail/thymeleaf-detail.html.ftl",
+      "outputFile"  : "{mMappingUrl}/detail.html",
+      "requiredVars": ["mClassLabel","mClassVar","mMappingUrl","mPkName","mDetailFields",
+                       "dClassLabel","dClassVar","dMappingUrl","dPkName","dListFields"]
+    },
+    {
+      "name"       : "generateMasterRegist",
+      "description": "FTC 스타일 마스터 등록/수정 Thymeleaf 템플릿을 생성합니다.",
+      "templateFile": "masterdetail/thymeleaf-regist.html.ftl",
+      "outputFile"  : "{mMappingUrl}/regist.html",
+      "requiredVars": ["mClassLabel","mClassVar","mMappingUrl","mPkName","mFormFields"],
+      "optionalVars": ["isUpdate"]
+    }
+  ],
+
+  "fieldTypes": {
+    "text"    : "일반 텍스트 입력 (input type=text)",
+    "textarea": "멀티라인 텍스트 입력 (textarea)",
+    "select"  : "드롭다운 선택 (select + options 필수)",
+    "radio"   : "라디오 버튼 (options 필수)",
+    "number"  : "숫자 입력 (input type=number)",
+    "date"    : "날짜 입력 (input type=date)",
+    "file"    : "파일 첨부 (hasFileYn=Y 와 함께 사용)"
+  }
+}

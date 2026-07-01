@@ -35,6 +35,10 @@ public class CodeTemplateTool {
         Map.entry("jspupdt",          "jsp-updt.jsp.ftl"),
         // Thymeleaf 화면 레이어
         Map.entry("layouthtml",       "layout/default.html.ftl"),
+        Map.entry("layoutgnbhtml",    "layout/gnb.html.ftl"),
+        Map.entry("layoutlnbhtml",    "layout/lnb.html.ftl"),
+        Map.entry("layoutbreadcrumbhtml", "layout/breadcrumb.html.ftl"),
+        Map.entry("layoutfooterhtml", "layout/footer.html.ftl"),
         Map.entry("thymeleaflist",    "thymeleaf-list.html.ftl"),
         Map.entry("thymeleafdetail",  "thymeleaf-detail.html.ftl"),
         Map.entry("thymeleafregist",  "thymeleaf-regist.html.ftl"),
@@ -49,7 +53,8 @@ public class CodeTemplateTool {
             layer 파라미터 — JSP 화면 (viewType=jsp):
               jsplist, jspdetail, jspregist, jspupdt
             layer 파라미터 — Thymeleaf 화면 (viewType=thymeleaf):
-              layouthtml, thymeleaflist, thymeleafdetail, thymeleafregist, thymeleafupdt
+              layouthtml, layoutgnbhtml, layoutlnbhtml, layoutbreadcrumbhtml, layoutfooterhtml,
+              thymeleaflist, thymeleafdetail, thymeleafregist, thymeleafupdt
             """)
     public String getCodeTemplate(String layer) {
         String ftlFile = LAYER_TO_FTL.get(layer.toLowerCase());

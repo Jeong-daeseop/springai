@@ -36,6 +36,10 @@ public class CrudTemplateRenderer {
         LAYER_TEMPLATE_MAP.put("jspRegist",         "jsp-regist.jsp.ftl");
         LAYER_TEMPLATE_MAP.put("jspUpdt",           "jsp-updt.jsp.ftl");
         LAYER_TEMPLATE_MAP.put("layoutHtml",        "layout/default.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutGnbHtml",     "layout/gnb.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutLnbHtml",     "layout/lnb.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutBreadcrumbHtml", "layout/breadcrumb.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutFooterHtml",  "layout/footer.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafList",     "thymeleaf-list.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafDetail",   "thymeleaf-detail.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafRegist",   "thymeleaf-regist.html.ftl");

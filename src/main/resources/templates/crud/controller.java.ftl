@@ -17,7 +17,10 @@ import jakarta.validation.Valid;
 <#else>
 import javax.validation.Valid;
 </#if>
+import java.util.ArrayList;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * ${domainKr} Controller
@@ -54,6 +57,7 @@ public class Egov${domain}Controller {
         List<${domain}VO> ${domainLc}List = ${domainLc}Service.select${domain}List(searchVO);
         model.addAttribute("resultList", ${domainLc}List);
         model.addAttribute("paginationInfo", paginationInfo);
+        populateLayoutModel(model, "crud-list", "${domainKr} 목록");
 
         return "${domainLc}/Egov${domain}List";
     }
@@ -68,6 +72,7 @@ public class Egov${domain}Controller {
 
         ${domain}VO vo = ${domainLc}Service.select${domain}(searchVO);
         model.addAttribute("result", vo);
+        populateLayoutModel(model, "crud-list", "상세");
         return "${domainLc}/Egov${domain}Detail";
     }
 
@@ -79,6 +84,7 @@ public class Egov${domain}Controller {
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
         model.addAttribute("${domainLc}VO", new ${domain}VO());
+        populateLayoutModel(model, "crud-regist", "등록");
         return "${domainLc}/Egov${domain}Regist";
     }
 
@@ -93,6 +99,7 @@ public class Egov${domain}Controller {
             RedirectAttributes redirectAttributes) throws Exception {
 
         if (bindingResult.hasErrors()) {
+            populateLayoutModel(model, "crud-regist", "등록");
             return "${domainLc}/Egov${domain}Regist";
         }
         ${domainLc}Service.insert${domain}(${domainLc}VO);
@@ -110,6 +117,7 @@ public class Egov${domain}Controller {
 
         ${domain}VO vo = ${domainLc}Service.select${domain}(searchVO);
         model.addAttribute("${domainLc}VO", vo);
+        populateLayoutModel(model, "crud-regist", "수정");
         return "${domainLc}/Egov${domain}Updt";
     }
 
@@ -124,6 +132,7 @@ public class Egov${domain}Controller {
             RedirectAttributes redirectAttributes) throws Exception {
 
         if (bindingResult.hasErrors()) {
+            populateLayoutModel(model, "crud-regist", "수정");
             return "${domainLc}/Egov${domain}Updt";
         }
         ${domainLc}Service.update${domain}(${domainLc}VO);
@@ -143,5 +152,35 @@ public class Egov${domain}Controller {
         ${domainLc}Service.delete${domain}(${domainLc}VO);
         redirectAttributes.addFlashAttribute("message", "${domainKr}이(가) 삭제되었습니다.");
         return "redirect:${urlPrefix}List.do";
+    }
+
+    private void populateLayoutModel(ModelMap model, String currentMenuId, String currentPageLabel) {
+        String listUrl = "${urlPrefix}List.do";
+        model.addAttribute("currentMenuId", currentMenuId);
+        model.addAttribute("lnbTitle", "${domainKr} 관리");
+        model.addAttribute("lnbMenus", List.of(
+                menu("crud-list", "목록", listUrl),
+                menu("crud-regist", "등록", "${urlPrefix}RegistView.do")
+        ));
+
+        List<Map<String, String>> breadcrumbs = new ArrayList<>();
+        breadcrumbs.add(crumb("홈", "/"));
+        breadcrumbs.add(crumb("업무관리", "/"));
+        if (!"${domainKr} 목록".equals(currentPageLabel)) {
+            breadcrumbs.add(crumb("${domainKr} 목록", listUrl));
+        }
+        breadcrumbs.add(crumb(currentPageLabel, null));
+        model.addAttribute("breadcrumbs", breadcrumbs);
+    }
+
+    private Map<String, String> menu(String menuId, String label, String url) {
+        return Map.of("menuId", menuId, "label", label, "url", url);
+    }
+
+    private Map<String, String> crumb(String label, String url) {
+        Map<String, String> item = new LinkedHashMap<>();
+        item.put("label", label);
+        item.put("url", url);
+        return item;
     }
 }

@@ -1,0 +1,62 @@
+{
+  "_comment": "masterdetail 템플릿 생성 샘플 변수 — 공정거래 기준 분류 (마스터) + 하위 항목 (디테일)",
+  "_comment2": "Claude / SpringAI MCP 프롬프트에 이 JSON을 그대로 전달하면 됩니다.",
+
+  "mClassLabel" : "공정거래 기준 분류",
+  "mClassVar"   : "masterVO",
+  "mClassName"  : "FtcMaster",
+  "mPackageName": "kr.go.ftc.master",
+  "mMappingUrl" : "/master",
+  "mPkName"     : "masterId",
+
+  "mListFields": [
+    { "name": "masterCode", "label": "코드",   "width": "130px" },
+    { "name": "masterNm",   "label": "명칭" },
+    { "name": "sortOrdr",   "label": "순서",   "width": "60px" }
+  ],
+
+  "mSearchFields": [
+    { "name": "masterCode", "label": "코드" },
+    { "name": "masterNm",   "label": "명칭" }
+  ],
+
+  "mDetailFields": [
+    { "name": "masterCode", "label": "코드" },
+    { "name": "masterNm",   "label": "명칭" },
+    { "name": "sortOrdr",   "label": "순서" },
+    { "name": "deptNm",     "label": "담당부서" },
+    { "name": "masterDc",   "label": "설명" }
+  ],
+
+  "mFormFields": [
+    { "name": "masterCode", "label": "코드",     "type": "text",   "required": "Y" },
+    {
+      "name": "useAt", "label": "상태", "type": "select", "required": "Y",
+      "options": [
+        { "value": "Y", "label": "사용" },
+        { "value": "N", "label": "중지" }
+      ]
+    },
+    { "name": "masterNm",   "label": "명칭",     "type": "text",     "required": "Y" },
+    { "name": "sortOrdr",   "label": "순서",     "type": "number",   "required": "N" },
+    { "name": "deptNm",     "label": "담당부서", "type": "text",     "required": "N" },
+    { "name": "masterDc",   "label": "설명",     "type": "textarea", "required": "N" }
+  ],
+
+  "dClassLabel" : "하위 항목",
+  "dClassVar"   : "detailVO",
+  "dClassName"  : "FtcDetail",
+  "dPackageName": "kr.go.ftc.detail",
+  "dMappingUrl" : "/detail",
+  "dPkName"     : "detailId",
+
+  "dListFields": [
+    { "name": "detailCode", "label": "디테일 코드", "width": "130px" },
+    { "name": "detailNm",   "label": "디테일 명칭" },
+    { "name": "sortOrdr",   "label": "순서",        "width": "60px" }
+  ],
+
+  "isUpdate": false,
+
+  "_sample_prompt": "다음 변수로 마스터-디테일 목록 Thymeleaf 템플릿을 생성해줘: mClassLabel=공정거래기준분류, mMappingUrl=/master ..."
+}

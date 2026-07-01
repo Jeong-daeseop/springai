@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<!--
+  ============================================================
+  FTC 스타일 GNB 프래그먼트
+  egov-boot-web 적용 경로:
+    src/main/resources/templates/layout/gnb.html
+
+  Controller 에서 model 에 담아야 할 값:
+    - gnbMenus : List<GnbMenuVO>
+        GnbMenuVO { id, label, url, children: List<{label,url,sub?:List}> }
+    - currentMenuId : String (현재 활성 메뉴 id)
+  ============================================================
+-->
+<body>
+<div th:fragment="gnb"
+     style="font-family:'Pretendard GOV Variable',-apple-system,sans-serif;position:sticky;top:0;z-index:500;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+  <!-- ── 상단 유틸리티 바 ── -->
+  <div style="background:#083891;height:36px;display:flex;align-items:center;">
+    <div style="max-width:1200px;margin:0 auto;padding:0 24px;width:100%;display:flex;align-items:center;justify-content:space-between;">
+      <!-- 기관명 -->
+      <span style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.85);">공정거래위원회</span>
+      <!-- 유틸리티 링크 -->
+      <div style="display:flex;align-items:center;gap:0;">
+        <a href="#" style="font-size:12px;color:rgba(255,255,255,0.75);padding:0 12px;border-right:1px solid rgba(255,255,255,0.2);line-height:36px;">사이트맵</a>
+        <a href="#" style="font-size:12px;color:rgba(255,255,255,0.75);padding:0 12px;border-right:1px solid rgba(255,255,255,0.2);line-height:36px;">이용안내</a>
+        <div style="position:relative;display:inline-block;">
+          <button id="langBtn"
+                  style="font-size:12px;color:rgba(255,255,255,0.75);padding:0 12px;border:none;background:none;cursor:pointer;line-height:36px;font-family:inherit;display:flex;align-items:center;gap:4px;">
+            🌐 ENGLISH
+            <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="rgba(255,255,255,0.75)" stroke-width="1.5"/></svg>
+          </button>
+          <div id="langMenu"
+               style="display:none;position:absolute;right:0;top:36px;background:#fff;border:1px solid #e8eaec;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.12);min-width:120px;z-index:600;">
+            <a href="#" style="display:block;padding:9px 16px;font-size:13px;color:#1e2124;">한국어</a>
+            <a href="#" style="display:block;padding:9px 16px;font-size:13px;color:#1e2124;border-top:1px solid #f0f1f3;">ENGLISH</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 헤더 (로고 + 검색) ── -->
+  <div style="background:#fff;border-bottom:1px solid #e8eaec;">
+    <div style="max-width:1200px;margin:0 auto;padding:0 24px;height:80px;display:flex;align-items:center;justify-content:space-between;">
+      <!-- 로고 -->
+      <a th:href="@{/}" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+        <span style="width:44px;height:44px;background:#083891;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;">
+          <span style="width:18px;height:18px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+            <span style="width:8px;height:8px;background:#256ef4;border-radius:50%;"></span>
+          </span>
+        </span>
+        <div>
+          <div style="font-size:18px;font-weight:800;color:#083891;line-height:1.2;">공정거래위원회</div>
+          <div style="font-size:11px;color:#8a949e;letter-spacing:0.05em;">FAIR TRADE COMMISSION</div>
+        </div>
+      </a>
+      <!-- 통합검색 -->
+      <form th:action="@{/search/total}" method="get"
+            style="display:flex;align-items:center;gap:0;border:2px solid #083891;border-radius:4px;overflow:hidden;height:40px;">
+        <input type="text" name="searchKeyword" placeholder="통합검색"
+               style="width:220px;padding:0 14px;border:none;font-size:14px;font-family:inherit;outline:none;color:#1e2124;">
+        <button type="submit"
+                style="width:42px;height:40px;background:#083891;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="#fff" stroke-width="2"><circle cx="8" cy="8" r="5.5"/><line x1="12.5" y1="12.5" x2="16" y2="16"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── GNB 내비게이션 ── -->
+  <nav id="gnb" style="background:#fff;border-bottom:2px solid #256ef4;position:relative;">
+    <div style="max-width:1200px;margin:0 auto;padding:0 24px;display:flex;">
+
+      <!-- 메뉴 목록 (DB or 정적 설정) -->
+      <ul style="display:flex;gap:0;list-style:none;margin:0;padding:0;width:100%;">
+
+        <!-- th:each로 GNB 메뉴 루프 (gnbMenus = List<GnbMenuVO>) -->
+        <li th:each="menu : ${gnbMenus}"
+            class="gnb-item"
+            th:classappend="${menu.id == currentMenuId} ? ' gnb-active' : ''"
+            style="position:relative;flex:1;">
+          <a th:href="${menu.url}"
+             th:text="${menu.label}"
+             style="display:flex;align-items:center;justify-content:center;gap:4px;height:50px;font-size:15px;font-weight:600;color:#1e2124;text-decoration:none;white-space:nowrap;padding:0 8px;transition:color 0.15s;"
+             th:style="${menu.id == currentMenuId} ? 'color:#256ef4;border-bottom:3px solid #256ef4;' : ''">
+            메뉴
+            <svg th:if="${not #lists.isEmpty(menu.children)}"
+                 width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5"/></svg>
+          </a>
+
+          <!-- 드롭다운 메가메뉴 패널 -->
+          <div th:if="${not #lists.isEmpty(menu.children)}"
+               class="mega-panel"
+               style="display:none;position:absolute;left:50%;transform:translateX(-50%);top:100%;background:#fff;border:1px solid #e8eaec;border-top:2px solid #256ef4;box-shadow:0 8px 24px rgba(0,0,0,0.1);z-index:400;min-width:640px;">
+            <div style="display:flex;">
+              <!-- 1단: 카테고리 -->
+              <ul class="mega-cat" style="width:200px;padding:12px 0;border-right:1px solid #f0f1f3;list-style:none;margin:0;">
+                <li th:each="child, cStat : ${menu.children}"
+                    class="mega-cat-item"
+                    th:attr="data-idx=${cStat.index}"
+                    style="cursor:pointer;">
+                  <a th:href="${child.url}"
+                     th:text="${child.label}"
+                     style="display:flex;align-items:center;justify-content:space-between;padding:11px 20px;font-size:14px;color:#1e2124;text-decoration:none;transition:background 0.1s;">
+                    카테고리
+                  </a>
+                </li>
+              </ul>
+              <!-- 2단: 서브메뉴 -->
+              <div class="mega-sub-wrap" style="flex:1;padding:20px 24px;">
+                <div th:each="child, cStat : ${menu.children}"
+                     class="mega-sub"
+                     th:attr="data-idx=${cStat.index}"
+                     th:style="${cStat.first} ? '' : 'display:none'">
+                  <div th:text="${child.label}"
+                       style="font-size:15px;font-weight:700;color:#083891;margin-bottom:14px;"></div>
+                  <ul th:if="${not #lists.isEmpty(child.sub)}"
+                      style="display:flex;flex-wrap:wrap;gap:10px 0;list-style:none;margin:0;padding:0;">
+                    <li th:each="sub : ${child.sub}" style="width:25%;">
+                      <a th:href="${sub.url}"
+                         th:text="'· ' + ${sub.label}"
+                         style="font-size:13px;color:#464c53;text-decoration:none;padding:4px 0;display:block;transition:color 0.1s;"></a>
+                    </li>
+                  </ul>
+                  <div th:if="${#lists.isEmpty(child.sub)}"
+                       style="font-size:13px;color:#8a949e;">하위 메뉴가 없습니다.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </li>
+
+      </ul>
+    </div>
+
+    <!-- 딤 오버레이 (메가메뉴 오픈 시) -->
+    <div id="gnb-dim" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;z-index:300;pointer-events:none;"></div>
+  </nav>
+
+</div>
+
+<!-- GNB 스크립트 -->
+<script>
+(function() {
+  var items     = document.querySelectorAll('.gnb-item');
+  var dim       = document.getElementById('gnb-dim');
+  var activeItem = null;
+
+  function openPanel(item) {
+    if (activeItem && activeItem !== item) closePanel(activeItem);
+    var panel = item.querySelector('.mega-panel');
+    if (!panel) return;
+    panel.style.display = 'block';
+    dim.style.display = 'block';
+    activeItem = item;
+    // 1단 첫번째 활성
+    activateCat(item, 0);
+  }
+
+  function closePanel(item) {
+    var panel = item && item.querySelector('.mega-panel');
+    if (panel) panel.style.display = 'none';
+    dim.style.display = 'none';
+    activeItem = null;
+  }
+
+  function activateCat(item, idx) {
+    var cats = item.querySelectorAll('.mega-cat-item');
+    var subs = item.querySelectorAll('.mega-sub');
+    cats.forEach(function(c, i) {
+      c.style.background   = i === idx ? '#eef3fe' : '';
+      c.style.borderLeft   = i === idx ? '3px solid #256ef4' : '3px solid transparent';
+      c.querySelector('a').style.color     = i === idx ? '#256ef4' : '#1e2124';
+      c.querySelector('a').style.fontWeight = i === idx ? '700' : '400';
+    });
+    subs.forEach(function(s, i) { s.style.display = i === idx ? '' : 'none'; });
+  }
+
+  items.forEach(function(item) {
+    item.addEventListener('mouseenter', function() { openPanel(item); });
+    item.addEventListener('mouseleave', function() { closePanel(item); });
+
+    item.querySelectorAll('.mega-cat-item').forEach(function(cat) {
+      cat.addEventListener('mouseenter', function() {
+        activateCat(item, parseInt(cat.getAttribute('data-idx')));
+      });
+    });
+  });
+
+  // 서브메뉴 링크 hover
+  document.querySelectorAll('.mega-sub a').forEach(function(a) {
+    a.addEventListener('mouseenter', function() { a.style.color = '#256ef4'; });
+    a.addEventListener('mouseleave', function() { a.style.color = '#464c53'; });
+  });
+
+  // 언어 드롭다운
+  var langBtn  = document.getElementById('langBtn');
+  var langMenu = document.getElementById('langMenu');
+  if (langBtn) {
+    langBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      langMenu.style.display = langMenu.style.display === 'block' ? 'none' : 'block';
+    });
+    document.addEventListener('click', function() { langMenu.style.display = 'none'; });
+  }
+})();
+</script>
+</body>
+</html>

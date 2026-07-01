@@ -247,19 +247,26 @@ public class CrudPromptBuilderService {
             sb.append("- JSP 파일은 생성하지 말고 Thymeleaf HTML 파일을 생성하세요.\n");
             sb.append("- 공통 레이아웃 파일을 먼저 생성하세요.\n");
             sb.append("  경로: src/main/resources/templates/layout/default.html\n");
-            sb.append("  내용: Bootstrap 5.3.3 CDN + Bootstrap Icons 1.11.3 CDN + /resources/css/krds.min.css 링크,\n");
-            sb.append("        고정 상단 헤더(52px), 좌측 사이드바(220px), layout:fragment=\"content\" 슬롯 포함.\n");
+            sb.append("  내용: /resources/css/styles.css 링크 + /resources/js/krds.min.js 스크립트,\n");
+            sb.append("        KRDS GNB/콘텐츠 레이아웃, layout:fragment=\"content\" 슬롯 포함.\n");
             sb.append("  xmlns:layout=\"http://www.ultraq.net.nz/thymeleaf/layout\" 네임스페이스 선언 필수.\n");
+            sb.append("- 아래 partial 레이아웃 파일도 함께 생성하세요.\n");
+            sb.append("  경로: src/main/resources/templates/layout/gnb.html, layout/lnb.html, layout/breadcrumb.html, layout/footer.html\n");
+            sb.append("  default.html은 th:replace로 partial을 조합하고, 화면 템플릿은 breadcrumb partial을 재사용하세요.\n");
+            sb.append("- Controller는 각 Thymeleaf 화면 진입 전에 아래 모델 속성을 공통으로 설정하세요.\n");
+            sb.append("  lnbTitle, lnbMenus, breadcrumbs, currentMenuId\n");
+            sb.append("  breadcrumbs는 label/url 구조 리스트, lnbMenus는 menuId/label/url 구조 리스트로 구성하세요.\n");
             sb.append("- 화면 파일(목록/상세/등록/수정) 경로: src/main/resources/templates/{{DOMAIN_LC}}/Egov{{DOMAIN}}*.html\n");
             sb.append("- 각 화면 파일 최상단에 layout:decorate=\"~{layout/default}\" 선언 필수.\n");
             sb.append("- 콘텐츠는 <th:block layout:fragment=\"content\"> 블록으로 감싸세요.\n");
             sb.append("- JSTL, form taglib, <c:url>, <ui:pagination>은 사용하지 마세요.\n");
             sb.append("- Thymeleaf 문법 th:*, @{...}, ${...}, *{...}를 사용하세요.\n");
-            sb.append("- 정적 리소스 경로는 /resources/css/, /resources/js/ 형식을 유지하세요 (WAR 기준).\n");
+            sb.append("- 정적 리소스 경로는 /resources/css/, /resources/js/ 형식을 유지하세요.\n");
+            sb.append("  WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되지만 URL은 /resources/** 로 동일하게 유지합니다.\n");
             sb.append("- 페이지네이션은 #numbers.sequence(paginationInfo.firstPageNoOnPageList, paginationInfo.lastPageNoOnPageList)로 생성하세요.\n");
             sb.append("- 목록 검색 폼은 method=\"get\"을 사용하세요.\n");
             sb.append("- 등록·수정·삭제 후에는 redirect: + RedirectAttributes.addFlashAttribute(\"message\", ...) PRG 패턴을 사용하세요.\n");
-            sb.append("- 상단 flash 메시지 출력: th:if=\"${message}\" Bootstrap alert 박스.\n\n");
+            sb.append("- 상단 flash 메시지 출력: th:if=\"${message}\" + role=\"alert\" 구조. krds-alert는 확인된 공식 클래스가 아니므로 확정 사용하지 마세요.\n\n");
         }
     }
 

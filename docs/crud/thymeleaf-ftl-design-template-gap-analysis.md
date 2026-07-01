@@ -88,9 +88,9 @@ Design Templates는 `GnbNav.dc.html` 별도 컴포넌트(조직별 메뉴), "소
 | 검색 박스 | 구분 탭 + select + input + 기간 설정 | △ select + input + 검색/초기화, 구분 탭·기간 설정 없음 |
 | 건수 + 페이지당 건수 select | 총건수 + "10개/20개/30개/50개" | △ 총건수만, select 없음 |
 | 테이블 컬럼 | 번호/구분배지/제목/담당부서/등록일/첨부아이콘 | △ listFields 루프로 유동적 |
-| 구분(카테고리) 배지 | 파란 pill 배지 | △ 현재 미구현 (템플릿 마크업 이식 가능, 카테고리 데이터 필요) |
-| 첨부 아이콘 컬럼 | 다운로드 SVG 아이콘 | △ 현재 미구현 (템플릿 마크업 이식 가능, 첨부 존재 데이터 필요) |
-| Empty State | 텍스트 메시지 | △ 텍스트만 |
+| 구분(카테고리) 배지 | 파란 pill 배지 | △ `noticeAt` 후보는 배지 렌더링 구현, 일반 카테고리 후보 규칙은 추가 필요 |
+| 첨부 아이콘 컬럼 | 다운로드 SVG 아이콘 | ✅ Board는 `hasFile`/`atchFileId` 기반 구현, 일반 CRUD는 데이터 모델 필요 |
+| Empty State | 텍스트 메시지 | ✅ SVG 아이콘 + 메시지 구현 |
 | 페이지네이션 | 숫자 버튼 직접 구조 (… 포함) | △ `krds-pagination` 구조 다름 |
 | Footer | 상세 Footer | △ inline styled generic footer |
 
@@ -122,9 +122,9 @@ Design Template이 존재하지 않는다.
 | 페이지 타이틀 | h1 + URL복사/프린트 버튼 | △ h1 + 등록 버튼, URL복사·프린트 없음 |
 | 검색 박스 | select + input + 검색/초기화 | △ `krds-form-select` + `krds-input` + 버튼 |
 | 건수 + 페이지당 건수 select | 총건수 + "10개/20개/30개" | △ 총건수만, select 없음 |
-| 공지 고정 행 | 파란 "공지" 배지 행 별도 렌더 | △ 현재 미구현 (공지 여부 데이터와 별도 렌더 규칙 필요) |
-| 첨부 아이콘 컬럼 | 다운로드 SVG 아이콘 컬럼 | △ 현재 미구현 (템플릿 마크업 이식 가능, 첨부 존재 데이터 필요) |
-| Empty State | 텍스트 메시지 | △ 텍스트만 |
+| 공지 고정 행 | 파란 "공지" 배지 행 별도 렌더 | ✅ `noticeAtExists` + `item.noticeAt == 'Y'` 기준 구현 |
+| 첨부 아이콘 컬럼 | 다운로드 SVG 아이콘 컬럼 | ✅ `hasFile` + `atchFileId` 기준 구현 |
+| Empty State | 텍스트 메시지 | ✅ SVG 아이콘 + 메시지 구현 |
 | 페이지네이션 | 숫자 버튼 직접 구조 | △ `krds-pagination` 구조 다름 |
 | Footer | 상세 Footer | △ inline styled generic footer |
 
@@ -137,8 +137,8 @@ Design Template이 존재하지 않는다.
 | 브레드크럼 | SVG 홈 아이콘 + 링크 | △ `krds-breadcrumb-wrap`, SVG 없음 |
 | 페이지 타이틀 | h1 + URL복사/프린트 + 목록/수정 버튼 | △ h1 + 목록·수정 버튼, URL복사·프린트 없음 |
 | 게시글 정보 테이블 | 4컬럼 정의 테이블 (번호·카테고리, 제목, 작성자·담당부서, 등록일·조회수) | △ fields 루프, 컬럼 구조 다름 |
-| 첨부파일 행 | 파일명·용량 다운로드 링크 | △ `atchFileId`만, 실제 파일 링크 없음 |
-| 이전글/다음글 네비게이션 | 이전글·다음글 링크 블록 | △ 현재 미구현 (이전/다음 데이터 조회 로직 필요) |
+| 첨부파일 행 | 파일명·용량 다운로드 링크 | △ 첨부 영역 구조와 다운로드 링크 구현, 실제 파일명·용량 목록 조회는 추가 필요 |
+| 이전글/다음글 네비게이션 | 이전글·다음글 링크 블록 | ✅ prevPost/nextPost 구현 (Mapper selectPrev/Next + Service + Controller + FTL nav 블록) |
 | 하단 버튼 | 목록(좌) / 수정·삭제(우) | △ 배치 다름 |
 
 ### FtcBoardForm.dc.html vs board/thymeleaf-regist.html.ftl / thymeleaf-updt.html.ftl
@@ -149,7 +149,7 @@ Design Template이 존재하지 않는다.
 | LNB | "소식·뉴스" 카테고리 메뉴 | △ `data-layout-sidebar` generic |
 | 카테고리 select | 카테고리 + 유효성 오류 메시지 | △ 현재 미구현 (formFields 확장 또는 Board 전용 필드 규칙 필요) |
 | 공개여부 radio | 공개/비공개 라디오 | △ 현재 미구현 (Board 전용 필드 규칙 필요) |
-| 내용 textarea | 대형 textarea + 글자수 카운터 | △ 현재 미구현 (`textarea` 타입/글자수 스크립트 규칙 추가 필요) |
+| 내용 textarea | 대형 textarea + 글자수 카운터 | △ `nttCn` textarea 구현, 글자수 카운터는 추가 필요 |
 | 첨부파일 드래그 업로드 | 드래그존 + 파일 목록 + 삭제 | △ 현재 미구현 (파일 업로드 컴포넌트와 백엔드 처리 필요) |
 | 저장 성공 토스트 | fixed 위치 토스트 알림 | △ 현재 미구현 (토스트 UI/스크립트 추가 가능) |
 | 버튼 배치 | 취소·저장 중앙 정렬 | △ `krds-btn` 우측 정렬 |
@@ -160,14 +160,14 @@ Design Template이 존재하지 않는다.
 |---|---|---|
 | GNB | `GnbNav.dc.html` | △ `krds-main-menu` generic |
 | LNB | 업무 메뉴 | △ `data-layout-sidebar` generic |
-| 체크박스 컬럼 + 전체 선택 | 행마다 체크박스, 헤더 전체 선택 | △ 현재 미구현 (선택 상태 관리와 일괄 동작 스크립트 필요) |
-| 상태 배지 컬럼 | 사용/중지 pill 배지 | △ 현재 미구현 (상태값 매핑 규칙 필요) |
+| 체크박스 컬럼 + 전체 선택 | 행마다 체크박스, 헤더 전체 선택 | ✅ `.row-check` + `#checkAll` 전체선택 + `toggleAll()` JS 구현 |
+| 상태 배지 컬럼 | 사용/중지 pill 배지 | ✅ `useAt/useYn/sttus/status/activeYn` 후보 탐지 → 사용(녹)/중지(적) pill 구현 |
 | 페이지당 건수 select | "10개/20개/50개" | △ 현재 미구현 (pageUnit 바인딩/UI 추가 가능) |
-| 선택 삭제(일괄) | 체크된 행 선택삭제 버튼 | △ 현재 미구현 (일괄삭제 엔드포인트/스크립트 필요) |
+| 선택 삭제(일괄) | 체크된 행 선택삭제 버튼 | ✅ 일괄삭제 UI + JS 구현. `${urlPrefix}BulkDelete.do` 엔드포인트는 별도 구현 필요 |
 | 행 수정·삭제 버튼 | 행마다 수정·삭제 인라인 버튼 | △ 수정·삭제 있음, 아이콘·스타일 다름 |
-| Empty State | SVG 아이콘 + 메시지 | △ 텍스트만 |
-| 삭제 확인 모달 | 모달 다이얼로그 | △ `confirm()` 팝업 |
-| 삭제 완료 토스트 | fixed 토스트 알림 | △ 현재 미구현 (토스트 UI/스크립트 추가 가능) |
+| Empty State | SVG 아이콘 + 메시지 | ✅ SVG 아이콘 + 메시지 구현 |
+| 삭제 확인 모달 | 모달 다이얼로그 | ✅ native `<dialog>` 행별 모달 + 일괄삭제 모달 구현 |
+| 삭제 완료 토스트 | fixed 토스트 알림 | ✅ fixed 위치 토스트 (3초 자동 사라짐) |
 
 ### FtcCrudDetail.dc.html vs masterdetail/thymeleaf-detail.html.ftl
 
@@ -176,12 +176,12 @@ Design Template이 존재하지 않는다.
 | GNB | `GnbNav.dc.html` | △ `krds-main-menu` generic |
 | LNB | 업무 메뉴 | △ `data-layout-sidebar` generic |
 | 마스터 정보 테이블 | 4컬럼 구조 (코드·상태, 명칭, 등록일·수정일, 등록자·담당부서, 설명) | △ fields 루프, 컬럼 구조 다름 |
-| 상태 배지 | 사용/중지 pill 배지 | △ 현재 미구현 (상태값 매핑 규칙 필요) |
+| 상태 배지 | 사용/중지 pill 배지 | ✅ 마스터 fields 루프에서 상태 후보 탐지 → pill 배지 구현 |
 | 디테일 목록 컬럼 | 번호·코드·명칭·순서·상태·등록일·관리 (고정 7컬럼) | △ detailFields 루프, 컬럼 유동적 |
-| 디테일 행 상태 배지 | 사용/중지 pill 배지 per row | △ 현재 미구현 (상태값 매핑 규칙 필요) |
-| 디테일 총건수 표시 | "총 N건" | △ 현재 미구현 (집계값 렌더링 추가 가능) |
-| 삭제 확인 모달 | 모달 다이얼로그 (마스터/디테일 각각) | △ `confirm()` 팝업 |
-| 토스트 알림 | fixed 토스트 | △ 현재 미구현 (토스트 UI/스크립트 추가 가능) |
+| 디테일 행 상태 배지 | 사용/중지 pill 배지 per row | ✅ 디테일 fields 루프에서 상태 후보 탐지 → pill 배지 구현 |
+| 디테일 총건수 표시 | "총 N건" | ✅ `'총 ' + ${#lists.size(detailList)} + '건'` 렌더링 구현 |
+| 삭제 확인 모달 | 모달 다이얼로그 (마스터/디테일 각각) | ✅ native `<dialog>` 삭제 모달 구현 |
+| 토스트 알림 | fixed 토스트 | ✅ fixed 위치 토스트 (3초 자동 사라짐) |
 | 하단 버튼 배치 | 목록(좌) / 수정·삭제(우) | △ 배치 다름 |
 
 ---
@@ -236,13 +236,13 @@ Design Templates는 인라인 스타일 기반이다.
 | `krds-breadcrumb-wrap` 전환 | ✅ 완료 |
 | `krds-btn` / `krds-input` / `krds-form-select` / `krds-pagination` | ✅ 완료 |
 | `data-row-link` 행 클릭 | ✅ 완료 |
-| Board 공지 고정 행 / 첨부 아이콘 컬럼 | △ 현재 미구현 |
-| Board textarea / 파일 업로드 | △ 현재 미구현 |
-| 이전글/다음글 네비게이션 | △ 현재 미구현 |
-| MasterDetail 체크박스·일괄삭제·상태 배지 | △ 현재 미구현 |
-| 삭제 확인 모달 (전체) | △ `confirm()` 팝업 |
-| 저장·삭제 토스트 알림 (전체) | △ 현재는 리다이렉트 방식 |
-| GNB/LNB 업무별 메뉴 | △ generic "업무관리" |
+| Board 공지 고정 행 / 첨부 아이콘 컬럼 | ✅ 구현 |
+| Board textarea / 파일 업로드 | △ textarea 구현, 파일 업로드 미구현 |
+| 이전글/다음글 네비게이션 | ✅ 구현 (Board Detail: Mapper + Service + Controller + FTL 6개 파일) |
+| MasterDetail 체크박스·일괄삭제·상태 배지 | ✅ 체크박스 UI + 상태 배지 구현. 일괄삭제 UI 구현, `BulkDelete.do` 엔드포인트 별도 필요 |
+| 삭제 확인 모달 (전체) | ✅ native `<dialog>` 모달로 전환 |
+| 저장·삭제 토스트 알림 (전체) | ✅ fixed 위치 토스트 (3초 자동 사라짐) |
+| GNB/LNB 업무별 메뉴 | ✅ 구현 (GNB: `${domainKr}` + `${urlPrefix}` active, LNB: 도메인 링크 + Thymeleaf 활성 탐지) |
 
 ---
 
@@ -297,21 +297,21 @@ Design Template 마크업만 이식하면 되는 항목, 생성 모델에 필드
 
 | 항목 | 구현 난이도 | 처리 단계 |
 |---|---|---|
-| Board 공지 배지/고정 행 | 낮음 (FTL + 기존 `noticeAtExists` 활용) | Phase 0 |
-| Board 첨부 아이콘 컬럼 | 낮음 (FTL + 기존 `hasFile`, `atchFileId` 활용) | Phase 0 |
-| Board `NTT_CN` textarea | 낮음~중간 (FTL 조건 분기 + 필드 후보 규칙) | Phase 0 |
-| Board 상세 첨부파일 영역 구조 | 낮음 (현재 `atchFileId` 기반 표시 구조 개선) | Phase 0 |
-| Empty State SVG / 버튼 배치 | 낮음 (마크업 이식) | Phase 0 |
-| Flash message 토스트 | 낮음~중간 (FTL + JS) | Phase 0 |
+| Board 공지 배지/고정 행 | 낮음 (FTL + 기존 `noticeAtExists` 활용) | Phase 0 완료 |
+| Board 첨부 아이콘 컬럼 | 낮음 (FTL + 기존 `hasFile`, `atchFileId` 활용) | Phase 0 완료 |
+| Board `NTT_CN` textarea | 낮음~중간 (FTL 조건 분기 + 필드 후보 규칙) | Phase 0 완료 |
+| Board 상세 첨부파일 영역 구조 | 낮음 (현재 `atchFileId` 기반 표시 구조 개선) | Phase 0 완료 |
+| Empty State SVG / 버튼 배치 | 낮음 (마크업 이식) | Phase 0 일부 완료 |
+| Flash message 토스트 | 낮음~중간 (FTL + JS) | Phase 0 완료 |
 | 페이지당 건수 select | 중간 (FTL + Controller pageUnit 처리) | Phase 1 |
-| Board 이전글/다음글 | 중간 (Mapper + Service + Controller + FTL) | Phase 1 |
+| Board 이전글/다음글 | 중간 (Mapper + Service + Controller + FTL) | Phase 1 완료 |
 | Board 실제 다운로드 목록 | 중간~높음 (COMTNFILEDETAIL 조회 + 다운로드 URL) | Phase 1 |
-| MasterDetail 상태 배지 | 중간 (상태 필드 후보 탐지 + FTL) | Phase 1 |
-| MasterDetail 체크박스 UI | 중간 (FTL + JS) | Phase 1 |
-| MasterDetail 일괄삭제 | 중간 (SQL + Controller + FTL) | Phase 1 |
-| 삭제 확인 모달 | 중간 (FTL + JS, 접근성 처리) | Phase 1 |
+| MasterDetail 상태 배지 | 중간 (상태 필드 후보 탐지 + FTL) | Phase 1 완료 |
+| MasterDetail 체크박스 UI | 중간 (FTL + JS) | Phase 1 완료 |
+| MasterDetail 일괄삭제 | 중간 (SQL + Controller + FTL) | Phase 1 일부 완료 (UI + JS; BulkDelete.do 엔드포인트 미구현) |
+| 삭제 확인 모달 | 중간 (FTL + JS, 접근성 처리) | Phase 1 완료 |
 | Board 파일 업로드 | 높음 (eGovFrame 공통 컴포넌트/파일 테이블 연동) | Phase 2 |
-| GNB/LNB 업무별 메뉴 | 높음 | 생성 후 수동 수정 |
+| GNB/LNB 업무별 메뉴 | 높음 | Phase 1 완료 (Board layout 신규 생성 포함) |
 
 Phase 0은 현재 생성 구조를 크게 바꾸지 않고 Design Template 체감 차이를 줄이는 범위다.
 Phase 1은 생성되는 Java/Mapper 또는 모델 후보 규칙까지 같이 바꾸는 범위다.
@@ -319,13 +319,14 @@ Phase 2는 파일 저장 정책, 공통 컴포넌트, 운영 환경 설정까지
 
 ### 권장 구현 순서
 
-1. Board 목록: 공지 배지, 첨부 아이콘 컬럼, empty state SVG를 먼저 반영한다.
-2. Board 상세: `atchFileId` 표시를 파일 목록 영역 구조로 바꾸고, 실제 `fileList` 연동은 후속으로 분리한다.
-3. Board 폼: `NTT_CN` textarea, `USE_AT`/공개여부 radio, 카테고리 select 후보 필드 렌더링을 추가한다.
-4. 공통 list: 페이지당 건수 select와 버튼/페이지 타이틀 배치를 Design Template에 맞춘다.
-5. MasterDetail 목록/상세: 상태 필드 후보 탐지 후 상태 배지와 체크박스 UI를 추가한다.
-6. 기능 확장: 파일 업로드, 이전글/다음글, 일괄삭제, 모달, 토스트를 Java/Mapper/JS 단위로 구현한다.
-7. 레이아웃: GNB/LNB/Footer를 업무별 Design Template 구조로 분리한다.
+1. ✅ Board 목록: 공지 배지, 첨부 아이콘 컬럼, empty state SVG 반영 완료.
+2. ✅ Board 상세: `atchFileId` 기반 첨부파일 영역 + 이전글/다음글 네비게이션 구현 완료. 실제 `fileList` 연동은 후속 분리.
+3. ✅ 토스트 / 삭제 확인 모달: 전체 FTL(CRUD/Board/MasterDetail) native `<dialog>` + fixed toast 전환 완료.
+4. ✅ MasterDetail 목록/상세: 상태 배지, 체크박스 UI, 일괄삭제 UI, 총건수 표시 구현 완료. `BulkDelete.do` 엔드포인트는 후속.
+5. Board 폼: `NTT_CN` textarea는 반영 완료. `USE_AT`/공개여부 radio, 카테고리 select, 저장 성공 토스트 추가 필요.
+6. 공통 list: 페이지당 건수 select와 페이지 타이틀 버튼 배치를 Design Template에 맞춘다.
+7. 기능 확장: 파일 업로드, 실제 다운로드 목록(COMTNFILEDETAIL), `BulkDelete.do` 엔드포인트를 Java/Mapper 단위로 구현.
+8. 레이아웃: GNB/LNB/Footer를 업무별 Design Template 구조로 분리한다.
 
 ### 최소 변경안
 
@@ -354,3 +355,11 @@ Phase 2는 파일 저장 정책, 공통 컴포넌트, 운영 환경 설정까지
 | 레이아웃 2개 krds-main-menu / data-layout-sidebar / inline footer 전환 | 2026-07-01 |
 | 레이아웃 2개 styles.css 링크 적용 | 2026-07-01 |
 | FilePlanFactory, ProjectValidator, Tool 설명 styles.css 기준 변경 | 2026-07-01 |
+| CRUD list/detail Flash toast 전환 (fixed 위치, 3초 자동 사라짐) | 2026-07-01 |
+| Board list/detail Flash toast 전환 | 2026-07-01 |
+| MasterDetail list/detail Flash toast 전환 | 2026-07-01 |
+| CRUD detail / Board detail / MasterDetail list·detail 삭제 확인 native `<dialog>` 모달 전환 | 2026-07-01 |
+| Board 이전글/다음글 네비게이션 구현 (mapper.xml·java·service·service-impl·controller·detail FTL) | 2026-07-01 |
+| MasterDetail 목록 체크박스 UI + 상태 배지 + 일괄삭제 UI (BulkDelete.do 엔드포인트 제외) | 2026-07-01 |
+| MasterDetail 상세 마스터·디테일 상태 배지 + 디테일 총건수 표시 | 2026-07-01 |
+| GNB/LNB 업무별 분리: CRUD·MasterDetail 레이아웃 FTL 변수화, Board layout 신규 생성 | 2026-07-01 |

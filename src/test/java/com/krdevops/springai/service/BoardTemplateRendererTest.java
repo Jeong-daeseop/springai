@@ -29,6 +29,10 @@ class BoardTemplateRendererTest {
             "NTT_SJ", "nttSj", "String", "제목", false, true, true, 255, "VARCHAR");
     private static final FieldModel NTT_CN = new FieldModel(
             "NTT_CN", "nttCn", "String", "내용", false, false, true, 2000, "VARCHAR");
+    private static final FieldModel NOTICE_AT = new FieldModel(
+            "NOTICE_AT", "noticeAt", "String", "공지여부", false, false, true, 1, "VARCHAR");
+    private static final FieldModel ATCH_FILE_ID = new FieldModel(
+            "ATCH_FILE_ID", "atchFileId", "String", "첨부파일ID", false, false, true, 20, "VARCHAR");
 
     private BoardTemplateModel model() {
         return new BoardTemplateModel(
@@ -57,6 +61,33 @@ class BoardTemplateRendererTest {
         );
     }
 
+    private BoardTemplateModel modelWithNoticeAndFile() {
+        return new BoardTemplateModel(
+                "egovframework.let.bbs",
+                "Bbs",
+                "bbs",
+                "BBS",
+                "COMTNBBS",
+                "COMTNBBSMASTER",
+                "COMTNBBSUSE",
+                "/bbs/bbs",
+                "2026-06-22",
+                "5.0",
+                true,
+                BBS_ID,
+                NTT_ID,
+                true,
+                ATCH_FILE_ID,
+                "COMTNFILEDETAIL",
+                List.of(BBS_ID, NTT_ID, NOTICE_AT, NTT_SJ, NTT_CN, ATCH_FILE_ID),
+                List.of(NOTICE_AT, NTT_SJ),
+                List.of(BBS_ID, NTT_ID, NOTICE_AT, NTT_SJ, NTT_CN, ATCH_FILE_ID),
+                List.of(NTT_SJ, NTT_CN, ATCH_FILE_ID),
+                List.of(),
+                true
+        );
+    }
+
     // ─── layoutHtml ───────────────────────────────────────────────────────────
 
     @Test
@@ -64,8 +95,10 @@ class BoardTemplateRendererTest {
         String result = renderer.renderByLayerKey("layoutHtml", model());
 
         assertThat(result).doesNotContain("<#");
-        assertThat(result).contains("${#authentication?.name ?: '관리자'}");
-        assertThat(result).contains("${#httpServletRequest != null and #httpServletRequest.requestURI != null and #httpServletRequest.requestURI.contains('/cop/emp/')}");
+        assertThat(result).doesNotContain("egov-");
+        assertThat(result).contains("layout/gnb");
+        assertThat(result).contains("layout/lnb");
+        assertThat(result).contains("layout/footer");
     }
 
     @Test
@@ -76,10 +109,41 @@ class BoardTemplateRendererTest {
     }
 
     @Test
-    void layoutHtml_containsBootstrapCdn() {
+    void layoutHtml_containsEgovFrameLayoutShell() {
         String result = renderer.renderByLayerKey("layoutHtml", model());
 
-        assertThat(result).contains("bootstrap");
+        assertThat(result).contains("data-layout-shell");
+        assertThat(result).contains("layout:fragment=\"content\"");
+        assertThat(result).doesNotContain("egov-");
+    }
+
+    @Test
+    void layoutHtml_linksStylesCssAndKrdsScript() {
+        String result = renderer.renderByLayerKey("layoutHtml", model());
+
+        assertThat(result).contains("@{/resources/css/styles.css}");
+        assertThat(result).contains("@{/resources/js/krds.min.js}");
+        assertThat(result).doesNotContain("krds.min.css");
+        assertThat(result).doesNotContain("egov-layout.css");
+    }
+
+    @Test
+    void layoutHtml_containsKrdsGnbStructure() {
+        String result = renderer.renderByLayerKey("layoutGnbHtml", model());
+
+        assertThat(result).contains("gnb-main-trigger");
+        assertThat(result).contains("class=\"gnb-main-trigger is-link\"");
+        assertThat(result).doesNotContain("egov-");
+    }
+
+    @Test
+    void layoutHtml_doesNotDependOnCustomGnbScript() {
+        String result = renderer.renderByLayerKey("layoutGnbHtml", model());
+
+        assertThat(result).doesNotContain("addEventListener('pointerenter'");
+        assertThat(result).doesNotContain("openMain(trigger)");
+        assertThat(result).doesNotContain("openSub(trigger)");
+        assertThat(result).doesNotContain("egov-");
     }
 
     // ─── mapper ───────────────────────────────────────────────────────────────
@@ -90,6 +154,17 @@ class BoardTemplateRendererTest {
 
         assertThat(result).contains("import org.apache.ibatis.annotations.Mapper;");
         assertThat(result).contains("@Mapper");
+    }
+
+    @Test
+    void controller_populatesLayoutModelContract() {
+        String result = renderer.renderByLayerKey("controller", model());
+
+        assertThat(result).contains("populateLayoutModel(model, \"board-list\", \"BBS 목록\", searchVO.getBbsId())");
+        assertThat(result).contains("model.addAttribute(\"lnbTitle\", \"BBS\")");
+        assertThat(result).contains("model.addAttribute(\"lnbMenus\"");
+        assertThat(result).contains("model.addAttribute(\"breadcrumbs\", breadcrumbs)");
+        assertThat(result).contains("model.addAttribute(\"currentMenuId\", currentMenuId)");
     }
 
     // ─── vo ───────────────────────────────────────────────────────────────────
@@ -132,6 +207,20 @@ class BoardTemplateRendererTest {
 
         assertThat(result).doesNotContain("<#list");
         assertThat(result).doesNotContain("</#list>");
+        assertThat(result).doesNotContain("egov-");
+        assertThat(result).contains("layout/breadcrumb");
+    }
+
+    @Test
+    void thymeleafList_withNoticeAndFile_containsDesignTemplateElements() {
+        String result = renderer.renderByLayerKey("thymeleafList", modelWithNoticeAndFile());
+
+        assertThat(result).contains("공지");
+        assertThat(result).contains("첨부");
+        assertThat(result).contains("FileDownload.do");
+        assertThat(result).contains("검색 결과가 없습니다.");
+        assertThat(result).doesNotContain("<#if");
+        assertThat(result).doesNotContain("egov-");
     }
 
     // ─── thymeleafDetail ─────────────────────────────────────────────────────
@@ -142,6 +231,17 @@ class BoardTemplateRendererTest {
 
         assertThat(result).contains("layout:decorate=\"~{layout/default}\"");
         assertThat(result).contains("layout:fragment=\"content\"");
+        assertThat(result).doesNotContain("egov-");
+    }
+
+    @Test
+    void thymeleafDetail_withFile_containsAttachmentArea() {
+        String result = renderer.renderByLayerKey("thymeleafDetail", modelWithNoticeAndFile());
+
+        assertThat(result).contains("첨부파일 다운로드");
+        assertThat(result).contains("FileDownload.do");
+        assertThat(result).contains("첨부파일 없음");
+        assertThat(result).doesNotContain("egov-");
     }
 
     // ─── thymeleafRegist ─────────────────────────────────────────────────────
@@ -152,6 +252,16 @@ class BoardTemplateRendererTest {
 
         assertThat(result).contains("layout:decorate=\"~{layout/default}\"");
         assertThat(result).contains("layout:fragment=\"content\"");
+        assertThat(result).doesNotContain("egov-");
+    }
+
+    @Test
+    void thymeleafRegist_rendersNttCnAsTextarea() {
+        String result = renderer.renderByLayerKey("thymeleafRegist", model());
+
+        assertThat(result).contains("<textarea class=\"krds-input\"");
+        assertThat(result).contains("th:name=\"nttCn\"");
+        assertThat(result).doesNotContain("id=\"nttCn\"\n                               th:name=\"nttCn\"");
     }
 
     // ─── thymeleafUpdt ───────────────────────────────────────────────────────
@@ -162,6 +272,30 @@ class BoardTemplateRendererTest {
 
         assertThat(result).contains("layout:decorate=\"~{layout/default}\"");
         assertThat(result).contains("layout:fragment=\"content\"");
+        assertThat(result).doesNotContain("egov-");
+    }
+
+    @Test
+    void thymeleafUpdt_rendersNttCnAsTextarea() {
+        String result = renderer.renderByLayerKey("thymeleafUpdt", model());
+
+        assertThat(result).contains("<textarea class=\"krds-input\"");
+        assertThat(result).contains("th:name=\"nttCn\"");
+        assertThat(result).doesNotContain("id=\"nttCn\"\n                               th:name=\"nttCn\"");
+    }
+
+    // ─── JSP views ───────────────────────────────────────────────────────────
+
+    @Test
+    void jspViews_linkStylesCssAndKrdsScript() {
+        List.of("jspList", "jspDetail", "jspRegist", "jspUpdt").forEach(layerKey -> {
+            String result = renderer.renderByLayerKey(layerKey, model());
+
+            assertThat(result).contains("/resources/css/styles.css");
+            assertThat(result).contains("/resources/js/krds.min.js");
+            assertThat(result).doesNotContain("krds.min.css");
+            assertThat(result).doesNotContain("egov-layout.css");
+        });
     }
 
     // ─── 알 수 없는 layerKey ─────────────────────────────────────────────────

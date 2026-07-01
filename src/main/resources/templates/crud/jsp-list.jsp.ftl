@@ -10,7 +10,7 @@
 <head>
     <meta charset="UTF-8">
     <title>${domainKr} 목록</title>
-    <link rel="stylesheet" href="<%=contextPath%>/resources/css/krds.min.css">
+    <link rel="stylesheet" href="<%=contextPath%>/resources/css/styles.css">
 </head>
 <body>
 <div class="container">
