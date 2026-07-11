@@ -3,6 +3,7 @@ package com.krdevops.springai.model.board;
 import com.krdevops.springai.model.crud.CrudViewType;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * eGovFrame 게시판(BBS) 레이어의 파일명·경로 정의.
@@ -21,6 +22,13 @@ public record BoardLayerDefinition(
         String fileNameSuffix,
         String subPathTemplate
 ) {
+    public static final Set<String> LAYOUT_LAYER_KEYS = Set.of(
+            "layoutHtml",
+            "layoutGnbHtml",
+            "layoutLnbHtml",
+            "layoutBreadcrumbHtml",
+            "layoutFooterHtml"
+    );
 
     private static final List<BoardLayerDefinition> COMMON_LAYERS = List.of(
             new BoardLayerDefinition("vo",           "VO.java",                "src/main/java/egovframework/let/{PKG}/service/"),
@@ -56,6 +64,10 @@ public record BoardLayerDefinition(
 
     public static List<BoardLayerDefinition> forViewType(CrudViewType viewType) {
         return viewType == CrudViewType.THYMELEAF ? THYMELEAF_LAYERS : JSP_LAYERS;
+    }
+
+    public static boolean isLayoutLayer(String layerKey) {
+        return LAYOUT_LAYER_KEYS.contains(layerKey);
     }
 
     private static List<BoardLayerDefinition> concat(

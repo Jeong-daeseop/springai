@@ -286,21 +286,26 @@ COM034 공통코드 상세:
 
 ### CrudPromptBuilderTool
 
-#### `buildFullCrudPrompt(database, tableName, domain, packageName, outputPath, llmProvider, egovVersion)`
+#### `buildFullCrudPrompt(database, tableName, domain, packageName, outputPath, llmProvider, egovVersion, viewType, layoutMode, layoutView, breadcrumbView)`
 
 - 사용 조건: 단일 테이블 CRUD 전체 소스 생성을 시작할 때 사용한다.
 - 사용 금지 조건: `outputPath`를 추측해서 호출하지 않는다. 기존 프로젝트 경로가 있으면 `resolveProjectOutputPath()`를 먼저 호출한다.
+- Thymeleaf 기준: `viewType="thymeleaf"`는 `layoutMode="reuse"`가 기본값이다. 신규 프로젝트는 먼저 `generateThymeleafLayout()`을 실행한다. 생성 화면은 `/resources/css/styles.css`의 `egov-*` 공통 클래스를 사용하며 인라인 `style`을 생성하지 않는다.
 - 입력 예시:
 
 ```json
 {
-  "database":"com",
+  "database":"ebt",
   "tableName":"COMTNEMPLYRINFO",
   "domain":"Employer",
   "packageName":"egovframework.let.emp",
   "outputPath":"/Users/user/Desktop/egov-gen/emp",
   "llmProvider":"auto",
-  "egovVersion":"5.0"
+  "egovVersion":"5.0",
+  "viewType":"thymeleaf",
+  "layoutMode":"reuse",
+  "layoutView":"layout/default",
+  "breadcrumbView":"layout/breadcrumb"
 }
 ```
 
@@ -314,20 +319,25 @@ DB: com | 테이블: COMTNEMPLYRINFO | 도메인: Employer
 
 - 에러 처리 기준: 테이블이 없으면 `"테이블을 찾을 수 없습니다: database.tableName"`을 반환한다. `llmProvider`가 `auto`면 내부에서 생성/저장/검증/이력 저장을 수행하고, 그 외에는 프롬프트를 반환한다.
 
-#### `buildMasterDetailPrompt(database, masterTable, detailTable, domain, packageName, outputPath)`
+#### `buildMasterDetailPrompt(database, masterTable, detailTable, domain, packageName, outputPath, viewType, egovVersion, llmProvider, layoutMode, layoutView, breadcrumbView)`
 
 - 사용 조건: `getTableRelations()`에서 자식 테이블이 탐지된 1:N 구조일 때 사용한다.
 - 사용 금지 조건: 단순 단일 테이블 CRUD에는 `buildFullCrudPrompt()`를 사용한다.
+- Thymeleaf 기준: CRUD와 동일하게 `layoutMode`와 공통 `styles.css` 기반 화면 생성을 지원한다.
 - 입력 예시:
 
 ```json
 {
-  "database":"com",
+  "database":"ebt",
   "masterTable":"COMTNEMPLYRINFO",
   "detailTable":"COMTNEMPLYRATTRBINFO",
   "domain":"Employer",
   "packageName":"egovframework.let.emp",
-  "outputPath":"/Users/user/Desktop/egov-gen/emp"
+  "outputPath":"/Users/user/Desktop/egov-gen/emp",
+  "viewType":"thymeleaf",
+  "egovVersion":"5.0",
+  "llmProvider":"auto",
+  "layoutMode":"reuse"
 }
 ```
 
@@ -349,7 +359,7 @@ DB: com | 테이블: COMTNEMPLYRINFO | 도메인: Employer
 - 입력 예시:
 
 ```json
-{"database":"com","tableName":"COMTNEMPLYRINFO"}
+{"database":"ebt","tableName":"COMTNEMPLYRINFO"}
 ```
 
 - 출력 예시:
@@ -849,7 +859,7 @@ Java 디렉터리 임베딩 완료: 42개 파일
 - 입력 예시:
 
 ```json
-{"database":"com"}
+{"database":"ebt"}
 ```
 
 - 출력 예시:
@@ -869,7 +879,7 @@ Java 디렉터리 임베딩 완료: 42개 파일
 - 입력 예시:
 
 ```json
-{"database":"com","tableName":"COMTNEMPLYRINFO"}
+{"database":"ebt","tableName":"COMTNEMPLYRINFO"}
 ```
 
 - 출력 예시:
@@ -888,7 +898,7 @@ USER_NM   | varchar(60) |    | NULL     | 사용자명
 - 입력 예시:
 
 ```json
-{"database":"com","tableName":"COMTNEMPLYRINFO"}
+{"database":"ebt","tableName":"COMTNEMPLYRINFO"}
 ```
 
 - 출력 예시:
@@ -962,7 +972,7 @@ Security 템플릿 생성 완료:
 - 입력 예시:
 
 ```json
-{"database":"com","tableName":"COMTNEMPLYRINFO","limit":10}
+{"database":"ebt","tableName":"COMTNEMPLYRINFO","limit":10}
 ```
 
 - 출력 예시:

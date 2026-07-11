@@ -25,7 +25,7 @@ class ThymeleafRuntimeConfigurerTest {
         assertThat(failed).isEmpty();
     }
 
-    // ── Spring 6 (egovVersion 5.x / latest) — thymeleaf-spring6 + dialect 3.3.0 ─
+    // ── Spring 6 (egovVersion 5.x / latest) — thymeleaf-spring6 + dialect 3.4.0 ─
 
     @Test
     void ensureThymeleafRuntime_spring6_injectsSpring6Artifact(@TempDir Path dir) throws IOException {
@@ -39,7 +39,7 @@ class ThymeleafRuntimeConfigurerTest {
         assertThat(pom).contains("<artifactId>thymeleaf-spring6</artifactId>");
         assertThat(pom).contains("<version>3.1.3.RELEASE</version>");
         assertThat(pom).contains("<artifactId>thymeleaf-layout-dialect</artifactId>");
-        assertThat(pom).contains("<version>3.3.0</version>");
+        assertThat(pom).contains("<version>3.4.0</version>");
         assertThat(pom).doesNotContain("thymeleaf-spring5");
     }
 
@@ -85,7 +85,7 @@ class ThymeleafRuntimeConfigurerTest {
                 <dependency>
                     <groupId>nz.net.ultraq.thymeleaf</groupId>
                     <artifactId>thymeleaf-layout-dialect</artifactId>
-                    <version>3.3.0</version>
+                    <version>3.4.0</version>
                 </dependency>
                 </dependencies>""");
         writePom(dir, existing);

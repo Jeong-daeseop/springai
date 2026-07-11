@@ -71,9 +71,9 @@ spring:
         prefix: ${REDIS_PREFIX:egov:}
         initialize-schema: true    # VectorStoreConfig.initializeSchema(true)와 일치
   datasource:
-    url: jdbc:mysql://localhost:3306/com?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
-    username: ${DB_USERNAME:com}
-    password: ${DB_PASSWORD:com01}
+    url: jdbc:mysql://localhost:3306/ebt?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
+    username: ${DB_USERNAME:ebt}
+    password: ${DB_PASSWORD:ebt01}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       keepalive-time: 60000       # Mac 슬립 후 재연결 속도 향상

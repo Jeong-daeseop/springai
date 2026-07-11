@@ -1,6 +1,7 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.crud.CrudLayerDefinition;
+import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.crud.CrudViewType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -163,7 +164,20 @@ public class CrudPromptBuilderService {
     public String buildFullCrudPrompt(String database, String tableName,
                                       String domain, String packageName, String outputPath,
                                       String egovVersion, String viewType) {
+        return buildFullCrudPrompt(database, tableName, domain, packageName, outputPath,
+                egovVersion, viewType, null, null, null);
+    }
+
+    public String buildFullCrudPrompt(String database, String tableName,
+                                      String domain, String packageName, String outputPath,
+                                      String egovVersion, String viewType,
+                                      String layoutMode, String layoutView, String breadcrumbView) {
         CrudViewType resolvedViewType = CrudViewType.from(viewType);
+        CrudLayoutMode resolvedLayoutMode = resolvedViewType == CrudViewType.THYMELEAF
+                ? CrudLayoutMode.from(layoutMode)
+                : CrudLayoutMode.CREATE;
+        String resolvedLayoutView = layoutView == null || layoutView.isBlank() ? "layout/default" : layoutView;
+        String resolvedBreadcrumbView = breadcrumbView == null || breadcrumbView.isBlank() ? "layout/breadcrumb" : breadcrumbView;
         // 1. 컬럼 정보 1회 조회 — 플레이스홀더 계산과 공통 코드 탐지에 재사용
         List<Map<String, Object>> columns = fetchColumns(database, tableName);
         PlaceholderValues pv = buildPlaceholderValuesFromColumns(columns, database, tableName, domain, packageName, outputPath, egovVersion);
@@ -212,13 +226,17 @@ public class CrudPromptBuilderService {
         }
 
         sb.append(promptBuilder.crudConstraints());
-        appendViewTypeInstruction(sb, resolvedViewType);
+        appendViewTypeInstruction(sb, resolvedViewType, resolvedLayoutMode, resolvedLayoutView, resolvedBreadcrumbView);
 
         // CrudLayerDefinition.LAYERS 공유 — auto 모드(CrudOrchestrationService)와 경로 정의 일원화
         // ⚠️ CrudLayerDefinition 템플릿은 egovframework/let/{PKG}/... 고정이므로
         //    packageName이 egovframework.let.* 형식이 아니면 경로 오계산 발생 — 조기 실패 처리
         String pkgSub = extractPkgSub(pv.packageName());
-        List<CrudLayerDefinition> layers = CrudLayerDefinition.forViewType(resolvedViewType);
+        List<CrudLayerDefinition> layers = CrudLayerDefinition.forViewType(resolvedViewType).stream()
+                .filter(layer -> resolvedViewType != CrudViewType.THYMELEAF
+                        || resolvedLayoutMode == CrudLayoutMode.CREATE
+                        || !CrudLayerDefinition.isLayoutLayer(layer.layerKey()))
+                .toList();
         int layerCount = layers.size();
 
         sb.append("[생성 지시]\n");
@@ -241,24 +259,40 @@ public class CrudPromptBuilderService {
         return sb.toString();
     }
 
-    private void appendViewTypeInstruction(StringBuilder sb, CrudViewType viewType) {
+    private void appendViewTypeInstruction(
+            StringBuilder sb,
+            CrudViewType viewType,
+            CrudLayoutMode layoutMode,
+            String layoutView,
+            String breadcrumbView) {
         if (viewType == CrudViewType.THYMELEAF) {
             sb.append("[화면 템플릿 지시]\n");
             sb.append("- JSP 파일은 생성하지 말고 Thymeleaf HTML 파일을 생성하세요.\n");
-            sb.append("- 공통 레이아웃 파일을 먼저 생성하세요.\n");
-            sb.append("  경로: src/main/resources/templates/layout/default.html\n");
-            sb.append("  내용: /resources/css/styles.css 링크 + /resources/js/krds.min.js 스크립트,\n");
-            sb.append("        KRDS GNB/콘텐츠 레이아웃, layout:fragment=\"content\" 슬롯 포함.\n");
-            sb.append("  xmlns:layout=\"http://www.ultraq.net.nz/thymeleaf/layout\" 네임스페이스 선언 필수.\n");
-            sb.append("- 아래 partial 레이아웃 파일도 함께 생성하세요.\n");
-            sb.append("  경로: src/main/resources/templates/layout/gnb.html, layout/lnb.html, layout/breadcrumb.html, layout/footer.html\n");
-            sb.append("  default.html은 th:replace로 partial을 조합하고, 화면 템플릿은 breadcrumb partial을 재사용하세요.\n");
-            sb.append("- Controller는 각 Thymeleaf 화면 진입 전에 아래 모델 속성을 공통으로 설정하세요.\n");
-            sb.append("  lnbTitle, lnbMenus, breadcrumbs, currentMenuId\n");
-            sb.append("  breadcrumbs는 label/url 구조 리스트, lnbMenus는 menuId/label/url 구조 리스트로 구성하세요.\n");
+            if (layoutMode == CrudLayoutMode.CREATE) {
+                sb.append("- 공통 레이아웃 파일 5종도 함께 생성하세요.\n");
+                sb.append("  경로: src/main/resources/templates/layout/{default,gnb,lnb,breadcrumb,footer}.html\n");
+                sb.append("  default.html은 th:replace로 partial을 조합하고, 화면 템플릿은 breadcrumb partial을 재사용하세요.\n");
+            } else if (layoutMode == CrudLayoutMode.NONE) {
+                sb.append("- 공통 레이아웃을 사용하지 않습니다. layout 파일 유무와 무관하게 동작하는 독립 화면을 생성하세요.\n");
+            } else {
+                sb.append("- 공통 레이아웃 파일은 생성하지 말고 기존 파일을 재사용하세요.\n");
+                sb.append("  layout이 없다면 먼저 generateThymeleafLayout(outputPath=..., layoutBasePath=\"layout\")를 실행해야 합니다.\n");
+            }
+            sb.append("- Controller는 lnbTitle, lnbMenus, breadcrumbs를 직접 하드코딩하지 마세요.\n");
+            sb.append("  generateThymeleafLayout()가 생성한 EgovGnbMenuInterceptor가 LETTNMENUINFO와 LETTNPROGRMLIST를 조인해 현재 요청 URL 기준으로 메뉴/브레드크럼을 주입합니다.\n");
+            sb.append("  Controller는 메뉴 미등록 초기 상태를 위한 currentMenuId fallback만 설정하세요.\n");
             sb.append("- 화면 파일(목록/상세/등록/수정) 경로: src/main/resources/templates/{{DOMAIN_LC}}/Egov{{DOMAIN}}*.html\n");
-            sb.append("- 각 화면 파일 최상단에 layout:decorate=\"~{layout/default}\" 선언 필수.\n");
-            sb.append("- 콘텐츠는 <th:block layout:fragment=\"content\"> 블록으로 감싸세요.\n");
+            if (layoutMode == CrudLayoutMode.NONE) {
+                sb.append("- layout:decorate 속성과 xmlns:layout 선언을 사용하지 마세요. <html><head>...</head><body>...</body></html> 구조를 화면 파일 안에 완결된 형태로 작성하세요.\n");
+                sb.append("- <head>에 <meta charset=\"UTF-8\">, viewport 메타, th:href=\"@{/resources/css/styles.css}\" link를 직접 포함하세요.\n");
+                sb.append("- </body> 직전에 th:src=\"@{/resources/js/krds.min.js}\" script를 직접 포함하세요.\n");
+                sb.append("- breadcrumb partial 참조(th:replace=\"~{... :: breadcrumb}\")를 포함하지 마세요.\n");
+                sb.append("- 콘텐츠는 layout:fragment 없이 <body> 아래에 직접 작성하세요.\n");
+            } else {
+                sb.append("- 각 화면 파일 최상단에 layout:decorate=\"~{").append(layoutView).append("}\" 선언 필수.\n");
+                sb.append("- breadcrumb partial은 th:replace=\"~{").append(breadcrumbView).append(" :: breadcrumb}\"로 참조하세요.\n");
+                sb.append("- 콘텐츠는 <th:block layout:fragment=\"content\"> 블록으로 감싸세요.\n");
+            }
             sb.append("- JSTL, form taglib, <c:url>, <ui:pagination>은 사용하지 마세요.\n");
             sb.append("- Thymeleaf 문법 th:*, @{...}, ${...}, *{...}를 사용하세요.\n");
             sb.append("- 정적 리소스 경로는 /resources/css/, /resources/js/ 형식을 유지하세요.\n");

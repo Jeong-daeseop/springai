@@ -37,7 +37,7 @@ public class ContextAssembler {
      */
     private static final int MAX_CONTEXT_CHARS = 6_000;
 
-    private static final String DEFAULT_DATABASE = "com";
+    private static final String DEFAULT_DATABASE = "ebt";
 
     /**
      * eGovFrame 표준 테이블 접두사 패턴.

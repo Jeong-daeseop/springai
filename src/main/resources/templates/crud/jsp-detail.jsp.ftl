@@ -24,7 +24,7 @@
         <table class="tbl col">
             <caption>${domainKr} 상세 정보</caption>
             <colgroup>
-                <col style="width: 25%;">
+                <col class="egov-detail-label-col">
                 <col>
             </colgroup>
             <tbody>
@@ -41,10 +41,12 @@
     <!-- 버튼 -->
     <div class="btn-area">
         <a href="<c:url value='${urlPrefix}List.do'/>" class="krds-btn secondary medium">목록</a>
-        <a href="<c:url value='${urlPrefix}UpdtView.do'/>?${pk.javaName}=${'$'}{result.${pk.javaName}}"
+        <a href="<c:url value='${urlPrefix}UpdtView.do'/>?<#list pkFields as p>${p.javaName}=${'$'}{result.${p.javaName}}<#sep>&</#sep></#list>"
            class="krds-btn primary medium">수정</a>
-        <form name="deleteForm" action="<c:url value='${urlPrefix}Delete.do'/>" method="post" style="display:inline;">
-            <input type="hidden" name="${pk.javaName}" value="${'$'}{result.${pk.javaName}}"/>
+        <form name="deleteForm" action="<c:url value='${urlPrefix}Delete.do'/>" method="post" class="egov-jsp-inline-form">
+<#list pkFields as p>
+            <input type="hidden" name="${p.javaName}" value="${'$'}{result.${p.javaName}}"/>
+</#list>
             <button type="button" class="krds-btn tertiary medium"
                     onclick="if(confirm('삭제하시겠습니까?')) document.deleteForm.submit();">삭제</button>
         </form>

@@ -40,6 +40,17 @@ public class WarBuildGradleBuilder {
     providedCompile 'javax.servlet:javax.servlet-api:4.0.1'
     providedCompile 'javax.servlet.jsp:javax.servlet.jsp-api:2.3.3'
     implementation  'javax.servlet:jstl:1.2'""";
+        String thymeleafDeps = !s.thymeleaf() ? "" : s.cap().spring6()
+            ? """
+
+    // Thymeleaf
+    implementation 'org.thymeleaf:thymeleaf-spring6:3.1.3.RELEASE'
+    implementation 'nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect:3.4.0'"""
+            : """
+
+    // Thymeleaf
+    implementation 'org.thymeleaf:thymeleaf-spring5:3.0.15.RELEASE'
+    implementation 'nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect:3.1.0'""";
         String validationDeps = s.cap().jakarta()
             ? """
     implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
@@ -88,6 +99,8 @@ dependencies {
     // Servlet / JSP
 %s
 
+%s
+
     // Validation
 %s
 
@@ -101,6 +114,6 @@ dependencies {
 }
 
 tasks.named('test') { useJUnitPlatform() }
-""".formatted(s.groupId(), javaVer, egovVer, springVer, egovGradleDeps, MYBATIS_35, mybatisSpringVer, servletDeps, validationDeps);
+""".formatted(s.groupId(), javaVer, egovVer, springVer, egovGradleDeps, MYBATIS_35, mybatisSpringVer, servletDeps, thymeleafDeps, validationDeps);
     }
 }

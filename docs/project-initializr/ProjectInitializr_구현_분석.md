@@ -267,9 +267,9 @@ Boot 프로젝트 생성 시 환경변수 주입과 프로파일 분리를 기�
 **환경변수 주입 (기본값 포함):**
 ```yaml
 datasource:
-  url: ${DB_URL:jdbc:mysql://localhost:3306/com?...}
-  username: ${DB_USERNAME:com}
-  password: ${DB_PASSWORD:com01}
+  url: ${DB_URL:jdbc:mysql://localhost:3306/ebt?...}
+  username: ${DB_USERNAME:ebt}
+  password: ${DB_PASSWORD:ebt01}
   hikari:
     maximum-pool-size: ${DB_POOL_MAX:10}
 ```

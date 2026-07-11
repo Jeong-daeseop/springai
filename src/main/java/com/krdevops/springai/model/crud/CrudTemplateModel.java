@@ -20,8 +20,10 @@ public record CrudTemplateModel(
         String date,                 // 생성일 (yyyy-MM-dd)
         String egovVersion,          // "5.0" | "4.3"
         boolean jakartaValidation,   // true → jakarta.validation, false → javax.validation
-        PkModel pk,                  // PK 컬럼 정보
+        PkModel pk,                  // PK 컬럼 정보 (첫 번째 PK — ORDER BY/검색조건 등 단일 참조용)
+        List<FieldModel> pkFields,   // 전체 PK 컬럼 목록 (복합키 지원 — WHERE/hidden field/라우팅에 사용)
         List<FieldModel> fields,     // 전체 필드 목록 (PK 포함)
         List<FieldModel> listFields, // 목록 화면 노출 필드 (핵심/비민감 컬럼)
-        List<FieldModel> nonPkFields // PK 제외 필드 (UPDATE SET, form input 기준)
+        List<FieldModel> nonPkFields,// 전체 PK 제외 필드 (UPDATE SET 기준)
+        List<FieldModel> formFields  // nonPkFields 중 시스템관리(감사) 컬럼 제외 — 등록/수정 폼 입력 기준
 ) {}

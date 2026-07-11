@@ -1,6 +1,6 @@
 # MCP Tool 전체 목록
 
-총 **19개 Tool 파일 / 44개 메서드**
+총 **20개 Tool 파일 / 45개 메서드**
 
 ---
 
@@ -27,9 +27,15 @@
 ### CrudPromptBuilderTool (3개)
 | 메서드 | 설명 |
 |--------|------|
-| `buildFullCrudPrompt(database, tableName, domain, packageName, outputPath, llmProvider, egovVersion)` | 11개 레이어 CRUD 전체 소스 생성 (claude/auto 모드) |
-| `buildMasterDetailPrompt(database, masterTable, detailTable, domain, packageName, outputPath)` | 1:N 마스터-디테일 CRUD 생성 |
+| `buildFullCrudPrompt(database, tableName, domain, packageName, outputPath, llmProvider, egovVersion, viewType, layoutMode, layoutView, breadcrumbView)` | CRUD 전체 소스 생성. `viewType=thymeleaf`는 `layoutMode=reuse/create/none` 지원 |
+| `buildMasterDetailPrompt(database, masterTable, detailTable, domain, packageName, outputPath, viewType, egovVersion, llmProvider, layoutMode, layoutView, breadcrumbView)` | 1:N 마스터-디테일 CRUD 생성. Thymeleaf 공통 CSS/layout 정책 동일 적용 |
+| `buildBoardFeature(...)` | 게시판(BBS) 기능 세트 생성. Thymeleaf 공통 CSS/layout 정책 동일 적용 |
 | `buildJoinSelectPrompt(database, tableName)` | JOIN SELECT 쿼리 + resultMap + VO 추가 필드 생성 |
+
+### ThymeleafLayoutTool (1개)
+| 메서드 | 설명 |
+|--------|------|
+| `generateThymeleafLayout(outputPath, layoutBasePath, overwriteLayout, packageName)` | Thymeleaf 공통 layout 5종(default/gnb/lnb/breadcrumb/footer) + GNB 동적 메뉴 컴포넌트 4종(VO/Mapper/MapperXml/Interceptor) 생성, WAR `servlet-context.xml`에 인터셉터 등록 자동 patch. GNB는 `COMTNMENUINFO`+`COMTNPROGRMLIST` 기반 동적 렌더링. 생성 layout은 인라인 style 없이 `/resources/css/styles.css`의 `egov-*` 공통 클래스를 사용한다. `packageName`은 `initializeProject()`와 동일값 필수. `layoutMode=reuse` 기본값인 `build*` Tool 실행 전 먼저 호출 |
 
 ### CodeTemplateTool (1개)
 | 메서드 | 설명 |
@@ -173,14 +179,18 @@ Step 2. getSecurityTemplate(setup-all-war-50, ...)
 Step 3. getTableList() → getTableSchema() → getTableRelations()
         → 테이블 구조 파악 + 관계 탐지
 
-Step 4. buildFullCrudPrompt(llmProvider=auto)
-        → 11개 레이어 소스 자동 생성 + 저장 + 검증
+Step 4. (viewType=thymeleaf인 경우) generateThymeleafLayout(outputPath, packageName=...)
+        → Thymeleaf 공통 layout 5종 + GNB 동적 메뉴 컴포넌트 4종 생성 (최초 1회, layoutMode=reuse 기본값 화면 생성 전 선행)
 
-Step 5. getMenuStructure() → generateMenuInsertSql()
+Step 5. buildFullCrudPrompt(llmProvider=auto)
+        → 화면/Java/Mapper 소스 자동 생성 + 저장 + 검증
+        → Thymeleaf 화면은 styles.css의 egov-* 공통 클래스를 사용하고 인라인 style을 생성하지 않음
+
+Step 6. getMenuStructure() → generateMenuInsertSql()
         → 메뉴 등록 SQL 생성
 
-Step 6. getProgramList() → generateAuthInsertSql()
+Step 7. getProgramList() → generateAuthInsertSql()
         → URL 접근권한 SQL 생성
 
-Step 7. 서버 재기동 → 메뉴 노출 + 접근 제어 확인
+Step 8. 서버 재기동 → 메뉴 노출 + 접근 제어 확인
 ```

@@ -22,7 +22,8 @@ public class ResultBuilder {
         sb.append("📌 경로   : ").append(report.rootPath()).append("\n");
         sb.append("📌 타입   : ").append(typeLabel).append("\n");
         sb.append("📌 버전   : eGovFrame ").append(egovLabel).append("\n");
-        sb.append("📌 빌드   : ").append(s.buildTool()).append("\n\n");
+        sb.append("📌 빌드   : ").append(s.buildTool()).append("\n");
+        sb.append("📌 화면   : ").append(s.viewType()).append("\n\n");
 
         sb.append("✅ 생성 완료 (").append(report.totalFiles()).append("개)\n");
         report.created().forEach(f -> sb.append("  📄 ").append(f).append("\n"));
@@ -42,12 +43,20 @@ public class ResultBuilder {
 
         sb.append("\n📋 다음 단계\n");
         sb.append("  1. ").append(dbConfig).append(" DB 정보 설정\n");
-        sb.append("  2. buildFullCrudPrompt(..., egovVersion=\"").append(egovLabel)
-          .append("\", viewType=\"jsp\") 로 CRUD 소스 생성\n");
+        if (s.thymeleaf()) {
+            sb.append("  2. Thymeleaf 기본 layout/main 화면은 생성 완료. 추가 CRUD도 viewType=\"thymeleaf\", layoutMode=\"reuse\"로 생성\n");
+        } else {
+            sb.append("  2. Thymeleaf 화면을 생성할 경우 generateThymeleafLayout(outputPath=..., layoutBasePath=\"layout\") 먼저 실행\n");
+        }
+        sb.append("  3. buildFullCrudPrompt(..., egovVersion=\"").append(egovLabel)
+          .append("\", viewType=\"").append(s.viewType()).append("\") 로 CRUD 소스 생성\n");
         sb.append("     - viewType: \"jsp\" 또는 \"thymeleaf\" 선택 가능\n");
+        if (!s.thymeleaf()) {
+            sb.append("     - Thymeleaf는 layoutMode=\"reuse\"가 기본값이므로 layout 선행 생성이 필요합니다.\n");
+        }
         sb.append("     - buildFullCrudPrompt는 내부에서 getTableSchema와 공통코드 조회를 함께 처리합니다.\n");
-        sb.append("  3. saveGeneratedCode 또는 auto orchestration 결과에 따라 파일 저장 확인\n");
-        sb.append("  4. ").append(buildCmd).append(" 로 빌드 검증\n");
+        sb.append("  4. saveGeneratedCode 또는 auto orchestration 결과에 따라 파일 저장 확인\n");
+        sb.append("  5. ").append(buildCmd).append(" 로 빌드 검증\n");
         sb.append("\n후속 workflow를 단계별로 확인하려면\n");
         sb.append("  → suggestProjectSetupCrudWorkflow(PROJECT_CONTEXT 블록 + \"프로젝트 초기화 완료\")\n");
         sb.append("\n선택: Security/Menu/Auth 적용이 필요하면\n");

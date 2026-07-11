@@ -33,6 +33,7 @@ class CrudTemplateIntegrationTest {
     );
 
     private static final List<FieldModel> NON_PK = FIELDS.stream().filter(f -> !f.pk()).toList();
+    private static final List<FieldModel> PK_FIELDS = FIELDS.stream().filter(FieldModel::pk).toList();
     private static final List<FieldModel> LIST_FIELDS = List.of(FIELDS.get(0), FIELDS.get(1));
 
     private static final CrudTemplateModel MODEL_50 = new CrudTemplateModel(
@@ -46,8 +47,10 @@ class CrudTemplateIntegrationTest {
         "5.0",
         true,
         PK,
+        PK_FIELDS,
         FIELDS,
         LIST_FIELDS,
+        NON_PK,
         NON_PK
     );
 
@@ -62,8 +65,10 @@ class CrudTemplateIntegrationTest {
         "4.3",
         false,
         PK,
+        PK_FIELDS,
         FIELDS,
         LIST_FIELDS,
+        NON_PK,
         NON_PK
     );
 

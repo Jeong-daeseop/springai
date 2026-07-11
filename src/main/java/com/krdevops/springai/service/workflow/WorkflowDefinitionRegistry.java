@@ -16,6 +16,7 @@ public class WorkflowDefinitionRegistry {
     public WorkflowDefinitionRegistry() {
         List<WorkflowDefinition> definitions = List.of(
                 buildCrudWorkflow(),
+                buildCrudThymeleafWorkflow(),
                 buildSecurityMenuAuthWorkflow(),
                 buildProjectSetupCrudWorkflow()
         );
@@ -50,6 +51,27 @@ public class WorkflowDefinitionRegistry {
         ));
     }
 
+    private WorkflowDefinition buildCrudThymeleafWorkflow() {
+        return new WorkflowDefinition("crud-thymeleaf", "eGovFrame CRUD 소스 생성 워크플로우 (Thymeleaf)", List.of(
+                new WorkflowStep(1, "DB 스키마 조회", "getTableSchema", "테이블 구조 파악", new String[]{"스키마", "테이블", "schema"}),
+                new WorkflowStep(2, "Thymeleaf layout 생성", "generateThymeleafLayout", "공통 layout 5종 + GNB 동적 메뉴 컴포넌트 4종 선행 생성(packageName 필수)",
+                        new String[]{"generateThymeleafLayout 완료", "layout 생성 완료", "templates/layout"}),
+                new WorkflowStep(3, "VO 생성", "saveGeneratedCode", "VO 클래스 생성", new String[]{"vo", "valueobject"}),
+                new WorkflowStep(4, "Mapper 인터페이스 생성", "saveGeneratedCode", "Mapper 인터페이스 생성", new String[]{"mapper", "인터페이스"}),
+                new WorkflowStep(5, "Mapper XML 생성", "saveGeneratedCode", "MyBatis XML 생성", new String[]{"mapper xml", "mapperxml", "xml"}),
+                new WorkflowStep(6, "Service 인터페이스 생성", "saveGeneratedCode", "Service 인터페이스 생성", new String[]{"service 인터페이스"}),
+                new WorkflowStep(7, "ServiceImpl 생성", "saveGeneratedCode", "Service 구현체 생성", new String[]{"serviceimpl", "impl"}),
+                new WorkflowStep(8, "Controller 생성", "saveGeneratedCode", "Controller 생성", new String[]{"controller"}),
+                new WorkflowStep(9, "목록 HTML 생성", "saveGeneratedCode", "목록 페이지 HTML 생성", new String[]{"목록", "list"}),
+                new WorkflowStep(10, "상세 HTML 생성", "saveGeneratedCode", "상세 페이지 HTML 생성", new String[]{"상세", "detail"}),
+                new WorkflowStep(11, "등록 HTML 생성", "saveGeneratedCode", "등록 페이지 HTML 생성", new String[]{"등록", "regist"}),
+                new WorkflowStep(12, "수정 HTML 생성", "saveGeneratedCode", "수정 페이지 HTML 생성", new String[]{"수정", "update"}),
+                new WorkflowStep(13, "입력값 검증", "검토", "유효성 검증 확인", new String[]{"검증", "validation"}),
+                new WorkflowStep(14, "생성 이력 저장", "saveGenerationHistory", "이력 기록", new String[]{"이력", "history"}),
+                new WorkflowStep(15, "프로젝트 상태 확인", "checkProjectHealth", "최종 확인", new String[]{"확인", "health"})
+        ));
+    }
+
     private WorkflowDefinition buildProjectSetupCrudWorkflow() {
         return new WorkflowDefinition("project-setup-crud", "프로젝트 초기화 후 CRUD 생성 워크플로우", List.of(
                 new WorkflowStep(1, "프로젝트 초기화", "initializeProject", "eGovFrame 프로젝트 골격 생성",
@@ -58,17 +80,19 @@ public class WorkflowDefinitionRegistry {
                         new String[]{"DB 정보 설정 완료", "datasource 설정 완료", "DB 연결 완료", "DB 접속 완료"}),
                 new WorkflowStep(3, "DB 스키마 조회", "getTableSchema", "테이블 구조 파악",
                         new String[]{"getTableSchema 완료", "스키마 조회 완료", "테이블 조회 완료"}),
-                new WorkflowStep(4, "CRUD 프롬프트 생성", "buildFullCrudPrompt", "CRUD 생성 프롬프트 작성",
+                new WorkflowStep(4, "Thymeleaf layout 생성", "generateThymeleafLayout", "Thymeleaf 선택 시 공통 layout 5종 + GNB 동적 메뉴 컴포넌트 4종 선행 생성(packageName 필수)",
+                        new String[]{"generateThymeleafLayout 완료", "layout 생성 완료", "templates/layout"}),
+                new WorkflowStep(5, "CRUD 프롬프트 생성", "buildFullCrudPrompt", "CRUD 생성 프롬프트 작성",
                         new String[]{"buildFullCrudPrompt 완료", "buildCrudPrompt 완료", "CRUD 프롬프트 완료"}),
-                new WorkflowStep(5, "CRUD 코드 저장", "saveGeneratedCode", "CRUD 파일 저장",
+                new WorkflowStep(6, "CRUD 코드 저장", "saveGeneratedCode", "CRUD 파일 저장",
                         new String[]{"saveGeneratedCode 완료", "코드 저장 완료", "파일 저장 완료"}),
-                new WorkflowStep(6, "생성 이력 저장", "saveGenerationHistory", "이력 기록",
+                new WorkflowStep(7, "생성 이력 저장", "saveGenerationHistory", "이력 기록",
                         new String[]{"saveGenerationHistory 완료", "이력 저장 완료", "history 완료"}),
-                new WorkflowStep(7, "빌드 검증", "빌드", "컴파일 및 패키징 확인",
+                new WorkflowStep(8, "빌드 검증", "빌드", "컴파일 및 패키징 확인",
                         new String[]{"빌드 완료", "빌드 성공", "BUILD SUCCESS"}),
-                new WorkflowStep(8, "프로젝트 상태 확인", "checkProjectHealth", "최종 상태 확인",
+                new WorkflowStep(9, "프로젝트 상태 확인", "checkProjectHealth", "최종 상태 확인",
                         new String[]{"checkProjectHealth 완료", "상태 확인 완료", "health 확인 완료"}),
-                new WorkflowStep(9, "Security/Menu/Auth 선택", "suggestSecurityMenuAuthWorkflow", "선택 보안 workflow 안내",
+                new WorkflowStep(10, "Security/Menu/Auth 선택", "suggestSecurityMenuAuthWorkflow", "선택 보안 workflow 안내",
                         new String[]{"Security 적용 완료", "메뉴 등록 완료", "권한 등록 완료"})
         ));
     }

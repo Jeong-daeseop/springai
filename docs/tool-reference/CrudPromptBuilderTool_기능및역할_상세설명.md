@@ -33,6 +33,10 @@ CrudPromptBuilderTool (MCP Tool 진입점)
 | `outputPath` | ✅ | 소스 저장 절대경로 | `/Users/me/Desktop/egov-gen/emp` |
 | `llmProvider` | ✅ | 생성 주체 (`claude` / `auto`) | `auto` |
 | `egovVersion` | ⬜ | `4.3` 또는 `5.0` (기본값 `5.0`) | `5.0` |
+| `viewType` | ⬜ | 화면 종류 (`jsp` / `thymeleaf`, 기본값 `jsp`) | `thymeleaf` |
+| `layoutMode` | ⬜ | Thymeleaf layout 처리 (`reuse` / `create` / `none`, 기본값 `reuse`) | `reuse` |
+| `layoutView` | ⬜ | Thymeleaf layout 경로 | `layout/default` |
+| `breadcrumbView` | ⬜ | Thymeleaf breadcrumb 경로 | `layout/breadcrumb` |
 
 ### llmProvider 모드 비교
 
@@ -45,7 +49,9 @@ CrudPromptBuilderTool (MCP Tool 진입점)
 
 ---
 
-## 생성 대상 11개 레이어
+## 생성 대상 레이어
+
+JSP 기본 생성은 11개 레이어를 만든다. `viewType="thymeleaf"`는 JSP 화면 4개 대신 Thymeleaf 화면 4개를 만들며, `layoutMode="create"`일 때만 layout 레이어 5개를 추가로 생성한다. 기본값인 `layoutMode="reuse"`는 `generateThymeleafLayout()`로 이미 생성한 layout을 재사용한다.
 
 | # | layerKey | 파일명 (domain=Employer) | 저장 경로 |
 |---|---|---|---|
@@ -62,6 +68,13 @@ CrudPromptBuilderTool (MCP Tool 진입점)
 | 11 | `jspUpdt` | `EgovEmployerUpdt.jsp` | `jsp/employer/` |
 
 > 파일명 규칙: `vo` / `mapper` / `mapperXml` / `service` → `{Domain}접미사`, 나머지 → `Egov{Domain}접미사`
+
+### Thymeleaf 스타일 정책
+
+- Thymeleaf 화면과 layout은 `/resources/css/styles.css`만 직접 링크한다.
+- `_ds_bundle.css`는 `styles.css` 내부 `@import` 대상으로만 사용한다.
+- 생성 HTML/FTL은 화면별 인라인 `style`을 만들지 않고 `styles.css`의 `egov-*` 공통 클래스를 사용한다.
+- `layoutMode="none"` standalone 화면도 `egov-standalone-shell` 등 공통 클래스를 사용한다.
 
 ---
 
@@ -187,6 +200,8 @@ DB: com | 테이블: COMTNEMPLYRINFO | 도메인: Employer
 | `domain` | 마스터 도메인명 | `Employer` |
 | `packageName` | 패키지명 | `egovframework.let.emp` |
 | `outputPath` | 소스 저장 절대경로 | `/Users/me/Desktop/egov-gen/emp` |
+| `viewType` | 화면 종류 (`jsp` / `thymeleaf`) | `thymeleaf` |
+| `layoutMode` | Thymeleaf layout 처리 (`reuse` / `create` / `none`) | `reuse` |
 
 ### 생성 파일 (총 12개)
 - 마스터: VO + Mapper + Service + ServiceImpl + Controller
@@ -233,13 +248,16 @@ Step 3. getTableRelations(database, tableName)
         → JOIN 후보 있음: buildJoinSelectPrompt() 병행
         → 단순 CRUD: buildFullCrudPrompt() 사용
 
-Step 4. buildFullCrudPrompt(... llmProvider="auto")
+Step 4. (viewType=thymeleaf + layoutMode=reuse인 경우) generateThymeleafLayout(...)
+        → 공통 layout과 GNB 메뉴 컴포넌트 최초 1회 생성
+
+Step 5. buildFullCrudPrompt(... llmProvider="auto")
         → 11개 파일 자동 생성 + 저장 + 검증 + 이력 저장
 
-Step 5. MenuTool.generateMenuInsertSql()
+Step 6. MenuTool.generateMenuInsertSql()
         → 생성된 URL로 메뉴 등록
 
-Step 6. AuthTool.generateAuthInsertSql()
+Step 7. AuthTool.generateAuthInsertSql()
         → URL 접근 권한 등록
 ```
 

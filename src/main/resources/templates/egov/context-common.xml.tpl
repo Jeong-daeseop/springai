@@ -15,15 +15,6 @@
 
     <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
         <property name="dataSource" ref="dataSource"/>
-        <property name="mapperLocations" value="classpath*:egovframework/mapper/**/*.xml"/>
-    </bean>
-
-    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
-        <property name="basePackage" value="${scanBasePackage}"/>
-        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
-        <!-- @Mapper 어노테이션이 붙은 인터페이스만 MyBatis 매퍼로 등록
-             (Service 인터페이스를 매퍼로 오인하는 bean 이름 충돌 방지) -->
-        <property name="annotationClass" value="org.apache.ibatis.annotations.Mapper"/>
     </bean>
 
     <!-- eGovFrame PropertyService: Controller의 pageUnit/pageSize 등 공통 설정 -->

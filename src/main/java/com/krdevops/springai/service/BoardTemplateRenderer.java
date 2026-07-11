@@ -2,6 +2,7 @@ package com.krdevops.springai.service;
 
 import com.krdevops.springai.exception.CrudTemplateRenderException;
 import com.krdevops.springai.model.board.BoardTemplateModel;
+import com.krdevops.springai.model.crud.CrudLayoutMode;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
@@ -49,6 +50,17 @@ public class BoardTemplateRenderer {
         LAYER_TEMPLATE_MAP.put("thymeleafUpdt",   "board/thymeleaf-updt.html.ftl");
     }
 
+    /** layoutMode=none 전용 — layout 참조 없는 독립 화면 템플릿 매핑 */
+    private static final Map<String, String> STANDALONE_TEMPLATE_MAP;
+
+    static {
+        STANDALONE_TEMPLATE_MAP = new HashMap<>();
+        STANDALONE_TEMPLATE_MAP.put("thymeleafList",   "board/thymeleaf-list-standalone.html.ftl");
+        STANDALONE_TEMPLATE_MAP.put("thymeleafDetail", "board/thymeleaf-detail-standalone.html.ftl");
+        STANDALONE_TEMPLATE_MAP.put("thymeleafRegist", "board/thymeleaf-regist-standalone.html.ftl");
+        STANDALONE_TEMPLATE_MAP.put("thymeleafUpdt",   "board/thymeleaf-updt-standalone.html.ftl");
+    }
+
     private final Configuration freemarkerConfig;
 
     public BoardTemplateRenderer(
@@ -83,19 +95,79 @@ public class BoardTemplateRenderer {
      * @throws CrudTemplateRenderException 템플릿 로딩 또는 렌더링 실패 시
      */
     public String renderByLayerKey(String layerKey, BoardTemplateModel model) {
+        return renderByLayerKey(layerKey, model,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_BREADCRUMB_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_BASE_PATH);
+    }
+
+    public String renderByLayerKey(
+            String layerKey,
+            BoardTemplateModel model,
+            String layoutView,
+            String breadcrumbView,
+            String layoutBasePath) {
         String templateName = LAYER_TEMPLATE_MAP.get(layerKey);
         if (templateName == null) {
             throw new IllegalArgumentException(
                     "지원하지 않는 layerKey: " + layerKey
                     + " (지원 목록: " + LAYER_TEMPLATE_MAP.keySet() + ")");
         }
-        return render(templateName, model);
+        return render(templateName, toDataModel(model, layoutView, breadcrumbView, layoutBasePath));
+    }
+
+    /**
+     * layoutMode를 인지하는 화면 렌더링. NONE이면 layout 참조가 없는 독립 화면 템플릿을 사용한다.
+     */
+    public String renderByLayerKey(
+            String layerKey,
+            BoardTemplateModel model,
+            String layoutView,
+            String breadcrumbView,
+            String layoutBasePath,
+            CrudLayoutMode layoutMode) {
+        if (layoutMode != CrudLayoutMode.NONE) {
+            return renderByLayerKey(layerKey, model, layoutView, breadcrumbView, layoutBasePath);
+        }
+        String templateName = STANDALONE_TEMPLATE_MAP.get(layerKey);
+        if (templateName == null) {
+            throw new IllegalArgumentException(
+                    "standalone 템플릿이 없는 layerKey: " + layerKey
+                    + " (지원 목록: " + STANDALONE_TEMPLATE_MAP.keySet() + ")");
+        }
+        return render(templateName, toDataModel(model));
+    }
+
+    private String render(String templateName, Map<String, Object> dataModel) {
+        try {
+            Template template = freemarkerConfig.getTemplate(templateName);
+            StringWriter writer = new StringWriter();
+            template.process(dataModel, writer);
+            return writer.toString();
+        } catch (IOException e) {
+            throw new CrudTemplateRenderException(
+                    "템플릿 로딩 실패: " + templateName, e);
+        } catch (TemplateException e) {
+            throw new CrudTemplateRenderException(
+                    "템플릿 렌더링 실패: " + templateName, e);
+        }
     }
 
     /**
      * BoardTemplateModel record → FreeMarker 데이터 모델(Map) 변환.
      */
     private Map<String, Object> toDataModel(BoardTemplateModel model) {
+        return toDataModel(model,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_BREADCRUMB_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_BASE_PATH);
+    }
+
+    private Map<String, Object> toDataModel(
+            BoardTemplateModel model,
+            String layoutView,
+            String breadcrumbView,
+            String layoutBasePath) {
         Map<String, Object> data = new HashMap<>();
         data.put("packageName",         model.packageName());
         data.put("domain",              model.domain());
@@ -119,6 +191,9 @@ public class BoardTemplateRenderer {
         data.put("formFields",          model.formFields());
         data.put("searchFields",        model.searchFields());
         data.put("noticeAtExists",      model.noticeAtExists());
+        data.put("layoutView",          layoutView);
+        data.put("breadcrumbView",      breadcrumbView);
+        data.put("layoutBasePath",      layoutBasePath);
         return data;
     }
 }

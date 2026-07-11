@@ -130,8 +130,13 @@ public class Egov${master.domain}Controller {
         model.addAttribute("breadcrumbs", breadcrumbs);
     }
 
-    private Map<String, String> menu(String menuId, String label, String url) {
-        return Map.of("menuId", menuId, "label", label, "url", url);
+    private Map<String, Object> menu(String menuId, String label, String url) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("menuId", menuId);
+        item.put("label", label);
+        item.put("url", url);
+        item.put("children", List.of());
+        return item;
     }
 
     private Map<String, String> crumb(String label, String url) {

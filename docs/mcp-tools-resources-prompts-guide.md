@@ -146,7 +146,7 @@ resource://project/structure
 ```json
 {
   "userRequest": "COMTNEMPLYRINFO CRUD 만들어줘",
-  "database": "com",
+  "database": "ebt",
   "tableName": "COMTNEMPLYRINFO",
   "domain": "Employer",
   "packageName": "egovframework.let.emp",

@@ -19,7 +19,7 @@ MyBatis 미사용 — Spring Boot 4.x 호환성으로 JdbcTemplate 사용.
 ### Working In This Directory
 - SQL은 클래스 내 `String` 상수 또는 인라인으로 관리 (MyBatis XML 없음)
 - SQL 파라미터는 반드시 `?` 플레이스홀더 사용 (SQL Injection 방지)
-- DB: `com` / User: `com` / Password: `com01` (Docker `egov-mysql`, port 3306)
+- DB: `ebt` / User: `ebt` / Password: `ebt01` (Docker `egov-mysql`, port 3306)
 
 ### Common Patterns
 ```java

@@ -10,12 +10,13 @@ public record ProjectContext(
         String packageName,
         String projectType,     // "war" / "boot"
         String buildTool,       // "maven" / "gradle"
-        String egovVersion      // "4.3" / "5.0" (축약형 통일)
+        String egovVersion,     // "4.3" / "5.0" (축약형 통일)
+        String viewType         // "jsp" / "thymeleaf"
 ) {
     public static ProjectContext from(ProjectSpec s) {
         return new ProjectContext(
             s.projectName(), s.root().toString(), s.packageName(),
-            s.boot() ? "boot" : "war", s.buildTool(), s.egovVersion());
+            s.boot() ? "boot" : "war", s.buildTool(), s.egovVersion(), s.viewType());
     }
 
     /** buildResult()에 포함할 구조화 블록 */
@@ -28,7 +29,8 @@ public record ProjectContext(
             projectType=%s
             buildTool=%s
             egovVersion=%s
+            viewType=%s
             [/PROJECT_CONTEXT]""".formatted(
-                projectName, rootPath, packageName, projectType, buildTool, egovVersion);
+                projectName, rootPath, packageName, projectType, buildTool, egovVersion, viewType);
     }
 }

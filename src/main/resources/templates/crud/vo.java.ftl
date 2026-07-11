@@ -33,7 +33,7 @@ public class ${domain}VO {
 </#if>
 </#if>
 <#if f.maxLength??>
-    @Size(max = ${f.maxLength})
+    @Size(max = ${f.maxLength?c})
 </#if>
     private ${f.javaType} ${f.javaName};
 

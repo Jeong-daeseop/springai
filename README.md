@@ -119,7 +119,7 @@ eGovFrame 관련 문서를 벡터 DB에 임베딩해두고 질의 시 관련 문
 docker start egov-mysql
 ```
 
-DB 정보: `com` / `com` / `com01` (db / user / password)
+DB 정보: `ebt` / `ebt` / `ebt01` (db / user / password)
 
 ### 2. Ollama 실행
 

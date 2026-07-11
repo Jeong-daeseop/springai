@@ -1,34 +1,85 @@
 <th:block th:fragment="gnb">
-<div style="background:#f4f5f6;border-bottom:1px solid #e6e8ea;font-size:13px;color:#464c53;">
-    <div style="max-width:1200px;margin:0 auto;padding:8px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+<div class="egov-header-top">
+    <div class="egov-header-top-inner">
         <span>이 누리집은 대한민국 공식 전자정부 프레임워크 예제 화면입니다.</span>
         <span>통합검색 · 로그인 · 화면크기</span>
     </div>
 </div>
-<header style="position:relative;z-index:100;background:#fff;border-bottom:1px solid #e6e8ea;">
-    <div data-layout-header-inner
-         style="max-width:1200px;margin:0 auto;padding:22px 24px 18px;display:flex;align-items:center;gap:28px;">
-        <a th:href="@{/}"
-           style="display:flex;align-items:center;gap:10px;font-size:20px;font-weight:800;color:#083891;white-space:nowrap;">
-            <span aria-hidden="true"
-                  style="width:36px;height:36px;border-radius:50%;background:#083891;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:800;">e</span>
+<header class="egov-header">
+    <div class="egov-header-inner">
+        <a th:href="@{/}" class="egov-header-brand">
+            <span aria-hidden="true" class="egov-brand-mark header">e</span>
             <span>eGovFrame</span>
         </a>
-        <nav class="krds-main-menu" aria-label="주 메뉴" style="flex:1;min-width:0;">
-            <ul class="gnb-menu" style="justify-content:flex-end;">
-                <li>
-                    <a th:href="@{/}" class="gnb-main-trigger is-link"
+        <nav class="egov-main-menu" aria-label="주 메뉴">
+            <ul class="egov-main-menu-list">
+                <li class="egov-mega-item">
+                    <a th:href="@{/}" class="egov-main-menu-link gnb-main-trigger is-link"
                        th:classappend="${r"${currentMenuId == 'home'} ? 'gnb-active'"}">홈</a>
                 </li>
-                <li>
-                    <a th:href="${r"${lnbMenus[0].url}"}" class="gnb-main-trigger is-link"
-                       th:text="${r"${lnbTitle}"}"
-                       th:classappend="${r"${#strings.startsWith(currentMenuId, 'crud-')} ? 'gnb-active'"}">업무관리</a>
+                <li class="egov-mega-item" th:each="menu : ${r"${gnbMenus}"}">
+                    <a th:href="@{${r"${!#lists.isEmpty(menu.children) ? (!#lists.isEmpty(menu.children[0].children) ? menu.children[0].children[0].url : menu.children[0].url) : menu.url}"}}" class="egov-main-menu-link gnb-main-trigger is-link"
+                       th:if="${r"${menu.url != null}"}"
+                       th:text="${r"${menu.menuNm}"}"
+                       th:classappend="${r"${menu.menuNo == currentTopMenuNo} ? 'gnb-active'"}"></a>
+                    <a href="#" class="egov-main-menu-link gnb-main-trigger is-link"
+                       th:if="${r"${menu.url == null}"}"
+                       th:text="${r"${menu.menuNm}"}"
+                       th:classappend="${r"${menu.menuNo == currentTopMenuNo} ? 'gnb-active'"}"></a>
+                    <div class="egov-mega-panel" th:if="${r"${!#lists.isEmpty(menu.children)}"}">
+                        <div class="egov-dropdown-inner">
+                            <ul class="egov-dropdown-side">
+                                <li th:each="child, cStat : ${r"${menu.children}"}"
+                                    th:attr="data-dd-idx=${r"${cStat.index}"}">
+                                    <a th:href="@{${r"${child.url}"}}" class="egov-dropdown-side-link"
+                                       th:text="${r"${child.menuNm}"}"></a>
+                                </li>
+                            </ul>
+                            <div class="egov-dropdown-content">
+                                <div class="egov-dropdown-group" th:each="child, cStat : ${r"${menu.children}"}"
+                                     th:attr="data-dd-idx=${r"${cStat.index}"}">
+                                    <p class="egov-dropdown-title" th:text="${r"${child.menuNm}"}">메뉴</p>
+                                    <ul class="egov-dropdown-list">
+                                        <li th:each="grandchild : ${r"${child.children}"}" th:if="${r"${grandchild.url != null}"}">
+                                            <a th:href="@{${r"${grandchild.url}"}}" class="egov-dropdown-link"
+                                               th:text="${r"${grandchild.menuNm}"}"></a>
+                                        </li>
+                                        <li th:if="${r"${#lists.isEmpty(child.children) and child.url != null}"}">
+                                            <a th:href="@{${r"${child.url}"}}" class="egov-dropdown-link"
+                                               th:text="${r"${child.menuNm}"}"></a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </li>
-                <li><a th:href="@{/}" class="gnb-main-trigger is-link">시스템관리</a></li>
-                <li><a th:href="@{/}" class="gnb-main-trigger is-link">고객지원</a></li>
             </ul>
         </nav>
     </div>
 </header>
+<script>
+document.querySelectorAll('.egov-mega-item').forEach(function (item) {
+    var sideLinks = item.querySelectorAll('.egov-dropdown-side > li');
+    var groups = item.querySelectorAll('.egov-dropdown-group');
+    if (!sideLinks.length || !groups.length) { return; }
+
+    function activate(idx) {
+        sideLinks.forEach(function (li) {
+            var a = li.querySelector('a');
+            if (a) { a.classList.remove('is-active'); }
+        });
+        groups.forEach(function (g) { g.classList.remove('is-active'); });
+        var activeLink = sideLinks[idx] && sideLinks[idx].querySelector('a');
+        if (activeLink) { activeLink.classList.add('is-active'); }
+        if (groups[idx]) { groups[idx].classList.add('is-active'); }
+    }
+
+    sideLinks.forEach(function (li, idx) {
+        li.addEventListener('mouseenter', function () { activate(idx); });
+    });
+
+    activate(0);
+});
+</script>
 </th:block>

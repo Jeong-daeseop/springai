@@ -16,9 +16,19 @@ public class WorkflowGuideService {
     private final WorkflowGuideRenderer guideRenderer = new WorkflowGuideRenderer();
 
     public String suggestNextStep(String currentContext) {
-        WorkflowDefinition definition = registry.getOrDefault("crud");
+        String type = isThymeleafContext(currentContext) ? "crud-thymeleaf" : "crud";
+        WorkflowDefinition definition = registry.getOrDefault(type);
         int completed = progressDetector.detectCompletedStep(definition, currentContext);
         return guideRenderer.render(definition, completed);
+    }
+
+    /** 문맥에 Thymeleaf/layout 생성 관련 언급이 있으면 layout 단계가 포함된 workflow를 사용한다. */
+    private boolean isThymeleafContext(String currentContext) {
+        if (currentContext == null) {
+            return false;
+        }
+        String ctx = currentContext.toLowerCase();
+        return ctx.contains("thymeleaf") || ctx.contains("templates/layout");
     }
 
     public String suggestProjectSetupCrudWorkflow(String currentContext) {

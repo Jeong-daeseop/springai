@@ -20,28 +20,34 @@
                method="post">
 
         <div class="fieldset">
-<#list fields as f><#if f.pk>
+<#list pkFields as f>
             <div class="form-group">
                 <div class="form-tit">
                     <label for="${f.javaName}">${f.comment}</label>
                 </div>
                 <div class="form-conts">
                     <form:input path="${f.javaName}" id="${f.javaName}" cssClass="krds-input"
-                                <#if f.maxLength??>maxlength="${f.maxLength}"</#if>
+                                <#if f.maxLength??>maxlength="${f.maxLength?c}"</#if>
                                 placeholder="${f.comment}을(를) 입력하세요"/>
                     <form:errors path="${f.javaName}" cssClass="form-hint-invalid" element="p"/>
                 </div>
             </div>
-</#if></#list>
-<#list nonPkFields as f>
+</#list>
+<#list formFields as f>
             <div class="form-group">
                 <div class="form-tit">
                     <label for="${f.javaName}">${f.comment}</label>
                 </div>
                 <div class="form-conts">
-                    <form:input path="${f.javaName}" id="${f.javaName}" cssClass="krds-input"
-                                <#if f.maxLength??>maxlength="${f.maxLength}"</#if>
+                    <#if f.javaName?lower_case?contains('password')>
+                    <form:password path="${f.javaName}" id="${f.javaName}" cssClass="krds-input"
+                                <#if f.maxLength??>maxlength="${f.maxLength?c}"</#if>
                                 placeholder="${f.comment}을(를) 입력하세요"/>
+                    <#else>
+                    <form:input path="${f.javaName}" id="${f.javaName}" cssClass="krds-input"
+                                <#if f.maxLength??>maxlength="${f.maxLength?c}"</#if>
+                                placeholder="${f.comment}을(를) 입력하세요"/>
+                    </#if>
                     <form:errors path="${f.javaName}" cssClass="form-hint-invalid" element="p"/>
                 </div>
             </div>

@@ -1,6 +1,7 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.crud.CrudLayerDefinition;
+import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
 import com.krdevops.springai.model.crud.CrudViewType;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class CrudOrchestrationService {
     private final CodeValidatorService     codeValidatorService;
     private final GenerationHistoryService generationHistoryService;
     private final ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
+    private final ThymeleafLayoutValidator thymeleafLayoutValidator;
 
     /**
      * 지정 테이블의 CRUD 소스를 viewType별 레이어 수(JSP: 11개, Thymeleaf: 16개)만큼 생성·저장하고 결과를 반환한다.
@@ -48,8 +50,23 @@ public class CrudOrchestrationService {
             String database, String tableName,
             String domain, String packageName,
             String outputPath, String egovVersion, String viewType) {
+        return orchestrate(database, tableName, domain, packageName, outputPath, egovVersion, viewType,
+                null, null, null);
+    }
+
+    public CrudOrchestrationResult orchestrate(
+            String database, String tableName,
+            String domain, String packageName,
+            String outputPath, String egovVersion, String viewType,
+            String layoutMode, String layoutView, String breadcrumbView) {
 
         CrudViewType resolvedViewType = CrudViewType.from(viewType);
+        CrudLayoutMode resolvedLayoutMode = resolvedViewType == CrudViewType.THYMELEAF
+                ? CrudLayoutMode.from(layoutMode)
+                : CrudLayoutMode.CREATE;
+        ThymeleafLayoutValidator.LayoutReference layoutReference = resolvedViewType == CrudViewType.THYMELEAF
+                ? thymeleafLayoutValidator.resolve(layoutView, breadcrumbView)
+                : thymeleafLayoutValidator.resolve(null, null);
         log.info("[orchestrate] 시작: table={}, domain={}, outputPath={}, egovVersion={}, viewType={}",
                  tableName, domain, outputPath, egovVersion, resolvedViewType.value());
 
@@ -73,18 +90,40 @@ public class CrudOrchestrationService {
         CrudTemplateModel model =
                 crudModelFactory.fromSchema(tableName, domain, packageName, egovVersion, rawColumns);
 
+        if (resolvedViewType == CrudViewType.THYMELEAF && resolvedLayoutMode == CrudLayoutMode.REUSE) {
+            ThymeleafLayoutValidator.LayoutValidationResult validation =
+                    thymeleafLayoutValidator.validateExisting(outputPath, layoutReference.layoutView(), layoutReference.breadcrumbView());
+            if (!validation.valid()) {
+                String message = thymeleafLayoutValidator.missingLayoutMessage(outputPath, validation);
+                return new CrudOrchestrationResult(false, database, tableName, domain, outputPath,
+                        List.of(), List.of(message), "layout 검증 실패", "");
+            }
+        }
+
         // 3. viewType별 CrudLayerDefinition 기준으로 렌더링 + 저장
         List<String> succeeded = new ArrayList<>();
         List<String> failed    = new ArrayList<>();
 
         for (CrudLayerDefinition layer : CrudLayerDefinition.forViewType(resolvedViewType)) {
+            if (resolvedViewType == CrudViewType.THYMELEAF
+                    && CrudLayerDefinition.isLayoutLayer(layer.layerKey())
+                    && resolvedLayoutMode != CrudLayoutMode.CREATE) {
+                continue;
+            }
             String fileName = CrudLayerDefinition.resolveFileName(
                     layer.layerKey(), domain, layer.fileNameSuffix());
             String subPath  = layer.resolveSubPath(pkgSub, model.domainLc());
             String filePath = outputPath + "/" + subPath + fileName;
 
             try {
-                String code       = crudTemplateRenderer.renderByLayerKey(layer.layerKey(), model);
+                String code = resolvedViewType == CrudViewType.THYMELEAF
+                        ? crudTemplateRenderer.renderByLayerKey(
+                                layer.layerKey(), model,
+                                layoutReference.layoutView(),
+                                layoutReference.breadcrumbView(),
+                                layoutReference.layoutBasePath(),
+                                resolvedLayoutMode)
+                        : crudTemplateRenderer.renderByLayerKey(layer.layerKey(), model);
                 String saveResult = codeService.saveGeneratedCode(filePath, code);
                 if (saveResult.startsWith("파일 저장 실패")) {
                     failed.add(fileName + " — " + saveResult);

@@ -5,12 +5,11 @@
 <mapper namespace="${packageName}.service.impl.${domain}Mapper">
 
     <resultMap id="${domainLc}Map" type="${packageName}.service.${domain}VO">
-<#list fields as f>
-<#if f.pk>
-        <id property="${f.javaName}" column="${f.columnName}"/>
-<#else>
+<#list pkFields as p>
+        <id property="${p.javaName}" column="${p.columnName}"/>
+</#list>
+<#list nonPkFields as f>
         <result property="${f.javaName}" column="${f.columnName}"/>
-</#if>
 </#list>
     </resultMap>
 
@@ -53,7 +52,7 @@
             resultMap="${domainLc}Map">
         SELECT <#list fields as f>${f.columnName}<#sep>, </#list>
         FROM ${tableName}
-        WHERE ${pk.columnName} = #{${pk.javaName}}
+        WHERE <#list pkFields as p>${p.columnName} = #{${p.javaName}}<#sep> AND </#sep></#list>
     </select>
 
     <!-- 등록 -->
@@ -73,13 +72,13 @@
             ${f.columnName} = #{${f.javaName}<#if f.jdbcType??>, jdbcType=${f.jdbcType}</#if>}<#sep>,</#sep>
 </#list>
         </set>
-        WHERE ${pk.columnName} = #{${pk.javaName}}
+        WHERE <#list pkFields as p>${p.columnName} = #{${p.javaName}}<#sep> AND </#sep></#list>
     </update>
 
     <!-- 삭제 -->
     <delete id="delete${domain}" parameterType="${packageName}.service.${domain}VO">
         DELETE FROM ${tableName}
-        WHERE ${pk.columnName} = #{${pk.javaName}}
+        WHERE <#list pkFields as p>${p.columnName} = #{${p.javaName}}<#sep> AND </#sep></#list>
     </delete>
 
 </mapper>

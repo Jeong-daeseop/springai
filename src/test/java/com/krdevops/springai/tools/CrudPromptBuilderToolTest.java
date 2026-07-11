@@ -73,6 +73,8 @@ class CrudPromptBuilderToolTest {
                 new PkModel("ID", "id", "String"),
                 List.of(ID_FIELD),
                 List.of(ID_FIELD),
+                List.of(ID_FIELD),
+                List.of(),
                 List.of());
         when(crudSchemaQueryService.fetchColumns("com", "COMTNEMPLYRINFO"))
                 .thenReturn(List.of(Map.of("COLUMN_NAME", "ID")));
@@ -142,6 +144,8 @@ class CrudPromptBuilderToolTest {
                 new PkModel("BBS_ID", "bbsId", "String"),
                 List.of(BBS_ID_FIELD),
                 List.of(BBS_ID_FIELD),
+                List.of(BBS_ID_FIELD),
+                List.of(),
                 List.of());
         CrudTemplateModel detailModel = new CrudTemplateModel(
                 "egovframework.let.bbs",
@@ -156,6 +160,8 @@ class CrudPromptBuilderToolTest {
                 new PkModel("BBS_ID", "bbsId", "String"),
                 List.of(BBS_ID_FIELD),
                 List.of(BBS_ID_FIELD),
+                List.of(BBS_ID_FIELD),
+                List.of(),
                 List.of());
         when(crudSchemaQueryService.fetchColumns("com", "COMTNBBSMASTER"))
                 .thenReturn(List.of(Map.of("COLUMN_NAME", "BBS_ID")));

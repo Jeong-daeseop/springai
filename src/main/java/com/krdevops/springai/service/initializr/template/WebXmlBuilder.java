@@ -18,6 +18,7 @@ public class WebXmlBuilder {
             ? "https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
             : "http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd";
         String ver     = supportsJakarta(egovVersion) ? "6.0" : "4.0";
+        String welcomeFile = s.thymeleaf() ? "index.html" : "index.jsp";
         String multipartConfig = supportsSpring6(egovVersion)
             ? """
 
@@ -71,13 +72,13 @@ public class WebXmlBuilder {
     </servlet-mapping>
 
     <welcome-file-list>
-        <welcome-file>index.jsp</welcome-file>
+        <welcome-file>%s</welcome-file>
     </welcome-file-list>
 
     <error-page><error-code>404</error-code><location>/WEB-INF/jsp/egovframework/error/error404.jsp</location></error-page>
     <error-page><error-code>500</error-code><location>/WEB-INF/jsp/egovframework/error/error500.jsp</location></error-page>
 
 </web-app>
-""".formatted(ns, xsdLoc, ver, artifactId, multipartConfig);
+""".formatted(ns, xsdLoc, ver, artifactId, multipartConfig, welcomeFile);
     }
 }

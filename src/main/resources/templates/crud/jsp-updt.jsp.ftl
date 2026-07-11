@@ -18,18 +18,41 @@
     <form:form modelAttribute="${domainLc}VO"
                action="${'$'}{pageContext.request.contextPath}${urlPrefix}Updt.do"
                method="post">
-        <form:hidden path="${pk.javaName}"/>
+<#list pkFields as p>
+        <form:hidden path="${p.javaName}"/>
+</#list>
+<#list nonPkFields as f>
+<#if !formFields?seq_contains(f)>
+        <form:hidden path="${f.javaName}"/>
+</#if>
+</#list>
 
         <div class="fieldset">
-<#list nonPkFields as f>
+<#list pkFields as p>
+            <div class="form-group">
+                <div class="form-tit">
+                    <label>${p.comment}</label>
+                </div>
+                <div class="form-conts">
+                    <span><c:out value="${'$'}{${domainLc}VO.${p.javaName}}"/></span>
+                </div>
+            </div>
+</#list>
+<#list formFields as f>
             <div class="form-group">
                 <div class="form-tit">
                     <label for="${f.javaName}">${f.comment}</label>
                 </div>
                 <div class="form-conts">
-                    <form:input path="${f.javaName}" id="${f.javaName}" cssClass="krds-input"
-                                <#if f.maxLength??>maxlength="${f.maxLength}"</#if>
+                    <#if f.javaName?lower_case?contains('password')>
+                    <form:password path="${f.javaName}" id="${f.javaName}" cssClass="krds-input"
+                                <#if f.maxLength??>maxlength="${f.maxLength?c}"</#if>
                                 placeholder="${f.comment}을(를) 입력하세요"/>
+                    <#else>
+                    <form:input path="${f.javaName}" id="${f.javaName}" cssClass="krds-input"
+                                <#if f.maxLength??>maxlength="${f.maxLength?c}"</#if>
+                                placeholder="${f.comment}을(를) 입력하세요"/>
+                    </#if>
                     <form:errors path="${f.javaName}" cssClass="form-hint-invalid" element="p"/>
                 </div>
             </div>
@@ -38,7 +61,7 @@
 
         <!-- 버튼 -->
         <div class="btn-area">
-            <a href="<c:url value='${urlPrefix}Detail.do'/>?${pk.javaName}=${'$'}{${domainLc}VO.${pk.javaName}}"
+            <a href="<c:url value='${urlPrefix}Detail.do'/>?<#list pkFields as p>${p.javaName}=${'$'}{${domainLc}VO.${p.javaName}}<#sep>&</#sep></#list>"
                class="krds-btn secondary medium">취소</a>
             <button type="submit" class="krds-btn primary medium">저장</button>
         </div>

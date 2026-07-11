@@ -1,6 +1,7 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.board.BoardTemplateModel;
+import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.crud.FieldModel;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -95,7 +96,7 @@ class BoardTemplateRendererTest {
         String result = renderer.renderByLayerKey("layoutHtml", model());
 
         assertThat(result).doesNotContain("<#");
-        assertThat(result).doesNotContain("egov-");
+        assertThat(result).contains("egov-");
         assertThat(result).contains("layout/gnb");
         assertThat(result).contains("layout/lnb");
         assertThat(result).contains("layout/footer");
@@ -112,9 +113,11 @@ class BoardTemplateRendererTest {
     void layoutHtml_containsEgovFrameLayoutShell() {
         String result = renderer.renderByLayerKey("layoutHtml", model());
 
-        assertThat(result).contains("data-layout-shell");
+        assertThat(result).contains("class=\"egov-layout-shell\"");
         assertThat(result).contains("layout:fragment=\"content\"");
-        assertThat(result).doesNotContain("egov-");
+        assertThat(result).contains("class=\"egov-layout-content\"");
+        assertThat(result).doesNotContain("style=\"");
+        assertThat(result).doesNotContain("<style>");
     }
 
     @Test
@@ -132,8 +135,8 @@ class BoardTemplateRendererTest {
         String result = renderer.renderByLayerKey("layoutGnbHtml", model());
 
         assertThat(result).contains("gnb-main-trigger");
-        assertThat(result).contains("class=\"gnb-main-trigger is-link\"");
-        assertThat(result).doesNotContain("egov-");
+        assertThat(result).contains("egov-main-menu-link");
+        assertThat(result).contains("egov-");
     }
 
     @Test
@@ -143,7 +146,7 @@ class BoardTemplateRendererTest {
         assertThat(result).doesNotContain("addEventListener('pointerenter'");
         assertThat(result).doesNotContain("openMain(trigger)");
         assertThat(result).doesNotContain("openSub(trigger)");
-        assertThat(result).doesNotContain("egov-");
+        assertThat(result).contains("egov-main-menu");
     }
 
     // ─── mapper ───────────────────────────────────────────────────────────────
@@ -207,8 +210,8 @@ class BoardTemplateRendererTest {
 
         assertThat(result).doesNotContain("<#list");
         assertThat(result).doesNotContain("</#list>");
-        assertThat(result).doesNotContain("egov-");
-        assertThat(result).contains("layout/breadcrumb");
+        assertThat(result).contains("검색어를 입력하세요");
+        assertThat(result).contains("layout:decorate");
     }
 
     @Test
@@ -220,7 +223,7 @@ class BoardTemplateRendererTest {
         assertThat(result).contains("FileDownload.do");
         assertThat(result).contains("검색 결과가 없습니다.");
         assertThat(result).doesNotContain("<#if");
-        assertThat(result).doesNotContain("egov-");
+        assertThat(result).contains("FileDownload.do");
     }
 
     // ─── thymeleafDetail ─────────────────────────────────────────────────────
@@ -231,7 +234,8 @@ class BoardTemplateRendererTest {
 
         assertThat(result).contains("layout:decorate=\"~{layout/default}\"");
         assertThat(result).contains("layout:fragment=\"content\"");
-        assertThat(result).doesNotContain("egov-");
+        assertThat(result).contains("<h1 class=\"egov-page-title\">");
+        assertThat(result).doesNotContain("style=\"");
     }
 
     @Test
@@ -241,7 +245,8 @@ class BoardTemplateRendererTest {
         assertThat(result).contains("첨부파일 다운로드");
         assertThat(result).contains("FileDownload.do");
         assertThat(result).contains("첨부파일 없음");
-        assertThat(result).doesNotContain("egov-");
+        assertThat(result).contains("egov-attachment-box");
+        assertThat(result).doesNotContain("style=\"");
     }
 
     // ─── thymeleafRegist ─────────────────────────────────────────────────────
@@ -252,14 +257,15 @@ class BoardTemplateRendererTest {
 
         assertThat(result).contains("layout:decorate=\"~{layout/default}\"");
         assertThat(result).contains("layout:fragment=\"content\"");
-        assertThat(result).doesNotContain("egov-");
+        assertThat(result).contains("<h1 class=\"egov-page-title\">");
+        assertThat(result).doesNotContain("style=\"");
     }
 
     @Test
     void thymeleafRegist_rendersNttCnAsTextarea() {
         String result = renderer.renderByLayerKey("thymeleafRegist", model());
 
-        assertThat(result).contains("<textarea class=\"krds-input\"");
+        assertThat(result).contains("<textarea class=\"krds-input egov-textarea\"");
         assertThat(result).contains("th:name=\"nttCn\"");
         assertThat(result).doesNotContain("id=\"nttCn\"\n                               th:name=\"nttCn\"");
     }
@@ -272,16 +278,73 @@ class BoardTemplateRendererTest {
 
         assertThat(result).contains("layout:decorate=\"~{layout/default}\"");
         assertThat(result).contains("layout:fragment=\"content\"");
-        assertThat(result).doesNotContain("egov-");
+        assertThat(result).contains("<h1 class=\"egov-page-title\">");
+        assertThat(result).doesNotContain("style=\"");
     }
 
     @Test
     void thymeleafUpdt_rendersNttCnAsTextarea() {
         String result = renderer.renderByLayerKey("thymeleafUpdt", model());
 
-        assertThat(result).contains("<textarea class=\"krds-input\"");
+        assertThat(result).contains("<textarea class=\"krds-input egov-textarea\"");
         assertThat(result).contains("th:name=\"nttCn\"");
         assertThat(result).doesNotContain("id=\"nttCn\"\n                               th:name=\"nttCn\"");
+    }
+
+    // ─── layoutMode=none — 독립 화면 템플릿 ─────────────────────────────────
+
+    @Test
+    void thymeleafList_none_rendersStandaloneWithoutLayoutOrBreadcrumb() {
+        String result = renderer.renderByLayerKey(
+                "thymeleafList", model(), "layout/default", "layout/breadcrumb", "layout",
+                CrudLayoutMode.NONE);
+
+        assertThat(result)
+                .contains("<meta charset=\"UTF-8\">")
+                .contains("BBS 목록")
+                .doesNotContain("layout:decorate")
+                .doesNotContain("xmlns:layout")
+                .doesNotContain("breadcrumb")
+                .doesNotContain("<#include");
+    }
+
+    @Test
+    void thymeleafDetail_none_rendersStandaloneWithoutLayoutOrBreadcrumb() {
+        String result = renderer.renderByLayerKey(
+                "thymeleafDetail", model(), "layout/default", "layout/breadcrumb", "layout",
+                CrudLayoutMode.NONE);
+
+        assertThat(result)
+                .contains("<meta charset=\"UTF-8\">")
+                .doesNotContain("layout:decorate")
+                .doesNotContain("breadcrumb")
+                .doesNotContain("<#include");
+    }
+
+    @Test
+    void thymeleafRegist_none_rendersStandaloneWithoutLayoutOrBreadcrumb() {
+        String result = renderer.renderByLayerKey(
+                "thymeleafRegist", model(), "layout/default", "layout/breadcrumb", "layout",
+                CrudLayoutMode.NONE);
+
+        assertThat(result)
+                .contains("<meta charset=\"UTF-8\">")
+                .doesNotContain("layout:decorate")
+                .doesNotContain("breadcrumb")
+                .doesNotContain("<#include");
+    }
+
+    @Test
+    void thymeleafUpdt_none_rendersStandaloneWithoutLayoutOrBreadcrumb() {
+        String result = renderer.renderByLayerKey(
+                "thymeleafUpdt", model(), "layout/default", "layout/breadcrumb", "layout",
+                CrudLayoutMode.NONE);
+
+        assertThat(result)
+                .contains("<meta charset=\"UTF-8\">")
+                .doesNotContain("layout:decorate")
+                .doesNotContain("breadcrumb")
+                .doesNotContain("<#include");
     }
 
     // ─── JSP views ───────────────────────────────────────────────────────────
@@ -305,5 +368,21 @@ class BoardTemplateRendererTest {
         assertThatThrownBy(() -> renderer.renderByLayerKey("unknown", model()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("unknown");
+    }
+
+    // ─── GNB 동적 렌더링 (gnb.html.ftl) ──────────────────────────────────────
+
+    @Test
+    void layoutGnbHtml_containsDynamicMenuLoopAndHomeStaysStatic() {
+        String result = renderer.renderByLayerKey("layoutGnbHtml", model());
+
+        assertThat(result)
+                .contains("th:each=\"menu : ${gnbMenus}\"")
+                .contains("th:if=\"${menu.url != null}\"")
+                .contains("th:href=\"@{${menu.url}}\"")
+                .contains(">홈</a>")
+                .doesNotContain("lnbMenus[0]")
+                .doesNotContain("시스템관리")
+                .doesNotContain("고객지원");
     }
 }

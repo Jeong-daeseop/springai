@@ -8,9 +8,9 @@
     <!-- TODO: 실제 DB 정보로 변경하세요 -->
     <bean id="dataSource" class="com.zaxxer.hikari.HikariDataSource" destroy-method="close">
         <property name="driverClassName" value="com.mysql.cj.jdbc.Driver"/>
-        <property name="jdbcUrl"         value="jdbc:mysql://localhost:3306/com?characterEncoding=UTF-8&amp;serverTimezone=Asia/Seoul"/>
-        <property name="username"        value="com"/>
-        <property name="password"        value="com01"/>
+        <property name="jdbcUrl"         value="jdbc:mysql://localhost:3306/ebt?characterEncoding=UTF-8&amp;serverTimezone=Asia/Seoul"/>
+        <property name="username"        value="ebt"/>
+        <property name="password"        value="ebt01"/>
         <property name="maximumPoolSize" value="10"/>
         <property name="minimumIdle"     value="2"/>
         <property name="connectionTimeout" value="30000"/>

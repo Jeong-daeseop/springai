@@ -164,7 +164,7 @@ Prompt는 사용자가 특정 작업을 시작할 때 선택하는 재사용 가
 ```json
 {
   "userRequest": "COMTNEMPLYRINFO CRUD 만들어줘",
-  "database": "com",
+  "database": "ebt",
   "tableName": "COMTNEMPLYRINFO",
   "domain": "Employer",
   "domainLc": "employer",

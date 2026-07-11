@@ -3,6 +3,7 @@ package com.krdevops.springai.model.masterdetail;
 import com.krdevops.springai.model.crud.CrudViewType;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * Master-detail CRUD layer file definitions.
@@ -13,6 +14,13 @@ public record MasterDetailLayerDefinition(
         String fileNameSuffix,
         String subPathTemplate
 ) {
+    public static final Set<String> LAYOUT_LAYER_KEYS = Set.of(
+            "layoutHtml",
+            "layoutGnbHtml",
+            "layoutLnbHtml",
+            "layoutBreadcrumbHtml",
+            "layoutFooterHtml"
+    );
 
     private static final List<MasterDetailLayerDefinition> COMMON_LAYERS = List.of(
             new MasterDetailLayerDefinition("masterVo",          "master", "VO.java",                "src/main/java/egovframework/let/{PKG}/service/"),
@@ -48,6 +56,10 @@ public record MasterDetailLayerDefinition(
 
     public static List<MasterDetailLayerDefinition> forViewType(CrudViewType viewType) {
         return viewType == CrudViewType.THYMELEAF ? THYMELEAF_LAYERS : JSP_LAYERS;
+    }
+
+    public static boolean isLayoutLayer(String layerKey) {
+        return LAYOUT_LAYER_KEYS.contains(layerKey);
     }
 
     private static List<MasterDetailLayerDefinition> concat(

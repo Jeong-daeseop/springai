@@ -57,6 +57,7 @@ ftl-thymeleaf/
 - BOOT 프로젝트의 실제 파일 저장 위치는 `src/main/resources/static/resources/**`다.
 - 따라서 화면에서는 `/resources/css/styles.css`, `/resources/js/krds.min.js`를 사용한다.
 - `_ds_bundle.css`는 `styles.css` 내부 `@import` 대상으로만 사용하고 화면에서 직접 링크하지 않는다.
+- Thymeleaf 화면과 layout은 화면별 인라인 `style`을 생성하지 않고 `styles.css`의 `egov-*` 공통 클래스를 사용한다.
 
 ---
 
@@ -157,9 +158,10 @@ public class McpToolConfig {
 
 핵심 차이:
 
-- `build*` Tool은 한 번의 호출로 Java, Mapper XML, 화면, 레이아웃까지 파일 세트를 생성한다.
+- `build*` Tool은 한 번의 호출로 Java, Mapper XML, 화면 파일 세트를 생성한다. Thymeleaf layout은 `layoutMode=create`일 때만 함께 생성하고, 기본값 `reuse`에서는 `generateThymeleafLayout()`로 만든 layout을 재사용한다.
 - `generate*` Tool은 파일 저장 없이 화면 1개와 권장 저장 경로만 반환한다.
 - `viewType="thymeleaf"`일 때 partial layout 구조를 전제로 화면을 렌더링한다.
+- `layoutMode="none"`을 사용하면 layout 없이 standalone HTML을 생성하되, 스타일은 동일하게 `/resources/css/styles.css`의 공통 클래스를 사용한다.
 
 ---
 
@@ -171,7 +173,7 @@ public class McpToolConfig {
 
 ```text
 buildFullCrudPrompt 호출:
-  database    = "com"
+  database    = "ebt"
   tableName   = "COMTNEMPLYRINFO"
   domain      = "Employer"
   packageName = "egovframework.let.emp"
@@ -179,13 +181,14 @@ buildFullCrudPrompt 호출:
   llmProvider = "auto"
   egovVersion = "5.0"
   viewType    = "thymeleaf"
+  layoutMode  = "reuse"
 ```
 
 게시판:
 
 ```text
 buildBoardFeature 호출:
-  database        = "com"
+  database        = "ebt"
   domain          = "Bbs"
   packageName     = "egovframework.let.bbs"
   outputPath      = "/path/to/project"
@@ -196,13 +199,14 @@ buildBoardFeature 호출:
   fileDetailTable = "COMTNFILEDETAIL"
   egovVersion     = "5.0"
   viewType        = "thymeleaf"
+  layoutMode      = "reuse"
 ```
 
 마스터-디테일:
 
 ```text
 buildMasterDetailPrompt 호출:
-  database    = "com"
+  database    = "ebt"
   masterTable = "COMTNBBSMASTER"
   detailTable = "COMTNBBSUSE"
   domain      = "BbsMaster"
@@ -211,6 +215,7 @@ buildMasterDetailPrompt 호출:
   llmProvider = "auto"
   egovVersion = "5.0"
   viewType    = "thymeleaf"
+  layoutMode  = "reuse"
 ```
 
 ### 방법 B — Spring AI ChatClient 에서 자동 호출
@@ -251,7 +256,7 @@ curl -X POST http://localhost:8080/mcp/tools/call \
   -d '{
     "name": "buildBoardFeature",
     "arguments": {
-      "database": "com",
+      "database": "ebt",
       "domain": "Bbs",
       "packageName": "egovframework.let.bbs",
       "outputPath": "/path/to/project",

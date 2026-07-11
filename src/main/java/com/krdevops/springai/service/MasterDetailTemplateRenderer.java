@@ -1,6 +1,7 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.exception.CrudTemplateRenderException;
+import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.masterdetail.MasterDetailTemplateModel;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -46,6 +47,16 @@ public class MasterDetailTemplateRenderer {
         LAYER_TEMPLATE_MAP.put("thymeleafRegist",   "masterdetail/thymeleaf-regist.html.ftl");
     }
 
+    /** layoutMode=none 전용 — layout 참조 없는 독립 화면 템플릿 매핑 */
+    private static final Map<String, String> STANDALONE_TEMPLATE_MAP;
+
+    static {
+        STANDALONE_TEMPLATE_MAP = new HashMap<>();
+        STANDALONE_TEMPLATE_MAP.put("thymeleafList",   "masterdetail/thymeleaf-list-standalone.html.ftl");
+        STANDALONE_TEMPLATE_MAP.put("thymeleafDetail", "masterdetail/thymeleaf-detail-standalone.html.ftl");
+        STANDALONE_TEMPLATE_MAP.put("thymeleafRegist", "masterdetail/thymeleaf-regist-standalone.html.ftl");
+    }
+
     private final Configuration freemarkerConfig;
 
     public MasterDetailTemplateRenderer(
@@ -54,16 +65,54 @@ public class MasterDetailTemplateRenderer {
     }
 
     public String renderByLayerKey(String layerKey, MasterDetailTemplateModel model) {
+        return renderByLayerKey(layerKey, model,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_BREADCRUMB_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_BASE_PATH);
+    }
+
+    public String renderByLayerKey(
+            String layerKey,
+            MasterDetailTemplateModel model,
+            String layoutView,
+            String breadcrumbView,
+            String layoutBasePath) {
         String templateName = LAYER_TEMPLATE_MAP.get(layerKey);
         if (templateName == null) {
             throw new IllegalArgumentException(
                     "지원하지 않는 master-detail layerKey: " + layerKey
                     + " (지원 목록: " + LAYER_TEMPLATE_MAP.keySet() + ")");
         }
+        return render(templateName, toDataModel(layerKey, model, layoutView, breadcrumbView, layoutBasePath));
+    }
+
+    /**
+     * layoutMode를 인지하는 화면 렌더링. NONE이면 layout 참조가 없는 독립 화면 템플릿을 사용한다.
+     */
+    public String renderByLayerKey(
+            String layerKey,
+            MasterDetailTemplateModel model,
+            String layoutView,
+            String breadcrumbView,
+            String layoutBasePath,
+            CrudLayoutMode layoutMode) {
+        if (layoutMode != CrudLayoutMode.NONE) {
+            return renderByLayerKey(layerKey, model, layoutView, breadcrumbView, layoutBasePath);
+        }
+        String templateName = STANDALONE_TEMPLATE_MAP.get(layerKey);
+        if (templateName == null) {
+            throw new IllegalArgumentException(
+                    "standalone 템플릿이 없는 master-detail layerKey: " + layerKey
+                    + " (지원 목록: " + STANDALONE_TEMPLATE_MAP.keySet() + ")");
+        }
+        return render(templateName, toDataModel(layerKey, model));
+    }
+
+    private String render(String templateName, Map<String, Object> dataModel) {
         try {
             Template template = freemarkerConfig.getTemplate(templateName);
             StringWriter writer = new StringWriter();
-            template.process(toDataModel(layerKey, model), writer);
+            template.process(dataModel, writer);
             return writer.toString();
         } catch (IOException e) {
             throw new CrudTemplateRenderException("템플릿 로딩 실패: " + templateName, e);
@@ -73,6 +122,18 @@ public class MasterDetailTemplateRenderer {
     }
 
     private Map<String, Object> toDataModel(String layerKey, MasterDetailTemplateModel model) {
+        return toDataModel(layerKey, model,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_BREADCRUMB_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_BASE_PATH);
+    }
+
+    private Map<String, Object> toDataModel(
+            String layerKey,
+            MasterDetailTemplateModel model,
+            String layoutView,
+            String breadcrumbView,
+            String layoutBasePath) {
         Map<String, Object> data = new HashMap<>();
         boolean detailLayer = layerKey.startsWith("detail");
         var current = detailLayer ? model.detail() : model.master();
@@ -94,6 +155,9 @@ public class MasterDetailTemplateRenderer {
         data.put("nonPkFields",       current.nonPkFields());
         data.put("fkColumn",          model.fkColumn());
         data.put("fkField",           model.fkField());
+        data.put("layoutView",        layoutView);
+        data.put("breadcrumbView",    breadcrumbView);
+        data.put("layoutBasePath",    layoutBasePath);
         return data;
     }
 }

@@ -63,12 +63,15 @@ public class FilePlanFactory {
             dirs.add("src/main/resources/static/resources/js");
             dirs.add("src/main/resources/templates");
         } else {
-            dirs.add("src/main/java/" + s.packagePath() + "/web");
-            dirs.add("src/main/java/" + s.packagePath() + "/service");
-            dirs.add("src/main/java/" + s.packagePath() + "/service/impl");
+            dirs.add("src/main/java/" + s.packagePath() + "/main/service");
+            dirs.add("src/main/java/" + s.packagePath() + "/main/service/impl");
             dirs.add("src/main/resources/egovframework/spring");
             dirs.add("src/main/webapp/WEB-INF/spring/appServlet");
             dirs.add("src/main/webapp/WEB-INF/jsp/egovframework");
+            if (s.thymeleaf()) {
+                dirs.add("src/main/resources/templates/egovframework/main");
+                dirs.add("src/main/resources/templates/layout");
+            }
             dirs.add("src/main/webapp/resources/css");
             dirs.add("src/main/webapp/resources/js");
         }
@@ -89,34 +92,54 @@ public class FilePlanFactory {
     }
 
     private List<FilePlan> warFiles(ProjectSpec s) {
-        return List.of(
-            FilePlan.of("src/main/resources/egovframework/spring/context-common.xml",
-                        CONFIG, () -> stpl.contextCommon(s)),
-            FilePlan.of("src/main/resources/egovframework/spring/context-datasource.xml",
-                        CONFIG, stpl::contextDatasource),
-            FilePlan.of("src/main/resources/egovframework/spring/context-transaction.xml",
-                        CONFIG, stpl::contextTransaction),
-            FilePlan.of("src/main/webapp/WEB-INF/spring/root-context.xml",
-                        CONFIG, stpl::rootContext),
-            FilePlan.of("src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml",
-                        CONFIG, () -> bld.dispatcherServlet(s)),
-            FilePlan.of("src/main/webapp/WEB-INF/web.xml",
-                        WEB,    () -> bld.webXml(s)),
-            FilePlan.of("src/main/webapp/index.jsp",
-                        WEB,    stpl::indexJsp),
-            FilePlan.of("src/main/webapp/resources/css/styles.css",
-                        WEB,    stpl::stylesCss),
-            FilePlan.of("src/main/webapp/resources/css/_ds_bundle.css",
-                        WEB,    stpl::dsBundleCss),
-            FilePlan.of("src/main/webapp/resources/js/krds.min.js",
-                        WEB,    stpl::krdsJs),
-            FilePlan.of("src/main/webapp/WEB-INF/jsp/egovframework/error/error404.jsp",
-                        WEB,    () -> error404Jsp()),
-            FilePlan.of("src/main/webapp/WEB-INF/jsp/egovframework/error/error500.jsp",
-                        WEB,    () -> error500Jsp()),
-            FilePlan.of("src/main/resources/log4j2.xml",
-                        RESOURCE, () -> stpl.log4j2(s))
-        );
+        List<FilePlan> plans = new ArrayList<>(List.of(
+                FilePlan.of("src/main/resources/egovframework/spring/context-common.xml",
+                            CONFIG, () -> stpl.contextCommon(s)),
+                FilePlan.of("src/main/resources/egovframework/spring/context-datasource.xml",
+                            CONFIG, stpl::contextDatasource),
+                FilePlan.of("src/main/resources/egovframework/spring/context-transaction.xml",
+                            CONFIG, stpl::contextTransaction),
+                FilePlan.of("src/main/webapp/WEB-INF/spring/root-context.xml",
+                            CONFIG, stpl::rootContext),
+                FilePlan.of("src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml",
+                            CONFIG, () -> bld.dispatcherServlet(s)),
+                FilePlan.of("src/main/webapp/WEB-INF/web.xml",
+                            WEB,    () -> bld.webXml(s)),
+                FilePlan.of(s.thymeleaf() ? "src/main/webapp/index.html" : "src/main/webapp/index.jsp",
+                            WEB,    () -> s.thymeleaf() ? indexHtml() : stpl.indexJsp()),
+                FilePlan.of("src/main/webapp/resources/css/styles.css",
+                            WEB,    stpl::stylesCss),
+                FilePlan.of("src/main/webapp/resources/css/_ds_bundle.css",
+                            WEB,    stpl::dsBundleCss),
+                FilePlan.of("src/main/webapp/resources/js/krds.min.js",
+                            WEB,    stpl::krdsJs),
+                FilePlan.of("src/main/java/" + s.packagePath() + "/main/web/MainController.java",
+                            SOURCE, () -> mainController(s)),
+                FilePlan.of("src/main/webapp/WEB-INF/jsp/egovframework/error/error404.jsp",
+                            WEB,    () -> error404Jsp()),
+                FilePlan.of("src/main/webapp/WEB-INF/jsp/egovframework/error/error500.jsp",
+                            WEB,    () -> error500Jsp()),
+                FilePlan.of("src/main/resources/log4j2.xml",
+                            RESOURCE, () -> stpl.log4j2(s))
+        ));
+        if (s.thymeleaf()) {
+            plans.add(FilePlan.of("src/main/resources/templates/egovframework/main/main.html",
+                    RESOURCE, () -> mainThymeleafHtml()));
+            plans.add(FilePlan.of("src/main/resources/templates/layout/default.html",
+                    RESOURCE, () -> defaultLayoutHtml()));
+            plans.add(FilePlan.of("src/main/resources/templates/layout/gnb.html",
+                    RESOURCE, () -> gnbLayoutHtml()));
+            plans.add(FilePlan.of("src/main/resources/templates/layout/lnb.html",
+                    RESOURCE, () -> lnbLayoutHtml()));
+            plans.add(FilePlan.of("src/main/resources/templates/layout/breadcrumb.html",
+                    RESOURCE, () -> breadcrumbLayoutHtml()));
+            plans.add(FilePlan.of("src/main/resources/templates/layout/footer.html",
+                    RESOURCE, () -> footerLayoutHtml()));
+        } else {
+            plans.add(FilePlan.of("src/main/webapp/WEB-INF/jsp/egovframework/main/main.jsp",
+                    WEB, () -> mainJsp()));
+        }
+        return plans;
     }
 
     private List<FilePlan> bootFiles(ProjectSpec s) {
@@ -217,28 +240,223 @@ public class FilePlanFactory {
         com.krdevops.springai.model.VersionCapability cap = buildCap(egovVersion);
         return new ProjectSpec("project", "com.example", "project",
                 packageName, "maven", false,
-                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap);
+                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap, "jsp");
     }
 
     private static ProjectSpec minimalSpecForArtifact(String artifactId, String egovVersion) {
         com.krdevops.springai.model.VersionCapability cap = buildCap(egovVersion);
         return new ProjectSpec(artifactId, "com.example", artifactId,
                 "egovframework.let.sample", "maven", false,
-                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap);
+                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap, "jsp");
     }
 
     private static ProjectSpec minimalSpecForProject(String projectName) {
         com.krdevops.springai.model.VersionCapability cap = buildCap("5.0");
         return new ProjectSpec(projectName, "com.example", projectName,
                 "egovframework.let.sample", "maven", false,
-                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap);
+                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap, "jsp");
     }
 
     private static ProjectSpec minimalSpecForBoot(String artifactId, String packageName) {
         com.krdevops.springai.model.VersionCapability cap = buildCap("5.0");
         return new ProjectSpec(artifactId, "com.example", artifactId,
                 packageName, "maven", true,
-                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap);
+                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap, "jsp");
+    }
+
+    /**
+     * index.jsp(stpl::indexJsp)가 "/egovframework/com/main.do"로 forward하므로,
+     * 이를 처리할 MainController를 항상 함께 생성해 welcome page 404를 방지한다.
+     */
+    private static String mainController(ProjectSpec s) {
+        return """
+package %s.main.web;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+
+/**
+ * 메인 화면 Controller
+ * @author eGovFrame
+ */
+@Controller
+public class MainController {
+
+    /**
+     * 메인 화면을 조회한다.
+     * @return 메인 화면 JSP 경로
+     */
+    @RequestMapping(value = "/egovframework/com/main.do", method = RequestMethod.GET)
+    public String main() {
+        return "egovframework/main/main";
+    }
+
+}
+""".formatted(s.packageName());
+    }
+
+    private static String mainJsp() {
+        return """
+<%@ page contentType="text/html;charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>메인 - eGovFrame</title>
+</head>
+<body>
+<h2>전자정부 표준프레임워크 메인 화면입니다.</h2>
+</body>
+</html>
+""";
+    }
+
+    private static String indexHtml() {
+        return """
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0;url=/egovframework/com/main.do" />
+    <title>eGovFrame</title>
+</head>
+<body>
+<a href="/egovframework/com/main.do">메인 화면으로 이동</a>
+</body>
+</html>
+""";
+    }
+
+    private static String mainThymeleafHtml() {
+        return """
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>메인 - eGovFrame</title>
+</head>
+<body>
+<section layout:fragment="content" class="egov-main-dashboard">
+    <div class="egov-main-hero">
+        <p class="egov-main-kicker">eGovFrame</p>
+        <h1 class="egov-main-title">전자정부 표준프레임워크 메인 화면입니다.</h1>
+        <p class="egov-main-description">Thymeleaf 공통 layout을 사용하는 기본 메인 화면입니다.</p>
+    </div>
+</section>
+</body>
+</html>
+""";
+    }
+
+    private static String defaultLayoutHtml() {
+        return """
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title layout:title-pattern="$CONTENT_TITLE - eGovFrame">eGovFrame</title>
+    <link rel="stylesheet" th:href="@{/resources/css/styles.css}" />
+    <script th:src="@{/resources/js/krds.min.js}" defer></script>
+</head>
+<body>
+<header th:replace="~{layout/gnb :: gnb}"></header>
+<div th:replace="~{layout/breadcrumb :: breadcrumb}"></div>
+<main class="egov-layout-shell">
+    <nav th:replace="~{layout/lnb :: lnb}"></nav>
+    <div class="egov-layout-content">
+        <section layout:fragment="content"></section>
+    </div>
+</main>
+<footer th:replace="~{layout/footer :: footer}"></footer>
+</body>
+</html>
+""";
+    }
+
+    private static String gnbLayoutHtml() {
+        return """
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<header th:fragment="gnb" class="egov-header">
+    <div class="egov-header-inner">
+        <a class="egov-header-brand" th:href="@{/egovframework/com/main.do}">
+            <span class="egov-brand-mark header" aria-hidden="true">eG</span>
+            <span>eGovFrame</span>
+        </a>
+        <nav class="egov-main-menu" aria-label="주 메뉴">
+            <ul class="egov-main-menu-list">
+                <li class="egov-mega-item">
+                    <a class="egov-main-menu-link gnb-active" th:href="@{/egovframework/com/main.do}" aria-current="page">Home</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</header>
+</body>
+</html>
+""";
+    }
+
+    private static String lnbLayoutHtml() {
+        return """
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<aside th:fragment="lnb" class="egov-lnb"></aside>
+</body>
+</html>
+""";
+    }
+
+    private static String breadcrumbLayoutHtml() {
+        return """
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="breadcrumb" class="egov-breadcrumb-band">
+    <nav class="egov-breadcrumb" aria-label="breadcrumb">
+        <a class="egov-breadcrumb-home" th:href="@{/egovframework/com/main.do}" aria-label="Home">⌂</a>
+        <span class="egov-breadcrumb-separator" aria-hidden="true">/</span>
+        <span class="egov-breadcrumb-current">Home</span>
+    </nav>
+</div>
+</body>
+</html>
+""";
+    }
+
+    private static String footerLayoutHtml() {
+        return """
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<footer th:fragment="footer" class="egov-footer">
+    <div class="egov-footer-inner">
+        <div class="egov-footer-brand">
+            <span class="egov-brand-mark footer" aria-hidden="true">eG</span>
+            <span>eGovFrame</span>
+        </div>
+        <p class="egov-footer-text">전자정부 표준프레임워크 Thymeleaf 공통 레이아웃</p>
+        <p class="egov-footer-text last">공통 header, breadcrumb, content, footer 영역을 사용합니다.</p>
+    </div>
+    <div class="egov-footer-bottom">
+        <div class="egov-footer-bottom-inner">
+            <a class="egov-footer-policy" th:href="@{/egovframework/com/main.do}">Home</a>
+            <span class="egov-footer-copy">© eGovFrame</span>
+        </div>
+    </div>
+</footer>
+</body>
+</html>
+""";
     }
 
     private static String error404Jsp() {

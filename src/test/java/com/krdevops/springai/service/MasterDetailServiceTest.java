@@ -63,23 +63,36 @@ class MasterDetailServiceTest {
         assertThat(result)
                 .contains("viewType          = thymeleaf")
                 .contains("src/main/resources/templates/bbsMaster/EgovBbsMaster*.html")
-                .contains("[생성 파일 목록 — 18개 파일]")
-                .contains("layout/default.html")
-                .contains("layout/gnb.html")
-                .contains("layout/lnb.html")
-                .contains("layout/breadcrumb.html")
-                .contains("layout/footer.html")
-                .contains("th:href=\"@{/resources/css/styles.css}\"")
-                .contains("th:src=\"@{/resources/js/krds.min.js}\"")
+                .contains("[생성 파일 목록 — 13개 파일]")
+                .contains("generateThymeleafLayout")
+                .contains("레이아웃 참조     = layout/default")
                 .contains("EgovBbsMasterList.html")
                 .contains("EgovBbsMasterDetail.html")
                 .contains("layout:decorate=\"~{layout/default}\"")
                 .contains("<tr th:each=\"detail : ${detailList}\">")
                 .contains("JSP taglib, <c:forEach>, <c:out>, form 태그는 사용하지 마세요.")
                 .contains("_ds_bundle.css는 styles.css 내부 @import로 포함")
-                .contains("✅ 18개 파일 생성 완료")
+                .contains("✅ 13개 파일 생성 완료")
                 .doesNotContain("EgovBbsMasterList.jsp")
-                .doesNotContain("EgovBbsMasterDetail.jsp");
+                .doesNotContain("EgovBbsMasterDetail.jsp")
+                .doesNotContain("layout/gnb.html");
+    }
+
+    @Test
+    void buildMasterDetailPrompt_createMode_includesLayoutStepsAnd18Files() {
+        String result = service.buildMasterDetailPrompt(
+                "com", "COMTNBBSMASTER", "COMTNBBSUSE",
+                "BbsMaster", "egovframework.let.bbs", "/tmp/egov-web",
+                "thymeleaf", "create", null, null);
+
+        assertThat(result)
+                .contains("[생성 파일 목록 — 18개 파일]")
+                .contains("layout 생성       = layout/default.html, gnb.html, lnb.html, breadcrumb.html, footer.html 포함")
+                .contains("Step 11: layout/default.html")
+                .contains("Step 15: layout/footer.html")
+                .contains("Step 16: EgovBbsMasterList.html")
+                .contains("✅ 18개 파일 생성 완료")
+                .doesNotContain("generateThymeleafLayout");
     }
 
     private Map<String, Object> column(String name, String type, Integer maxLength,

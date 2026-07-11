@@ -1,6 +1,7 @@
 package com.krdevops.springai.model.crud;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * eGovFrame CRUD 레이어의 파일명·경로 정의 (JSP: 11개, Thymeleaf: 16개).
@@ -19,6 +20,28 @@ public record CrudLayerDefinition(
         String fileNameSuffix,
         String subPathTemplate
 ) {
+    public static final String LAYOUT_HTML = "layoutHtml";
+    public static final String LAYOUT_GNB_HTML = "layoutGnbHtml";
+    public static final String LAYOUT_LNB_HTML = "layoutLnbHtml";
+    public static final String LAYOUT_BREADCRUMB_HTML = "layoutBreadcrumbHtml";
+    public static final String LAYOUT_FOOTER_HTML = "layoutFooterHtml";
+    public static final String LAYOUT_GNB_MENU_VO = "layoutGnbMenuVo";
+    public static final String LAYOUT_GNB_MENU_MAPPER = "layoutGnbMenuMapper";
+    public static final String LAYOUT_GNB_MENU_MAPPER_XML = "layoutGnbMenuMapperXml";
+    public static final String LAYOUT_GNB_MENU_INTERCEPTOR = "layoutGnbMenuInterceptor";
+
+    /**
+     * layoutMode=create 경로(CrudOrchestrationService 등)가 도메인 생성마다 함께 렌더링하는 layout HTML 5종.
+     * GNB 메뉴 컴포넌트(VO/Mapper/MapperXml/Interceptor)는 프로젝트당 1회만 생성되는 별도 산출물이라
+     * 의도적으로 여기에 포함하지 않는다 — {@link #GNB_MENU_COMPONENT_LAYERS} 참고.
+     */
+    public static final Set<String> LAYOUT_LAYER_KEYS = Set.of(
+            LAYOUT_HTML,
+            LAYOUT_GNB_HTML,
+            LAYOUT_LNB_HTML,
+            LAYOUT_BREADCRUMB_HTML,
+            LAYOUT_FOOTER_HTML
+    );
 
     private static final List<CrudLayerDefinition> COMMON_LAYERS = List.of(
             new CrudLayerDefinition("vo",               "VO.java",               "src/main/java/egovframework/let/{PKG}/service/"),
@@ -51,10 +74,38 @@ public record CrudLayerDefinition(
             new CrudLayerDefinition("thymeleafUpdt",     "Updt.html",              "src/main/resources/templates/{DOMAIN_LC}/")
     );
 
+    /**
+     * GNB 동적 렌더링용 공용 메뉴 컴포넌트(VO/Mapper/MapperXml/Interceptor) — 프로젝트당 1회만 생성된다.
+     * {@code ThymeleafLayoutTool.generateThymeleafLayout()} 전용이며,
+     * 도메인마다 반복 호출되는 {@code forViewType()}/{@code layoutMode=create} 경로에는 절대 포함하지 않는다
+     * (포함하면 도메인 생성마다 이 공용 파일을 다시 만들려다 충돌하거나, CrudTemplateModel 기반 렌더러가
+     * 처리할 수 없는 layerKey를 만나 예외가 발생한다).
+     *
+     * <p>subPathTemplate의 {PKG}는 {@code COMMON_LAYERS}와 달리 "egovframework.let." 접두사를
+     * 제거하지 않은 전체 packageName 치환값을 받는다 — 호출부(ThymeleafLayoutTool)에서
+     * {@code packageName.replace(".", "/")}를 그대로 pkgSub으로 넘긴다.
+     */
+    public static final List<CrudLayerDefinition> GNB_MENU_COMPONENT_LAYERS = List.of(
+            new CrudLayerDefinition(LAYOUT_GNB_MENU_VO,          "GnbMenuVO.java",              "src/main/java/{PKG}/cmm/vo/"),
+            new CrudLayerDefinition(LAYOUT_GNB_MENU_MAPPER,      "GnbMenuMapper.java",          "src/main/java/{PKG}/cmm/service/"),
+            new CrudLayerDefinition(LAYOUT_GNB_MENU_MAPPER_XML,  "GnbMenuMapper.xml",           "src/main/resources/egovframework/mapper/cmm/"),
+            new CrudLayerDefinition(LAYOUT_GNB_MENU_INTERCEPTOR, "EgovGnbMenuInterceptor.java", "src/main/java/{PKG}/cmm/web/")
+    );
+
     public static final List<CrudLayerDefinition> LAYERS = JSP_LAYERS;
 
     public static List<CrudLayerDefinition> forViewType(CrudViewType viewType) {
         return viewType == CrudViewType.THYMELEAF ? THYMELEAF_LAYERS : JSP_LAYERS;
+    }
+
+    public static boolean isLayoutLayer(String layerKey) {
+        return LAYOUT_LAYER_KEYS.contains(layerKey);
+    }
+
+    public static List<CrudLayerDefinition> thymeleafLayoutLayers() {
+        return THYMELEAF_LAYERS.stream()
+                .filter(layer -> isLayoutLayer(layer.layerKey()))
+                .toList();
     }
 
     private static List<CrudLayerDefinition> concat(

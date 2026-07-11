@@ -54,7 +54,7 @@ public class CrudPromptBuilderTool {
             eGovFrame 5.x CRUD 전체 소스 생성에 필요한 통합 프롬프트를 반환합니다.
             이 Tool 하나로 getTableSchema + 공통코드 조회 + 플레이스홀더 매핑을 한 번에 처리합니다.
             반환된 프롬프트의 지시에 따라 viewType별 레이어 소스를 순서대로 생성하고 저장하세요.
-            (JSP: 11개, Thymeleaf: layout partial 포함 16개)
+            (JSP: 11개, Thymeleaf 기본 reuse: 화면/Java/Mapper 11개, layoutMode=create: 16개)
             database   : 데이터베이스명 (예: com)
             tableName  : 테이블명 (예: COMTNEMPLYRINFO)
             domain     : 도메인명 대문자 시작 (예: Employer)
@@ -66,9 +66,16 @@ public class CrudPromptBuilderTool {
             viewType   : 화면 템플릿 종류 (선택, 기본값 "jsp")
               - "jsp"       : /WEB-INF/jsp/{domainLc}/Egov{Domain}*.jsp 생성
               - "thymeleaf" : src/main/resources/templates/{domainLc}/Egov{Domain}*.html 생성
+            layoutMode : Thymeleaf layout 처리 방식 (선택, 기본값 "reuse")
+              - "reuse" : 기존 layout 재사용. layout이 없으면 generateThymeleafLayout() 실행 안내와 함께 실패
+              - "create": layout 레이어까지 함께 생성
+            layoutView     : 화면이 참조할 layout 경로 (선택, 기본값 "layout/default")
+            breadcrumbView : 화면이 참조할 breadcrumb 경로 (선택, 기본값 "layout/breadcrumb")
+            layout 파일은 generateThymeleafLayout()로 먼저 생성하는 것을 권장합니다.
             정적 리소스: 생성 화면은 initializeProject()가 만든 /resources/css/styles.css와 /resources/js/krds.min.js를 사용합니다.
               - WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되며 URL은 /resources/** 로 동일하게 유지합니다.
               - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.
+              - Thymeleaf 화면과 layout은 인라인 style을 생성하지 않고 styles.css의 egov-* 공통 클래스를 사용합니다.
             egovVersion: eGovFrame 버전 (선택, 기본값 "5.0")
               - "5.0" 또는 "latest" : jakarta.validation.* import 사용
               - "4.3"               : javax.validation.* import 사용
@@ -86,7 +93,10 @@ public class CrudPromptBuilderTool {
                                       String domain, String packageName,
                                       String outputPath, String llmProvider,
                                       @Nullable String egovVersion,
-                                      @Nullable String viewType) {
+                                      @Nullable String viewType,
+                                      @Nullable String layoutMode,
+                                      @Nullable String layoutView,
+                                      @Nullable String breadcrumbView) {
         String resolved = (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
         String provider = (llmProvider == null || llmProvider.isBlank()) ? "auto"
                           : llmProvider.trim().toLowerCase();
@@ -94,11 +104,13 @@ public class CrudPromptBuilderTool {
 
         if ("auto".equals(provider)) {
             CrudOrchestrationResult result = crudOrchestrationService.orchestrate(
-                    database, tableName, domain, packageName, outputPath, resolved, resolvedViewType);
+                    database, tableName, domain, packageName, outputPath, resolved, resolvedViewType,
+                    layoutMode, layoutView, breadcrumbView);
             return formatResult(result);
         }
         return crudPromptBuilderService.buildFullCrudPrompt(
-                database, tableName, domain, packageName, outputPath, resolved, resolvedViewType);
+                database, tableName, domain, packageName, outputPath, resolved, resolvedViewType,
+                layoutMode, layoutView, breadcrumbView);
     }
 
     @Tool(description = """
@@ -119,7 +131,13 @@ public class CrudPromptBuilderTool {
               - "4.3"               : javax.validation.* import 사용
             viewType    : 화면 템플릿 종류 (선택, 기본값 "jsp")
               - "jsp"       : /WEB-INF/jsp/{domainLc}/Egov{Domain}*.jsp 생성 (총 13개)
-              - "thymeleaf" : src/main/resources/templates/{domainLc}/Egov{Domain}*.html + layout/*.html 생성 (총 18개)
+              - "thymeleaf" : src/main/resources/templates/{domainLc}/Egov{Domain}*.html 생성
+            layoutMode  : Thymeleaf layout 처리 방식 (선택, 기본값 "reuse")
+              - "reuse" : 기존 layout 재사용. layout이 없으면 generateThymeleafLayout() 실행 안내와 함께 실패
+              - "create": layout 레이어까지 함께 생성
+            layoutView     : 화면이 참조할 layout 경로 (선택, 기본값 "layout/default")
+            breadcrumbView : 화면이 참조할 breadcrumb 경로 (선택, 기본값 "layout/breadcrumb")
+            layout 파일은 generateThymeleafLayout()로 먼저 생성하는 것을 권장합니다.
             정적 리소스: 생성 화면은 initializeProject()가 만든 /resources/css/styles.css와 /resources/js/krds.min.js를 사용합니다.
               - WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되며 URL은 /resources/** 로 동일하게 유지합니다.
               - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.
@@ -136,7 +154,10 @@ public class CrudPromptBuilderTool {
                                           String domain, String packageName, String outputPath,
                                           @Nullable String viewType,
                                           @Nullable String egovVersion,
-                                          @Nullable String llmProvider) {
+                                          @Nullable String llmProvider,
+                                          @Nullable String layoutMode,
+                                          @Nullable String layoutView,
+                                          @Nullable String breadcrumbView) {
         String resolvedViewType = (viewType == null || viewType.isBlank()) ? "jsp" : viewType;
         String resolvedVersion = (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
         String provider = (llmProvider == null || llmProvider.isBlank()) ? "auto"
@@ -145,11 +166,13 @@ public class CrudPromptBuilderTool {
         if ("auto".equals(provider)) {
             MasterDetailOrchestrationResult result = masterDetailOrchestrationService.orchestrate(
                     database, masterTable, detailTable, domain, packageName,
-                    outputPath, resolvedVersion, resolvedViewType);
+                    outputPath, resolvedVersion, resolvedViewType,
+                    layoutMode, layoutView, breadcrumbView);
             return formatMasterDetailResult(result);
         }
         return masterDetailService.buildMasterDetailPrompt(
-                database, masterTable, detailTable, domain, packageName, outputPath, resolvedViewType);
+                database, masterTable, detailTable, domain, packageName, outputPath, resolvedViewType,
+                layoutMode, layoutView, breadcrumbView);
     }
 
     @Tool(description = """
@@ -183,7 +206,13 @@ public class CrudPromptBuilderTool {
             egovVersion     : eGovFrame 버전 (기본값: "5.0")
             viewType        : 화면 종류 (기본값: "jsp", "thymeleaf" 선택 가능)
               - "jsp"       : JSP 화면 4개 포함 12개 파일 생성
-              - "thymeleaf" : layout/*.html + HTML 화면 4개 포함 17개 파일 생성
+              - "thymeleaf" : HTML 화면 4개 포함 12개 파일 생성(layoutMode=create 시 17개)
+            layoutMode      : Thymeleaf layout 처리 방식 (선택, 기본값 "reuse")
+              - "reuse" : 기존 layout 재사용. layout이 없으면 generateThymeleafLayout() 실행 안내와 함께 실패
+              - "create": layout 레이어까지 함께 생성
+            layoutView      : 화면이 참조할 layout 경로 (선택, 기본값 "layout/default")
+            breadcrumbView  : 화면이 참조할 breadcrumb 경로 (선택, 기본값 "layout/breadcrumb")
+            layout 파일은 generateThymeleafLayout()로 먼저 생성하는 것을 권장합니다.
             정적 리소스    : 생성 화면은 initializeProject()가 만든 /resources/css/styles.css와 /resources/js/krds.min.js를 사용합니다.
               - WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되며 URL은 /resources/** 로 동일하게 유지합니다.
               - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.
@@ -199,7 +228,10 @@ public class CrudPromptBuilderTool {
             @Nullable String fileTable,
             @Nullable String fileDetailTable,
             @Nullable String egovVersion,
-            @Nullable String viewType) {
+            @Nullable String viewType,
+            @Nullable String layoutMode,
+            @Nullable String layoutView,
+            @Nullable String breadcrumbView) {
 
         String resolvedMain       = (mainTable == null || mainTable.isBlank())       ? "COMTNBBS"         : mainTable;
         String resolvedMaster     = (masterTable == null || masterTable.isBlank())   ? "COMTNBBSMASTER"   : masterTable;
@@ -213,7 +245,8 @@ public class CrudPromptBuilderTool {
             database, domain, packageName, outputPath,
             resolvedMain, resolvedMaster, resolvedUse,
             resolvedFile, resolvedFileDetail,
-            resolvedVersion, resolvedViewType);
+            resolvedVersion, resolvedViewType,
+            layoutMode, layoutView, breadcrumbView);
 
         return formatBoardResult(result);
     }
@@ -669,7 +702,9 @@ public class CrudPromptBuilderTool {
             return "게시판 테이블을 찾을 수 없습니다: " + r.database() + "." + r.mainTable();
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("=== [auto] eGovFrame 게시판(BBS) 소스 생성 완료 ===\n\n");
+        sb.append(r.successCount() == 0 && r.hasFailure()
+                ? "=== [auto] eGovFrame 게시판(BBS) 소스 생성 실패 ===\n\n"
+                : "=== [auto] eGovFrame 게시판(BBS) 소스 생성 완료 ===\n\n");
         sb.append("DB: ").append(r.database())
           .append(" | 메인 테이블: ").append(r.mainTable())
           .append(" | 도메인: ").append(r.domain()).append("\n");
@@ -691,7 +726,9 @@ public class CrudPromptBuilderTool {
                     + r.database() + "." + r.masterTable() + " / " + r.detailTable();
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("=== [auto] eGovFrame 마스터-디테일 CRUD 소스 생성 완료 ===\n\n");
+        sb.append(r.successCount() == 0 && r.hasFailure()
+                ? "=== [auto] eGovFrame 마스터-디테일 CRUD 소스 생성 실패 ===\n\n"
+                : "=== [auto] eGovFrame 마스터-디테일 CRUD 소스 생성 완료 ===\n\n");
         sb.append("DB: ").append(r.database())
           .append(" | 마스터: ").append(r.masterTable())
           .append(" | 디테일: ").append(r.detailTable())
@@ -716,7 +753,9 @@ public class CrudPromptBuilderTool {
             return "테이블을 찾을 수 없습니다: " + r.database() + "." + r.tableName();
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("=== [auto] eGovFrame 5.x CRUD 소스 생성 완료 ===\n\n");
+        sb.append(r.successCount() == 0 && r.hasFailure()
+                ? "=== [auto] eGovFrame 5.x CRUD 소스 생성 실패 ===\n\n"
+                : "=== [auto] eGovFrame 5.x CRUD 소스 생성 완료 ===\n\n");
         sb.append("DB: ").append(r.database())
           .append(" | 테이블: ").append(r.tableName())
           .append(" | 도메인: ").append(r.domain()).append("\n");

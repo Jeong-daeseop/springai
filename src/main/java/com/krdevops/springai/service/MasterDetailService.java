@@ -1,5 +1,6 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.model.crud.CrudLayoutMode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -28,6 +29,16 @@ public class MasterDetailService {
     public String buildMasterDetailPrompt(String database, String masterTable, String detailTable,
                                           String domain, String packageName, String outputPath,
                                           String viewType) {
+        return buildMasterDetailPrompt(database, masterTable, detailTable, domain, packageName, outputPath,
+                viewType, null, null, null);
+    }
+
+    public String buildMasterDetailPrompt(String database, String masterTable, String detailTable,
+                                          String domain, String packageName, String outputPath,
+                                          String viewType,
+                                          String layoutMode,
+                                          String layoutView,
+                                          String breadcrumbView) {
         List<Map<String, Object>> masterCols = fetchColumns(database, masterTable);
         List<Map<String, Object>> detailCols = fetchColumns(database, detailTable);
 
@@ -61,7 +72,14 @@ public class MasterDetailService {
         String date           = LocalDate.now().toString();
         String resolvedViewType = normalizeViewType(viewType);
         boolean thymeleaf = "thymeleaf".equals(resolvedViewType);
-        String fileCount = thymeleaf ? "18개 파일" : "13개 파일";
+        CrudLayoutMode resolvedLayoutMode = thymeleaf ? CrudLayoutMode.from(layoutMode) : CrudLayoutMode.CREATE;
+        if (thymeleaf && resolvedLayoutMode == CrudLayoutMode.NONE) {
+            throw new IllegalArgumentException("layoutMode=none은 아직 지원하지 않습니다.");
+        }
+        String resolvedLayoutView = layoutView == null || layoutView.isBlank() ? "layout/default" : layoutView;
+        String resolvedBreadcrumbView = breadcrumbView == null || breadcrumbView.isBlank() ? "layout/breadcrumb" : breadcrumbView;
+        String fileCount = thymeleaf && resolvedLayoutMode == CrudLayoutMode.CREATE ? "18개 파일"
+                : thymeleaf ? "13개 파일" : "13개 파일";
 
         StringBuilder sb = new StringBuilder();
         sb.append("=== eGovFrame 5.x 마스터-디테일 CRUD 소스 생성 지시 ===\n\n");
@@ -88,8 +106,13 @@ public class MasterDetailService {
         sb.append("  모델 속성 계약     = lnbTitle, lnbMenus, breadcrumbs, currentMenuId\n");
         if (thymeleaf) {
             sb.append("  화면 경로         = src/main/resources/templates/").append(domainLc).append("/Egov").append(domain).append("*.html\n");
-            sb.append("  레이아웃 경로     = src/main/resources/templates/layout/default.html\n");
-            sb.append("  partial 경로      = src/main/resources/templates/layout/{gnb,lnb,breadcrumb,footer}.html\n\n");
+            sb.append("  레이아웃 참조     = ").append(resolvedLayoutView).append("\n");
+            sb.append("  breadcrumb 참조   = ").append(resolvedBreadcrumbView).append("\n");
+            if (resolvedLayoutMode == CrudLayoutMode.CREATE) {
+                sb.append("  layout 생성       = layout/default.html, gnb.html, lnb.html, breadcrumb.html, footer.html 포함\n\n");
+            } else {
+                sb.append("  layout 생성       = 하지 않음. generateThymeleafLayout()로 먼저 준비된 layout 재사용\n\n");
+            }
         } else {
             sb.append("  화면 경로         = src/main/webapp/WEB-INF/jsp/").append(domainLc).append("/Egov").append(domain).append("*.jsp\n\n");
         }
@@ -117,14 +140,20 @@ public class MasterDetailService {
         sb.append("  Step  9: Egov").append(domain).append("Controller.java         ← 상세 진입 시 디테일 로드\n");
         sb.append("  Step 10: Egov").append(domain).append("ValidationHandler.java  ← Validation 전역 예외 핸들러\n");
         if (thymeleaf) {
-            sb.append("  Step 11: layout/default.html              ← Thymeleaf 공통 레이아웃\n");
-            sb.append("  Step 12: layout/gnb.html                  ← 상단 GNB partial\n");
-            sb.append("  Step 13: layout/lnb.html                  ← 좌측 LNB partial\n");
-            sb.append("  Step 14: layout/breadcrumb.html           ← breadcrumb partial\n");
-            sb.append("  Step 15: layout/footer.html               ← footer partial\n");
-            sb.append("  Step 16: Egov").append(domain).append("List.html               ← 마스터 목록\n");
-            sb.append("  Step 17: Egov").append(domain).append("Detail.html             ← 마스터 상세 + 디테일 그리드 탭\n");
-            sb.append("  Step 18: Egov").append(domain).append("Regist.html             ← 마스터 등록\n\n");
+            if (resolvedLayoutMode == CrudLayoutMode.CREATE) {
+                sb.append("  Step 11: layout/default.html              ← Thymeleaf 공통 레이아웃\n");
+                sb.append("  Step 12: layout/gnb.html                  ← 상단 GNB partial\n");
+                sb.append("  Step 13: layout/lnb.html                  ← 좌측 LNB partial\n");
+                sb.append("  Step 14: layout/breadcrumb.html           ← breadcrumb partial\n");
+                sb.append("  Step 15: layout/footer.html               ← footer partial\n");
+                sb.append("  Step 16: Egov").append(domain).append("List.html               ← 마스터 목록\n");
+                sb.append("  Step 17: Egov").append(domain).append("Detail.html             ← 마스터 상세 + 디테일 그리드 탭\n");
+                sb.append("  Step 18: Egov").append(domain).append("Regist.html             ← 마스터 등록\n\n");
+            } else {
+                sb.append("  Step 11: Egov").append(domain).append("List.html               ← 마스터 목록\n");
+                sb.append("  Step 12: Egov").append(domain).append("Detail.html             ← 마스터 상세 + 디테일 그리드 탭\n");
+                sb.append("  Step 13: Egov").append(domain).append("Regist.html             ← 마스터 등록\n\n");
+            }
         } else {
             sb.append("  Step 11: Egov").append(domain).append("List.jsp                ← 마스터 목록\n");
             sb.append("  Step 12: Egov").append(domain).append("Detail.jsp              ← 마스터 상세 + 디테일 그리드 탭\n");
@@ -161,7 +190,7 @@ public class MasterDetailService {
         sb.append("  }\n\n");
 
         if (thymeleaf) {
-            appendThymeleafDetailPattern(sb, detailCols, detailDomain, domain);
+            appendThymeleafDetailPattern(sb, detailCols, detailDomain, domain, resolvedLayoutMode, resolvedLayoutView);
         } else {
             appendJspDetailPattern(sb, detailCols, detailDomain);
         }
@@ -361,23 +390,30 @@ public class MasterDetailService {
     }
 
     private void appendThymeleafDetailPattern(StringBuilder sb, List<Map<String, Object>> detailCols,
-                                              String detailDomain, String domain) {
-        sb.append("[Step 11 — Thymeleaf layout/default.html 핵심 패턴]\n");
-        sb.append("  <!DOCTYPE html>\n");
-        sb.append("  <html xmlns:th=\"http://www.thymeleaf.org\" xmlns:layout=\"http://www.ultraq.net.nz/thymeleaf/layout\">\n");
-        sb.append("  <head>\n");
-        sb.append("    <link rel=\"stylesheet\" th:href=\"@{/resources/css/styles.css}\">\n");
-        sb.append("  </head>\n");
-        sb.append("  <body>\n");
-        sb.append("    <main layout:fragment=\"content\"></main>\n");
-        sb.append("    <script th:src=\"@{/resources/js/krds.min.js}\"></script>\n");
-        sb.append("  </body>\n");
-        sb.append("  </html>\n\n");
+                                              String detailDomain, String domain,
+                                              CrudLayoutMode layoutMode,
+                                              String layoutView) {
+        if (layoutMode == CrudLayoutMode.CREATE) {
+            sb.append("[Thymeleaf layout/default.html 핵심 패턴]\n");
+            sb.append("  <!DOCTYPE html>\n");
+            sb.append("  <html xmlns:th=\"http://www.thymeleaf.org\" xmlns:layout=\"http://www.ultraq.net.nz/thymeleaf/layout\">\n");
+            sb.append("  <head>\n");
+            sb.append("    <link rel=\"stylesheet\" th:href=\"@{/resources/css/styles.css}\">\n");
+            sb.append("  </head>\n");
+            sb.append("  <body>\n");
+            sb.append("    <main layout:fragment=\"content\"></main>\n");
+            sb.append("    <script th:src=\"@{/resources/js/krds.min.js}\"></script>\n");
+            sb.append("  </body>\n");
+            sb.append("  </html>\n\n");
+        } else {
+            sb.append("[Thymeleaf layout 재사용]\n");
+            sb.append("  layout 파일은 생성하지 않습니다. 먼저 generateThymeleafLayout(outputPath=..., layoutBasePath=\"layout\")를 실행하세요.\n\n");
+        }
 
-        sb.append("[Step 13 — Detail Thymeleaf 디테일 그리드 탭 패턴]\n");
+        sb.append("[Detail Thymeleaf 디테일 그리드 탭 패턴]\n");
         sb.append("  <html xmlns:th=\"http://www.thymeleaf.org\"\n");
         sb.append("        xmlns:layout=\"http://www.ultraq.net.nz/thymeleaf/layout\"\n");
-        sb.append("        layout:decorate=\"~{layout/default}\">\n");
+        sb.append("        layout:decorate=\"~{").append(layoutView).append("}\">\n");
         sb.append("  <main layout:fragment=\"content\">\n");
         sb.append("    <!-- 마스터 정보 섹션 -->\n");
         sb.append("    <section id=\"masterSection\">\n");

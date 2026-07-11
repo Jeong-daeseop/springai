@@ -18,6 +18,7 @@ import com.krdevops.springai.tools.ProjectScannerTool;
 import com.krdevops.springai.tools.RagTool;
 import com.krdevops.springai.tools.SchemaReaderTool;
 import com.krdevops.springai.tools.MenuTool;
+import com.krdevops.springai.tools.ThymeleafLayoutTool;
 import com.krdevops.springai.tools.WorkflowGuideTool;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.tool.ToolCallbackProvider;
@@ -53,14 +54,15 @@ public class McpConfig {
             AuthTool authTool,
             SecurityTemplateTool securityTemplateTool,
             SqlTool sqlTool,
-            OutputPathResolverTool outputPathResolverTool) {
+            OutputPathResolverTool outputPathResolverTool,
+            ThymeleafLayoutTool thymeleafLayoutTool) {
         return MethodToolCallbackProvider.builder()
                 .toolObjects(
                         dateTimeTool, employeeTool, schemaReaderTool, codeSaverTool,
                         codeTemplateTool, ragTool, generationHistoryTool, codeValidatorTool,
                         projectScannerTool, commonCodeTool, workflowGuideTool, crudPromptBuilderTool,
                         projectHealthTool, projectInitializrTool, menuTool, authTool,
-                        securityTemplateTool, sqlTool, outputPathResolverTool)
+                        securityTemplateTool, sqlTool, outputPathResolverTool, thymeleafLayoutTool)
                 .build();
     }
 }

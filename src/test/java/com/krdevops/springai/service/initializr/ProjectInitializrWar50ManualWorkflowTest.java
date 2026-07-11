@@ -26,10 +26,13 @@ class ProjectInitializrWar50ManualWorkflowTest {
         FilePlanFactory factory = new FilePlanFactory(staticRenderer(), buildRenderer());
 
         assertThat(factory.directoryPlans(spec)).contains(
+                "src/main/java/egovframework/let/sample/main/service",
+                "src/main/java/egovframework/let/sample/main/service/impl",
+                "src/main/webapp/WEB-INF/spring/appServlet"
+        ).doesNotContain(
                 "src/main/java/egovframework/let/sample/web",
                 "src/main/java/egovframework/let/sample/service",
-                "src/main/java/egovframework/let/sample/service/impl",
-                "src/main/webapp/WEB-INF/spring/appServlet"
+                "src/main/java/egovframework/let/sample/service/impl"
         );
 
         List<String> paths = factory.plan(spec).stream()
@@ -50,12 +53,35 @@ class ProjectInitializrWar50ManualWorkflowTest {
     }
 
     @Test
+    void war50FilePlan_includesMainControllerMatchingIndexJspForwardTarget() {
+        ProjectSpec spec = war50Spec("maven");
+        FilePlanFactory factory = new FilePlanFactory(staticRenderer(), buildRenderer());
+
+        List<FilePlan> plans = factory.plan(spec);
+        FilePlan controllerPlan = plans.stream()
+                .filter(p -> p.relativePath().equals("src/main/java/egovframework/let/sample/main/web/MainController.java"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("MainController.java FilePlan이 생성되지 않았습니다"));
+        FilePlan mainJspPlan = plans.stream()
+                .filter(p -> p.relativePath().equals("src/main/webapp/WEB-INF/jsp/egovframework/main/main.jsp"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("main.jsp FilePlan이 생성되지 않았습니다"));
+
+        String controllerSource = controllerPlan.content().get();
+        assertThat(controllerSource).contains("package egovframework.let.sample.main.web;");
+        assertThat(controllerSource).contains("@RequestMapping(value = \"/egovframework/com/main.do\"");
+        assertThat(controllerSource).contains("return \"egovframework/main/main\";");
+        assertThat(mainJspPlan.content().get()).isNotBlank();
+    }
+
+    @Test
     void war50WebXml_referencesRootContextAndServletContext() {
         String webXml = new WebXmlBuilder().build(war50Spec("maven"));
 
         assertThat(webXml).contains("<param-value>/WEB-INF/spring/root-context.xml</param-value>");
         assertThat(webXml).contains("<param-value>/WEB-INF/spring/appServlet/servlet-context.xml</param-value>");
         assertThat(webXml).contains("https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd");
+        assertThat(webXml).contains("<welcome-file>index.jsp</welcome-file>");
     }
 
     @Test
@@ -66,19 +92,28 @@ class ProjectInitializrWar50ManualWorkflowTest {
                 "<context:component-scan base-package=\"egovframework.let\" use-default-filters=\"false\">"
         );
         assertThat(servletContext).doesNotContain("base-package=\"egovframework.let.sample\"");
+        assertThat(servletContext).contains("<property name=\"order\"  value=\"1\"/>");
+        assertThat(servletContext).doesNotContain("\n1\n");
+        assertThat(servletContext).doesNotContain("ThymeleafViewResolver");
     }
 
     @Test
-    void war50ContextCommon_scansParentPackageForGeneratedCrudServicesAndMappers() {
+    void war50ContextCommon_scansParentPackageForGeneratedServicesWithoutEmptyMapperScanner() {
         DefaultStaticTemplateRenderer renderer =
                 new DefaultStaticTemplateRenderer(new ClassPathTemplateLoader());
         String contextCommon = renderer.contextCommon(war50Spec("maven"));
 
         assertThat(contextCommon).contains(
                 "<context:component-scan base-package=\"egovframework.let\">",
+                "<bean id=\"sqlSessionFactory\" class=\"org.mybatis.spring.SqlSessionFactoryBean\">",
+                "<property name=\"dataSource\" ref=\"dataSource\"/>"
+        );
+        assertThat(contextCommon).doesNotContain(
+                "egovframework.let.sample",
+                "mapperLocations",
+                "MapperScannerConfigurer",
                 "<property name=\"basePackage\" value=\"egovframework.let\"/>"
         );
-        assertThat(contextCommon).doesNotContain("egovframework.let.sample");
     }
 
     @Test
@@ -123,9 +158,90 @@ class ProjectInitializrWar50ManualWorkflowTest {
                 "egovframe-rte-fdl-idgnr:${egovVersion}",
                 "egovframe-rte-fdl-logging:${egovVersion}"
         );
+        assertThat(gradle).doesNotContain(
+                "org.thymeleaf:thymeleaf-spring6:3.1.3.RELEASE",
+                "nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect:3.4.0"
+        );
+    }
+
+    @Test
+    void war50ThymeleafFilePlan_includesHtmlLayoutAndThymeleafRuntime() {
+        ProjectSpec spec = war50Spec("maven", "thymeleaf");
+        FilePlanFactory factory = new FilePlanFactory(staticRenderer(), buildRenderer());
+
+        List<FilePlan> plans = factory.plan(spec);
+        List<String> paths = plans.stream()
+                .map(FilePlan::relativePath)
+                .toList();
+
+        assertThat(paths).contains(
+                "src/main/webapp/index.html",
+                "src/main/resources/templates/egovframework/main/main.html",
+                "src/main/resources/templates/layout/default.html",
+                "src/main/resources/templates/layout/gnb.html",
+                "src/main/resources/templates/layout/lnb.html",
+                "src/main/resources/templates/layout/breadcrumb.html",
+                "src/main/resources/templates/layout/footer.html"
+        );
+        assertThat(paths).doesNotContain(
+                "src/main/webapp/index.jsp",
+                "src/main/webapp/WEB-INF/jsp/egovframework/main/main.jsp"
+        );
+
+        String defaultLayout = plans.stream()
+                .filter(p -> p.relativePath().equals("src/main/resources/templates/layout/default.html"))
+                .findFirst()
+                .orElseThrow()
+                .content().get();
+        String gnbLayout = plans.stream()
+                .filter(p -> p.relativePath().equals("src/main/resources/templates/layout/gnb.html"))
+                .findFirst()
+                .orElseThrow()
+                .content().get();
+        String breadcrumbLayout = plans.stream()
+                .filter(p -> p.relativePath().equals("src/main/resources/templates/layout/breadcrumb.html"))
+                .findFirst()
+                .orElseThrow()
+                .content().get();
+        String footerLayout = plans.stream()
+                .filter(p -> p.relativePath().equals("src/main/resources/templates/layout/footer.html"))
+                .findFirst()
+                .orElseThrow()
+                .content().get();
+
+        assertThat(defaultLayout).contains(
+                "<div th:replace=\"~{layout/breadcrumb :: breadcrumb}\"></div>",
+                "<main class=\"egov-layout-shell\">"
+        ).doesNotContain("<main class=\"egov-layout-main\">");
+        assertThat(gnbLayout).contains(
+                "<header th:fragment=\"gnb\" class=\"egov-header\">",
+                "egov-header-inner",
+                "egov-header-brand"
+        );
+        assertThat(breadcrumbLayout).contains(
+                "<div th:fragment=\"breadcrumb\" class=\"egov-breadcrumb-band\">",
+                "<nav class=\"egov-breadcrumb\""
+        );
+        assertThat(footerLayout).contains(
+                "egov-footer-inner",
+                "egov-footer-bottom"
+        );
+
+        assertThat(new WebXmlBuilder().build(spec)).contains("<welcome-file>index.html</welcome-file>");
+        assertThat(new DispatcherServletBuilder().build(spec)).contains("ThymeleafViewResolver");
+        assertThat(new WarBuildGradleBuilder().build(ProjectSpec.of(
+                "sample-war", "egovframework.let", "sample-war", "egovframework.let.sample",
+                "gradle", "war", "/tmp", resolver.resolve("5.0"), "thymeleaf"))).contains(
+                "org.thymeleaf:thymeleaf-spring6:3.1.3.RELEASE",
+                "nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect:3.4.0"
+        );
     }
 
     private ProjectSpec war50Spec(String buildTool) {
+        return war50Spec(buildTool, "jsp");
+    }
+
+    private ProjectSpec war50Spec(String buildTool, String viewType) {
         return ProjectSpec.of(
                 "sample-war",
                 "egovframework.let",
@@ -134,7 +250,8 @@ class ProjectInitializrWar50ManualWorkflowTest {
                 buildTool,
                 "war",
                 "/tmp",
-                resolver.resolve("5.0")
+                resolver.resolve("5.0"),
+                viewType
         );
     }
 

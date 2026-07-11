@@ -5,12 +5,9 @@
 <mapper namespace="${packageName}.service.impl.${master.domain}Mapper">
 
     <resultMap id="${master.domainLc}Map" type="${packageName}.service.${master.domain}VO">
-<#list master.fields as f>
-<#if f.pk>
-        <id property="${f.javaName}" column="${f.columnName}"/>
-<#else>
+        <id property="${master.pk.javaName}" column="${master.pk.columnName}"/>
+<#list master.nonPkFields as f>
         <result property="${f.javaName}" column="${f.columnName}"/>
-</#if>
 </#list>
     </resultMap>
 

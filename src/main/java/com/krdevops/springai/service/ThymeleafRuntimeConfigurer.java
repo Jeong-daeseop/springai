@@ -17,7 +17,7 @@ import java.util.regex.Pattern;
  * 대상 프로젝트의 pom.xml(Maven 의존성)과 servlet-context.xml(ViewResolver)을
  * 멱등적으로 보강한다.
  *
- * <p>egovVersion 5.x / latest → Spring 6 기반 (thymeleaf-spring6, layout-dialect 3.3.0)<br>
+ * <p>egovVersion 5.x / latest → Spring 6 기반 (thymeleaf-spring6, layout-dialect 3.4.0)<br>
  * egovVersion 4.3 → Spring 5 기반 (thymeleaf-spring5, layout-dialect 3.1.0)
  */
 @Slf4j
@@ -48,7 +48,7 @@ public class ThymeleafRuntimeConfigurer {
 
             String thymeleafArtifact  = spring6 ? "thymeleaf-spring6"  : "thymeleaf-spring5";
             String thymeleafVersion   = spring6 ? "3.1.3.RELEASE"      : "3.0.15.RELEASE";
-            String layoutVersion      = spring6 ? "3.3.0"              : "3.1.0";
+            String layoutVersion      = spring6 ? "3.4.0"              : "3.1.0";
 
             // thymeleaf-spring5/6 의존성 보강 (없을 때만, 독립 체크)
             if (!updated.contains("<artifactId>" + thymeleafArtifact + "</artifactId>")) {

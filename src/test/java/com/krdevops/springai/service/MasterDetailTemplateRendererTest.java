@@ -1,5 +1,6 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
 import com.krdevops.springai.model.crud.FieldModel;
 import com.krdevops.springai.model.crud.PkModel;
@@ -40,8 +41,10 @@ class MasterDetailTemplateRendererTest {
                 "5.0",
                 true,
                 new PkModel("BBS_ID", "bbsId", "String"),
+                List.of(BBS_ID),
                 List.of(BBS_ID, BBS_NM, USE_AT),
                 List.of(BBS_ID, BBS_NM, USE_AT),
+                List.of(BBS_NM, USE_AT),
                 List.of(BBS_NM, USE_AT)
         );
         CrudTemplateModel detail = new CrudTemplateModel(
@@ -55,8 +58,10 @@ class MasterDetailTemplateRendererTest {
                 "5.0",
                 true,
                 new PkModel("BBS_ID", "bbsId", "String"),
+                List.of(BBS_ID),
                 List.of(BBS_ID, TRGET_ID, USE_AT),
                 List.of(BBS_ID, TRGET_ID, USE_AT),
+                List.of(TRGET_ID, USE_AT),
                 List.of(TRGET_ID, USE_AT)
         );
         return new MasterDetailTemplateModel(master, detail, "BBS_ID", "bbsId");
@@ -116,9 +121,80 @@ class MasterDetailTemplateRendererTest {
     }
 
     @Test
+    void thymeleafDetailAndRegist_h1TitleUsesCommonClass() {
+        String detail = renderer.renderByLayerKey("thymeleafDetail", model());
+        String regist = renderer.renderByLayerKey("thymeleafRegist", model());
+
+        assertThat(detail).contains("<h1 class=\"egov-page-title\">");
+        assertThat(regist).contains("<h1 class=\"egov-page-title\">");
+        assertThat(detail).doesNotContain("style=\"");
+        assertThat(regist).doesNotContain("style=\"");
+    }
+
+    // ─── layoutMode=none — 독립 화면 템플릿(<th:block> 구조 유지) ───────────
+
+    @Test
+    void thymeleafList_none_rendersStandaloneWithoutLayoutOrBreadcrumb() {
+        String result = renderer.renderByLayerKey(
+                "thymeleafList", model(), "layout/default", "layout/breadcrumb", "layout",
+                CrudLayoutMode.NONE);
+
+        assertThat(result)
+                .contains("<meta charset=\"UTF-8\">")
+                .contains("게시판마스터 목록")
+                .doesNotContain("layout:decorate")
+                .doesNotContain("xmlns:layout")
+                .doesNotContain("breadcrumb")
+                .doesNotContain("<#include");
+    }
+
+    @Test
+    void thymeleafDetail_none_rendersStandaloneWithoutLayoutOrBreadcrumb() {
+        String result = renderer.renderByLayerKey(
+                "thymeleafDetail", model(), "layout/default", "layout/breadcrumb", "layout",
+                CrudLayoutMode.NONE);
+
+        assertThat(result)
+                .contains("<meta charset=\"UTF-8\">")
+                .contains("등록된 게시판사용 정보가 없습니다.")
+                .doesNotContain("layout:decorate")
+                .doesNotContain("breadcrumb")
+                .doesNotContain("<#include");
+    }
+
+    @Test
+    void thymeleafRegist_none_rendersStandaloneWithoutLayoutOrBreadcrumb() {
+        String result = renderer.renderByLayerKey(
+                "thymeleafRegist", model(), "layout/default", "layout/breadcrumb", "layout",
+                CrudLayoutMode.NONE);
+
+        assertThat(result)
+                .contains("<meta charset=\"UTF-8\">")
+                .doesNotContain("layout:decorate")
+                .doesNotContain("breadcrumb")
+                .doesNotContain("<#include");
+    }
+
+    @Test
     void renderByLayerKey_unknownKey_throwsIllegalArgumentException() {
         assertThatThrownBy(() -> renderer.renderByLayerKey("unknown", model()))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("unknown");
+    }
+
+    // ─── GNB 동적 렌더링 (gnb.html.ftl) ──────────────────────────────────────
+
+    @Test
+    void layoutGnbHtml_containsDynamicMenuLoopAndHomeStaysStatic() {
+        String result = renderer.renderByLayerKey("layoutGnbHtml", model());
+
+        assertThat(result)
+                .contains("th:each=\"menu : ${gnbMenus}\"")
+                .contains("th:if=\"${menu.url != null}\"")
+                .contains("th:href=\"@{${menu.url}}\"")
+                .contains(">홈</a>")
+                .doesNotContain("lnbMenus[0]")
+                .doesNotContain("시스템관리")
+                .doesNotContain("고객지원");
     }
 }

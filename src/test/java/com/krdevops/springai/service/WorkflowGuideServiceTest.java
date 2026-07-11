@@ -25,6 +25,28 @@ class WorkflowGuideServiceTest {
         assertThat(result).contains("CRUD");
         assertThat(result).contains("1.");
         assertThat(result).contains("14.");
+        assertThat(result).doesNotContain("Thymeleaf layout");
+    }
+
+    @Test
+    void suggestNextStep_thymeleaf문맥_layout단계_포함된워크플로우_반환() {
+        String result = workflowGuideService.suggestNextStep("viewType=thymeleaf로 CRUD 생성 예정");
+        assertThat(result).contains("Thymeleaf layout 생성");
+        assertThat(result).contains("15.");
+    }
+
+    @Test
+    void suggestNextStep_스키마조회완료_thymeleaf문맥_다음단계_layout생성안내() {
+        String result = workflowGuideService.suggestNextStep(
+                "thymeleaf 화면 생성 예정. getTableSchema로 스키마 조회 완료");
+        assertThat(result).contains("▶ 2. Thymeleaf layout 생성 [generateThymeleafLayout] ← 다음 단계");
+    }
+
+    @Test
+    void suggestNextStep_layout생성완료_thymeleaf문맥_다음단계_VO생성안내() {
+        String result = workflowGuideService.suggestNextStep(
+                "thymeleaf 화면. 테이블 스키마 조회 완료. generateThymeleafLayout 완료");
+        assertThat(result).contains("▶ 3. VO 생성 [saveGeneratedCode] ← 다음 단계");
     }
 
     @Test
@@ -85,16 +107,16 @@ class WorkflowGuideServiceTest {
     @Test
     void suggestProjectSetupCrudWorkflow_buildFullCrudPrompt완료_다음단계_CRUD코드저장() {
         String result = workflowGuideService.suggestProjectSetupCrudWorkflow(
-                "PROJECT_CONTEXT 포함. datasource 설정 완료. getTableSchema 완료. buildFullCrudPrompt 완료");
-        assertThat(result).contains("▶ 5. CRUD 코드 저장 [saveGeneratedCode] ← 다음 단계");
+                "PROJECT_CONTEXT 포함. datasource 설정 완료. getTableSchema 완료. generateThymeleafLayout 완료. buildFullCrudPrompt 완료");
+        assertThat(result).contains("▶ 6. CRUD 코드 저장 [saveGeneratedCode] ← 다음 단계");
     }
 
     @Test
     void suggestProjectSetupCrudWorkflow_빌드완료_다음단계_상태확인() {
         String result = workflowGuideService.suggestProjectSetupCrudWorkflow(
-                "PROJECT_CONTEXT 포함. datasource 설정 완료. getTableSchema 완료. buildFullCrudPrompt 완료. " +
+                "PROJECT_CONTEXT 포함. datasource 설정 완료. getTableSchema 완료. generateThymeleafLayout 완료. buildFullCrudPrompt 완료. " +
                 "saveGeneratedCode 완료. 이력 저장 완료. 빌드 완료");
-        assertThat(result).contains("▶ 8. 프로젝트 상태 확인 [checkProjectHealth] ← 다음 단계");
+        assertThat(result).contains("▶ 9. 프로젝트 상태 확인 [checkProjectHealth] ← 다음 단계");
     }
 
     @Test

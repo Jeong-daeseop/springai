@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * DB 컬럼 메타데이터(List&lt;Map&gt;) → CrudTemplateModel 변환 팩토리.
@@ -18,6 +19,14 @@ import java.util.Map;
  */
 @Service
 public class CrudModelFactory {
+
+    /**
+     * eGovFrame 표준 감사(audit) 컬럼 — 서버가 값을 채우므로 등록/수정 폼에서
+     * 사용자가 직접 입력하지 않도록 formFields 에서 제외한다.
+     */
+    private static final Set<String> SYSTEM_MANAGED_FIELDS = Set.of(
+            "frstRegistPnttm", "frstRegisterId", "lastUpdtPnttm", "lastUpdusrId"
+    );
 
     /**
      * rawColumns 를 기반으로 FreeMarker 렌더링용 CrudTemplateModel 을 생성한다.
@@ -42,16 +51,22 @@ public class CrudModelFactory {
                 .map(this::toFieldModel)
                 .toList();
 
-        // PK 필드 — 없으면 첫 번째 컬럼을 PK로 간주 (CrudPromptBuilderService 동일 처리)
-        FieldModel pkField = fields.stream()
-                .filter(FieldModel::pk)
-                .findFirst()
-                .orElse(fields.get(0));
+        // PK 필드 — 복합키(예: NTT_ID+BBS_ID)를 모두 인식한다.
+        // 없으면 첫 번째 컬럼을 PK로 간주 (CrudPromptBuilderService 동일 처리)
+        List<FieldModel> pkFields = fields.stream().filter(FieldModel::pk).toList();
+        FieldModel pkField = !pkFields.isEmpty() ? pkFields.get(0) : fields.get(0);
+        List<FieldModel> effectivePkFields = !pkFields.isEmpty() ? pkFields : List.of(pkField);
 
         PkModel pk = new PkModel(pkField.columnName(), pkField.javaName(), pkField.javaType());
 
+        java.util.Set<String> pkJavaNames = effectivePkFields.stream()
+                .map(FieldModel::javaName)
+                .collect(java.util.stream.Collectors.toSet());
         List<FieldModel> nonPkFields = fields.stream()
-                .filter(f -> !f.javaName().equals(pkField.javaName()))
+                .filter(f -> !pkJavaNames.contains(f.javaName()))
+                .toList();
+        List<FieldModel> formFields = nonPkFields.stream()
+                .filter(f -> !SYSTEM_MANAGED_FIELDS.contains(f.javaName()))
                 .toList();
         List<FieldModel> listFields = buildListFields(fields, pkField);
 
@@ -78,9 +93,11 @@ public class CrudModelFactory {
                 egovVersion,
                 jakartaValidation,
                 pk,
+                effectivePkFields,
                 fields,
                 listFields,
-                nonPkFields
+                nonPkFields,
+                formFields
         );
     }
 

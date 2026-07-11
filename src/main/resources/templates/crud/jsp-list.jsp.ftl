@@ -58,11 +58,11 @@
             <table class="tbl col data">
                 <caption>${domainKr} 목록 표</caption>
                 <colgroup>
-                    <col style="width: 8%;">
+                    <col class="egov-col-narrow">
 <#list listFields as f>
                     <col>
 </#list>
-                    <col style="width: 10%;">
+                    <col class="egov-col-action-percent">
                 </colgroup>
                 <thead>
                 <tr>
@@ -81,7 +81,7 @@
                         <td><c:out value="${'$'}{item.${f.javaName}}"/></td>
 </#list>
                         <td>
-                            <a href="<c:url value='${urlPrefix}Detail.do'/>?${pk.javaName}=${'$'}{item.${pk.javaName}}"
+                            <a href="<c:url value='${urlPrefix}Detail.do'/>?<#list pkFields as p>${p.javaName}=${'$'}{item.${p.javaName}}<#sep>&</#sep></#list>"
                                class="krds-btn secondary xsmall">상세</a>
                         </td>
                     </tr>

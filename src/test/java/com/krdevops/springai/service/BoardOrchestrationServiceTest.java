@@ -4,13 +4,18 @@ import com.krdevops.springai.model.board.BoardTemplateModel;
 import com.krdevops.springai.model.crud.FieldModel;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.List;
 import java.util.Map;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,6 +27,7 @@ import static org.mockito.Mockito.*;
  * DB·파일시스템에 의존하지 않고 레이어 순회·파일 수·경로·ThymeleafRuntimeConfigurer 호출을 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class BoardOrchestrationServiceTest {
 
     @Mock BoardSchemaService         boardSchemaService;
@@ -31,6 +37,7 @@ class BoardOrchestrationServiceTest {
     @Mock CodeValidatorService       codeValidatorService;
     @Mock GenerationHistoryService   generationHistoryService;
     @Mock ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
+    @Spy ThymeleafLayoutValidator thymeleafLayoutValidator = new ThymeleafLayoutValidator();
 
     @InjectMocks
     BoardOrchestrationService service;
@@ -56,7 +63,8 @@ class BoardOrchestrationServiceTest {
                 .thenReturn(Map.of("COMTNBBS", List.of()));
         when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(model);
-        when(boardTemplateRenderer.renderByLayerKey(any(), any())).thenReturn("rendered");
+        doReturn("rendered").when(boardTemplateRenderer).renderByLayerKey(any(), any());
+        doReturn("rendered").when(boardTemplateRenderer).renderByLayerKey(any(), any(), any(), any(), any(), any());
         when(codeService.saveGeneratedCode(any(), any())).thenReturn("저장 성공");
         when(codeValidatorService.validateDirectory(any())).thenReturn("OK");
         when(generationHistoryService.saveHistory(any(), any(), any(), any(), any()))
@@ -72,10 +80,87 @@ class BoardOrchestrationServiceTest {
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
                 "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf");
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "create", null, null);
 
         assertThat(result.succeededFiles()).hasSize(17);
         assertThat(result.failedFiles()).isEmpty();
+    }
+
+    @Test
+    void thymeleafReuseWithoutLayout_returnsFailureBeforeSave(@TempDir Path tempDir) {
+        when(boardSchemaService.fetchBoardSchemas(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("COMTNBBS", List.of()));
+        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(dummyModel());
+
+        BoardOrchestrationResult result = service.orchestrate(
+                "com", "Bbs", "egovframework.let.bbs", tempDir.toString(),
+                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf");
+
+        assertThat(result.successCount()).isZero();
+        assertThat(result.failedFiles()).singleElement()
+                .asString()
+                .contains("generateThymeleafLayout")
+                .contains("layoutBasePath=\"layout\"");
+        verify(boardTemplateRenderer, never()).renderByLayerKey(any(), any(), any(), any(), any(), any());
+        verify(codeService, never()).saveGeneratedCode(any(), any());
+    }
+
+    @Test
+    void thymeleafReuseCustomLayoutView_missingFileUnderCustomBase_returnsFailureBeforeSave(
+            @TempDir Path tempDir) throws Exception {
+        when(boardSchemaService.fetchBoardSchemas(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("COMTNBBS", List.of()));
+        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(dummyModel());
+
+        Path customBase = tempDir.resolve("src/main/resources/templates/layout/admin");
+        java.nio.file.Files.createDirectories(customBase);
+        for (String name : List.of("default.html", "gnb.html", "lnb.html", "breadcrumb.html")) {
+            java.nio.file.Files.writeString(customBase.resolve(name), "<html></html>");
+        }
+
+        BoardOrchestrationResult result = service.orchestrate(
+                "com", "Bbs", "egovframework.let.bbs", tempDir.toString(),
+                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "reuse", "layout/admin/default", "layout/admin/breadcrumb");
+
+        assertThat(result.successCount()).isZero();
+        assertThat(result.failedFiles()).singleElement()
+                .asString()
+                .contains("generateThymeleafLayout")
+                .contains("layoutBasePath=\"layout/admin\"")
+                .contains("footer.html");
+        verify(boardTemplateRenderer, never()).renderByLayerKey(any(), any(), any(), any(), any(), any());
+        verify(codeService, never()).saveGeneratedCode(any(), any());
+    }
+
+    @Test
+    void thymeleafReuseCustomLayoutView_allFilesPresent_rendersWithCustomPaths(
+            @TempDir Path tempDir) throws Exception {
+        stubSuccess(dummyModel());
+
+        Path customBase = tempDir.resolve("src/main/resources/templates/layout/admin");
+        java.nio.file.Files.createDirectories(customBase);
+        for (String name : List.of("default.html", "gnb.html", "lnb.html", "breadcrumb.html", "footer.html")) {
+            java.nio.file.Files.writeString(customBase.resolve(name), "<html></html>");
+        }
+
+        BoardOrchestrationResult result = service.orchestrate(
+                "com", "Bbs", "egovframework.let.bbs", tempDir.toString(),
+                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "reuse", "layout/admin/default", "layout/admin/breadcrumb");
+
+        // reuse 기본값은 layout 레이어를 저장하지 않으므로 12개만 성공
+        assertThat(result.succeededFiles()).hasSize(12);
+        assertThat(result.failedFiles()).isEmpty();
+        verify(boardTemplateRenderer, atLeastOnce()).renderByLayerKey(
+                any(), any(),
+                eq("layout/admin/default"), eq("layout/admin/breadcrumb"), eq("layout/admin"), any());
     }
 
     // ─── JSP 파일 수 ─────────────────────────────────────────────────────────
@@ -101,7 +186,8 @@ class BoardOrchestrationServiceTest {
         service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
                 "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf");
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "create", null, null);
 
         ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);
         verify(codeService, atLeastOnce()).saveGeneratedCode(pathCaptor.capture(), any());
@@ -119,7 +205,8 @@ class BoardOrchestrationServiceTest {
         service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
                 "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf");
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "create", null, null);
 
         verify(codeService).saveGeneratedCode(
                 "/tmp/out/src/main/webapp/index.jsp",
@@ -138,7 +225,8 @@ class BoardOrchestrationServiceTest {
         service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
                 "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf");
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "create", null, null);
 
         verify(thymeleafRuntimeConfigurer)
                 .ensureThymeleafRuntime(eq("/tmp/out"), eq("5.0"), any());
@@ -156,6 +244,82 @@ class BoardOrchestrationServiceTest {
         verify(thymeleafRuntimeConfigurer, never()).ensureThymeleafRuntime(any(), any(), any());
     }
 
+    // ─── 저장/렌더/검증/이력 실패 ─────────────────────────────────────────────
+
+    @Test
+    void jsp_saveFails_recordsInFailedFiles() {
+        when(boardSchemaService.fetchBoardSchemas(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("COMTNBBS", List.of()));
+        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(dummyModel());
+        doReturn("rendered").when(boardTemplateRenderer).renderByLayerKey(any(), any());
+        when(codeService.saveGeneratedCode(any(), any())).thenReturn("파일 저장 실패: 권한 없음");
+        when(codeValidatorService.validateDirectory(any())).thenReturn("검증 실패");
+        when(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).thenReturn("OK");
+
+        BoardOrchestrationResult result = service.orchestrate(
+                "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
+                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "jsp");
+
+        assertThat(result.hasFailure()).isTrue();
+        assertThat(result.failCount()).isEqualTo(12);
+        assertThat(result.successCount()).isZero();
+        assertThat(result.failedFiles())
+                .allSatisfy(f -> assertThat(f).contains("파일 저장 실패: 권한 없음"));
+    }
+
+    @Test
+    void jsp_renderThrows_recordsInFailedFiles() {
+        when(boardSchemaService.fetchBoardSchemas(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("COMTNBBS", List.of()));
+        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(dummyModel());
+        doThrow(new RuntimeException("템플릿 로딩 실패")).when(boardTemplateRenderer).renderByLayerKey(any(), any());
+        when(codeValidatorService.validateDirectory(any())).thenReturn("검증 실패");
+        when(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).thenReturn("OK");
+
+        BoardOrchestrationResult result = service.orchestrate(
+                "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
+                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "jsp");
+
+        assertThat(result.hasFailure()).isTrue();
+        assertThat(result.failedFiles())
+                .hasSize(12)
+                .allSatisfy(f -> assertThat(f).contains("템플릿 로딩 실패"));
+    }
+
+    @Test
+    void jsp_validationThrows_resultStillReturned() {
+        stubSuccess(dummyModel());
+        when(codeValidatorService.validateDirectory(any()))
+                .thenThrow(new RuntimeException("검증 서비스 오류"));
+
+        BoardOrchestrationResult result = service.orchestrate(
+                "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
+                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "jsp");
+
+        assertThat(result.successCount()).isEqualTo(12);
+        assertThat(result.validationSummary()).contains("검증 실패:");
+    }
+
+    @Test
+    void jsp_historyThrows_resultStillReturned() {
+        stubSuccess(dummyModel());
+        when(generationHistoryService.saveHistory(any(), any(), any(), any(), any()))
+                .thenThrow(new RuntimeException("DB 연결 오류"));
+
+        BoardOrchestrationResult result = service.orchestrate(
+                "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
+                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "jsp");
+
+        assertThat(result.successCount()).isEqualTo(12);
+        assertThat(result.historySummary()).contains("이력 저장 실패:");
+    }
+
     // ─── 테이블 미존재 ────────────────────────────────────────────────────────
 
     @Test
@@ -166,7 +330,8 @@ class BoardOrchestrationServiceTest {
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
                 "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf");
+                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "create", null, null);
 
         assertThat(result.tableNotFound()).isTrue();
         assertThat(result.succeededFiles()).isEmpty();

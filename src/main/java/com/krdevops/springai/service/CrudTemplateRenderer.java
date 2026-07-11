@@ -1,6 +1,7 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.exception.CrudTemplateRenderException;
+import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -40,10 +41,25 @@ public class CrudTemplateRenderer {
         LAYER_TEMPLATE_MAP.put("layoutLnbHtml",     "layout/lnb.html.ftl");
         LAYER_TEMPLATE_MAP.put("layoutBreadcrumbHtml", "layout/breadcrumb.html.ftl");
         LAYER_TEMPLATE_MAP.put("layoutFooterHtml",  "layout/footer.html.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutGnbMenuVo",          "layout/gnb-menu-vo.java.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutGnbMenuMapper",      "layout/gnb-menu-mapper.java.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutGnbMenuMapperXml",   "layout/gnb-menu-mapper.xml.ftl");
+        LAYER_TEMPLATE_MAP.put("layoutGnbMenuInterceptor", "layout/gnb-menu-interceptor.java.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafList",     "thymeleaf-list.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafDetail",   "thymeleaf-detail.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafRegist",   "thymeleaf-regist.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafUpdt",     "thymeleaf-updt.html.ftl");
+    }
+
+    /** layoutMode=none 전용 — layout 참조 없는 독립 화면 템플릿 매핑 */
+    private static final Map<String, String> STANDALONE_TEMPLATE_MAP;
+
+    static {
+        STANDALONE_TEMPLATE_MAP = new HashMap<>();
+        STANDALONE_TEMPLATE_MAP.put("thymeleafList",   "thymeleaf-list-standalone.html.ftl");
+        STANDALONE_TEMPLATE_MAP.put("thymeleafDetail", "thymeleaf-detail-standalone.html.ftl");
+        STANDALONE_TEMPLATE_MAP.put("thymeleafRegist", "thymeleaf-regist-standalone.html.ftl");
+        STANDALONE_TEMPLATE_MAP.put("thymeleafUpdt",   "thymeleaf-updt-standalone.html.ftl");
     }
 
     private final Configuration freemarkerConfig;
@@ -85,13 +101,103 @@ public class CrudTemplateRenderer {
      * @throws CrudTemplateRenderException 템플릿 로딩 또는 렌더링 실패 시
      */
     public String renderByLayerKey(String layerKey, CrudTemplateModel model) {
+        return renderByLayerKey(layerKey, model,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_BREADCRUMB_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_BASE_PATH);
+    }
+
+    public String renderByLayerKey(
+            String layerKey,
+            CrudTemplateModel model,
+            String layoutView,
+            String breadcrumbView,
+            String layoutBasePath) {
         String templateName = LAYER_TEMPLATE_MAP.get(layerKey);
         if (templateName == null) {
             throw new IllegalArgumentException(
                     "지원하지 않는 layerKey: " + layerKey
                     + " (지원 목록: " + LAYER_TEMPLATE_MAP.keySet() + ")");
         }
-        return render(templateName, model);
+        return render(templateName, toDataModel(model, layoutView, breadcrumbView, layoutBasePath));
+    }
+
+    /**
+     * layoutMode를 인지하는 화면 렌더링. NONE이면 layout 참조가 없는 독립 화면 템플릿을 사용한다.
+     */
+    public String renderByLayerKey(
+            String layerKey,
+            CrudTemplateModel model,
+            String layoutView,
+            String breadcrumbView,
+            String layoutBasePath,
+            CrudLayoutMode layoutMode) {
+        if (layoutMode != CrudLayoutMode.NONE) {
+            return renderByLayerKey(layerKey, model, layoutView, breadcrumbView, layoutBasePath);
+        }
+        String templateName = STANDALONE_TEMPLATE_MAP.get(layerKey);
+        if (templateName == null) {
+            throw new IllegalArgumentException(
+                    "standalone 템플릿이 없는 layerKey: " + layerKey
+                    + " (지원 목록: " + STANDALONE_TEMPLATE_MAP.keySet() + ")");
+        }
+        return render(templateName, toDataModel(model));
+    }
+
+    public String renderLayoutByLayerKey(String layerKey, String layoutBasePath) {
+        String templateName = LAYER_TEMPLATE_MAP.get(layerKey);
+        if (templateName == null) {
+            throw new IllegalArgumentException(
+                    "지원하지 않는 layerKey: " + layerKey
+                    + " (지원 목록: " + LAYER_TEMPLATE_MAP.keySet() + ")");
+        }
+        Map<String, Object> data = new HashMap<>();
+        data.put("layoutBasePath", layoutBasePath);
+        data.put("layoutView", layoutBasePath + "/default");
+        data.put("breadcrumbView", layoutBasePath + "/breadcrumb");
+        return render(templateName, data);
+    }
+
+    public String renderGnbMenuComponent(String layerKey, String packageName) {
+        return renderGnbMenuComponent(layerKey, packageName, "LETTNMENUINFO", "LETTNPROGRMLIST");
+    }
+
+    /**
+     * GNB 동적 메뉴 컴포넌트(VO/Mapper/MapperXml/Interceptor) 전용 렌더링.
+     * layoutBasePath 개념이 없는 프로젝트 전역 산출물이라 packageName과 메뉴 테이블명만 필요하다.
+     */
+    public String renderGnbMenuComponent(
+            String layerKey,
+            String packageName,
+            String menuTableName,
+            String programTableName) {
+        String templateName = LAYER_TEMPLATE_MAP.get(layerKey);
+        if (templateName == null) {
+            throw new IllegalArgumentException(
+                    "지원하지 않는 layerKey: " + layerKey
+                    + " (지원 목록: " + LAYER_TEMPLATE_MAP.keySet() + ")");
+        }
+        Map<String, Object> data = new HashMap<>();
+        data.put("packageName", packageName);
+        data.put("menuTableName", menuTableName);
+        data.put("programTableName", programTableName);
+        data.put("date", java.time.LocalDate.now().toString());
+        return render(templateName, data);
+    }
+
+    private String render(String templateName, Map<String, Object> dataModel) {
+        try {
+            Template template = freemarkerConfig.getTemplate(templateName);
+            StringWriter writer = new StringWriter();
+            template.process(dataModel, writer);
+            return writer.toString();
+        } catch (IOException e) {
+            throw new CrudTemplateRenderException(
+                    "템플릿 로딩 실패: " + templateName, e);
+        } catch (TemplateException e) {
+            throw new CrudTemplateRenderException(
+                    "템플릿 렌더링 실패: " + templateName, e);
+        }
     }
 
     /**
@@ -100,6 +206,17 @@ public class CrudTemplateRenderer {
      * BeansWrapper 설정에 따라 불안정할 수 있으므로 명시적 Map으로 전달한다.
      */
     private Map<String, Object> toDataModel(CrudTemplateModel model) {
+        return toDataModel(model,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_BREADCRUMB_VIEW,
+                ThymeleafLayoutValidator.DEFAULT_LAYOUT_BASE_PATH);
+    }
+
+    private Map<String, Object> toDataModel(
+            CrudTemplateModel model,
+            String layoutView,
+            String breadcrumbView,
+            String layoutBasePath) {
         Map<String, Object> data = new HashMap<>();
         data.put("packageName",       model.packageName());
         data.put("domain",            model.domain());
@@ -111,9 +228,14 @@ public class CrudTemplateRenderer {
         data.put("egovVersion",       model.egovVersion());
         data.put("jakartaValidation", model.jakartaValidation());
         data.put("pk",                model.pk());
+        data.put("pkFields",          model.pkFields());
         data.put("fields",            model.fields());
         data.put("listFields",        model.listFields());
         data.put("nonPkFields",       model.nonPkFields());
+        data.put("formFields",        model.formFields());
+        data.put("layoutView",        layoutView);
+        data.put("breadcrumbView",    breadcrumbView);
+        data.put("layoutBasePath",    layoutBasePath);
         return data;
     }
 }

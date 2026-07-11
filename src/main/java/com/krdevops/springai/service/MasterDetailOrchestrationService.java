@@ -1,5 +1,6 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
 import com.krdevops.springai.model.crud.CrudViewType;
 import com.krdevops.springai.model.masterdetail.MasterDetailLayerDefinition;
@@ -29,6 +30,7 @@ public class MasterDetailOrchestrationService {
     private final CodeValidatorService codeValidatorService;
     private final GenerationHistoryService generationHistoryService;
     private final ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
+    private final ThymeleafLayoutValidator thymeleafLayoutValidator;
 
     public MasterDetailOrchestrationResult orchestrate(
             String database,
@@ -39,6 +41,22 @@ public class MasterDetailOrchestrationService {
             String outputPath,
             String egovVersion,
             String viewType) {
+        return orchestrate(database, masterTable, detailTable, domain, packageName,
+                outputPath, egovVersion, viewType, null, null, null);
+    }
+
+    public MasterDetailOrchestrationResult orchestrate(
+            String database,
+            String masterTable,
+            String detailTable,
+            String domain,
+            String packageName,
+            String outputPath,
+            String egovVersion,
+            String viewType,
+            String layoutMode,
+            String layoutView,
+            String breadcrumbView) {
 
         log.info("[master-detail-orchestrate] 시작: master={}, detail={}, domain={}, viewType={}",
                 masterTable, detailTable, domain, viewType);
@@ -67,16 +85,44 @@ public class MasterDetailOrchestrationService {
 
         String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
         CrudViewType resolvedViewType = CrudViewType.from(viewType);
+        CrudLayoutMode resolvedLayoutMode = resolvedViewType == CrudViewType.THYMELEAF
+                ? CrudLayoutMode.from(layoutMode)
+                : CrudLayoutMode.CREATE;
+        ThymeleafLayoutValidator.LayoutReference layoutReference = resolvedViewType == CrudViewType.THYMELEAF
+                ? thymeleafLayoutValidator.resolve(layoutView, breadcrumbView)
+                : thymeleafLayoutValidator.resolve(null, null);
+
+        if (resolvedViewType == CrudViewType.THYMELEAF && resolvedLayoutMode == CrudLayoutMode.REUSE) {
+            ThymeleafLayoutValidator.LayoutValidationResult validation =
+                    thymeleafLayoutValidator.validateExisting(outputPath, layoutReference.layoutView(), layoutReference.breadcrumbView());
+            if (!validation.valid()) {
+                String message = thymeleafLayoutValidator.missingLayoutMessage(outputPath, validation);
+                return new MasterDetailOrchestrationResult(false, database, masterTable, detailTable, domain, outputPath,
+                        List.of(), List.of(message), "layout 검증 실패", "");
+            }
+        }
         List<String> succeeded = new ArrayList<>();
         List<String> failed = new ArrayList<>();
 
         for (MasterDetailLayerDefinition layer : MasterDetailLayerDefinition.forViewType(resolvedViewType)) {
+            if (resolvedViewType == CrudViewType.THYMELEAF
+                    && MasterDetailLayerDefinition.isLayoutLayer(layer.layerKey())
+                    && resolvedLayoutMode != CrudLayoutMode.CREATE) {
+                continue;
+            }
             String fileName = MasterDetailLayerDefinition.resolveFileName(layer, domain, detailDomain);
             String subPath = layer.resolveSubPath(pkgSub, masterModel.domainLc());
             String filePath = outputPath + "/" + subPath + fileName;
 
             try {
-                String code = masterDetailTemplateRenderer.renderByLayerKey(layer.layerKey(), model);
+                String code = resolvedViewType == CrudViewType.THYMELEAF
+                        ? masterDetailTemplateRenderer.renderByLayerKey(
+                                layer.layerKey(), model,
+                                layoutReference.layoutView(),
+                                layoutReference.breadcrumbView(),
+                                layoutReference.layoutBasePath(),
+                                resolvedLayoutMode)
+                        : masterDetailTemplateRenderer.renderByLayerKey(layer.layerKey(), model);
                 String saveResult = codeService.saveGeneratedCode(filePath, code);
                 if (saveResult.startsWith("파일 저장 실패")) {
                     failed.add(fileName + " — " + saveResult);

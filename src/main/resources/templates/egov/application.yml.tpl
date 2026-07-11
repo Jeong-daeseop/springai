@@ -6,9 +6,9 @@ spring:
 
   datasource:
     # 환경변수로 주입하세요 (예: export DB_URL=jdbc:mysql://host:3306/dbname)
-    url: jdbc:mysql://localhost:3306/com?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
-    username: ${DB_USERNAME:com}
-    password: ${DB_PASSWORD:com01}
+    url: jdbc:mysql://localhost:3306/ebt?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME:ebt}
+    password: ${DB_PASSWORD:ebt01}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: ${DB_POOL_MAX:10}
@@ -46,9 +46,9 @@ spring:
     activate:
       on-profile: local
   datasource:
-    url: jdbc:mysql://localhost:3306/com?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
-    username: com
-    password: com01
+    url: jdbc:mysql://localhost:3306/ebt?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul
+    username: ebt
+    password: ebt01
 
 logging:
   level:

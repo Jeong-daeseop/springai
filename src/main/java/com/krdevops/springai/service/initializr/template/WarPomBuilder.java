@@ -237,6 +237,34 @@ public class WarPomBuilder {
                     <version>3.0.4</version>
                 </dependency>""";
 
+        String thymeleafDep = !s.thymeleaf() ? "" : useParent
+            ? """
+
+        <!-- Thymeleaf -->
+        <dependency>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf-spring6</artifactId>
+            <version>3.1.3.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>nz.net.ultraq.thymeleaf</groupId>
+            <artifactId>thymeleaf-layout-dialect</artifactId>
+            <version>3.4.0</version>
+        </dependency>"""
+            : """
+
+        <!-- Thymeleaf -->
+        <dependency>
+            <groupId>org.thymeleaf</groupId>
+            <artifactId>thymeleaf-spring5</artifactId>
+            <version>3.0.15.RELEASE</version>
+        </dependency>
+        <dependency>
+            <groupId>nz.net.ultraq.thymeleaf</groupId>
+            <artifactId>thymeleaf-layout-dialect</artifactId>
+            <version>3.1.0</version>
+        </dependency>""";
+
         String testBlock = useParent
             ? """
         <!-- Test -->
@@ -344,6 +372,7 @@ public class WarPomBuilder {
 
         <!-- Validation -->
 %s
+%s
 
         <!-- Lombok (1.18.46 이상 필수 — JDK 21+ TypeTag::UNKNOWN 오류 해결) -->
         <dependency>
@@ -359,6 +388,6 @@ public class WarPomBuilder {
 </project>
 """.formatted(parentBlock, s.groupId(), s.artifactId(), projectName,
               versionProps, egovDeps, mybatisBlock,
-              servletDep, validationDep, testBlock, buildSection);
+              servletDep, validationDep, thymeleafDep, testBlock, buildSection);
     }
 }

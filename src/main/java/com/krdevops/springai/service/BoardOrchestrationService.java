@@ -2,6 +2,7 @@ package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.board.BoardLayerDefinition;
 import com.krdevops.springai.model.board.BoardTemplateModel;
+import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.crud.CrudViewType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class BoardOrchestrationService {
     private final CodeValidatorService codeValidatorService;
     private final GenerationHistoryService generationHistoryService;
     private final ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
+    private final ThymeleafLayoutValidator thymeleafLayoutValidator;
 
     public BoardOrchestrationResult orchestrate(
             String database,
@@ -36,6 +38,18 @@ public class BoardOrchestrationService {
             String mainTable, String masterTable, String useTable,
             String fileTable, String fileDetailTable,
             String egovVersion, String viewType) {
+        return orchestrate(database, domain, packageName, outputPath,
+                mainTable, masterTable, useTable, fileTable, fileDetailTable,
+                egovVersion, viewType, null, null, null);
+    }
+
+    public BoardOrchestrationResult orchestrate(
+            String database,
+            String domain, String packageName, String outputPath,
+            String mainTable, String masterTable, String useTable,
+            String fileTable, String fileDetailTable,
+            String egovVersion, String viewType,
+            String layoutMode, String layoutView, String breadcrumbView) {
 
         log.info("[board-orchestrate] 시작: mainTable={}, domain={}, viewType={}", mainTable, domain, viewType);
 
@@ -58,22 +72,50 @@ public class BoardOrchestrationService {
         // 2. 모델 생성
         String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
         CrudViewType resolvedViewType = CrudViewType.from(viewType);
+        CrudLayoutMode resolvedLayoutMode = resolvedViewType == CrudViewType.THYMELEAF
+                ? CrudLayoutMode.from(layoutMode)
+                : CrudLayoutMode.CREATE;
+        ThymeleafLayoutValidator.LayoutReference layoutReference = resolvedViewType == CrudViewType.THYMELEAF
+                ? thymeleafLayoutValidator.resolve(layoutView, breadcrumbView)
+                : thymeleafLayoutValidator.resolve(null, null);
         BoardTemplateModel model = boardModelFactory.fromSchemas(
             mainTable, masterTable, useTable, fileDetailTable,
             domain, packageName, egovVersion, schemas);
+
+        if (resolvedViewType == CrudViewType.THYMELEAF && resolvedLayoutMode == CrudLayoutMode.REUSE) {
+            ThymeleafLayoutValidator.LayoutValidationResult validation =
+                    thymeleafLayoutValidator.validateExisting(outputPath, layoutReference.layoutView(), layoutReference.breadcrumbView());
+            if (!validation.valid()) {
+                String message = thymeleafLayoutValidator.missingLayoutMessage(outputPath, validation);
+                return new BoardOrchestrationResult(false, database, mainTable, domain, outputPath,
+                        List.of(), List.of(message), "layout 검증 실패", "");
+            }
+        }
 
         // 3. 레이어 렌더링 + 저장
         List<String> succeeded = new ArrayList<>();
         List<String> failed = new ArrayList<>();
 
         for (BoardLayerDefinition layer : BoardLayerDefinition.forViewType(resolvedViewType)) {
+            if (resolvedViewType == CrudViewType.THYMELEAF
+                    && BoardLayerDefinition.isLayoutLayer(layer.layerKey())
+                    && resolvedLayoutMode != CrudLayoutMode.CREATE) {
+                continue;
+            }
             String fileName = BoardLayerDefinition.resolveFileName(
                 layer.layerKey(), domain, layer.fileNameSuffix());
             String subPath = layer.resolveSubPath(pkgSub, model.domainLc());
             String filePath = outputPath + "/" + subPath + fileName;
 
             try {
-                String code = boardTemplateRenderer.renderByLayerKey(layer.layerKey(), model);
+                String code = resolvedViewType == CrudViewType.THYMELEAF
+                        ? boardTemplateRenderer.renderByLayerKey(
+                                layer.layerKey(), model,
+                                layoutReference.layoutView(),
+                                layoutReference.breadcrumbView(),
+                                layoutReference.layoutBasePath(),
+                                resolvedLayoutMode)
+                        : boardTemplateRenderer.renderByLayerKey(layer.layerKey(), model);
                 String saveResult = codeService.saveGeneratedCode(filePath, code);
                 if (saveResult.startsWith("파일 저장 실패")) {
                     failed.add(fileName + " — " + saveResult);

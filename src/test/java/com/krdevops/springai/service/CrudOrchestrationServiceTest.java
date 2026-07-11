@@ -5,23 +5,31 @@ import com.krdevops.springai.model.crud.FieldModel;
 import com.krdevops.springai.model.crud.PkModel;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
+import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.quality.Strictness;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class CrudOrchestrationServiceTest {
 
     @Mock CrudSchemaQueryService   crudSchemaQueryService;
@@ -31,6 +39,7 @@ class CrudOrchestrationServiceTest {
     @Mock CodeValidatorService     codeValidatorService;
     @Mock GenerationHistoryService generationHistoryService;
     @Mock ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
+    @Spy ThymeleafLayoutValidator thymeleafLayoutValidator = new ThymeleafLayoutValidator();
 
     @InjectMocks
     CrudOrchestrationService sut;
@@ -82,6 +91,7 @@ class CrudOrchestrationServiceTest {
         given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
         given(crudModelFactory.fromSchema(any(), any(), any(), any(), any())).willReturn(fakeModel());
         given(crudTemplateRenderer.renderByLayerKey(any(), any())).willReturn("// code");
+        given(crudTemplateRenderer.renderByLayerKey(any(), any(), any(), any(), any(), any())).willReturn("// code");
         given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 완료: ...");
         given(codeValidatorService.validateDirectory(any())).willReturn("OK");
         given(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).willReturn("OK");
@@ -109,6 +119,7 @@ class CrudOrchestrationServiceTest {
         given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
         given(crudModelFactory.fromSchema(any(), any(), any(), any(), any())).willReturn(fakeModel());
         given(crudTemplateRenderer.renderByLayerKey(any(), any())).willReturn("// code");
+        doReturn("// code").when(crudTemplateRenderer).renderByLayerKey(any(), any(), any(), any(), any(), any());
         given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 완료: ...");
         given(codeValidatorService.validateDirectory(any())).willReturn("OK");
         given(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).willReturn("OK");
@@ -134,7 +145,8 @@ class CrudOrchestrationServiceTest {
         given(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).willReturn("OK");
 
         CrudOrchestrationResult result = sut.orchestrate("com", "COMTNEMPLYRINFO", "Employer",
-                "egovframework.let.emp", "/tmp/egov-test", "5.0", "thymeleaf");
+                "egovframework.let.emp", "/tmp/egov-test", "5.0", "thymeleaf",
+                "create", null, null);
 
         // Thymeleaf는 layout partial 포함 16개
         assertThat(result.successCount()).isEqualTo(16);
@@ -149,13 +161,86 @@ class CrudOrchestrationServiceTest {
                 .contains("EgovEmployerRegist.html")
                 .contains("EgovEmployerUpdt.html")
                 .doesNotContain("EgovEmployerList.jsp");
-        verify(crudTemplateRenderer, atLeastOnce()).renderByLayerKey("thymeleafList", fakeModel());
+        verify(crudTemplateRenderer, atLeastOnce()).renderByLayerKey(
+                eq("thymeleafList"), any(), any(), any(), any(), any());
         verify(codeService, atLeastOnce()).saveGeneratedCode(
-                "/tmp/egov-test/src/main/resources/templates/employer/EgovEmployerList.html", "// code");
+                eq("/tmp/egov-test/src/main/resources/templates/employer/EgovEmployerList.html"), any());
         verify(codeService, atLeastOnce()).saveGeneratedCode(
-                "/tmp/egov-test/src/main/resources/templates/layout/default.html", "// code");
+                eq("/tmp/egov-test/src/main/resources/templates/layout/default.html"), any());
         verify(codeService, atLeastOnce()).saveGeneratedCode(
-                "/tmp/egov-test/src/main/resources/templates/layout/gnb.html", "// code");
+                eq("/tmp/egov-test/src/main/resources/templates/layout/gnb.html"), any());
+    }
+
+    @Test
+    void orchestrate_thymeleafReuseWithoutLayout_returnsFailureBeforeSave(@TempDir Path tempDir) {
+        given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
+        given(crudModelFactory.fromSchema(any(), any(), any(), any(), any())).willReturn(fakeModel());
+
+        CrudOrchestrationResult result = sut.orchestrate("com", "COMTNEMPLYRINFO", "Employer",
+                "egovframework.let.emp", tempDir.toString(), "5.0", "thymeleaf");
+
+        assertThat(result.successCount()).isZero();
+        assertThat(result.failedFiles()).singleElement()
+                .asString()
+                .contains("generateThymeleafLayout")
+                .contains("layoutBasePath=\"layout\"");
+        verify(crudTemplateRenderer, never()).renderByLayerKey(any(), any(), any(), any(), any(), any());
+        verify(codeService, never()).saveGeneratedCode(any(), any());
+    }
+
+    @Test
+    void orchestrate_thymeleafReuseCustomLayoutView_missingFileUnderCustomBase_returnsFailureBeforeSave(
+            @TempDir Path tempDir) throws Exception {
+        given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
+        given(crudModelFactory.fromSchema(any(), any(), any(), any(), any())).willReturn(fakeModel());
+
+        Path customBase = tempDir.resolve("src/main/resources/templates/layout/admin");
+        java.nio.file.Files.createDirectories(customBase);
+        // footer.html 누락 — 나머지 4종만 생성
+        for (String name : List.of("default.html", "gnb.html", "lnb.html", "breadcrumb.html")) {
+            java.nio.file.Files.writeString(customBase.resolve(name), "<html></html>");
+        }
+
+        CrudOrchestrationResult result = sut.orchestrate("com", "COMTNEMPLYRINFO", "Employer",
+                "egovframework.let.emp", tempDir.toString(), "5.0", "thymeleaf",
+                "reuse", "layout/admin/default", "layout/admin/breadcrumb");
+
+        assertThat(result.successCount()).isZero();
+        assertThat(result.failedFiles()).singleElement()
+                .asString()
+                .contains("generateThymeleafLayout")
+                .contains("layoutBasePath=\"layout/admin\"")
+                .contains("footer.html");
+        verify(crudTemplateRenderer, never()).renderByLayerKey(any(), any(), any(), any(), any(), any());
+        verify(codeService, never()).saveGeneratedCode(any(), any());
+    }
+
+    @Test
+    void orchestrate_thymeleafReuseCustomLayoutView_allFilesPresent_rendersWithCustomPaths(
+            @TempDir Path tempDir) throws Exception {
+        given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
+        given(crudModelFactory.fromSchema(any(), any(), any(), any(), any())).willReturn(fakeModel());
+        given(crudTemplateRenderer.renderByLayerKey(any(), any(), any(), any(), any(), any())).willReturn("// code");
+        given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 완료: ...");
+        given(codeValidatorService.validateDirectory(any())).willReturn("OK");
+        given(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).willReturn("OK");
+
+        Path customBase = tempDir.resolve("src/main/resources/templates/layout/admin");
+        java.nio.file.Files.createDirectories(customBase);
+        for (String name : List.of("default.html", "gnb.html", "lnb.html", "breadcrumb.html", "footer.html")) {
+            java.nio.file.Files.writeString(customBase.resolve(name), "<html></html>");
+        }
+
+        CrudOrchestrationResult result = sut.orchestrate("com", "COMTNEMPLYRINFO", "Employer",
+                "egovframework.let.emp", tempDir.toString(), "5.0", "thymeleaf",
+                "reuse", "layout/admin/default", "layout/admin/breadcrumb");
+
+        // reuse 기본값은 layout 레이어를 저장하지 않으므로 화면/Java/Mapper 11개만 성공
+        assertThat(result.successCount()).isEqualTo(11);
+        assertThat(result.hasFailure()).isFalse();
+        verify(crudTemplateRenderer, atLeastOnce()).renderByLayerKey(
+                eq("thymeleafList"), any(),
+                eq("layout/admin/default"), eq("layout/admin/breadcrumb"), eq("layout/admin"), any());
     }
 
     @Test
@@ -277,6 +362,6 @@ class CrudOrchestrationServiceTest {
         return new CrudTemplateModel(
                 "egovframework.let.emp", "Employer", "employer", "직원",
                 "COMTNEMPLYRINFO", "/emp/employer", "2026-06-17", "5.0", true,
-                pk, List.of(pkField), List.of(pkField), List.of());
+                pk, List.of(pkField), List.of(pkField), List.of(pkField), List.of(), List.of());
     }
 }

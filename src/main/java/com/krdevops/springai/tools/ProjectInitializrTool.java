@@ -3,6 +3,7 @@ package com.krdevops.springai.tools;
 import com.krdevops.springai.service.ProjectInitializrService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -58,6 +59,10 @@ public class ProjectInitializrTool {
               projectType : war 또는 boot
               egovVersion : 4.3 또는 5.0 또는 latest (5.0 = latest 동일)
               outputPath  : 생성 상위 경로         (예: /Users/user/Desktop)
+              viewType    : 화면 기술              (선택, 기본값 "jsp")
+                            - "jsp"       : MainController + WEB-INF/jsp/egovframework/main/main.jsp 생성
+                            - "thymeleaf" : MainController + templates/egovframework/main/main.html
+                                            + layout 5종 + index.html + Thymeleaf ViewResolver 생성
 
             ⚠️ 사용자가 "프로젝트 생성", "새 프로젝트 만들어줘", "프로젝트 초기화" 요청 시
                반드시 이 Tool을 직접 호출하세요. Desktop Commander나 Bash로 대체하지 마세요.
@@ -67,10 +72,11 @@ public class ProjectInitializrTool {
             """)
     public String initializeProject(String projectName, String groupId, String artifactId,
                                     String packageName, String buildTool,
-                                    String projectType, String egovVersion, String outputPath) {
+                                    String projectType, String egovVersion, String outputPath,
+                                    @Nullable String viewType) {
         return projectInitializrService.initializeProject(
             projectName, groupId, artifactId, packageName, buildTool,
-            projectType, egovVersion, outputPath);
+            projectType, egovVersion, outputPath, viewType);
     }
 
     @Tool(description = """

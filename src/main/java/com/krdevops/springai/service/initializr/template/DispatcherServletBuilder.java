@@ -38,6 +38,38 @@ public class DispatcherServletBuilder {
         <property name="validator" ref="validator"/>
     </bean>""";
 
+        String thymeleafViewResolver = s.thymeleaf()
+            ? """
+
+    <bean id="templateResolver"
+          class="%s.templateresolver.SpringResourceTemplateResolver">
+        <property name="prefix" value="classpath:/templates/"/>
+        <property name="suffix" value=".html"/>
+        <property name="templateMode" value="HTML"/>
+        <property name="characterEncoding" value="UTF-8"/>
+        <property name="cacheable" value="false"/>
+    </bean>
+
+    <bean id="templateEngine"
+          class="%s.SpringTemplateEngine">
+        <property name="templateResolver" ref="templateResolver"/>
+        <property name="additionalDialects">
+            <set>
+                <bean class="nz.net.ultraq.thymeleaf.layoutdialect.LayoutDialect"/>
+            </set>
+        </property>
+    </bean>
+
+    <bean class="%s.view.ThymeleafViewResolver">
+        <property name="templateEngine" ref="templateEngine"/>
+        <property name="characterEncoding" value="UTF-8"/>
+        <property name="order" value="1"/>
+    </bean>
+""".formatted(thymeleafPackage(egovVersion), thymeleafPackage(egovVersion), thymeleafPackage(egovVersion))
+            : "";
+
+        String jspViewResolverOrder = s.thymeleaf() ? "2" : "1";
+
         return """
 <?xml version="1.0" encoding="UTF-8"?>
 <beans xmlns="http://www.springframework.org/schema/beans"
@@ -62,15 +94,21 @@ public class DispatcherServletBuilder {
     <mvc:annotation-driven validator="validator"/>
     <mvc:resources mapping="/resources/**" location="/resources/"/>
 
+%s
     <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
         <property name="prefix" value="/WEB-INF/jsp/"/>
         <property name="suffix" value=".jsp"/>
-        <property name="order"  value="1"/>
+        <property name="order"  value="%s"/>
     </bean>
 
 %s
 
 </beans>
-""".formatted(scanBasePackage, validatorBean, methodValidationBean, multipartBean);
+""".formatted(scanBasePackage, validatorBean, methodValidationBean, multipartBean,
+                jspViewResolverOrder, thymeleafViewResolver);
+    }
+
+    private static String thymeleafPackage(String egovVersion) {
+        return supportsSpring6(egovVersion) ? "org.thymeleaf.spring6" : "org.thymeleaf.spring5";
     }
 }

@@ -27,7 +27,7 @@
 
 <a href="${urlPrefix}List.do">목록</a>
 <a href="${urlPrefix}UpdtView.do?${bbsId.javaName}=${r"${result."}${bbsId.javaName}${r"}&"}${nttId.javaName}=${r"${result."}${nttId.javaName}${r"}"}">수정</a>
-<form method="post" action="${urlPrefix}Delete.do" style="display:inline">
+<form method="post" action="${urlPrefix}Delete.do" class="egov-jsp-inline-form">
     <input type="hidden" name="${bbsId.javaName}" value="${r"${result."}${bbsId.javaName}${r"}"}"/>
     <input type="hidden" name="${nttId.javaName}" value="${r"${result."}${nttId.javaName}${r"}"}"/>
     <button type="submit" onclick="return confirm('삭제하시겠습니까?')">삭제</button>
