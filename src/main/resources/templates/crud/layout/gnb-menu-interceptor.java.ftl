@@ -96,15 +96,39 @@ public class EgovGnbMenuInterceptor implements HandlerInterceptor {
     }
 
     private boolean isCurrentMenu(HttpServletRequest request, String servletPath, GnbMenuVO menu) {
-        if (matchesUrl(request, servletPath, menu.getUrl())) {
+        if (matchesMenuContext(request, servletPath, menu.getUrl())) {
             return true;
         }
-        if (menu.getChildren().stream().anyMatch(child -> matchesUrl(request, servletPath, child.getUrl()))) {
+        if (menu.getChildren().stream().anyMatch(child -> matchesMenuContext(request, servletPath, child.getUrl()))) {
             return true;
         }
         return menu.getChildren().stream()
                 .flatMap(child -> child.getChildren().stream())
-                .anyMatch(grandchild -> matchesUrl(request, servletPath, grandchild.getUrl()));
+                .anyMatch(grandchild -> matchesMenuContext(request, servletPath, grandchild.getUrl()));
+    }
+
+    private boolean matchesMenuContext(HttpServletRequest request, String servletPath, String menuUrl) {
+        if (matchesUrl(request, servletPath, menuUrl)) {
+            return true;
+        }
+        String requestBbsId = request.getParameter("bbsId");
+        return requestBbsId != null && requestBbsId.equals(queryParameter(menuUrl, "bbsId"));
+    }
+
+    private String queryParameter(String menuUrl, String parameterName) {
+        if (menuUrl == null || !menuUrl.contains("?")) {
+            return null;
+        }
+        String query = menuUrl.substring(menuUrl.indexOf('?') + 1);
+        for (String pair : query.split("&")) {
+            int eq = pair.indexOf('=');
+            String key = eq >= 0 ? pair.substring(0, eq) : pair;
+            if (parameterName.equals(URLDecoder.decode(key, StandardCharsets.UTF_8))) {
+                String value = eq >= 0 ? pair.substring(eq + 1) : "";
+                return URLDecoder.decode(value, StandardCharsets.UTF_8);
+            }
+        }
+        return null;
     }
 
     /**
@@ -159,7 +183,7 @@ public class EgovGnbMenuInterceptor implements HandlerInterceptor {
     private void populateLnbModel(HttpServletRequest request, ModelAndView modelAndView, String servletPath,
                                   List<GnbMenuVO> gnbMenus, Long currentTopMenuNo) {
         Map<String, Object> model = modelAndView.getModel();
-        if (model.containsKey("lnbMenus") || currentTopMenuNo == null) {
+        if (currentTopMenuNo == null) {
             return;
         }
 
@@ -167,7 +191,20 @@ public class EgovGnbMenuInterceptor implements HandlerInterceptor {
                 .filter(menu -> Objects.equals(menu.getMenuNo(), currentTopMenuNo))
                 .findFirst()
                 .orElse(null);
-        if (currentTopMenu == null || currentTopMenu.getChildren().isEmpty()) {
+        if (currentTopMenu == null) {
+            return;
+        }
+
+        GnbMenuVO currentMenu = findCurrentMenu(request, servletPath, currentTopMenu);
+        String currentProgramLabel = programLabel(currentMenu, currentTopMenu.getMenuNm());
+        modelAndView.addObject("currentProgramLabel", currentProgramLabel);
+        if (!model.containsKey("lnbTitle")) {
+            modelAndView.addObject("lnbTitle", currentProgramLabel);
+        }
+        if (currentMenu != null && !model.containsKey("currentMenuId")) {
+            modelAndView.addObject("currentMenuId", String.valueOf(currentMenu.getMenuNo()));
+        }
+        if (model.containsKey("lnbMenus") || currentTopMenu.getChildren().isEmpty()) {
             return;
         }
 
@@ -180,13 +217,7 @@ public class EgovGnbMenuInterceptor implements HandlerInterceptor {
             return;
         }
 
-        modelAndView.addObject("lnbTitle", currentTopMenu.getMenuNm());
         modelAndView.addObject("lnbMenus", lnbMenus);
-        currentTopMenu.getChildren().stream()
-                .flatMap(child -> Stream.concat(Stream.of(child), child.getChildren().stream()))
-                .filter(menu -> matchesUrl(request, servletPath, menu.getUrl()))
-                .findFirst()
-                .ifPresent(menu -> modelAndView.addObject("currentMenuId", String.valueOf(menu.getMenuNo())));
     }
 
     /** 2뎁스 GnbMenuVO를 LNB 항목 Map으로 변환한다. LNB는 자식 유무를 화살표(›) 표시에만 사용하고
@@ -219,7 +250,7 @@ public class EgovGnbMenuInterceptor implements HandlerInterceptor {
         }
 
         GnbMenuVO currentChild = currentTopMenu.getChildren().stream()
-                .filter(child -> matchesUrl(request, servletPath, child.getUrl()))
+                .filter(child -> matchesMenuContext(request, servletPath, child.getUrl()))
                 .findFirst()
                 .orElse(null);
 
@@ -227,7 +258,7 @@ public class EgovGnbMenuInterceptor implements HandlerInterceptor {
         if (currentChild == null) {
             for (GnbMenuVO child : currentTopMenu.getChildren()) {
                 GnbMenuVO match = child.getChildren().stream()
-                        .filter(grandchild -> matchesUrl(request, servletPath, grandchild.getUrl()))
+                        .filter(grandchild -> matchesMenuContext(request, servletPath, grandchild.getUrl()))
                         .findFirst()
                         .orElse(null);
                 if (match != null) {
@@ -248,12 +279,43 @@ public class EgovGnbMenuInterceptor implements HandlerInterceptor {
         breadcrumbs.add(crumb("홈", "/"));
         breadcrumbs.add(crumb(currentTopMenu.getMenuNm(), firstChildUrl(currentTopMenu)));
         if (currentChild != null) {
-            breadcrumbs.add(crumb(currentChild.getMenuNm(), currentGrandchild != null ? currentChild.getUrl() : null));
+            String childLabel = currentGrandchild != null
+                    ? currentChild.getMenuNm()
+                    : currentPageLabel(model, currentChild);
+            breadcrumbs.add(crumb(childLabel, currentGrandchild != null ? currentChild.getUrl() : null));
         }
         if (currentGrandchild != null) {
-            breadcrumbs.add(crumb(currentGrandchild.getMenuNm(), null));
+            breadcrumbs.add(crumb(currentPageLabel(model, currentGrandchild), null));
         }
         modelAndView.addObject("breadcrumbs", breadcrumbs);
+    }
+
+    private GnbMenuVO findCurrentMenu(HttpServletRequest request, String servletPath, GnbMenuVO currentTopMenu) {
+        return currentTopMenu.getChildren().stream()
+                .flatMap(child -> Stream.concat(Stream.of(child), child.getChildren().stream()))
+                .filter(menu -> matchesMenuContext(request, servletPath, menu.getUrl()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private String currentPageLabel(Map<String, Object> model, GnbMenuVO currentMenu) {
+        Object explicitLabel = model.get("currentPageLabel");
+        if (explicitLabel instanceof String label && !label.isBlank()) {
+            return label;
+        }
+        String label = programLabel(currentMenu, currentMenu != null ? currentMenu.getMenuNm() : null);
+        Object suffixValue = model.get("currentPageSuffix");
+        if (suffixValue instanceof String suffix && !suffix.isBlank() && label != null && !label.isBlank()) {
+            return label + " " + suffix;
+        }
+        return label;
+    }
+
+    private String programLabel(GnbMenuVO menu, String fallback) {
+        if (menu != null && menu.getProgrmKoreanNm() != null && !menu.getProgrmKoreanNm().isBlank()) {
+            return menu.getProgrmKoreanNm();
+        }
+        return fallback;
     }
 
     private String firstChildUrl(GnbMenuVO menu) {

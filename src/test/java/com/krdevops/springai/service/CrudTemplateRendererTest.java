@@ -381,6 +381,9 @@ class CrudTemplateRendererTest {
             .contains("private Long menuNo;")
             .contains("private String menuNm;")
             .contains("private Integer menuOrdr;")
+            .contains("private String progrmFileNm;")
+            .contains("private String progrmKoreanNm;")
+            .contains("private String progrmStrePath;")
             .contains("private String url;");
     }
 
@@ -401,8 +404,12 @@ class CrudTemplateRendererTest {
         assertThat(result)
             .contains("namespace=\"egovframework.let.emp.cmm.service.GnbMenuMapper\"")
             .contains("<id property=\"menuNo\" column=\"MENU_NO\"/>")
+            .contains("<result property=\"progrmKoreanNm\" column=\"PROGRM_KOREAN_NM\"/>")
             .contains("FROM LETTNMENUINFO m")
             .contains("LEFT JOIN LETTNPROGRMLIST p ON m.PROGRM_FILE_NM = p.PROGRM_FILE_NM")
+            .contains("p.PROGRM_FILE_NM")
+            .contains("p.PROGRM_KOREAN_NM")
+            .contains("p.PROGRM_STRE_PATH")
             .contains("WHERE m.UPPER_MENU_NO = #{upperMenuNo}")
             .contains("AND m.MENU_NO != 0");
         int idIndex = result.indexOf("<id property=\"menuNo\"");
@@ -441,7 +448,14 @@ class CrudTemplateRendererTest {
             .contains("\"/com/main.do\".equals(servletPath)")
             .contains("\"/egovframework/com/main.do\".equals(servletPath)")
             .contains("currentTopMenuNo = defaultTopMenuNo(gnbMenus)")
-            .contains("populateBreadcrumbModel(modelAndView, servletPath, gnbMenus, currentTopMenuNo)")
-            .contains("breadcrumbs.add(crumb(\"홈\", \"/\"))");
+            .contains("populateBreadcrumbModel(request, modelAndView, servletPath, gnbMenus, currentTopMenuNo)")
+            .contains("breadcrumbs.add(crumb(\"홈\", \"/\"))")
+            .contains("modelAndView.addObject(\"lnbTitle\", currentProgramLabel)")
+            .contains("modelAndView.addObject(\"currentProgramLabel\", currentProgramLabel)")
+            .contains("model.get(\"currentPageLabel\")")
+            .contains("model.get(\"currentPageSuffix\")")
+            .contains("matchesMenuContext(request, servletPath, menu.getUrl())")
+            .contains("queryParameter(menuUrl, \"bbsId\")")
+            .contains("menu.getProgrmKoreanNm()");
     }
 }

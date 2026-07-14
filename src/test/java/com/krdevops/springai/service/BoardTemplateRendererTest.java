@@ -163,11 +163,38 @@ class BoardTemplateRendererTest {
     void controller_populatesLayoutModelContract() {
         String result = renderer.renderByLayerKey("controller", model());
 
-        assertThat(result).contains("populateLayoutModel(model, \"board-list\", \"BBS 목록\", searchVO.getBbsId())");
-        assertThat(result).contains("model.addAttribute(\"lnbTitle\", \"BBS\")");
+        assertThat(result).contains("populateLayoutModel(model, \"board-list\", \"목록\", searchVO.getBbsId())");
+        assertThat(result).contains("model.addAttribute(\"currentPageSuffix\", currentPageSuffix)");
         assertThat(result).contains("model.addAttribute(\"lnbMenus\"");
-        assertThat(result).contains("model.addAttribute(\"breadcrumbs\", breadcrumbs)");
         assertThat(result).contains("model.addAttribute(\"currentMenuId\", currentMenuId)");
+        assertThat(result)
+                .doesNotContain("model.addAttribute(\"lnbTitle\"")
+                .doesNotContain("model.addAttribute(\"breadcrumbs\"")
+                .doesNotContain("소식·뉴스");
+    }
+
+    @Test
+    void detailGeneration_separatesReadOnlySelectFromReadCountUpdate() {
+        String service = renderer.renderByLayerKey("service", model());
+        String serviceImpl = renderer.renderByLayerKey("serviceImpl", model());
+        String controller = renderer.renderByLayerKey("controller", model());
+
+        assertThat(service).contains("void updateBbsReadCount(BbsVO vo) throws Exception;");
+        assertThat(serviceImpl)
+                .contains("@Transactional(readOnly = true)\n    public BbsVO selectBbs(BbsVO vo)")
+                .contains("return bbsMapper.selectBbs(vo);")
+                .contains("@Transactional\n    public void updateBbsReadCount(BbsVO vo)")
+                .contains("bbsMapper.updateReadCount(vo);")
+                .doesNotContain("BbsVO result = bbsMapper.selectBbs(vo)");
+        assertThat(controller)
+                .contains("if (searchVO.getNttId() == null)")
+                .contains("if (vo == null)")
+                .contains("bbsService.updateBbsReadCount(searchVO);")
+                .containsSubsequence(
+                        "BbsVO vo = bbsService.selectBbs(searchVO);",
+                        "if (vo == null)",
+                        "bbsService.updateBbsReadCount(searchVO);",
+                        "model.addAttribute(\"result\", vo)");
     }
 
     // ─── vo ───────────────────────────────────────────────────────────────────

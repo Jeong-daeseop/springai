@@ -40,11 +40,13 @@ public class Egov${domain}ServiceImpl extends EgovAbstractServiceImpl implements
     @Override
     @Transactional(readOnly = true)
     public ${domain}VO select${domain}(${domain}VO vo) throws Exception {
-        ${domain}VO result = ${domainLc}Mapper.select${domain}(vo);
-        if (result != null) {
-            ${domainLc}Mapper.updateReadCount(vo);
-        }
-        return result;
+        return ${domainLc}Mapper.select${domain}(vo);
+    }
+
+    @Override
+    @Transactional
+    public void update${domain}ReadCount(${domain}VO vo) throws Exception {
+        ${domainLc}Mapper.updateReadCount(vo);
     }
 
     @Override

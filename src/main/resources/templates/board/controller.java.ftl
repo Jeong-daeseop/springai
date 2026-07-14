@@ -15,7 +15,6 @@ import jakarta.validation.Valid;
 <#else>
 import javax.validation.Valid;
 </#if>
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +40,7 @@ public class Egov${domain}Controller {
         if (searchVO.getBbsId() != null && !searchVO.getBbsId().isEmpty()) {
             String useAt = ${domainLc}Service.selectBoardUseAt(searchVO);
             if (!"Y".equals(useAt)) {
-                populateLayoutModel(model, "board-list", "${domainKr} 목록", searchVO.getBbsId());
+                populateLayoutModel(model, "board-list", "목록", searchVO.getBbsId());
                 model.addAttribute("message", "사용하지 않는 게시판입니다.");
                 return "${domainLc}/Egov${domain}List";
             }
@@ -62,7 +61,7 @@ public class Egov${domain}Controller {
         List<${domain}VO> resultList = ${domainLc}Service.select${domain}List(searchVO);
         model.addAttribute("resultList", resultList);
         model.addAttribute("paginationInfo", paginationInfo);
-        populateLayoutModel(model, "board-list", "${domainKr} 목록", searchVO.getBbsId());
+        populateLayoutModel(model, "board-list", "목록", searchVO.getBbsId());
         return "${domainLc}/Egov${domain}List";
     }
 
@@ -72,11 +71,20 @@ public class Egov${domain}Controller {
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
 
+        if (searchVO.getNttId() == null) {
+            model.addAttribute("message", "게시물 번호가 필요합니다.");
+            return "forward:${urlPrefix}List.do";
+        }
         ${domain}VO vo = ${domainLc}Service.select${domain}(searchVO);
+        if (vo == null) {
+            model.addAttribute("message", "게시물을 찾을 수 없습니다.");
+            return "forward:${urlPrefix}List.do";
+        }
+        ${domainLc}Service.update${domain}ReadCount(searchVO);
         model.addAttribute("result", vo);
         model.addAttribute("prevPost", ${domainLc}Service.selectPrev${domain}(searchVO));
         model.addAttribute("nextPost", ${domainLc}Service.selectNext${domain}(searchVO));
-        populateLayoutModel(model, "board-list", "${domainKr} 상세", searchVO.getBbsId());
+        populateLayoutModel(model, "board-list", "상세", searchVO.getBbsId());
         return "${domainLc}/Egov${domain}Detail";
     }
 
@@ -147,23 +155,14 @@ public class Egov${domain}Controller {
     }
 </#if>
 
-    private void populateLayoutModel(ModelMap model, String currentMenuId, String currentPageLabel, String bbsId) {
+    private void populateLayoutModel(ModelMap model, String currentMenuId, String currentPageSuffix, String bbsId) {
         String listUrl = withBbsId("${urlPrefix}List.do", bbsId);
         model.addAttribute("currentMenuId", currentMenuId);
-        model.addAttribute("lnbTitle", "${domainKr}");
+        model.addAttribute("currentPageSuffix", currentPageSuffix);
         model.addAttribute("lnbMenus", List.of(
                 menu("board-list", "목록", listUrl),
                 menu("board-regist", "글쓰기", withBbsId("${urlPrefix}RegistView.do", bbsId))
         ));
-
-        List<Map<String, String>> breadcrumbs = new ArrayList<>();
-        breadcrumbs.add(crumb("홈", "/"));
-        breadcrumbs.add(crumb("소식·뉴스", "/"));
-        if (!"${domainKr} 목록".equals(currentPageLabel)) {
-            breadcrumbs.add(crumb("${domainKr} 목록", listUrl));
-        }
-        breadcrumbs.add(crumb(currentPageLabel, null));
-        model.addAttribute("breadcrumbs", breadcrumbs);
     }
 
     private String withBbsId(String baseUrl, String bbsId) {
@@ -179,10 +178,4 @@ public class Egov${domain}Controller {
         return item;
     }
 
-    private Map<String, String> crumb(String label, String url) {
-        Map<String, String> item = new LinkedHashMap<>();
-        item.put("label", label);
-        item.put("url", url);
-        return item;
-    }
 }

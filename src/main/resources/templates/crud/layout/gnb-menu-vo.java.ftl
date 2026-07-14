@@ -19,6 +19,9 @@ public class GnbMenuVO {
     private Long upperMenuNo;
     private String menuNm;
     private Integer menuOrdr;
+    private String progrmFileNm;
+    private String progrmKoreanNm;
+    private String progrmStrePath;
     private String url;
     private List<GnbMenuVO> children = new ArrayList<>();
 }
