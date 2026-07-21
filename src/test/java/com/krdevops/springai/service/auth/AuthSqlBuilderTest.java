@@ -16,17 +16,17 @@ class AuthSqlBuilderTest {
     // --- Oracle ---
 
     @Test
-    void Oracle_COMTNROLEINFO_INSERT에_SYSDATE_포함() {
+    void Oracle_LETTNROLEINFO_INSERT에_SYSDATE_포함() {
         SqlPlan plan = buildWith(DbDialect.ORACLE);
 
         String roleInfoSql = plan.statements().get(0);
-        assertThat(roleInfoSql).contains("COMTNROLEINFO");
+        assertThat(roleInfoSql).contains("LETTNROLEINFO");
         assertThat(roleInfoSql).contains("SYSDATE");
         assertThat(roleInfoSql).doesNotContain("NOW()");
     }
 
     @Test
-    void Oracle_COMTNROLEINFO_CREAT_DT와_MDFCN_DT에_SYSDATE_2회() {
+    void Oracle_LETTNROLEINFO_CREAT_DT와_MDFCN_DT에_SYSDATE_2회() {
         SqlPlan plan = buildWith(DbDialect.ORACLE);
 
         String roleInfoSql = plan.statements().get(0);
@@ -34,11 +34,11 @@ class AuthSqlBuilderTest {
     }
 
     @Test
-    void Oracle_COMTNAUTHORROLERELATE_INSERT에_SYSDATE_포함() {
+    void Oracle_LETTNAUTHORROLERELATE_INSERT에_SYSDATE_포함() {
         SqlPlan plan = buildWith(DbDialect.ORACLE);
 
         String relateSql = plan.statements().get(1);
-        assertThat(relateSql).contains("COMTNAUTHORROLERELATE");
+        assertThat(relateSql).contains("LETTNAUTHORROLERELATE");
         assertThat(relateSql).contains("SYSDATE");
         assertThat(relateSql).doesNotContain("NOW()");
     }
@@ -56,21 +56,21 @@ class AuthSqlBuilderTest {
     // --- MySQL/MariaDB ---
 
     @Test
-    void MySQL_COMTNROLEINFO_INSERT에_NOW_포함() {
+    void MySQL_LETTNROLEINFO_INSERT에_NOW_포함() {
         SqlPlan plan = buildWith(DbDialect.MYSQL_MARIADB);
 
         String roleInfoSql = plan.statements().get(0);
-        assertThat(roleInfoSql).contains("COMTNROLEINFO");
+        assertThat(roleInfoSql).contains("LETTNROLEINFO");
         assertThat(roleInfoSql).contains("NOW()");
         assertThat(roleInfoSql).doesNotContain("SYSDATE");
     }
 
     @Test
-    void MySQL_COMTNAUTHORROLERELATE_INSERT에_NOW_포함() {
+    void MySQL_LETTNAUTHORROLERELATE_INSERT에_NOW_포함() {
         SqlPlan plan = buildWith(DbDialect.MYSQL_MARIADB);
 
         String relateSql = plan.statements().get(1);
-        assertThat(relateSql).contains("COMTNAUTHORROLERELATE");
+        assertThat(relateSql).contains("LETTNAUTHORROLERELATE");
         assertThat(relateSql).contains("NOW()");
         assertThat(relateSql).doesNotContain("SYSDATE");
     }

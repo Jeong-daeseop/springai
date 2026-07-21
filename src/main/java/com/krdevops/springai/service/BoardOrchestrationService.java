@@ -2,8 +2,12 @@ package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.board.BoardLayerDefinition;
 import com.krdevops.springai.model.board.BoardTemplateModel;
+import com.krdevops.springai.model.board.BoardGenerationOptions;
+import com.krdevops.springai.model.board.BoardProgramMetadata;
+import com.krdevops.springai.model.board.BoardTableSet;
 import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.crud.CrudViewType;
+import com.krdevops.springai.model.design.ScreenSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +35,15 @@ public class BoardOrchestrationService {
     private final GenerationHistoryService generationHistoryService;
     private final ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
     private final ThymeleafLayoutValidator thymeleafLayoutValidator;
+    private final BoardTableSetResolver boardTableSetResolver;
+    private final BoardProgramMetadataService boardProgramMetadataService;
+    private final BoardRouteCollisionDetector boardRouteCollisionDetector;
+    private final KrdsStylesConfigurer krdsStylesConfigurer;
+    private final BoardGeneratedCodeAuditor boardGeneratedCodeAuditor;
+    private final GenerationDesignContextService generationDesignContextService;
+    private final GeneratedCodeContractAuditor generatedCodeContractAuditor;
+    private final MyBatisRuntimeConfigurer myBatisRuntimeConfigurer;
+    private final WarEntryPointConfigurer warEntryPointConfigurer;
 
     public BoardOrchestrationResult orchestrate(
             String database,
@@ -40,7 +53,7 @@ public class BoardOrchestrationService {
             String egovVersion, String viewType) {
         return orchestrate(database, domain, packageName, outputPath,
                 mainTable, masterTable, useTable, fileTable, fileDetailTable,
-                egovVersion, viewType, null, null, null);
+                egovVersion, viewType, null, null, null, BoardGenerationOptions.empty());
     }
 
     public BoardOrchestrationResult orchestrate(
@@ -50,6 +63,27 @@ public class BoardOrchestrationService {
             String fileTable, String fileDetailTable,
             String egovVersion, String viewType,
             String layoutMode, String layoutView, String breadcrumbView) {
+        return orchestrate(database, domain, packageName, outputPath, mainTable, masterTable, useTable,
+                fileTable, fileDetailTable, egovVersion, viewType, layoutMode, layoutView,
+                breadcrumbView, BoardGenerationOptions.empty());
+    }
+
+    public BoardOrchestrationResult orchestrate(
+            String database,
+            String domain, String packageName, String outputPath,
+            String mainTable, String masterTable, String useTable,
+            String fileTable, String fileDetailTable,
+            String egovVersion, String viewType,
+            String layoutMode, String layoutView, String breadcrumbView,
+            BoardGenerationOptions options) {
+
+        BoardTableSet tables = boardTableSetResolver.resolve(
+                database, mainTable, masterTable, useTable, fileTable, fileDetailTable);
+        mainTable = tables.mainTable();
+        masterTable = tables.masterTable();
+        useTable = tables.useTable();
+        fileTable = tables.fileTable();
+        fileDetailTable = tables.fileDetailTable();
 
         log.info("[board-orchestrate] 시작: mainTable={}, domain={}, viewType={}", mainTable, domain, viewType);
 
@@ -69,6 +103,22 @@ public class BoardOrchestrationService {
             return BoardOrchestrationResult.notFound(database, mainTable);
         }
 
+        BoardProgramMetadata metadata = boardProgramMetadataService.resolve(
+                database, domain, masterTable, options);
+        List<String> warnings = new ArrayList<>();
+        if (metadata.message() != null) warnings.add(metadata.message());
+        if (metadata.blocksGeneration()) {
+            return new BoardOrchestrationResult(false, database, mainTable, domain, outputPath,
+                    List.of(), List.of(metadata.message()), "메타데이터 검증 실패", "",
+                    metadata.menuIntegrationStatus(), metadata.programKoreanName(),
+                    metadata.registeredUrl(), null, metadata.defaultBbsId(), "미실행", warnings);
+        }
+
+        ScreenSpecification screenSpecification = generationDesignContextService.resolve(
+                database, mainTable, metadata.programKoreanName(), "board",
+                options == null ? null : options.designReferenceId(),
+                options == null ? null : options.screenSpecificationId());
+
         // 2. 모델 생성
         String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
         CrudViewType resolvedViewType = CrudViewType.from(viewType);
@@ -78,9 +128,26 @@ public class BoardOrchestrationService {
         ThymeleafLayoutValidator.LayoutReference layoutReference = resolvedViewType == CrudViewType.THYMELEAF
                 ? thymeleafLayoutValidator.resolve(layoutView, breadcrumbView)
                 : thymeleafLayoutValidator.resolve(null, null);
-        BoardTemplateModel model = boardModelFactory.fromSchemas(
-            mainTable, masterTable, useTable, fileDetailTable,
-            domain, packageName, egovVersion, schemas);
+        BoardTemplateModel model = screenSpecification == null
+                ? boardModelFactory.fromSchemas(
+                        mainTable, masterTable, useTable, fileDetailTable,
+                        domain, packageName, egovVersion, schemas, metadata)
+                : boardModelFactory.fromSchemas(
+                        mainTable, masterTable, useTable, fileDetailTable,
+                        domain, packageName, egovVersion, schemas, metadata, screenSpecification);
+
+        List<String> aliasConflicts = boardRouteCollisionDetector.findConflicts(
+                outputPath, model.route().hasListAlias() ? model.route().registeredListPath() : null,
+                "Egov" + domain + "Controller.java");
+        if (!aliasConflicts.isEmpty()) {
+            String message = "Controller URL alias 충돌(ambiguous mapping 위험): "
+                    + model.route().registeredListPath() + " — " + aliasConflicts;
+            return new BoardOrchestrationResult(false, database, mainTable, domain, outputPath,
+                    List.of(), List.of(message), "URL 검증 실패", "",
+                    metadata.menuIntegrationStatus(), model.display().displayName(),
+                    metadata.registeredUrl(), model.urlPrefix() + "List.do",
+                    metadata.defaultBbsId(), "미실행", warnings);
+        }
 
         if (resolvedViewType == CrudViewType.THYMELEAF && resolvedLayoutMode == CrudLayoutMode.REUSE) {
             ThymeleafLayoutValidator.LayoutValidationResult validation =
@@ -88,7 +155,10 @@ public class BoardOrchestrationService {
             if (!validation.valid()) {
                 String message = thymeleafLayoutValidator.missingLayoutMessage(outputPath, validation);
                 return new BoardOrchestrationResult(false, database, mainTable, domain, outputPath,
-                        List.of(), List.of(message), "layout 검증 실패", "");
+                        List.of(), List.of(message), "layout 검증 실패", "",
+                        metadata.menuIntegrationStatus(), model.display().displayName(),
+                        metadata.registeredUrl(), model.urlPrefix() + "List.do",
+                        metadata.defaultBbsId(), "미실행", warnings);
             }
         }
 
@@ -130,8 +200,20 @@ public class BoardOrchestrationService {
         }
 
         // Thymeleaf 런타임 보강
+        String cssStatus = "JSP 생성 — CSS 보강 미실행";
         if (resolvedViewType == CrudViewType.THYMELEAF) {
             thymeleafRuntimeConfigurer.ensureThymeleafRuntime(outputPath, egovVersion, failed);
+            thymeleafRuntimeConfigurer.ensureControllerComponentScan(
+                    outputPath, model.packageName() + ".web", failed);
+            KrdsStylesConfigurer.CssPatchResult css = krdsStylesConfigurer.ensureBoardCrudStyles(outputPath);
+            cssStatus = css.status() + " — " + css.message();
+            if (css.failed()) failed.add("styles.css — " + css.message());
+        }
+        MyBatisRuntimeConfigurer.ConfigurationResult myBatis =
+                myBatisRuntimeConfigurer.ensureConfigured(
+                        outputPath, model.packageName() + ".service.impl");
+        if (!myBatis.success()) {
+            failed.add("context-common.xml — " + myBatis.message());
         }
         updateDefaultIndexForward(outputPath, model, resolvedViewType, succeeded, failed);
 
@@ -141,6 +223,17 @@ public class BoardOrchestrationService {
             validationSummary = codeValidatorService.validateDirectory(outputPath);
         } catch (Exception e) {
             validationSummary = "검증 실패: " + e.getMessage();
+        }
+        String boardAudit = boardGeneratedCodeAuditor.audit(outputPath, model, resolvedViewType,
+                layoutReference.layoutBasePath());
+        List<String> contractFailures = generatedCodeContractAuditor.audit(outputPath);
+        if (!contractFailures.isEmpty()) {
+            failed.addAll(contractFailures.stream().map(value -> "생성 계약 감사 — " + value).toList());
+            validationSummary += "\n\n[공통 생성 계약 감사]\n" + String.join("\n", contractFailures);
+        }
+        validationSummary += "\n\n[게시판 생성 감사]\n" + boardAudit;
+        if (boardAudit.startsWith("감사 실패")) {
+            failed.add("게시판 생성 감사 — " + boardAudit);
         }
 
         // 5. 이력
@@ -155,7 +248,10 @@ public class BoardOrchestrationService {
         log.info("[board-orchestrate] 완료: success={}, fail={}", succeeded.size(), failed.size());
         return new BoardOrchestrationResult(
             false, database, mainTable, domain, outputPath,
-            succeeded, failed, validationSummary, historySummary);
+            succeeded, failed, validationSummary, historySummary,
+            metadata.menuIntegrationStatus(), model.display().displayName(),
+            metadata.registeredUrl(), model.urlPrefix() + "List.do",
+            metadata.defaultBbsId(), cssStatus, warnings);
     }
 
     private void updateDefaultIndexForward(
@@ -168,19 +264,17 @@ public class BoardOrchestrationService {
             return;
         }
 
-        String indexPath = outputPath + "/src/main/webapp/index.jsp";
         String listUrl = model.urlPrefix() + "List.do";
-        String indexJsp = """
-<%%@ page contentType="text/html;charset=UTF-8" %%>
-<jsp:forward page="%s"/>
-""".formatted(listUrl);
-
-        String saveResult = codeService.saveGeneratedCode(indexPath, indexJsp);
-        if (saveResult == null || saveResult.startsWith("파일 저장 실패")) {
-            failed.add("index.jsp — " + saveResult);
-            log.error("[board-orchestrate] index.jsp 기본 진입점 갱신 실패: {}", indexPath);
+        if (model.route().defaultBbsId() != null) {
+            listUrl += "?bbsId=" + model.route().defaultBbsId();
+        }
+        WarEntryPointConfigurer.ConfigurationResult result =
+                warEntryPointConfigurer.configure(outputPath, listUrl);
+        if (!result.success()) {
+            failed.add("WAR 기본 진입점 — " + result.message());
+            log.error("[board-orchestrate] WAR 기본 진입점 갱신 실패: {}", result.message());
         } else {
-            log.info("[board-orchestrate] index.jsp 기본 진입점 갱신 완료: {} -> {}", indexPath, listUrl);
+            log.info("[board-orchestrate] WAR 기본 진입점 갱신 완료: {}", result.message());
         }
     }
 }

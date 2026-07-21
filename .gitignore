@@ -46,6 +46,9 @@ tokenizer.json
 /META-INF/
 /org/
 /logs/
+**/node_modules/
+/jsp-design-extractor/dist/
+/jsp-to-figma-plugin/dist/
 
 ### 도구 상태 파일 ###
 .claude/

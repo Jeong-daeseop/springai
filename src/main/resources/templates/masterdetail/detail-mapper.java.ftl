@@ -23,4 +23,6 @@ public interface ${domain}Mapper {
     void update${domain}(${domain}VO ${domainLc}VO);
 
     void delete${domain}(${domain}VO ${domainLc}VO);
+
+    int delete${domain}ByMasterIds(@Param("ids") List<${master.pk.javaType}> ids);
 }

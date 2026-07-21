@@ -1,6 +1,7 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.crud.CrudLayoutMode;
+import com.krdevops.springai.model.design.ScreenSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -19,6 +20,7 @@ public class MasterDetailService {
     private final JdbcTemplate jdbcTemplate;
     private final TableRelationService tableRelationService;
     private final EgovPromptBuilder promptBuilder;
+    private final ScreenSpecificationPromptFormatter screenSpecificationPromptFormatter;
 
     // ── buildMasterDetailPrompt ───────────────────────────────────────────────
     public String buildMasterDetailPrompt(String database, String masterTable, String detailTable,
@@ -39,6 +41,17 @@ public class MasterDetailService {
                                           String layoutMode,
                                           String layoutView,
                                           String breadcrumbView) {
+        return buildMasterDetailPrompt(database, masterTable, detailTable, domain, packageName, outputPath,
+                viewType, layoutMode, layoutView, breadcrumbView, null);
+    }
+
+    public String buildMasterDetailPrompt(String database, String masterTable, String detailTable,
+                                          String domain, String packageName, String outputPath,
+                                          String viewType,
+                                          String layoutMode,
+                                          String layoutView,
+                                          String breadcrumbView,
+                                          ScreenSpecification screenSpecification) {
         List<Map<String, Object>> masterCols = fetchColumns(database, masterTable);
         List<Map<String, Object>> detailCols = fetchColumns(database, detailTable);
 
@@ -78,11 +91,14 @@ public class MasterDetailService {
         }
         String resolvedLayoutView = layoutView == null || layoutView.isBlank() ? "layout/default" : layoutView;
         String resolvedBreadcrumbView = breadcrumbView == null || breadcrumbView.isBlank() ? "layout/breadcrumb" : breadcrumbView;
-        String fileCount = thymeleaf && resolvedLayoutMode == CrudLayoutMode.CREATE ? "18개 파일"
-                : thymeleaf ? "13개 파일" : "13개 파일";
+        String fileCount = thymeleaf && resolvedLayoutMode == CrudLayoutMode.CREATE ? "19개 파일"
+                : thymeleaf ? "14개 파일" : "14개 파일";
 
         StringBuilder sb = new StringBuilder();
         sb.append("=== eGovFrame 5.x 마스터-디테일 CRUD 소스 생성 지시 ===\n\n");
+        if (screenSpecification != null) {
+            sb.append(screenSpecificationPromptFormatter.format(screenSpecification)).append('\n');
+        }
 
         sb.append("[구조]\n");
         sb.append("  마스터: ").append(masterTable).append(" → ").append(domain).append("VO.java\n");
@@ -148,16 +164,19 @@ public class MasterDetailService {
                 sb.append("  Step 15: layout/footer.html               ← footer partial\n");
                 sb.append("  Step 16: Egov").append(domain).append("List.html               ← 마스터 목록\n");
                 sb.append("  Step 17: Egov").append(domain).append("Detail.html             ← 마스터 상세 + 디테일 그리드 탭\n");
-                sb.append("  Step 18: Egov").append(domain).append("Regist.html             ← 마스터 등록\n\n");
+                sb.append("  Step 18: Egov").append(domain).append("Regist.html             ← 마스터 등록\n");
+                sb.append("  Step 19: Egov").append(domain).append("Updt.html               ← 마스터 수정 (Detail의 \"수정\" 버튼이 이 화면으로 이동)\n\n");
             } else {
                 sb.append("  Step 11: Egov").append(domain).append("List.html               ← 마스터 목록\n");
                 sb.append("  Step 12: Egov").append(domain).append("Detail.html             ← 마스터 상세 + 디테일 그리드 탭\n");
-                sb.append("  Step 13: Egov").append(domain).append("Regist.html             ← 마스터 등록\n\n");
+                sb.append("  Step 13: Egov").append(domain).append("Regist.html             ← 마스터 등록\n");
+                sb.append("  Step 14: Egov").append(domain).append("Updt.html               ← 마스터 수정 (Detail의 \"수정\" 버튼이 이 화면으로 이동)\n\n");
             }
         } else {
             sb.append("  Step 11: Egov").append(domain).append("List.jsp                ← 마스터 목록\n");
             sb.append("  Step 12: Egov").append(domain).append("Detail.jsp              ← 마스터 상세 + 디테일 그리드 탭\n");
-            sb.append("  Step 13: Egov").append(domain).append("Regist.jsp              ← 마스터 등록\n\n");
+            sb.append("  Step 13: Egov").append(domain).append("Regist.jsp              ← 마스터 등록\n");
+            sb.append("  Step 14: Egov").append(domain).append("Updt.jsp                ← 마스터 수정 (Detail의 \"수정\" 버튼이 이 화면으로 이동)\n\n");
         }
 
         sb.append("[Step 5 — 마스터 Mapper XML 핵심 패턴]\n");
@@ -187,6 +206,35 @@ public class MasterDetailService {
         sb.append("      model.addAttribute(\"result\", vo);\n");
         sb.append("      model.addAttribute(\"detailList\", detailList);\n");
         sb.append("      return \"").append(domainLc).append("/Egov").append(domain).append("Detail\";\n");
+        sb.append("  }\n\n");
+
+        sb.append("[Step 9 — Controller 수정 엔드포인트 패턴 (Regist와 별도 화면/엔드포인트)]\n");
+        sb.append("  주의: 마스터-디테일 Detail 화면의 \"수정\" 버튼은 ").append(urlPrefix).append("UpdtView.do 로 링크됩니다.\n");
+        sb.append("  Regist 화면/엔드포인트가 등록·수정을 겸용하지 않으므로 아래 2개 엔드포인트를 반드시 별도로 추가하세요.\n");
+        sb.append("  @GetMapping(\"").append(urlPrefix).append("UpdtView.do\")\n");
+        sb.append("  public String update").append(domain).append("View(\n");
+        sb.append("          @ModelAttribute(\"searchVO\") ").append(domain).append("VO searchVO,\n");
+        sb.append("          ModelMap model) throws Exception {\n");
+        sb.append("      ").append(domain).append("VO vo = ").append(domainLc)
+          .append("Service.select").append(domain).append("(searchVO);\n");
+        sb.append("      model.addAttribute(\"").append(domainLc).append("VO\", vo);\n");
+        sb.append("      return \"").append(domainLc).append("/Egov").append(domain).append("Updt\";\n");
+        sb.append("  }\n\n");
+        sb.append("  @PostMapping(\"").append(urlPrefix).append("Updt.do\")\n");
+        sb.append("  public String update").append(domain).append("(\n");
+        sb.append("          @ModelAttribute(\"").append(domainLc).append("VO\") @Valid ").append(domain)
+          .append("VO ").append(domainLc).append("VO,\n");
+        sb.append("          BindingResult bindingResult,\n");
+        sb.append("          ModelMap model,\n");
+        sb.append("          RedirectAttributes redirectAttributes) throws Exception {\n");
+        sb.append("      if (bindingResult.hasErrors()) {\n");
+        sb.append("          return \"").append(domainLc).append("/Egov").append(domain).append("Updt\";\n");
+        sb.append("      }\n");
+        sb.append("      ").append(domainLc).append("Service.update").append(domain).append("(")
+          .append(domainLc).append("VO);\n");
+        sb.append("      return \"redirect:").append(urlPrefix).append("Detail.do?").append(masterPkField)
+          .append("=\" + ").append(domainLc).append("VO.get")
+          .append(masterPkField.substring(0, 1).toUpperCase()).append(masterPkField.substring(1)).append("();\n");
         sb.append("  }\n\n");
 
         if (thymeleaf) {
@@ -235,9 +283,9 @@ public class MasterDetailService {
         }
         for (TableRelationService.RelationInfo r : codeJoins) {
             String alias = "cd" + aliasIdx++;
-            joins.add(new JoinEntry(r.sourceColumn(), "COMTCCMMNDETAILCODE", "CODE", alias, true));
+            joins.add(new JoinEntry(r.sourceColumn(), "LETTCCMMNDETAILCODE", "CODE", alias, true));
             sb.append(String.format("  %-30s %-35s %s\n",
-                r.sourceColumn(), "COMTCCMMNDETAILCODE (" + alias + ")",
+                r.sourceColumn(), "LETTCCMMNDETAILCODE (" + alias + ")",
                 "CODE_ID='???' AND " + alias + ".CODE = " + r.sourceColumn()));
         }
         sb.append("\n");
@@ -270,7 +318,7 @@ public class MasterDetailService {
         sb.append("\n    FROM ").append(tableName).append(" e\n");
         for (JoinEntry j : joins) {
             if (j.isCommonCode) {
-                sb.append("    LEFT JOIN COMTCCMMNDETAILCODE ").append(j.alias).append("\n");
+                sb.append("    LEFT JOIN LETTCCMMNDETAILCODE ").append(j.alias).append("\n");
                 sb.append("           ON ").append(j.alias)
                   .append(".CODE_ID = '???'  /* 실제 CODE_ID 값으로 교체 */\n");
                 sb.append("          AND ").append(j.alias).append(".CODE = e.")
@@ -292,7 +340,7 @@ public class MasterDetailService {
         }
 
         sb.append("\n[주의사항]\n");
-        sb.append("  - 공통코드 JOIN의 CODE_ID는 COMTCCMMNCODE 테이블에서 실제 값을 확인하세요.\n");
+        sb.append("  - 공통코드 JOIN의 CODE_ID는 LETTCCMMNCODE 테이블에서 실제 값을 확인하세요.\n");
         sb.append("  - 각 JOIN 테이블의 명칭 컬럼명(NAME_COLUMN)은 실제 컬럼명으로 교체하세요.\n");
         sb.append("  - generateSource() 대신 직접 Mapper XML을 수정하는 방식으로 적용하세요.\n");
 
@@ -463,7 +511,7 @@ public class MasterDetailService {
     }
 
     private String deriveDetailDomain(String tableName) {
-        String base = tableName.replace("COMTN", "").replace("COMTS", "").replace("COMTC", "");
+        String base = tableName.replace("LETTN", "").replace("LETTS", "").replace("LETTC", "");
         String[] parts = base.toLowerCase().split("_");
         StringBuilder sb = new StringBuilder();
         for (String p : parts) {

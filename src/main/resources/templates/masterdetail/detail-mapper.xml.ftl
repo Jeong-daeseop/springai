@@ -49,4 +49,12 @@
         WHERE ${detail.pk.columnName} = #{${detail.pk.javaName}}
     </delete>
 
+    <delete id="delete${detail.domain}ByMasterIds">
+        DELETE FROM ${detail.tableName}
+        WHERE ${fkColumn} IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
 </mapper>

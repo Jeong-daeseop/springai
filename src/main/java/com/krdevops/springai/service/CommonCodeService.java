@@ -16,15 +16,15 @@ public class CommonCodeService {
     private final JdbcTemplate jdbcTemplate;
 
     /**
-     * 코드ID로 상세 코드 목록 조회 (COMTCCMMNDETAILCODE)
+     * 코드ID로 상세 코드 목록 조회 (LETTCCMMNDETAILCODE)
      * 예: getCommonCode("COM034") → [A:재직, B:휴직, C:퇴직]
      */
     public String getCommonCode(String codeId) {
         List<Map<String, Object>> list = jdbcTemplate.queryForList(
             "SELECT d.CODE, d.CODE_NM, d.CODE_DC, d.USE_AT, " +
             "       c.CODE_ID_NM " +
-            "FROM COMTCCMMNDETAILCODE d " +
-            "JOIN COMTCCMMNCODE c ON d.CODE_ID = c.CODE_ID " +
+            "FROM LETTCCMMNDETAILCODE d " +
+            "JOIN LETTCCMMNCODE c ON d.CODE_ID = c.CODE_ID " +
             "WHERE d.CODE_ID = ? " +
             "ORDER BY d.CODE",
             codeId
@@ -65,7 +65,7 @@ public class CommonCodeService {
     }
 
     /**
-     * 키워드로 코드ID 목록 검색 (COMTCCMMNCODE)
+     * 키워드로 코드ID 목록 검색 (LETTCCMMNCODE)
      * 예: searchCommonCode("직원") → COM034(직원상태), ...
      */
     public String searchCommonCode(String keyword) {
@@ -74,14 +74,14 @@ public class CommonCodeService {
         if (keyword == null || keyword.isBlank()) {
             list = jdbcTemplate.queryForList(
                 "SELECT CODE_ID, CODE_ID_NM, CODE_ID_DC, USE_AT " +
-                "FROM COMTCCMMNCODE " +
+                "FROM LETTCCMMNCODE " +
                 "ORDER BY CODE_ID LIMIT 50"
             );
         } else {
             String like = "%" + keyword + "%";
             list = jdbcTemplate.queryForList(
                 "SELECT CODE_ID, CODE_ID_NM, CODE_ID_DC, USE_AT " +
-                "FROM COMTCCMMNCODE " +
+                "FROM LETTCCMMNCODE " +
                 "WHERE CODE_ID_NM LIKE ? OR CODE_ID_DC LIKE ? OR CODE_ID LIKE ? " +
                 "ORDER BY CODE_ID LIMIT 50",
                 like, like, like

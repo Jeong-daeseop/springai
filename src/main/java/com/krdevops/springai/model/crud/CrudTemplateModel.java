@@ -1,5 +1,11 @@
 package com.krdevops.springai.model.crud;
 
+import com.krdevops.springai.model.design.ActionPlacement;
+import com.krdevops.springai.model.design.FormColumnLayout;
+import com.krdevops.springai.model.design.GenerationQueryContract;
+import com.krdevops.springai.model.design.LayoutDensity;
+import com.krdevops.springai.model.design.SearchPanelPlacement;
+
 import java.util.List;
 
 /**
@@ -15,7 +21,7 @@ public record CrudTemplateModel(
         String domain,               // Employer
         String domainLc,             // employer
         String domainKr,             // 직원
-        String tableName,            // COMTNEMPLYRINFO
+        String tableName,            // LETTNEMPLYRINFO
         String urlPrefix,            // /emp/employer
         String date,                 // 생성일 (yyyy-MM-dd)
         String egovVersion,          // "5.0" | "4.3"
@@ -25,5 +31,88 @@ public record CrudTemplateModel(
         List<FieldModel> fields,     // 전체 필드 목록 (PK 포함)
         List<FieldModel> listFields, // 목록 화면 노출 필드 (핵심/비민감 컬럼)
         List<FieldModel> nonPkFields,// 전체 PK 제외 필드 (UPDATE SET 기준)
-        List<FieldModel> formFields  // nonPkFields 중 시스템관리(감사) 컬럼 제외 — 등록/수정 폼 입력 기준
-) {}
+        List<FieldModel> formFields, // nonPkFields 중 시스템관리(감사) 컬럼 제외 — 등록/수정 폼 입력 기준
+        CrudRouteModel route,        // canonical URL + LETTNPROGRMLIST 등록 URL alias (화면별)
+        GenerationQueryContract queryContract, // 승인 화면명세 기반 JOIN/projection
+        List<FieldModel> detailFields, // 상세 화면 subset. null은 레거시 모델을 의미한다.
+        LayoutDensity layoutDensity,
+        FormColumnLayout formColumnLayout,
+        ActionPlacement actionPlacement,
+        SearchPanelPlacement searchPanelPlacement
+) {
+    public CrudTemplateModel {
+        queryContract = queryContract == null ? GenerationQueryContract.empty() : queryContract;
+        layoutDensity = layoutDensity == null ? LayoutDensity.STANDARD : layoutDensity;
+        formColumnLayout = formColumnLayout == null ? FormColumnLayout.SINGLE_COLUMN : formColumnLayout;
+        actionPlacement = actionPlacement == null ? ActionPlacement.TOP_RIGHT : actionPlacement;
+        searchPanelPlacement = searchPanelPlacement == null ? SearchPanelPlacement.ABOVE_TABLE : searchPanelPlacement;
+    }
+
+    /** actionPlacement/searchPanelPlacement 도입 전 canonical 호출자 호환. */
+    public CrudTemplateModel(
+            String packageName, String domain, String domainLc, String domainKr,
+            String tableName, String urlPrefix, String date, String egovVersion,
+            boolean jakartaValidation, PkModel pk, List<FieldModel> pkFields,
+            List<FieldModel> fields, List<FieldModel> listFields,
+            List<FieldModel> nonPkFields, List<FieldModel> formFields, CrudRouteModel route,
+            GenerationQueryContract queryContract, List<FieldModel> detailFields,
+            LayoutDensity layoutDensity, FormColumnLayout formColumnLayout) {
+        this(packageName, domain, domainLc, domainKr, tableName, urlPrefix, date, egovVersion,
+                jakartaValidation, pk, pkFields, fields, listFields, nonPkFields, formFields,
+                route, queryContract, detailFields, layoutDensity, formColumnLayout,
+                ActionPlacement.TOP_RIGHT, SearchPanelPlacement.ABOVE_TABLE);
+    }
+
+    /** formColumnLayout 도입 전 canonical 호출자 호환. */
+    public CrudTemplateModel(
+            String packageName, String domain, String domainLc, String domainKr,
+            String tableName, String urlPrefix, String date, String egovVersion,
+            boolean jakartaValidation, PkModel pk, List<FieldModel> pkFields,
+            List<FieldModel> fields, List<FieldModel> listFields,
+            List<FieldModel> nonPkFields, List<FieldModel> formFields, CrudRouteModel route,
+            GenerationQueryContract queryContract, List<FieldModel> detailFields,
+            LayoutDensity layoutDensity) {
+        this(packageName, domain, domainLc, domainKr, tableName, urlPrefix, date, egovVersion,
+                jakartaValidation, pk, pkFields, fields, listFields, nonPkFields, formFields,
+                route, queryContract, detailFields, layoutDensity, FormColumnLayout.SINGLE_COLUMN);
+    }
+
+    /** detailFields/layoutDensity 도입 전 canonical 호출자 호환. */
+    public CrudTemplateModel(
+            String packageName, String domain, String domainLc, String domainKr,
+            String tableName, String urlPrefix, String date, String egovVersion,
+            boolean jakartaValidation, PkModel pk, List<FieldModel> pkFields,
+            List<FieldModel> fields, List<FieldModel> listFields,
+            List<FieldModel> nonPkFields, List<FieldModel> formFields, CrudRouteModel route,
+            GenerationQueryContract queryContract) {
+        this(packageName, domain, domainLc, domainKr, tableName, urlPrefix, date, egovVersion,
+                jakartaValidation, pk, pkFields, fields, listFields, nonPkFields, formFields,
+                route, queryContract, null, LayoutDensity.STANDARD, FormColumnLayout.SINGLE_COLUMN);
+    }
+
+    /** queryContract 도입 전 canonical 생성자 호환. */
+    public CrudTemplateModel(
+            String packageName, String domain, String domainLc, String domainKr,
+            String tableName, String urlPrefix, String date, String egovVersion,
+            boolean jakartaValidation, PkModel pk, List<FieldModel> pkFields,
+            List<FieldModel> fields, List<FieldModel> listFields,
+            List<FieldModel> nonPkFields, List<FieldModel> formFields, CrudRouteModel route) {
+        this(packageName, domain, domainLc, domainKr, tableName, urlPrefix, date, egovVersion,
+                jakartaValidation, pk, pkFields, fields, listFields, nonPkFields, formFields,
+                route, GenerationQueryContract.empty(), null, LayoutDensity.STANDARD,
+                FormColumnLayout.SINGLE_COLUMN);
+    }
+
+    /** route 미지정 호출자를 위한 하위 호환 생성자 — canonical URL만으로 route를 구성한다. */
+    public CrudTemplateModel(
+            String packageName, String domain, String domainLc, String domainKr,
+            String tableName, String urlPrefix, String date, String egovVersion,
+            boolean jakartaValidation, PkModel pk, List<FieldModel> pkFields,
+            List<FieldModel> fields, List<FieldModel> listFields,
+            List<FieldModel> nonPkFields, List<FieldModel> formFields) {
+        this(packageName, domain, domainLc, domainKr, tableName, urlPrefix, date, egovVersion,
+                jakartaValidation, pk, pkFields, fields, listFields, nonPkFields, formFields,
+                CrudRouteModel.canonicalOnly(urlPrefix), GenerationQueryContract.empty(),
+                null, LayoutDensity.STANDARD, FormColumnLayout.SINGLE_COLUMN);
+    }
+}

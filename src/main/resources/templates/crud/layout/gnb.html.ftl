@@ -8,8 +8,7 @@
 <header class="egov-header">
     <div class="egov-header-inner">
         <a th:href="@{/}" class="egov-header-brand">
-            <span aria-hidden="true" class="egov-brand-mark header">e</span>
-            <span>eGovFrame</span>
+            <img th:src="@{/resources/images/egov-logo.png}" alt="eGovFrame" class="egov-brand-logo">
         </a>
         <nav class="egov-main-menu" aria-label="주 메뉴">
             <ul class="egov-main-menu-list">

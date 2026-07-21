@@ -4,15 +4,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>${domainKr} 수정</title>
+    <title>${displayName} 수정</title>
     <link rel="stylesheet" href="<%=contextPath%>/resources/css/styles.css">
 </head>
 <body>
-<h1>${domainKr} 수정</h1>
+<h1>${displayName} 수정</h1>
 <form method="post" action="${urlPrefix}Updt.do">
+    <c:if test="${r"${not empty _csrf}"}">
+        <input type="hidden" name="${r"${_csrf.parameterName}"}" value="${r"${_csrf.token}"}"/>
+    </c:if>
     <input type="hidden" name="${bbsId.javaName}" value="${r"${"}${domainLc}${r"VO."}${bbsId.javaName}${r"}"}"/>
     <input type="hidden" name="${nttId.javaName}" value="${r"${"}${domainLc}${r"VO."}${nttId.javaName}${r"}"}"/>
     <table>
+        <caption>${displayName} 수정 입력 폼</caption>
 <#list formFields as f>
         <tr>
             <th>${f.comment}</th>

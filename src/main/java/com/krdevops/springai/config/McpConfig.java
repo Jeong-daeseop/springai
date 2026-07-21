@@ -10,6 +10,7 @@ import com.krdevops.springai.tools.CodeValidatorTool;
 import com.krdevops.springai.tools.CommonCodeTool;
 import com.krdevops.springai.tools.CrudPromptBuilderTool;
 import com.krdevops.springai.tools.DateTimeTool;
+import com.krdevops.springai.tools.DesignReferenceTool;
 import com.krdevops.springai.tools.EmployeeTool;
 import com.krdevops.springai.tools.GenerationHistoryTool;
 import com.krdevops.springai.tools.ProjectHealthTool;
@@ -20,6 +21,8 @@ import com.krdevops.springai.tools.SchemaReaderTool;
 import com.krdevops.springai.tools.MenuTool;
 import com.krdevops.springai.tools.ThymeleafLayoutTool;
 import com.krdevops.springai.tools.WorkflowGuideTool;
+import com.krdevops.springai.tools.CaptureWebPageTool;
+import com.krdevops.springai.tools.DesignArtifactTool;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -37,6 +40,7 @@ public class McpConfig {
     @Bean
     public ToolCallbackProvider allToolCallbacks(
             DateTimeTool dateTimeTool,
+            DesignReferenceTool designReferenceTool,
             EmployeeTool employeeTool,
             SchemaReaderTool schemaReaderTool,
             CodeSaverTool codeSaverTool,
@@ -55,14 +59,17 @@ public class McpConfig {
             SecurityTemplateTool securityTemplateTool,
             SqlTool sqlTool,
             OutputPathResolverTool outputPathResolverTool,
-            ThymeleafLayoutTool thymeleafLayoutTool) {
+            ThymeleafLayoutTool thymeleafLayoutTool,
+            CaptureWebPageTool captureWebPageTool,
+            DesignArtifactTool designArtifactTool) {
         return MethodToolCallbackProvider.builder()
                 .toolObjects(
-                        dateTimeTool, employeeTool, schemaReaderTool, codeSaverTool,
+                        dateTimeTool, designReferenceTool, employeeTool, schemaReaderTool, codeSaverTool,
                         codeTemplateTool, ragTool, generationHistoryTool, codeValidatorTool,
                         projectScannerTool, commonCodeTool, workflowGuideTool, crudPromptBuilderTool,
                         projectHealthTool, projectInitializrTool, menuTool, authTool,
-                        securityTemplateTool, sqlTool, outputPathResolverTool, thymeleafLayoutTool)
+                        securityTemplateTool, sqlTool, outputPathResolverTool, thymeleafLayoutTool,
+                        captureWebPageTool, designArtifactTool)
                 .build();
     }
 }

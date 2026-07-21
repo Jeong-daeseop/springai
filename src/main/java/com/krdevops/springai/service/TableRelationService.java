@@ -120,8 +120,8 @@ public class TableRelationService {
     }
 
     // ── 공통코드 테이블 JOIN 후보 전용 조회 ───────────────────────────────────
-    // COMTCCMMNDETAILCODE의 CODE 컬럼은 단독 PK가 아니라서 위 쿼리로 탐지 불가
-    // _CODE/_CD 로 끝나는 컬럼을 별도로 COMTCCMMNDETAILCODE JOIN 후보로 추가
+    // LETTCCMMNDETAILCODE의 CODE 컬럼은 단독 PK가 아니라서 위 쿼리로 탐지 불가
+    // _CODE/_CD 로 끝나는 컬럼을 별도로 LETTCCMMNDETAILCODE JOIN 후보로 추가
     public List<RelationInfo> getCommonCodeJoinCandidates(String database, String tableName) {
         List<Map<String, Object>> myColumns = jdbcTemplate.queryForList(
             "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS " +
@@ -133,7 +133,7 @@ public class TableRelationService {
             String col = (String) row.get("COLUMN_NAME");
             if ((col.endsWith("_CODE") || col.endsWith("_CD")) && !isPkCandidate(col, tableName)) {
                 result.add(new RelationInfo(
-                    "COMTCCMMNDETAILCODE", col, "CODE", RelationType.IMPLICIT
+                    "LETTCCMMNDETAILCODE", col, "CODE", RelationType.IMPLICIT
                 ));
             }
         }
@@ -143,8 +143,8 @@ public class TableRelationService {
     // ── 유틸 ──────────────────────────────────────────────────────────────────
     private boolean isPkCandidate(String col, String tableName) {
         // 테이블명에서 파생된 ID 컬럼은 자기 자신의 PK → JOIN 후보 제외
-        String tableBase = tableName.replace("COMTN", "").replace("COMTS", "")
-                                    .replace("COMTC", "").replace("_", "");
+        String tableBase = tableName.replace("LETTN", "").replace("LETTS", "")
+                                    .replace("LETTC", "").replace("_", "");
         String colBase   = col.replace("_ID", "").replace("_NO", "")
                               .replace("_CODE", "").replace("_CD", "");
         return tableBase.equalsIgnoreCase(colBase);
@@ -195,13 +195,13 @@ public class TableRelationService {
         }
 
         // 4. 공통코드 JOIN 후보
-        sb.append("\n[공통코드 JOIN 후보 — COMTCCMMNDETAILCODE]\n");
+        sb.append("\n[공통코드 JOIN 후보 — LETTCCMMNDETAILCODE]\n");
         if (codeJoins.isEmpty()) {
             sb.append("  없음\n");
         } else {
             for (RelationInfo r : codeJoins) {
                 sb.append("  ").append(r.sourceColumn())
-                  .append(" → COMTCCMMNDETAILCODE.CODE (CODE_ID 별도 확인 필요)\n");
+                  .append(" → LETTCCMMNDETAILCODE.CODE (CODE_ID 별도 확인 필요)\n");
             }
         }
 

@@ -57,6 +57,19 @@ public class Egov${master.domain}ServiceImpl extends EgovAbstractServiceImpl
     }
 
     @Override
+    @Transactional
+    public int delete${master.domain}Bulk(List<${master.pk.javaType}> ids) throws Exception {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        if (ids.size() > 1000) {
+            throw new IllegalArgumentException("일괄 삭제는 한 번에 최대 1000건까지 가능합니다.");
+        }
+        ${detail.domainLc}Mapper.delete${detail.domain}ByMasterIds(ids);
+        return ${master.domainLc}Mapper.delete${master.domain}Bulk(ids);
+    }
+
+    @Override
     public List<${detail.domain}VO> select${detail.domain}List(String ${fkField}) throws Exception {
         return ${detail.domainLc}Mapper.select${detail.domain}List(${fkField});
     }

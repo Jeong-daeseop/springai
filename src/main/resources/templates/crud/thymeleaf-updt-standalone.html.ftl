@@ -8,7 +8,7 @@
     <link rel="stylesheet" th:href="@{/resources/css/styles.css}">
 </head>
 <body>
-<div class="egov-standalone-shell">
+<div class="egov-standalone-shell egov-crud-page">
 <#include "thymeleaf-updt-body.html.ftl">
 </div>
 <script th:src="@{/resources/js/krds.min.js}"></script>

@@ -82,6 +82,7 @@ spring:
       max-lifetime: 1800000
 
 server:
+  address: ${SERVER_ADDRESS:127.0.0.1}
   port: 8080
   tomcat:
     connection-timeout: PT1H        # SSE 연결 유지 — 1시간
@@ -99,6 +100,59 @@ chat:
     max-messages: 8       # 20 → 8: 토큰 예산 확보 (num-ctx 8192 기준)
 
 app:
+  web-capture:
+    enabled: ${WEB_CAPTURE_ENABLED:false}
+    extractor-base-url: ${WEB_CAPTURE_EXTRACTOR_BASE_URL:http://127.0.0.1:4319}
+    extractor-api-key: ${WEB_CAPTURE_EXTRACTOR_API_KEY:}
+    document-key-secret: ${WEB_CAPTURE_DOCUMENT_KEY_SECRET:}
+    connect-timeout-seconds: ${WEB_CAPTURE_CONNECT_TIMEOUT_SECONDS:3}
+    response-timeout-seconds: ${WEB_CAPTURE_RESPONSE_TIMEOUT_SECONDS:60}
+    max-response-mb: ${WEB_CAPTURE_MAX_RESPONSE_MB:50}
+    max-uncompressed-artifact-mb: ${WEB_CAPTURE_MAX_UNCOMPRESSED_ARTIFACT_MB:100}
+    artifact-base-path: ${WEB_CAPTURE_ARTIFACT_PATH:${java.io.tmpdir}/springai-design-artifacts}
+    retention-hours: ${WEB_CAPTURE_RETENTION_HOURS:24}
+    mapper-version: ${WEB_CAPTURE_MAPPER_VERSION:rendered-design-mapper-v2}
+    enabled-profiles:
+      - LOCAL_JSP
+    allowed-origins:
+      - http://127.0.0.1:8080
+      - http://localhost:8080
+    allowed-resource-origins: []
+    sensitive-selectors:
+      - input[type=password]
+  design-vision:
+    # 공공기관 망분리·외부 전송 정책 승인 전에는 비활성 상태를 유지합니다.
+    provider: ${DESIGN_VISION_PROVIDER:openai} # disabled | openai | ollama
+    openai-model: ${DESIGN_VISION_OPENAI_MODEL:gpt-4o-mini}
+    ollama-model: ${DESIGN_VISION_OLLAMA_MODEL:qwen2.5vl:7b}
+    prompt-version: v1
+    max-file-mb: 20
+    max-pdf-pages: 30
+    max-images-per-request: 8
+    render-dpi: 180
+    max-image-dimension: 2048
+    timeout-seconds: 120
+    max-attempts: 2
+    allowed-paths:
+      - ${user.dir}
+      - ${user.home}/Desktop
+      - ${user.home}/workspace-egov
+      - ${java.io.tmpdir}
+    figma:
+      # 외부 SaaS 사용 승인 전에는 반드시 false를 유지합니다.
+      enabled: ${DESIGN_VISION_FIGMA_ENABLED:false}
+      access-token: ${FIGMA_ACCESS_TOKEN:}
+      allowed-file-types:
+        - file
+        - design
+      allowed-file-keys: ${FIGMA_ALLOWED_FILE_KEYS:}
+      depth-limit: ${FIGMA_DEPTH_LIMIT:4}
+      connect-timeout-seconds: ${FIGMA_CONNECT_TIMEOUT_SECONDS:5}
+      response-timeout-seconds: ${FIGMA_RESPONSE_TIMEOUT_SECONDS:30}
+      max-response-mb: ${FIGMA_MAX_RESPONSE_MB:10}
+      max-attempts: ${FIGMA_MAX_ATTEMPTS:3}
+      retry-max-delay-seconds: ${FIGMA_RETRY_MAX_DELAY_SECONDS:15}
+      mapper-version: ${FIGMA_MAPPER_VERSION:figma-mapper-v2}
   sql:
     dialect: mysql_mariadb
   api-key: ${APP_API_KEY}
@@ -111,6 +165,11 @@ egov:
     base-path: ${EGOV_OUTPUT_PATH:${user.home}/workspace-egov/egov-generated}
     allowed-paths:
       - ${user.home}/workspace-egov/egov-boot-web
+  validation:
+    # pom.xml/build.gradle은 플러그인 코드를 실행할 수 있으므로 운영자 승인 전 비활성화합니다.
+    allow-build-execution: ${EGOV_ALLOW_BUILD_EXECUTION:false}
+    build-timeout-seconds: 180
+    max-output-chars: 20000
 
 logging:
   config: classpath:logback-spring.xml

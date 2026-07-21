@@ -9,37 +9,46 @@
 <#list master.nonPkFields as f>
         <result property="${f.javaName}" column="${f.columnName}"/>
 </#list>
+<#list queryContract.displayFields() as f>
+        <result property="${f.javaName}" column="${f.columnName}"/>
+</#list>
     </resultMap>
 
     <sql id="searchCondition">
         <where>
             <if test="searchKeyword != null and searchKeyword != ''">
-                AND ${master.pk.columnName} LIKE CONCAT('%', #{searchKeyword}, '%')
+                AND <#if queryContract.hasJoins()>t.</#if>${master.pk.columnName} LIKE CONCAT('%', #{searchKeyword}, '%')
             </if>
         </where>
     </sql>
 
     <select id="select${master.domain}List" parameterType="${packageName}.service.${master.domain}VO"
             resultMap="${master.domainLc}Map">
-        SELECT <#list master.fields as f>${f.columnName}<#sep>, </#list>
-        FROM ${master.tableName}
+        SELECT <#list master.fields as f><#if queryContract.hasJoins()>t.</#if>${f.columnName}<#sep>, </#list><#list queryContract.projections as p>, ${p.selectExpression}</#list>
+        FROM ${master.tableName}<#if queryContract.hasJoins()> t</#if>
+<#list queryContract.joins as join>
+        ${join.joinType} JOIN ${join.schema}.${join.table} ${join.alias} ON ${join.onExpression}
+</#list>
         <include refid="searchCondition"/>
-        ORDER BY ${master.pk.columnName} DESC
+        ORDER BY <#if queryContract.hasJoins()>t.</#if>${master.pk.columnName} DESC
         LIMIT #{paginationInfo.firstRecordIndex}, #{paginationInfo.recordCountPerPage}
     </select>
 
     <select id="select${master.domain}ListTotCnt" parameterType="${packageName}.service.${master.domain}VO"
             resultType="int">
         SELECT COUNT(*)
-        FROM ${master.tableName}
+        FROM ${master.tableName}<#if queryContract.hasJoins()> t</#if>
         <include refid="searchCondition"/>
     </select>
 
     <select id="select${master.domain}" parameterType="${packageName}.service.${master.domain}VO"
             resultMap="${master.domainLc}Map">
-        SELECT <#list master.fields as f>${f.columnName}<#sep>, </#list>
-        FROM ${master.tableName}
-        WHERE ${master.pk.columnName} = #{${master.pk.javaName}}
+        SELECT <#list master.fields as f><#if queryContract.hasJoins()>t.</#if>${f.columnName}<#sep>, </#list><#list queryContract.projections as p>, ${p.selectExpression}</#list>
+        FROM ${master.tableName}<#if queryContract.hasJoins()> t</#if>
+<#list queryContract.joins as join>
+        ${join.joinType} JOIN ${join.schema}.${join.table} ${join.alias} ON ${join.onExpression}
+</#list>
+        WHERE <#if queryContract.hasJoins()>t.</#if>${master.pk.columnName} = #{${master.pk.javaName}}
     </select>
 
     <insert id="insert${master.domain}" parameterType="${packageName}.service.${master.domain}VO">
@@ -63,6 +72,14 @@
     <delete id="delete${master.domain}" parameterType="${packageName}.service.${master.domain}VO">
         DELETE FROM ${master.tableName}
         WHERE ${master.pk.columnName} = #{${master.pk.javaName}}
+    </delete>
+
+    <delete id="delete${master.domain}Bulk">
+        DELETE FROM ${master.tableName}
+        WHERE ${master.pk.columnName} IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
     </delete>
 
 </mapper>

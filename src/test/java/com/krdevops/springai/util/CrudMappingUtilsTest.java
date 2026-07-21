@@ -125,18 +125,18 @@ class CrudMappingUtilsTest {
     // ─── extractKoreanName ────────────────────────────────────────────────────
 
     @Test
-    void extractKoreanName_COMTN_stripsPrefix() {
-        assertThat(CrudMappingUtils.extractKoreanName("COMTNEMPLYRINFO")).isEqualTo("EMPLYRINFO");
+    void extractKoreanName_LETTN_stripsPrefix() {
+        assertThat(CrudMappingUtils.extractKoreanName("LETTNEMPLYRINFO")).isEqualTo("EMPLYRINFO");
     }
 
     @Test
-    void extractKoreanName_COMTS_stripsPrefix() {
-        assertThat(CrudMappingUtils.extractKoreanName("COMTSBBSMASTER")).isEqualTo("BBSMASTER");
+    void extractKoreanName_LETTS_stripsPrefix() {
+        assertThat(CrudMappingUtils.extractKoreanName("LETTSBBSMASTER")).isEqualTo("BBSMASTER");
     }
 
     @Test
-    void extractKoreanName_COMTC_stripsPrefix() {
-        assertThat(CrudMappingUtils.extractKoreanName("COMTCCMMNCODE")).isEqualTo("CMMNCODE");
+    void extractKoreanName_LETTC_stripsPrefix() {
+        assertThat(CrudMappingUtils.extractKoreanName("LETTCCMMNCODE")).isEqualTo("CMMNCODE");
     }
 
     @Test

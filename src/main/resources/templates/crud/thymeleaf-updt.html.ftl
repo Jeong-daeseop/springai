@@ -6,7 +6,7 @@
 <head>
     <title>${domainKr} 수정</title>
 </head>
-<section layout:fragment="content">
+<section layout:fragment="content" class="egov-crud-page">
 <#include "thymeleaf-updt-body.html.ftl">
 </section>
 </html>

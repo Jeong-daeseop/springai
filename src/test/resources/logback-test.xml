@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- ThymeleafRenderValidatorTest는 의도적으로 깨진 표현식을 전달한다.
+         검증 결과는 RenderReport로 단언하므로 예상 예외의 전체 stack trace는 출력하지 않는다. -->
+    <logger name="org.thymeleaf.TemplateEngine" level="OFF"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

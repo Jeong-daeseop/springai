@@ -1,6 +1,8 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.board.BoardTemplateModel;
+import com.krdevops.springai.model.board.BoardDisplayModel;
+import com.krdevops.springai.model.board.BoardRouteModel;
 import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.crud.FieldModel;
 import org.junit.jupiter.api.Test;
@@ -34,6 +36,8 @@ class BoardTemplateRendererTest {
             "NOTICE_AT", "noticeAt", "String", "공지여부", false, false, true, 1, "VARCHAR");
     private static final FieldModel ATCH_FILE_ID = new FieldModel(
             "ATCH_FILE_ID", "atchFileId", "String", "첨부파일ID", false, false, true, 20, "VARCHAR");
+    private static final FieldModel USE_AT = new FieldModel(
+            "USE_AT", "useAt", "String", "사용여부", false, true, true, 1, "VARCHAR");
 
     private BoardTemplateModel model() {
         return new BoardTemplateModel(
@@ -41,9 +45,9 @@ class BoardTemplateRendererTest {
                 "Bbs",
                 "bbs",
                 "BBS",
-                "COMTNBBS",
-                "COMTNBBSMASTER",
-                "COMTNBBSUSE",
+                "LETTNBBS",
+                "LETTNBBSMASTER",
+                "LETTNBBSUSE",
                 "/bbs/bbs",
                 "2026-06-22",
                 "5.0",
@@ -68,9 +72,9 @@ class BoardTemplateRendererTest {
                 "Bbs",
                 "bbs",
                 "BBS",
-                "COMTNBBS",
-                "COMTNBBSMASTER",
-                "COMTNBBSUSE",
+                "LETTNBBS",
+                "LETTNBBSMASTER",
+                "LETTNBBSUSE",
                 "/bbs/bbs",
                 "2026-06-22",
                 "5.0",
@@ -79,7 +83,7 @@ class BoardTemplateRendererTest {
                 NTT_ID,
                 true,
                 ATCH_FILE_ID,
-                "COMTNFILEDETAIL",
+                "LETTNFILEDETAIL",
                 List.of(BBS_ID, NTT_ID, NOTICE_AT, NTT_SJ, NTT_CN, ATCH_FILE_ID),
                 List.of(NOTICE_AT, NTT_SJ),
                 List.of(BBS_ID, NTT_ID, NOTICE_AT, NTT_SJ, NTT_CN, ATCH_FILE_ID),
@@ -87,6 +91,17 @@ class BoardTemplateRendererTest {
                 List.of(),
                 true
         );
+    }
+
+    private BoardTemplateModel modelWithVisibility() {
+        return new BoardTemplateModel(
+                "egovframework.let.bbs", "Bbs", "bbs", "BBS",
+                "LETTNBBS", "LETTNBBSMASTER", null, "/bbs/bbs",
+                "2026-06-22", "5.0", true, BBS_ID, NTT_ID,
+                false, null, null,
+                List.of(BBS_ID, NTT_ID, NTT_SJ, NTT_CN, USE_AT),
+                List.of(NTT_SJ), List.of(BBS_ID, NTT_ID, NTT_SJ, NTT_CN, USE_AT),
+                List.of(NTT_SJ, NTT_CN, USE_AT), List.of(), false);
     }
 
     // ─── layoutHtml ───────────────────────────────────────────────────────────
@@ -100,6 +115,24 @@ class BoardTemplateRendererTest {
         assertThat(result).contains("layout/gnb");
         assertThat(result).contains("layout/lnb");
         assertThat(result).contains("layout/footer");
+    }
+
+    @Test
+    void listSupportsRequestedPageUnitAndFormHasCharacterCounter() {
+        assertThat(renderer.renderByLayerKey("controller", model()))
+                .contains("requestedPageUnit != 10")
+                .contains("searchVO.setPageUnit(requestedPageUnit)");
+        assertThat(renderer.renderByLayerKey("thymeleafList", model()))
+                .contains("name=\"pageUnit\"")
+                .contains(">20개</option>");
+        assertThat(renderer.renderByLayerKey("thymeleafRegist", model()))
+                .contains("class=\"egov-char-count\"")
+                .contains("maxlength=\"2000\"");
+        assertThat(renderer.renderByLayerKey("thymeleafUpdt", modelWithVisibility()))
+                .contains("role=\"radiogroup\"")
+                .contains("th:name=\"useAt\"")
+                .contains("사용")
+                .contains("미사용");
     }
 
     @Test
@@ -165,8 +198,10 @@ class BoardTemplateRendererTest {
 
         assertThat(result).contains("populateLayoutModel(model, \"board-list\", \"목록\", searchVO.getBbsId())");
         assertThat(result).contains("model.addAttribute(\"currentPageSuffix\", currentPageSuffix)");
+        assertThat(result).contains("model.addAttribute(\"menuContextUrl\", \"/bbs/bbsList.do\")");
         assertThat(result).contains("model.addAttribute(\"lnbMenus\"");
         assertThat(result).contains("model.addAttribute(\"currentMenuId\", currentMenuId)");
+        assertThat(result).contains("model.addAttribute(\"resolvedBbsId\", bbsId)");
         assertThat(result)
                 .doesNotContain("model.addAttribute(\"lnbTitle\"")
                 .doesNotContain("model.addAttribute(\"breadcrumbs\"")
@@ -187,7 +222,7 @@ class BoardTemplateRendererTest {
                 .contains("bbsMapper.updateReadCount(vo);")
                 .doesNotContain("BbsVO result = bbsMapper.selectBbs(vo)");
         assertThat(controller)
-                .contains("if (searchVO.getNttId() == null)")
+                .contains("if (!hasCompositeKey(searchVO))")
                 .contains("if (vo == null)")
                 .contains("bbsService.updateBbsReadCount(searchVO);")
                 .containsSubsequence(
@@ -205,6 +240,32 @@ class BoardTemplateRendererTest {
 
         assertThat(result).contains("@Size(max = 2000)");
         assertThat(result).doesNotContain("@Size(max = 2,000)");
+    }
+
+    @Test
+    void vo_generatedNttIdIsNotRejectedBeforeServiceAssignsIt() {
+        String result = renderer.renderByLayerKey("vo", model());
+
+        assertThat(result)
+                .contains("private Long nttId;")
+                .doesNotContain("@NotNull\n    private Long nttId;");
+    }
+
+    @Test
+    void numericNttIdIsAllocatedByLockedMapperQuery() {
+        String mapper = renderer.renderByLayerKey("mapper", model());
+        String mapperXml = renderer.renderByLayerKey("mapperXml", model());
+        String serviceImpl = renderer.renderByLayerKey("serviceImpl", model());
+
+        assertThat(mapper).contains("Long selectNextBbsNttId();");
+        assertThat(mapperXml)
+                .contains("<select id=\"selectNextBbsNttId\" resultType=\"Long\">")
+                .contains("SELECT COALESCE(MAX(NTT_ID), 0) + 1")
+                .contains("FOR UPDATE");
+        assertThat(serviceImpl)
+                .contains("vo.setNttId(bbsMapper.selectNextBbsNttId());")
+                .doesNotContain("new java.math.BigDecimal(nextNttId)")
+                .doesNotContain("private EgovIdGnrService egovIdGnrService;");
     }
 
     // ─── thymeleafList ────────────────────────────────────────────────────────
@@ -247,10 +308,11 @@ class BoardTemplateRendererTest {
 
         assertThat(result).contains("공지");
         assertThat(result).contains("첨부");
-        assertThat(result).contains("FileDownload.do");
+        assertThat(result).contains("첨부파일이 있는 게시글 보기");
+        assertThat(result).contains("Detail.do");
         assertThat(result).contains("검색 결과가 없습니다.");
         assertThat(result).doesNotContain("<#if");
-        assertThat(result).contains("FileDownload.do");
+        assertThat(result).doesNotContain("FileDownload.do");
     }
 
     // ─── thymeleafDetail ─────────────────────────────────────────────────────
@@ -270,10 +332,38 @@ class BoardTemplateRendererTest {
         String result = renderer.renderByLayerKey("thymeleafDetail", modelWithNoticeAndFile());
 
         assertThat(result).contains("첨부파일 다운로드");
-        assertThat(result).contains("FileDownload.do");
+        assertThat(result).contains("/cmm/fms/FileDown.do");
+        assertThat(result).contains("file.originalFileName");
         assertThat(result).contains("첨부파일 없음");
         assertThat(result).contains("egov-attachment-box");
         assertThat(result).doesNotContain("style=\"");
+    }
+
+    @Test
+    void fileDetailListIsGeneratedAcrossBackendLayers() {
+        BoardTemplateModel model = modelWithNoticeAndFile();
+
+        assertThat(renderer.renderByLayerKey("mapper", model))
+                .contains("selectFileList(@Param(\"atchFileId\") String atchFileId)");
+        assertThat(renderer.renderByLayerKey("service", model))
+                .contains("List<Map<String, Object>> selectFileList(String atchFileId)");
+        assertThat(renderer.renderByLayerKey("serviceImpl", model))
+                .contains("bbsMapper.selectFileList(atchFileId)");
+        assertThat(renderer.renderByLayerKey("controller", model))
+                .contains("model.addAttribute(\"fileList\"")
+                .contains("selectFileList(vo.getAtchFileId())");
+        assertThat(renderer.renderByLayerKey("mapperXml", model))
+                .contains("<select id=\"selectFileList\" resultType=\"map\">")
+                .contains("ORIGNL_FILE_NM AS originalFileName")
+                .contains("FROM LETTNFILEDETAIL");
+    }
+
+    @Test
+    void thymeleafDetail_deleteFormContainsConditionalCsrf() {
+        assertThat(renderer.renderByLayerKey("thymeleafDetail", model()))
+                .contains("th:if=\"${_csrf != null}\"")
+                .contains("th:name=\"${_csrf.parameterName}\"")
+                .contains("th:value=\"${_csrf.token}\"");
     }
 
     // ─── thymeleafRegist ─────────────────────────────────────────────────────
@@ -292,9 +382,22 @@ class BoardTemplateRendererTest {
     void thymeleafRegist_rendersNttCnAsTextarea() {
         String result = renderer.renderByLayerKey("thymeleafRegist", model());
 
-        assertThat(result).contains("<textarea class=\"krds-input egov-textarea\"");
+        assertThat(result).contains("<textarea class=\"krds-input medium egov-control egov-textarea\"");
         assertThat(result).contains("th:name=\"nttCn\"");
         assertThat(result).doesNotContain("id=\"nttCn\"\n                               th:name=\"nttCn\"");
+    }
+
+    @Test
+    void thymeleafRegist_containsConditionalCsrf() {
+        assertThat(renderer.renderByLayerKey("thymeleafRegist", model()))
+                .contains("th:if=\"${_csrf != null}\"")
+                .contains("th:name=\"${_csrf.parameterName}\"")
+                .contains("th:value=\"${_csrf.token}\"");
+    }
+
+    @Test
+    void thymeleafRegist_marksOnlyRequiredFields() {
+        assertRequiredFieldMarks(renderer.renderByLayerKey("thymeleafRegist", model()));
     }
 
     // ─── thymeleafUpdt ───────────────────────────────────────────────────────
@@ -313,9 +416,22 @@ class BoardTemplateRendererTest {
     void thymeleafUpdt_rendersNttCnAsTextarea() {
         String result = renderer.renderByLayerKey("thymeleafUpdt", model());
 
-        assertThat(result).contains("<textarea class=\"krds-input egov-textarea\"");
+        assertThat(result).contains("<textarea class=\"krds-input medium egov-control egov-textarea\"");
         assertThat(result).contains("th:name=\"nttCn\"");
         assertThat(result).doesNotContain("id=\"nttCn\"\n                               th:name=\"nttCn\"");
+    }
+
+    @Test
+    void thymeleafUpdt_containsConditionalCsrf() {
+        assertThat(renderer.renderByLayerKey("thymeleafUpdt", model()))
+                .contains("th:if=\"${_csrf != null}\"")
+                .contains("th:name=\"${_csrf.parameterName}\"")
+                .contains("th:value=\"${_csrf.token}\"");
+    }
+
+    @Test
+    void thymeleafUpdt_marksOnlyRequiredFields() {
+        assertRequiredFieldMarks(renderer.renderByLayerKey("thymeleafUpdt", model()));
     }
 
     // ─── layoutMode=none — 독립 화면 템플릿 ─────────────────────────────────
@@ -388,6 +504,15 @@ class BoardTemplateRendererTest {
         });
     }
 
+    @Test
+    void jspPostFormsContainConditionalCsrf() {
+        List.of("jspDetail", "jspRegist", "jspUpdt").forEach(layerKey ->
+                assertThat(renderer.renderByLayerKey(layerKey, model()))
+                        .contains("${not empty _csrf}")
+                        .contains("${_csrf.parameterName}")
+                        .contains("${_csrf.token}"));
+    }
+
     // ─── 알 수 없는 layerKey ─────────────────────────────────────────────────
 
     @Test
@@ -411,5 +536,39 @@ class BoardTemplateRendererTest {
                 .doesNotContain("lnbMenus[0]")
                 .doesNotContain("시스템관리")
                 .doesNotContain("고객지원");
+    }
+
+    @Test
+    void metadataModelRendersDisplayNameListAliasAndDefaultBbsId() {
+        BoardTemplateModel base = model();
+        BoardTemplateModel metadataModel = new BoardTemplateModel(
+                base.packageName(), base.domain(), base.domainLc(), base.domainKr(), base.tableName(),
+                base.masterTableName(), base.useTableName(), base.urlPrefix(), base.date(),
+                base.egovVersion(), base.jakartaValidation(), base.bbsId(), base.nttId(),
+                base.hasFile(), base.atchFileId(), base.fileDetailTableName(), base.fields(),
+                base.listFields(), base.insertFields(), base.formFields(), base.searchFields(),
+                base.noticeAtExists(),
+                new BoardDisplayModel("EgovInfoNotice", "공지사항", "알림정보"),
+                new BoardRouteModel(base.urlPrefix(),
+                        "/cop/bbs/selectBoardList.do?bbsId=BBS_NOTICE",
+                        "/cop/bbs/selectBoardList.do", "BBS_NOTICE"));
+
+        String controller = renderer.renderByLayerKey("controller", metadataModel);
+        String list = renderer.renderByLayerKey("thymeleafList", metadataModel);
+
+        assertThat(controller)
+                .contains("private static final String DEFAULT_BBS_ID = \"BBS_NOTICE\"")
+                .contains("@RequestMapping({\"/bbs/bbsList.do\", \"/cop/bbs/selectBoardList.do\"})")
+                .contains("model.addAttribute(\"menuContextUrl\", \"/cop/bbs/selectBoardList.do?bbsId=BBS_NOTICE\")")
+                .doesNotContain("@RequestMapping({\"/bbs/bbsList.do\", \"/cop/bbs/selectBoardList.do?bbsId");
+        assertThat(list).contains("<title>공지사항 목록</title>")
+                .contains("<h1 class=\"egov-page-title\">공지사항 목록</h1>")
+                .contains("<caption>공지사항 목록 표</caption>");
+    }
+
+    private void assertRequiredFieldMarks(String result) {
+        assertThat(result)
+                .contains("제목<span class=\"egov-required-mark\">*</span>")
+                .doesNotContain("내용<span class=\"egov-required-mark\">*</span>");
     }
 }

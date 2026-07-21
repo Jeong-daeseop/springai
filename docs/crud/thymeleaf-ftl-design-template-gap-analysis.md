@@ -102,7 +102,7 @@ Design Templates는 `GnbNav.dc.html` 별도 컴포넌트(조직별 메뉴), "소
 | LNB | "소식·뉴스" 메뉴 | △ `data-layout-sidebar` generic |
 | 페이지 타이틀 | h1 + URL복사/프린트 버튼 | △ h1 + 목록 버튼, URL복사·프린트 없음 |
 | 게시물 제목 + 메타 바 | h2 제목 + 담당부서/등록일/조회수 가로 바 | △ fields 루프, 구조 다름 |
-| 첨부파일 | 파일명·크기 다운로드 링크 | △ 현재 미구현 (파일 메타데이터/다운로드 URL 필요) |
+| 첨부파일 | 파일명·크기 다운로드 링크 | ✅ Board는 `COMTNFILEDETAIL` 조회와 표준 `/cmm/fms/FileDown.do` 링크 구현, 일반 CRUD는 별도 데이터 계약 필요 |
 | 이전글/다음글 네비게이션 | 이전글·다음글 링크 블록 | △ 현재 미구현 (이전/다음 데이터 조회 로직 필요) |
 | 하단 버튼 | 목록으로 (중앙) | △ 목록·삭제 버튼, 배치 다름 |
 | Footer | 상세 Footer | △ inline styled generic footer |
@@ -137,7 +137,7 @@ Design Template이 존재하지 않는다.
 | 브레드크럼 | SVG 홈 아이콘 + 링크 | △ `krds-breadcrumb-wrap`, SVG 없음 |
 | 페이지 타이틀 | h1 + URL복사/프린트 + 목록/수정 버튼 | △ h1 + 목록·수정 버튼, URL복사·프린트 없음 |
 | 게시글 정보 테이블 | 4컬럼 정의 테이블 (번호·카테고리, 제목, 작성자·담당부서, 등록일·조회수) | △ fields 루프, 컬럼 구조 다름 |
-| 첨부파일 행 | 파일명·용량 다운로드 링크 | △ 첨부 영역 구조와 다운로드 링크 구현, 실제 파일명·용량 목록 조회는 추가 필요 |
+| 첨부파일 행 | 파일명·용량 다운로드 링크 | ✅ `COMTNFILEDETAIL`의 `fileList` 조회와 표준 eGov 파일 다운로드 링크 구현 |
 | 이전글/다음글 네비게이션 | 이전글·다음글 링크 블록 | ✅ prevPost/nextPost 구현 (Mapper selectPrev/Next + Service + Controller + FTL nav 블록) |
 | 하단 버튼 | 목록(좌) / 수정·삭제(우) | △ 배치 다름 |
 
@@ -148,8 +148,8 @@ Design Template이 존재하지 않는다.
 | GNB | `GnbNav.dc.html` | △ `krds-main-menu` generic |
 | LNB | "소식·뉴스" 카테고리 메뉴 | △ `data-layout-sidebar` generic |
 | 카테고리 select | 카테고리 + 유효성 오류 메시지 | △ 현재 미구현 (formFields 확장 또는 Board 전용 필드 규칙 필요) |
-| 공개여부 radio | 공개/비공개 라디오 | △ 현재 미구현 (Board 전용 필드 규칙 필요) |
-| 내용 textarea | 대형 textarea + 글자수 카운터 | △ `nttCn` textarea 구현, 글자수 카운터는 추가 필요 |
+| 공개여부 radio | 공개/비공개 라디오 | ✅ `useAt`/`publicAt`/`secretAt` 의미 필드를 Y/N radio로 렌더링 |
+| 내용 textarea | 대형 textarea + 글자수 카운터 | ✅ `nttCn` textarea와 maxlength 기반 실시간 글자수 카운터 구현 |
 | 첨부파일 드래그 업로드 | 드래그존 + 파일 목록 + 삭제 | △ 현재 미구현 (파일 업로드 컴포넌트와 백엔드 처리 필요) |
 | 저장 성공 토스트 | fixed 위치 토스트 알림 | △ 현재 미구현 (토스트 UI/스크립트 추가 가능) |
 | 버튼 배치 | 취소·저장 중앙 정렬 | △ `krds-btn` 우측 정렬 |
@@ -162,8 +162,8 @@ Design Template이 존재하지 않는다.
 | LNB | 업무 메뉴 | △ `data-layout-sidebar` generic |
 | 체크박스 컬럼 + 전체 선택 | 행마다 체크박스, 헤더 전체 선택 | ✅ `.row-check` + `#checkAll` 전체선택 + `toggleAll()` JS 구현 |
 | 상태 배지 컬럼 | 사용/중지 pill 배지 | ✅ `useAt/useYn/sttus/status/activeYn` 후보 탐지 → 사용(녹)/중지(적) pill 구현 |
-| 페이지당 건수 select | "10개/20개/50개" | △ 현재 미구현 (pageUnit 바인딩/UI 추가 가능) |
-| 선택 삭제(일괄) | 체크된 행 선택삭제 버튼 | ✅ 일괄삭제 UI + JS 구현. `${urlPrefix}BulkDelete.do` 엔드포인트는 별도 구현 필요 |
+| 페이지당 건수 select | "10개/20개/50개" | ✅ 요청값 허용목록 검증과 `pageUnit` 바인딩 구현 |
+| 선택 삭제(일괄) | 체크된 행 선택삭제 버튼 | ✅ UI·JS·Controller·Service·Mapper 구현. 트랜잭션 상세 선삭제와 최대 1,000건 제한 포함 |
 | 행 수정·삭제 버튼 | 행마다 수정·삭제 인라인 버튼 | △ 수정·삭제 있음, 아이콘·스타일 다름 |
 | Empty State | SVG 아이콘 + 메시지 | ✅ SVG 아이콘 + 메시지 구현 |
 | 삭제 확인 모달 | 모달 다이얼로그 | ✅ native `<dialog>` 행별 모달 + 일괄삭제 모달 구현 |
@@ -198,24 +198,24 @@ Design Template이 존재하지 않는다.
 
 두 레이아웃이 동일 파일을 사용하므로 CRUD·Board·MasterDetail 모두 같은 GNB/LNB/Footer를 공유한다.
 
-### 이유 2 — Board 전용 요소가 아직 생성 규칙에 반영되지 않음
+### 이유 2 — 일부 Board 전용 요소는 운영 데이터 계약이 추가로 필요함
 
 | 항목 | Design Template | FTL |
 |---|---|---|
-| 공지 고정 행 | 파란 배지 행 별도 렌더 | 현재 미구현 (규칙 추가 가능) |
-| 첨부 아이콘 컬럼 | 다운로드 SVG 아이콘 | 현재 미구현 (마크업 이식 가능) |
-| 이전글/다음글 네비게이션 | 상세 하단 | 현재 미구현 (조회 로직 필요) |
-| 내용 textarea | 게시글 본문 편집 | 현재는 `<input type="text">` 위주 |
+| 공지 고정 행 | 파란 배지 행 별도 렌더 | 구현 완료 |
+| 첨부 아이콘 컬럼 | 다운로드 SVG 아이콘 | 구현 완료. 목록 아이콘은 게시글 상세로 이동하고 상세에서 파일별 다운로드 제공 |
+| 이전글/다음글 네비게이션 | 상세 하단 | 구현 완료 |
+| 내용 textarea | 게시글 본문 편집 | textarea와 글자수 카운터 구현 완료 |
 | 파일 업로드 UI | 드래그 존 + 파일 목록 | 현재 미구현 (업로드 처리 필요) |
 
-### 이유 3 — MasterDetail 상호작용이 아직 생성 규칙에 반영되지 않음
+### 이유 3 — MasterDetail 고정 컬럼 구조는 스키마별로 달라질 수 있음
 
 | 항목 | Design Template | FTL |
 |---|---|---|
-| 체크박스 + 일괄삭제 | 전체 선택 + 선택삭제 버튼 | 현재 미구현 (스크립트/엔드포인트 필요) |
-| 상태 배지 | 사용/중지 pill | 현재 미구현 (상태값 매핑 필요) |
-| 삭제 확인 모달 | 모달 다이얼로그 | `confirm()` 팝업 |
-| 삭제·저장 토스트 | fixed 화면 알림 | 현재는 페이지 리다이렉트 |
+| 체크박스 + 일괄삭제 | 전체 선택 + 선택삭제 버튼 | 전 계층 구현 완료 |
+| 상태 배지 | 사용/중지 pill | 의미 후보 필드 기반 구현 완료 |
+| 삭제 확인 모달 | 모달 다이얼로그 | native `<dialog>` 구현 완료 |
+| 삭제·저장 토스트 | fixed 화면 알림 | flash message 기반 구현 완료 |
 
 ### 이유 4 — 스타일링 방식 차이
 
@@ -237,9 +237,11 @@ Design Templates는 인라인 스타일 기반이다.
 | `krds-btn` / `krds-input` / `krds-form-select` / `krds-pagination` | ✅ 완료 |
 | `data-row-link` 행 클릭 | ✅ 완료 |
 | Board 공지 고정 행 / 첨부 아이콘 컬럼 | ✅ 구현 |
-| Board textarea / 파일 업로드 | △ textarea 구현, 파일 업로드 미구현 |
+| Board textarea / 공개여부 / 파일 업로드 | △ textarea·글자수·공개여부 구현, 파일 업로드 미구현 |
 | 이전글/다음글 네비게이션 | ✅ 구현 (Board Detail: Mapper + Service + Controller + FTL 6개 파일) |
-| MasterDetail 체크박스·일괄삭제·상태 배지 | ✅ 체크박스 UI + 상태 배지 구현. 일괄삭제 UI 구현, `BulkDelete.do` 엔드포인트 별도 필요 |
+| MasterDetail 체크박스·일괄삭제·상태 배지 | ✅ UI·상태 배지·`BulkDelete.do` 전체 계층 구현. 상세 선삭제와 최대 1,000건 제한 포함 |
+| 공통 페이지당 건수 select | ✅ CRUD·Board·MasterDetail에 10/20/50 허용값과 Controller 바인딩 구현 |
+| Board 실제 첨부 목록·다운로드 | ✅ `COMTNFILEDETAIL` 조회와 `/cmm/fms/FileDown.do` 링크 구현 |
 | 삭제 확인 모달 (전체) | ✅ native `<dialog>` 모달로 전환 |
 | 저장·삭제 토스트 알림 (전체) | ✅ fixed 위치 토스트 (3초 자동 사라짐) |
 | GNB/LNB 업무별 메뉴 | ✅ 구현 (GNB: `${domainKr}` + `${urlPrefix}` active, LNB: 도메인 링크 + Thymeleaf 활성 탐지) |
@@ -303,12 +305,12 @@ Design Template 마크업만 이식하면 되는 항목, 생성 모델에 필드
 | Board 상세 첨부파일 영역 구조 | 낮음 (현재 `atchFileId` 기반 표시 구조 개선) | Phase 0 완료 |
 | Empty State SVG / 버튼 배치 | 낮음 (마크업 이식) | Phase 0 일부 완료 |
 | Flash message 토스트 | 낮음~중간 (FTL + JS) | Phase 0 완료 |
-| 페이지당 건수 select | 중간 (FTL + Controller pageUnit 처리) | Phase 1 |
+| 페이지당 건수 select | 중간 (FTL + Controller pageUnit 처리) | Phase 1 완료 |
 | Board 이전글/다음글 | 중간 (Mapper + Service + Controller + FTL) | Phase 1 완료 |
-| Board 실제 다운로드 목록 | 중간~높음 (COMTNFILEDETAIL 조회 + 다운로드 URL) | Phase 1 |
+| Board 실제 다운로드 목록 | 중간~높음 (COMTNFILEDETAIL 조회 + 다운로드 URL) | Phase 1 완료 (표준 eGov 파일 컴포넌트 의존) |
 | MasterDetail 상태 배지 | 중간 (상태 필드 후보 탐지 + FTL) | Phase 1 완료 |
 | MasterDetail 체크박스 UI | 중간 (FTL + JS) | Phase 1 완료 |
-| MasterDetail 일괄삭제 | 중간 (SQL + Controller + FTL) | Phase 1 일부 완료 (UI + JS; BulkDelete.do 엔드포인트 미구현) |
+| MasterDetail 일괄삭제 | 중간 (SQL + Controller + FTL) | Phase 1 완료 (상세 선삭제·1,000건 제한 포함) |
 | 삭제 확인 모달 | 중간 (FTL + JS, 접근성 처리) | Phase 1 완료 |
 | Board 파일 업로드 | 높음 (eGovFrame 공통 컴포넌트/파일 테이블 연동) | Phase 2 |
 | GNB/LNB 업무별 메뉴 | 높음 | Phase 1 완료 (Board layout 신규 생성 포함) |
@@ -320,12 +322,12 @@ Phase 2는 파일 저장 정책, 공통 컴포넌트, 운영 환경 설정까지
 ### 권장 구현 순서
 
 1. ✅ Board 목록: 공지 배지, 첨부 아이콘 컬럼, empty state SVG 반영 완료.
-2. ✅ Board 상세: `atchFileId` 기반 첨부파일 영역 + 이전글/다음글 네비게이션 구현 완료. 실제 `fileList` 연동은 후속 분리.
+2. ✅ Board 상세: `COMTNFILEDETAIL` 기반 실제 첨부 목록·표준 다운로드 링크 + 이전글/다음글 네비게이션 구현 완료.
 3. ✅ 토스트 / 삭제 확인 모달: 전체 FTL(CRUD/Board/MasterDetail) native `<dialog>` + fixed toast 전환 완료.
-4. ✅ MasterDetail 목록/상세: 상태 배지, 체크박스 UI, 일괄삭제 UI, 총건수 표시 구현 완료. `BulkDelete.do` 엔드포인트는 후속.
-5. Board 폼: `NTT_CN` textarea는 반영 완료. `USE_AT`/공개여부 radio, 카테고리 select, 저장 성공 토스트 추가 필요.
-6. 공통 list: 페이지당 건수 select와 페이지 타이틀 버튼 배치를 Design Template에 맞춘다.
-7. 기능 확장: 파일 업로드, 실제 다운로드 목록(COMTNFILEDETAIL), `BulkDelete.do` 엔드포인트를 Java/Mapper 단위로 구현.
+4. ✅ MasterDetail 목록/상세: 상태 배지, 체크박스 UI, 일괄삭제 전 계층, 총건수 표시 구현 완료.
+5. Board 폼: `NTT_CN` textarea·글자수 카운터와 공개여부 radio 완료. 카테고리 select는 승인 코드 그룹 확정 후 구현한다.
+6. ✅ 공통 list: CRUD·Board·MasterDetail 페이지당 건수 10/20/50 선택과 Controller 허용값 처리를 구현했다.
+7. 기능 확장: 실제 다운로드 목록과 일괄삭제는 완료. 파일 업로드는 저장소·바이러스 검사·권한 정책 확정 후 구현한다.
 8. 레이아웃: GNB/LNB/Footer를 업무별 Design Template 구조로 분리한다.
 
 ### 최소 변경안
@@ -341,7 +343,7 @@ Phase 2는 파일 저장 정책, 공통 컴포넌트, 운영 환경 설정까지
 | 공통 FTL | 토스트를 flash message 기반으로 표시 | 서버 로직 변경 최소 |
 
 이 최소 변경안은 DB 스키마와 생성 Java 계층을 크게 흔들지 않는다.
-다만 파일 업로드, 실제 다운로드, 이전/다음 글, 일괄삭제는 별도 기능 확장으로 남는다.
+실제 다운로드, 이전/다음 글, 일괄삭제는 구현됐다. 파일 업로드만 기관별 저장소·보안 정책이 필요한 별도 기능 확장으로 남는다.
 
 ---
 
@@ -363,3 +365,11 @@ Phase 2는 파일 저장 정책, 공통 컴포넌트, 운영 환경 설정까지
 | MasterDetail 목록 체크박스 UI + 상태 배지 + 일괄삭제 UI (BulkDelete.do 엔드포인트 제외) | 2026-07-01 |
 | MasterDetail 상세 마스터·디테일 상태 배지 + 디테일 총건수 표시 | 2026-07-01 |
 | GNB/LNB 업무별 분리: CRUD·MasterDetail 레이아웃 FTL 변수화, Board layout 신규 생성 | 2026-07-01 |
+| CRUD·Board·MasterDetail 페이지당 건수 10/20/50 선택 및 Controller 바인딩 | 2026-07-17 |
+| Board 공개여부 radio 및 `nttCn` 글자수 카운터 | 2026-07-17 |
+| Board `COMTNFILEDETAIL` 실제 첨부 목록 및 표준 다운로드 링크 | 2026-07-17 |
+| MasterDetail `BulkDelete.do` 전 계층, 상세 선삭제, 최대 1,000건 제한 | 2026-07-17 |
+| CRUD·MasterDetail `egov-crud-page` 스코프와 KRDS 크기 modifier·공통 control/table/pagination 클래스 보완 | 2026-07-17 |
+| CRUD·MasterDetail 등록·수정·삭제 POST 폼 CSRF 토큰 보완 | 2026-07-17 |
+| 생성 HTML의 KRDS 크기 modifier·POST CSRF 누락 자동 감사 | 2026-07-17 |
+| CRUD·MasterDetail 전 버튼 `egov-btn` 공통 스코프 통일 및 자동 감사 | 2026-07-17 |

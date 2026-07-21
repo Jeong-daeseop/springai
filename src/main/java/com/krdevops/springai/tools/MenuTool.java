@@ -12,7 +12,7 @@ public class MenuTool {
     private final MenuService menuService;
 
     @Tool(description = """
-            eGovFrame COMTNMENUINFO 테이블 기준 메뉴 트리 구조를 조회합니다.
+            eGovFrame 메뉴 테이블(LETTNMENUINFO) 기준 메뉴 트리 구조를 조회합니다.
             menuNo = "0" 이면 전체 트리를 반환합니다.
             특정 menuNo를 지정하면 해당 메뉴의 하위 트리를 반환합니다.
             반환값에 신규 등록 시 권장 MENU_NO / MENU_ORDR 이 자동 계산되어 포함됩니다.
@@ -26,8 +26,8 @@ public class MenuTool {
 
     @Tool(description = """
             신규 메뉴 등록에 필요한 SQL 2개를 반환합니다.
-            SQL 1: COMTNPROGRMLIST INSERT (프로그램 등록)
-            SQL 2: COMTNMENUINFO INSERT (메뉴 등록)
+            SQL 1: 프로그램 테이블(LETTNPROGRMLIST) INSERT (프로그램 등록)
+            SQL 2: 메뉴 테이블(LETTNMENUINFO) INSERT (메뉴 등록)
             MENU_NO와 MENU_ORDR은 기존 최대값 기준으로 자동 계산됩니다.
             ※ 상위 메뉴 존재 여부, PROGRM_FILE_NM 중복, URL 중복을 자동 검증합니다.
             ※ securityMapper가 DB 기반 URL 권한을 조회하는 구성이어야 이 SQL이 Security에 반영됩니다.

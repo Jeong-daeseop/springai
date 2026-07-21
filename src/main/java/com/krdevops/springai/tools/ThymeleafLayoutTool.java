@@ -3,14 +3,16 @@ package com.krdevops.springai.tools;
 import com.krdevops.springai.model.crud.CrudLayerDefinition;
 import com.krdevops.springai.service.CodeService;
 import com.krdevops.springai.service.CrudTemplateRenderer;
+import com.krdevops.springai.service.MyBatisRuntimeConfigurer;
 import com.krdevops.springai.service.ThymeleafLayoutValidator;
 import com.krdevops.springai.service.ThymeleafRuntimeConfigurer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -27,25 +29,18 @@ public class ThymeleafLayoutTool {
     private final CodeService codeService;
     private final ThymeleafLayoutValidator thymeleafLayoutValidator;
     private final ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
+    private final MyBatisRuntimeConfigurer myBatisRuntimeConfigurer;
 
     private static final String DEFAULT_PACKAGE_NAME = "egovframework.let.sample";
     private static final String DEFAULT_EGOV_VERSION = "5.0";
     private static final String DEFAULT_MENU_TABLE_NAME = "LETTNMENUINFO";
     private static final String DEFAULT_PROGRAM_TABLE_NAME = "LETTNPROGRMLIST";
+    private static final String LOGO_CLASSPATH_RESOURCE = "templates/egov/assets/egov-logo.png";
+    private static final String LOGO_RELATIVE_PATH = "src/main/webapp/resources/images/egov-logo.png";
     private static final String SERVLET_CONTEXT_XML_RELATIVE_PATH =
             "src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml";
-    private static final String CONTEXT_COMMON_XML_RELATIVE_PATH =
-            "src/main/resources/egovframework/spring/context-common.xml";
     private static final Pattern COMPONENT_SCAN_BASE_PACKAGE_PATTERN = Pattern.compile(
             "<context:component-scan\\b([^>]*?\\bbase-package\\s*=\\s*\")([^\"]*)(\"[^>]*>)",
-            Pattern.DOTALL);
-    private static final Pattern SQL_SESSION_FACTORY_BEAN_PATTERN = Pattern.compile(
-            "(<bean\\s+id=\"sqlSessionFactory\"\\s+class=\"org\\.mybatis\\.spring\\.SqlSessionFactoryBean\"[^>]*>.*?"
-                    + "<property\\s+name=\"dataSource\"\\s+ref=\"dataSource\"\\s*/>)(.*?</bean>)",
-            Pattern.DOTALL);
-    private static final Pattern MAPPER_SCANNER_BASE_PACKAGE_PATTERN = Pattern.compile(
-            "(<bean\\b[^>]*class=\"org\\.mybatis\\.spring\\.mapper\\.MapperScannerConfigurer\"[^>]*>.*?"
-                    + "<property\\s+name=\"basePackage\"\\s+value=\")([^\"]*)(\"[^>]*/>.*?</bean>)",
             Pattern.DOTALL);
 
     public String generateThymeleafLayout(
@@ -65,8 +60,9 @@ public class ThymeleafLayoutTool {
     @Tool(description = """
             Thymeleaf 공통 layout 파일 5종(default.html, gnb.html, lnb.html, breadcrumb.html, footer.html)과
             GNB 동적 메뉴 컴포넌트 4종(GnbMenuVO.java, GnbMenuMapper.java/xml, EgovGnbMenuInterceptor.java)을 생성하고,
-            MainController가 반환하는 egovframework/main/main 뷰를 Thymeleaf main.html로 렌더링하도록 메인 화면을 생성하고,
-            WAR 기본 진입점은 index.jsp 대신 index.html로 전환합니다.
+            GNB 브랜드 영역에 쓸 eGovFrame 로고 이미지(src/main/webapp/resources/images/egov-logo.png)를 생성하고,
+            MainController가 반환하는 egovframework/main/main 뷰를 Thymeleaf main.html로 렌더링하도록 메인 화면을 생성합니다.
+            WAR 기본 진입점(index.jsp/index.html/web.xml)은 화면 생성기의 책임이므로 변경하지 않습니다.
             WAR 프로젝트의 servlet-context.xml에 EgovGnbMenuInterceptor 등록 블록을 자동으로 patch합니다(이미 등록되어 있으면 skip).
             GNB Mapper가 동작하도록 context-common.xml의 mapperLocations와 MapperScannerConfigurer도 자동으로 보강합니다.
             또한 Thymeleaf 런타임 의존성과 ViewResolver를 보강해 JSP resolver보다 classpath:/templates/*.html 화면을 우선 렌더링합니다.
@@ -79,17 +75,15 @@ public class ThymeleafLayoutTool {
             layoutBasePath  : templates 아래 layout base 경로 (기본값: "layout")
               - "layout"       => src/main/resources/templates/layout/*.html
               - "layout/admin" => src/main/resources/templates/layout/admin/*.html
-            overwriteLayout : 기존 layout/GNB 컴포넌트 파일 덮어쓰기 여부 (기본값 false)
-              - false: 기존 파일 보존
-              - true : 기존 파일 갱신
+            overwriteLayout : 기존 layout/GNB 컴포넌트 파일 덮어쓰기 여부 (기본값 true)
+              - true : 기존 파일 갱신(생략 시 기본 동작)
+              - false: 기존 파일 보존(커스터마이징한 layout/인터셉터를 유지하려면 명시적으로 false 지정)
             packageName     : GNB 메뉴 컴포넌트가 생성될 패키지 (예: egovframework.let.emp)
               [중요] initializeProject()에 전달했던 packageName과 반드시 동일해야 합니다.
               다르면 EgovGnbMenuInterceptor가 실제 CRUD 패키지와 어긋난 위치에 생성되어 동작하지 않습니다.
               생략 시 "egovframework.let.sample"을 쓰지만 실제 프로젝트에서는 반드시 명시하세요.
             menuTableName   : 메뉴 테이블명 (기본값: "LETTNMENUINFO")
-                              "COMTNMENUINFO" 또는 "com.COMTNMENUINFO" 입력 시 "LETTNMENUINFO"로 매핑합니다.
             programTableName: 프로그램 테이블명 (기본값: "LETTNPROGRMLIST")
-                              "COMTNPROGRMLIST" 또는 "com.COMTNPROGRMLIST" 입력 시 "LETTNPROGRMLIST"로 매핑합니다.
             [1차 구현 제약] WAR 프로젝트만 지원(Boot는 서보플릿 XML이 없어 인터셉터 등록 불가),
               Jakarta Servlet(eGovFrame 5.0)만 지원(4.3/javax는 미지원).
             """)
@@ -102,11 +96,12 @@ public class ThymeleafLayoutTool {
             @Nullable String programTableName) {
 
         String resolvedBasePath = thymeleafLayoutValidator.normalizeLayoutBasePath(layoutBasePath);
-        boolean overwrite = Boolean.TRUE.equals(overwriteLayout);
+        // 기본값은 overwrite=true — 명시적으로 false를 넘긴 경우에만 기존 파일을 보존한다.
+        boolean overwrite = !Boolean.FALSE.equals(overwriteLayout);
         boolean packageNameMissing = packageName == null || packageName.isBlank();
         String resolvedPackageName = packageNameMissing ? DEFAULT_PACKAGE_NAME : packageName;
-        String resolvedMenuTableName = normalizeLetTableName(menuTableName, DEFAULT_MENU_TABLE_NAME);
-        String resolvedProgramTableName = normalizeLetTableName(programTableName, DEFAULT_PROGRAM_TABLE_NAME);
+        String resolvedMenuTableName = normalizeTableName(menuTableName, DEFAULT_MENU_TABLE_NAME);
+        String resolvedProgramTableName = normalizeTableName(programTableName, DEFAULT_PROGRAM_TABLE_NAME);
 
         StringBuilder sb = new StringBuilder();
         sb.append("=== Thymeleaf layout 생성 결과 ===\n\n");
@@ -144,6 +139,8 @@ public class ThymeleafLayoutTool {
             }
         }
 
+        sb.append(copyLogoImage(outputPath, overwrite));
+
         String pkgSub = resolvedPackageName.replace(".", "/");
         for (CrudLayerDefinition layer : CrudLayerDefinition.GNB_MENU_COMPONENT_LAYERS) {
             String relativePath = layer.resolveSubPath(pkgSub, "") + layer.fileNameSuffix();
@@ -180,8 +177,6 @@ public class ThymeleafLayoutTool {
             }
         }
 
-        sb.append(convertWarWelcomeFileToIndexHtml(outputPath, overwrite));
-
         ThymeleafLayoutValidator.LayoutValidationResult validation =
                 thymeleafLayoutValidator.validateExisting(
                         outputPath,
@@ -199,7 +194,11 @@ public class ThymeleafLayoutTool {
         sb.append(servletContextPatchResult);
 
         sb.append("\n[context-common.xml MyBatis 설정]\n");
-        sb.append(patchContextCommonXml(outputPath, resolvedPackageName));
+        MyBatisRuntimeConfigurer.ConfigurationResult myBatis =
+                myBatisRuntimeConfigurer.ensureConfigured(
+                        outputPath, resolvedPackageName + ".cmm.service");
+        sb.append("  ").append(myBatis.success() ? "완료: " : "실패: ")
+                .append(myBatis.path()).append(" — ").append(myBatis.message()).append("\n");
 
         sb.append("\n[Thymeleaf 런타임 설정]\n");
         if (servletContextPatchResult.contains("실패:")) {
@@ -218,18 +217,38 @@ public class ThymeleafLayoutTool {
         return sb.toString();
     }
 
+    /**
+     * GNB 브랜드 영역(egov-header-brand)에 쓸 eGovFrame 로고 이미지를 클래스패스 자산에서
+     * 프로젝트 정적 리소스 경로로 복사한다. layout 파일과 동일하게 overwrite=false면 기존 파일을 보존한다.
+     */
+    private String copyLogoImage(String outputPath, boolean overwrite) {
+        Path filePath = Paths.get(outputPath, LOGO_RELATIVE_PATH).normalize();
+        if (!overwrite && Files.exists(filePath)) {
+            return "  보존: " + filePath + "\n";
+        }
+        try (InputStream in = getClass().getClassLoader().getResourceAsStream(LOGO_CLASSPATH_RESOURCE)) {
+            if (in == null) {
+                return "  실패: " + LOGO_CLASSPATH_RESOURCE + " 클래스패스 자산을 찾을 수 없습니다.\n";
+            }
+            String saveResult = codeService.saveGeneratedBinary(filePath.toString(), in.readAllBytes());
+            if (saveResult.startsWith("파일 저장 실패")) {
+                return "  실패: " + filePath + " — " + saveResult + "\n";
+            }
+            return "  생성: " + filePath + "\n";
+        } catch (IOException e) {
+            return "  실패: " + filePath + " 로고 이미지 복사 오류 — " + e.getMessage() + "\n";
+        }
+    }
+
     private static String defaultIfBlank(String value, String defaultValue) {
         return (value == null || value.isBlank()) ? defaultValue : value.trim();
     }
 
-    private static String normalizeLetTableName(String value, String defaultValue) {
+    private static String normalizeTableName(String value, String defaultValue) {
         String tableName = defaultIfBlank(value, defaultValue);
         int schemaSeparator = tableName.lastIndexOf('.');
         if (schemaSeparator >= 0) {
             tableName = tableName.substring(schemaSeparator + 1);
-        }
-        if (tableName.regionMatches(true, 0, "COM", 0, 3)) {
-            return "LET" + tableName.substring(3);
         }
         return tableName;
     }
@@ -287,183 +306,6 @@ public class ThymeleafLayoutTool {
                 </body>
                 </html>
                 """.formatted(layoutView);
-    }
-
-    private String convertWarWelcomeFileToIndexHtml(String outputPath, boolean overwrite) {
-        StringBuilder sb = new StringBuilder();
-        Path indexHtmlPath = Paths.get(outputPath, "src/main/webapp/index.html").normalize();
-        Path indexJspPath = Paths.get(outputPath, "src/main/webapp/index.jsp").normalize();
-
-        if (!overwrite && Files.exists(indexHtmlPath)) {
-            sb.append("  보존: ").append(indexHtmlPath).append("\n");
-        } else {
-            String saveResult = codeService.saveGeneratedCode(indexHtmlPath.toString(), indexHtml());
-            if (saveResult.startsWith("파일 저장 실패")) {
-                sb.append("  실패: ").append(indexHtmlPath).append(" — ").append(saveResult).append("\n");
-            } else {
-                sb.append("  생성: ").append(indexHtmlPath).append("\n");
-            }
-        }
-
-        try {
-            if (Files.deleteIfExists(indexJspPath)) {
-                sb.append("  삭제: ").append(indexJspPath).append("\n");
-            }
-        } catch (IOException e) {
-            sb.append("  실패: ").append(indexJspPath).append(" 삭제 오류 — ").append(e.getMessage()).append("\n");
-        }
-
-        sb.append(patchWebXmlWelcomeFile(outputPath));
-        return sb.toString();
-    }
-
-    private static String indexHtml() {
-        return """
-                <!DOCTYPE html>
-                <html lang="ko">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta http-equiv="refresh" content="0;url=/egovframework/com/main.do">
-                    <title>eGovFrame</title>
-                </head>
-                <body>
-                    <a href="/egovframework/com/main.do">메인 화면으로 이동</a>
-                </body>
-                </html>
-                """;
-    }
-
-    private String patchWebXmlWelcomeFile(String outputPath) {
-        Path webXmlPath = Paths.get(outputPath, "src/main/webapp/WEB-INF/web.xml").normalize();
-        if (!Files.exists(webXmlPath)) {
-            return "  건너뜀: " + webXmlPath + " 파일이 없어 welcome-file 변경을 생략합니다.\n";
-        }
-
-        try {
-            String webXml = Files.readString(webXmlPath);
-            if (webXml.contains("<welcome-file>index.html</welcome-file>")) {
-                return "  보존: " + webXmlPath + " (welcome-file=index.html)\n";
-            }
-            String patched = webXml.replace("<welcome-file>index.jsp</welcome-file>", "<welcome-file>index.html</welcome-file>");
-            if (patched.equals(webXml)) {
-                return "  실패: " + webXmlPath + " — index.jsp welcome-file을 찾을 수 없습니다.\n";
-            }
-            Files.writeString(webXmlPath, patched);
-            return "  변경: " + webXmlPath + " welcome-file=index.html\n";
-        } catch (IOException e) {
-            return "  실패: " + webXmlPath + " welcome-file 변경 오류 — " + e.getMessage() + "\n";
-        }
-    }
-
-    private String patchContextCommonXml(String outputPath, String packageName) {
-        Path contextCommonPath = Paths.get(outputPath, CONTEXT_COMMON_XML_RELATIVE_PATH).normalize();
-        if (!Files.exists(contextCommonPath)) {
-            return "  건너뜀: " + contextCommonPath + " 파일이 없어 MyBatis mapper 설정 보강을 생략합니다.\n";
-        }
-
-        String content;
-        try {
-            content = Files.readString(contextCommonPath);
-        } catch (IOException e) {
-            return "  실패: " + contextCommonPath + " 읽기 오류 — " + e.getMessage() + "\n";
-        }
-
-        StringBuilder message = new StringBuilder();
-        String patched = content;
-        boolean changed = false;
-
-        if (patched.contains("mapperLocations")) {
-            message.append("  보존: ").append(contextCommonPath).append(" mapperLocations 이미 등록됨\n");
-        } else {
-            Matcher sqlSessionFactoryMatcher = SQL_SESSION_FACTORY_BEAN_PATTERN.matcher(patched);
-            if (sqlSessionFactoryMatcher.find()) {
-                patched = patched.substring(0, sqlSessionFactoryMatcher.end(1))
-                        + "\n        <property name=\"mapperLocations\" value=\"classpath*:egovframework/mapper/**/*.xml\"/>"
-                        + patched.substring(sqlSessionFactoryMatcher.end(1));
-                changed = true;
-                message.append("  등록: ").append(contextCommonPath).append(" mapperLocations 추가\n");
-            } else {
-                message.append("  실패: ").append(contextCommonPath)
-                        .append(" SqlSessionFactoryBean 위치를 찾지 못해 mapperLocations를 추가하지 못했습니다.\n");
-            }
-        }
-
-        MapperScannerPatch scannerPatch = patchMapperScannerConfigurer(patched, packageName, contextCommonPath);
-        patched = scannerPatch.content();
-        changed = changed || scannerPatch.changed();
-        message.append(scannerPatch.message());
-
-        if (changed) {
-            try {
-                Files.writeString(contextCommonPath, patched);
-            } catch (IOException e) {
-                return "  실패: " + contextCommonPath + " 쓰기 오류 — " + e.getMessage() + "\n";
-            }
-        }
-        return message.toString();
-    }
-
-    private MapperScannerPatch patchMapperScannerConfigurer(
-            String content,
-            String packageName,
-            Path contextCommonPath) {
-        String requiredBasePackage = requiredComponentScanBasePackage(packageName);
-        String targetMapperPackage = packageName + ".cmm.service";
-
-        if (!content.contains("org.mybatis.spring.mapper.MapperScannerConfigurer")) {
-            int beansCloseCount = countOccurrences(content, "</beans>");
-            if (beansCloseCount != 1) {
-                return new MapperScannerPatch(
-                        content,
-                        "  실패: " + contextCommonPath + " — </beans> 태그가 " + beansCloseCount
-                                + "개 발견되어 MapperScannerConfigurer를 안전하게 삽입할 수 없습니다.\n",
-                        false);
-            }
-            String scannerBlock = """
-
-                    <bean class=\"org.mybatis.spring.mapper.MapperScannerConfigurer\">
-                        <property name=\"basePackage\" value=\"%s\"/>
-                        <property name=\"sqlSessionFactoryBeanName\" value=\"sqlSessionFactory\"/>
-                        <property name=\"annotationClass\" value=\"org.apache.ibatis.annotations.Mapper\"/>
-                    </bean>
-                    """.formatted(requiredBasePackage);
-            return new MapperScannerPatch(
-                    content.replace("</beans>", scannerBlock + "\n</beans>"),
-                    "  등록: " + contextCommonPath + " MapperScannerConfigurer 추가(basePackage="
-                            + requiredBasePackage + ")\n",
-                    true);
-        }
-
-        Matcher scannerMatcher = MAPPER_SCANNER_BASE_PACKAGE_PATTERN.matcher(content);
-        if (!scannerMatcher.find()) {
-            return new MapperScannerPatch(
-                    content,
-                    "  확인 필요: " + contextCommonPath
-                            + " MapperScannerConfigurer basePackage 속성을 찾지 못해 스캔 범위를 자동 확인하지 못했습니다.\n",
-                    false);
-        }
-
-        String basePackages = scannerMatcher.group(2);
-        if (componentScanCovers(basePackages, targetMapperPackage)) {
-            return new MapperScannerPatch(
-                    content,
-                    "  보존: " + contextCommonPath + " MapperScannerConfigurer basePackage="
-                            + basePackages + " (GNB Mapper 스캔 범위 포함)\n",
-                    false);
-        }
-
-        String patchedBasePackages = appendBasePackage(basePackages, requiredBasePackage);
-        String patchedContent = content.substring(0, scannerMatcher.start(2))
-                + patchedBasePackages
-                + content.substring(scannerMatcher.end(2));
-        return new MapperScannerPatch(
-                patchedContent,
-                "  변경: " + contextCommonPath + " MapperScannerConfigurer basePackage="
-                        + patchedBasePackages + " (GNB Mapper 스캔 범위 보강)\n",
-                true);
-    }
-
-    private record MapperScannerPatch(String content, String message, boolean changed) {
     }
 
     /**
@@ -531,6 +373,13 @@ public class ThymeleafLayoutTool {
              + "(bean class=" + interceptorClass + ", autowire=constructor)\n";
     }
 
+    /**
+     * 기존 @Controller component-scan base-package를 절대 좁히지 않는다 — packageName을
+     * 그대로 덮어쓰면 MainController 등 다른 패키지의 기존 컨트롤러가 스캔 대상에서
+     * 빠져 404가 발생한다. requiredBasePackage/mergeBasePackages는 MyBatisRuntimeConfigurer가
+     * MapperScannerConfigurer basePackage 병합에 쓰는 것과 동일한 로직으로, 기존 범위를
+     * 포함하는 방향으로만 넓힌다.
+     */
     private ComponentScanPatch patchComponentScanBasePackage(
             String content,
             String packageName,
@@ -545,74 +394,25 @@ public class ThymeleafLayoutTool {
                     false);
         }
 
-        String basePackages = matcher.group(2).trim();
-        String requiredBasePackage = requiredServletComponentScanBasePackage();
-        if (basePackages.equals(requiredBasePackage)) {
+        String existingBasePackages = matcher.group(2).trim();
+        String requiredBasePackage = myBatisRuntimeConfigurer.requiredBasePackage(packageName);
+        if (myBatisRuntimeConfigurer.packagesCover(existingBasePackages, requiredBasePackage)) {
             return new ComponentScanPatch(
                     content,
                     "  보존: " + servletContextPath + " component-scan base-package="
-                            + basePackages + " (GNB servlet 스캔 범위 일치)\n",
+                            + existingBasePackages + " (GNB servlet 스캔 범위 이미 포함)\n",
                     false);
         }
 
+        String mergedBasePackage = myBatisRuntimeConfigurer.mergeBasePackages(existingBasePackages, requiredBasePackage);
         String patchedContent = content.substring(0, matcher.start(2))
-                + requiredBasePackage
+                + mergedBasePackage
                 + content.substring(matcher.end(2));
         return new ComponentScanPatch(
                 patchedContent,
                 "  변경: " + servletContextPath + " component-scan base-package="
-                        + requiredBasePackage + " (GNB servlet 스캔 범위 단일화)\n",
+                        + mergedBasePackage + " (기존 스캔 범위를 포함하도록 확장)\n",
                 true);
-    }
-
-    private String requiredServletComponentScanBasePackage() {
-        return "egovframework.let.com.cmm.service";
-    }
-
-    private boolean componentScanCovers(String basePackages, String targetPackage) {
-        for (String basePackage : splitBasePackages(basePackages)) {
-            if (targetPackage.equals(basePackage) || targetPackage.startsWith(basePackage + ".")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private String requiredComponentScanBasePackage(String packageName) {
-        if (packageName.equals("egovframework.let.com") || packageName.startsWith("egovframework.let.com.")) {
-            return "egovframework.let.com";
-        }
-        if (packageName.equals("egovframework.let") || packageName.startsWith("egovframework.let.")) {
-            return "egovframework.let";
-        }
-        int lastDot = packageName.lastIndexOf('.');
-        return lastDot > 0 ? packageName.substring(0, lastDot) : packageName;
-    }
-
-    private String appendBasePackage(String basePackages, String requiredBasePackage) {
-        String normalized = basePackages == null ? "" : basePackages.trim();
-        if (normalized.isBlank()) {
-            return requiredBasePackage;
-        }
-        for (String basePackage : splitBasePackages(normalized)) {
-            if (basePackage.equals(requiredBasePackage)) {
-                return normalized;
-            }
-        }
-        return normalized + ", " + requiredBasePackage;
-    }
-
-    private List<String> splitBasePackages(String basePackages) {
-        if (basePackages == null || basePackages.isBlank()) {
-            return List.of();
-        }
-        List<String> result = new ArrayList<>();
-        for (String token : basePackages.split("[,;\\s]+")) {
-            if (!token.isBlank()) {
-                result.add(token.trim());
-            }
-        }
-        return result;
     }
 
     private record ComponentScanPatch(String content, String message, boolean changed) {

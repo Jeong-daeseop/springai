@@ -22,7 +22,7 @@ import java.io.IOException;
  *
  * ⚠️ 계정 정책 테이블은 프로젝트별 상이 — DB 조회 로직 직접 구현 필요
  *    bopr: EgovLoginService / 계정 잠금 정책 테이블 사용
- *    COM계열: COMTNLOGINPOLICY 테이블 기반
+ *    COM계열: LETTNLOGINPOLICY 테이블 기반
  */
 public class EgovLoginPolicyFilter extends GenericFilterBean {
 

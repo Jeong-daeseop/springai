@@ -43,7 +43,7 @@ import java.util.stream.Stream;
  *    → Claude에 기존 코드 스타일 참조로 전달
  *
  * 3. 대화 히스토리 기반 추천
- *    ingestText("history-20260516", "COMTNEMPLYRINFO CRUD 생성 이력...")
+ *    ingestText("history-20260516", "LETTNEMPLYRINFO CRUD 생성 이력...")
  *    → buildRagContext("직원 관련 소스 생성")
  *    → 이전 생성 패턴 재활용
  */

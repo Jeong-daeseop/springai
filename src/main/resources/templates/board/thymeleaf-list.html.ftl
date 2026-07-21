@@ -4,9 +4,9 @@
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{${layoutView}}">
 <head>
-    <title>${domainKr} 목록</title>
+    <title>${displayName} 목록</title>
 </head>
-<section layout:fragment="content">
+<section layout:fragment="content" class="egov-crud-page">
 <#include "thymeleaf-list-body.html.ftl">
 </section>
 

@@ -22,9 +22,10 @@
     </div>
     </c:if>
 
+<#if searchPanelPlacement == "ABOVE_TABLE">
     <!-- 검색 -->
     <div class="fieldset">
-        <form name="searchForm" action="<c:url value='${urlPrefix}List.do'/>" method="get">
+        <form name="searchForm" action="<c:url value='${route.resolvedListPath()}'/>" method="get">
             <input type="hidden" name="pageIndex" value="${'$'}{searchVO.pageIndex}"/>
             <div class="form-group">
                 <div class="form-conts keyword-sch">
@@ -44,14 +45,23 @@
             </div>
         </form>
     </div>
+<#else>
+    <form name="searchForm" style="display:none">
+        <input type="hidden" name="pageIndex" value="${'$'}{searchVO.pageIndex}"/>
+        <input type="hidden" name="searchCondition" value="${'$'}{searchVO.searchCondition}"/>
+        <input type="hidden" name="searchKeyword" value="${'$'}{searchVO.searchKeyword}"/>
+    </form>
+</#if>
 
     <!-- 목록 -->
-    <div class="krds-structured-list-table">
+    <div class="krds-structured-list-table egov-density-${layoutDensity?lower_case}">
         <div class="search-list-top">
             <div class="sch-left"></div>
+<#if actionPlacement == "TOP_RIGHT">
             <div class="sch-right">
-                <a href="<c:url value='${urlPrefix}RegistView.do'/>" class="krds-btn primary medium">등록</a>
+                <a href="<c:url value='${route.resolvedRegistViewPath()}'/>" class="krds-btn primary medium">등록</a>
             </div>
+</#if>
         </div>
 
         <div class="krds-table-wrap">
@@ -81,7 +91,7 @@
                         <td><c:out value="${'$'}{item.${f.javaName}}"/></td>
 </#list>
                         <td>
-                            <a href="<c:url value='${urlPrefix}Detail.do'/>?<#list pkFields as p>${p.javaName}=${'$'}{item.${p.javaName}}<#sep>&</#sep></#list>"
+                            <a href="<c:url value='${route.resolvedDetailPath()}'/>?<#list pkFields as p>${p.javaName}=${'$'}{item.${p.javaName}}<#sep>&</#sep></#list>"
                                class="krds-btn secondary xsmall">상세</a>
                         </td>
                     </tr>
@@ -101,6 +111,11 @@
                            type="image"
                            jsFunction="linkPage"/>
         </div>
+<#if actionPlacement == "BOTTOM_RIGHT">
+        <div class="btn-area">
+            <a href="<c:url value='${route.resolvedRegistViewPath()}'/>" class="krds-btn primary medium">등록</a>
+        </div>
+</#if>
     </div>
 </div>
 

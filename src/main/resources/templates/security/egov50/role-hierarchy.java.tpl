@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * COMTNROLES_HIERARCHY 테이블 기반 권한 계층 구조 설정
+ * LETTNROLES_HIERARCHY 테이블 기반 권한 계층 구조 설정
  *
  * 실제 DB 데이터 (com DB):
  *   PARNTS_ROLE                      CHLDRN_ROLE
@@ -34,9 +34,9 @@ public class EgovRoleHierarchyConfig {
 
     @Bean
     public RoleHierarchy roleHierarchy() {
-        // COMTNROLES_HIERARCHY 에서 계층 관계 동적 로드
+        // LETTNROLES_HIERARCHY 에서 계층 관계 동적 로드
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-            "SELECT PARNTS_ROLE, CHLDRN_ROLE FROM COMTNROLES_HIERARCHY"
+            "SELECT PARNTS_ROLE, CHLDRN_ROLE FROM LETTNROLES_HIERARCHY"
         );
 
         StringBuilder hierarchy = new StringBuilder();

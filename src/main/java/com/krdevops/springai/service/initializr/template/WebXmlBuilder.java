@@ -18,7 +18,9 @@ public class WebXmlBuilder {
             ? "https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
             : "http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd";
         String ver     = supportsJakarta(egovVersion) ? "6.0" : "4.0";
-        String welcomeFile = s.thymeleaf() ? "index.html" : "index.jsp";
+        // WAR 진입점은 실제 화면 기술과 분리한다. index.jsp는 .do Controller로
+        // forward만 하므로 JSP/Thymeleaf 프로젝트 모두 동일하게 사용할 수 있다.
+        String welcomeFile = "index.jsp";
         String multipartConfig = supportsSpring6(egovVersion)
             ? """
 

@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 /**
  * 프로젝트 초기화 이력 기록.
  * Phase 2: 로그 전용 (SLF4J)
- * Phase 3+: DB 저장 (COMTN_GENERATION_HISTORY 테이블) — 선택
+ * Phase 3+: DB 저장 (LETTN_GENERATION_HISTORY 테이블) — 선택
  */
 @Component
 public class GenerationHistoryRecorder {

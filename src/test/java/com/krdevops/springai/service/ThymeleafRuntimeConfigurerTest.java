@@ -217,6 +217,31 @@ class ThymeleafRuntimeConfigurerTest {
         assertThat(dialectCount).isEqualTo(1);
     }
 
+    @Test
+    void ensureControllerComponentScan_addsGeneratedControllerPackageOnce(@TempDir Path dir) throws IOException {
+        writeServletContext(dir, servletContextWithComponentScan("egovframework.let.com.cmm.service"));
+        List<String> failed = new ArrayList<>();
+
+        sut.ensureControllerComponentScan(dir.toString(), "egovframework.let.cop.bbs.web", failed);
+        sut.ensureControllerComponentScan(dir.toString(), "egovframework.let.cop.bbs.web", failed);
+
+        String xml = readServletContext(dir);
+        assertThat(failed).isEmpty();
+        assertThat(xml).contains(
+                "base-package=\"egovframework.let.com.cmm.service,egovframework.let.cop.bbs.web\"");
+        assertThat(count(xml, "egovframework.let.cop.bbs.web")).isEqualTo(1);
+    }
+
+    @Test
+    void ensureControllerComponentScan_reportsMissingScanContract(@TempDir Path dir) throws IOException {
+        writeServletContext(dir, minimalServletContext());
+        List<String> failed = new ArrayList<>();
+
+        sut.ensureControllerComponentScan(dir.toString(), "egovframework.let.cop.bbs.web", failed);
+
+        assertThat(failed).singleElement().asString().contains("component-scan base-package");
+    }
+
     // ── 헬퍼 ─────────────────────────────────────────────────────────────────────
 
     private static String minimalPom() {
@@ -251,6 +276,23 @@ class ThymeleafRuntimeConfigurerTest {
                     </bean>
                 </beans>
                 """;
+    }
+
+    private static String servletContextWithComponentScan(String basePackage) {
+        return """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <beans xmlns="http://www.springframework.org/schema/beans"
+                       xmlns:context="http://www.springframework.org/schema/context">
+                    <context:component-scan base-package="%s" use-default-filters="false">
+                        <context:include-filter type="annotation"
+                            expression="org.springframework.stereotype.Controller"/>
+                    </context:component-scan>
+                </beans>
+                """.formatted(basePackage);
+    }
+
+    private static int count(String source, String token) {
+        return (source.length() - source.replace(token, "").length()) / token.length();
     }
 
     private static void writePom(Path dir, String content) throws IOException {

@@ -12,7 +12,7 @@ public class CommonCodeTool {
     private final CommonCodeService commonCodeService;
 
     @Tool(description = """
-            eGovFrame 공통 코드 상세 목록을 조회합니다. (COMTCCMMNDETAILCODE)
+            eGovFrame 공통 코드 상세 목록을 조회합니다. (LETTCCMMNDETAILCODE)
             codeId: 조회할 코드ID (예: COM034, COM001)
             반환값: 코드값(CODE), 코드명(CODE_NM), 사용여부(USE_AT), 설명(CODE_DC)
             JSP select box 생성용 HTML도 함께 반환합니다.
@@ -24,7 +24,7 @@ public class CommonCodeTool {
     }
 
     @Tool(description = """
-            eGovFrame 공통 코드 그룹을 키워드로 검색합니다. (COMTCCMMNCODE)
+            eGovFrame 공통 코드 그룹을 키워드로 검색합니다. (LETTCCMMNCODE)
             keyword: 검색어 (코드ID명, 설명 대상) — 비어 있으면 전체 50건 반환
             예: "직원" 검색 → 직원 관련 코드 그룹(CODE_ID) 목록 반환
             원하는 코드 그룹을 찾은 후 getCommonCode(codeId)로 상세 코드를 조회하세요.

@@ -18,8 +18,8 @@ public class ProjectHealthTool {
             점검 항목:
               - 레이어별 파일 존재 여부 (VO/Mapper/MapperXML/Service/ServiceImpl/Controller/화면 4종: JSP 또는 Thymeleaf)
               - eGovFrame 표준 준수 여부 (validateGeneratedCode 연동)
-              - COMTNMENUINFO 메뉴 등록 여부
-              - COMTNPROGRMLIST 권한 등록 여부
+              - LETTNMENUINFO 메뉴 등록 여부
+              - LETTNPROGRMLIST 권한 등록 여부
               - 테스트 코드 존재 여부
             반환값: 완성도 %(점수), 항목별 ✅/❌, 다음 권장 작업 목록
             소스 생성 완료 후 최종 점검 또는 작업 재개 전 현황 파악 시 사용합니다.

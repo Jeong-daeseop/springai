@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/figpack-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["packageVersion", "mimeType", "captureId", "documentKey", "contentHash", "entries"],
+  "properties": {
+    "packageVersion": {"const": "figpack-v1"},
+    "mimeType": {"const": "application/vnd.springai.figpack+zip"},
+    "captureId": {"type": "string", "format": "uuid"},
+    "documentKey": {"type": "string"}, "contentHash": {"type": "string"},
+    "entries": {"type": "array", "minItems": 2, "maxItems": 5100, "items": {"type": "object", "additionalProperties": false, "required": ["path", "byteLength", "sha256"], "properties": {"path": {"type": "string", "pattern": "^(document\\.json|preview\\.png|assets/[A-Za-z0-9._/-]+)$"}, "byteLength": {"type": "integer", "minimum": 0}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}}
+  }
+}

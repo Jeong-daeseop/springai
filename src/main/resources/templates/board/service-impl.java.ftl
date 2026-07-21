@@ -3,13 +3,16 @@ package ${packageName}.service.impl;
 import ${packageName}.service.${domain}Service;
 import ${packageName}.service.${domain}VO;
 import org.egovframe.rte.fdl.cmmn.EgovAbstractServiceImpl;
+<#if nttId.javaType == "String">
 import org.egovframe.rte.fdl.idgnr.EgovIdGnrService;
+</#if>
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import jakarta.annotation.Resource;
 import java.util.List;
+import java.util.Map;
 
 /**
  * ${domainKr} ServiceImpl
@@ -22,8 +25,10 @@ public class Egov${domain}ServiceImpl extends EgovAbstractServiceImpl implements
     @Resource(name = "${domainLc}Mapper")
     private ${domain}Mapper ${domainLc}Mapper;
 
+<#if nttId.javaType == "String">
     @Resource(name = "egovIdGnrService")
     private EgovIdGnrService egovIdGnrService;
+</#if>
 
     @Override
     @Transactional(readOnly = true)
@@ -56,15 +61,8 @@ public class Egov${domain}ServiceImpl extends EgovAbstractServiceImpl implements
 <#if nttId.javaType == "String">
         String nextNttId = egovIdGnrService.getNextStringId();
         vo.set${nttId.javaName?cap_first}(nextNttId);
-<#elseif nttId.javaType == "Integer">
-        int nextNttId = egovIdGnrService.getNextIntegerId();
-        vo.set${nttId.javaName?cap_first}(nextNttId);
-<#elseif nttId.javaType == "Long">
-        long nextNttId = (long) egovIdGnrService.getNextIntegerId();
-        vo.set${nttId.javaName?cap_first}(nextNttId);
 <#else>
-        String nextNttId = egovIdGnrService.getNextStringId();
-        vo.set${nttId.javaName?cap_first}(new java.math.BigDecimal(nextNttId));
+        vo.set${nttId.javaName?cap_first}(${domainLc}Mapper.selectNext${domain}NttId());
 </#if>
         ${domainLc}Mapper.insert${domain}(vo);
     }
@@ -81,11 +79,13 @@ public class Egov${domain}ServiceImpl extends EgovAbstractServiceImpl implements
         ${domainLc}Mapper.delete${domain}(vo);
     }
 
+<#if useTableName??>
     @Override
     @Transactional(readOnly = true)
     public String selectBoardUseAt(${domain}VO vo) throws Exception {
         return ${domainLc}Mapper.selectBoardUseAt(vo);
     }
+</#if>
 
     @Override
     @Transactional(readOnly = true)
@@ -98,4 +98,15 @@ public class Egov${domain}ServiceImpl extends EgovAbstractServiceImpl implements
     public ${domain}VO selectNext${domain}(${domain}VO vo) throws Exception {
         return ${domainLc}Mapper.selectNext${domain}(vo);
     }
+
+<#if hasFile && fileDetailTableName??>
+    @Override
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> selectFileList(${atchFileId.javaType} atchFileId) throws Exception {
+        if (atchFileId == null) {
+            return List.of();
+        }
+        return ${domainLc}Mapper.selectFileList(atchFileId);
+    }
+</#if>
 }

@@ -105,8 +105,8 @@ public class FilePlanFactory {
                             CONFIG, () -> bld.dispatcherServlet(s)),
                 FilePlan.of("src/main/webapp/WEB-INF/web.xml",
                             WEB,    () -> bld.webXml(s)),
-                FilePlan.of(s.thymeleaf() ? "src/main/webapp/index.html" : "src/main/webapp/index.jsp",
-                            WEB,    () -> s.thymeleaf() ? indexHtml() : stpl.indexJsp()),
+                FilePlan.of("src/main/webapp/index.jsp",
+                            WEB,    stpl::indexJsp),
                 FilePlan.of("src/main/webapp/resources/css/styles.css",
                             WEB,    stpl::stylesCss),
                 FilePlan.of("src/main/webapp/resources/css/_ds_bundle.css",
@@ -308,22 +308,6 @@ public class MainController {
 </head>
 <body>
 <h2>전자정부 표준프레임워크 메인 화면입니다.</h2>
-</body>
-</html>
-""";
-    }
-
-    private static String indexHtml() {
-        return """
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0;url=/egovframework/com/main.do" />
-    <title>eGovFrame</title>
-</head>
-<body>
-<a href="/egovframework/com/main.do">메인 화면으로 이동</a>
 </body>
 </html>
 """;

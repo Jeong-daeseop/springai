@@ -1,10 +1,25 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.crud.ColumnMeta;
+import com.krdevops.springai.model.crud.CrudProgramMetadata;
+import com.krdevops.springai.model.crud.CrudRouteModel;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
+import com.krdevops.springai.model.crud.CrudViewType;
+import com.krdevops.springai.model.crud.ScreenSubsetMode;
 import com.krdevops.springai.model.crud.FieldModel;
 import com.krdevops.springai.model.crud.PkModel;
+import com.krdevops.springai.model.design.FieldSourceType;
+import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.model.design.ActionPlacement;
+import com.krdevops.springai.model.design.FormColumnLayout;
+import com.krdevops.springai.model.design.GenerationQueryContract;
+import com.krdevops.springai.model.design.LayoutDensity;
+import com.krdevops.springai.model.design.SearchPanelPlacement;
+import com.krdevops.springai.model.design.FieldSelectionSource;
+import com.krdevops.springai.policy.SensitiveFieldPolicy;
+import com.krdevops.springai.policy.UiFieldRolePolicy;
 import com.krdevops.springai.util.CrudMappingUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -19,6 +34,17 @@ import java.util.Set;
  */
 @Service
 public class CrudModelFactory {
+
+    private final GenerationQueryContractFactory queryContractFactory;
+
+    public CrudModelFactory() {
+        this(new GenerationQueryContractFactory());
+    }
+
+    @Autowired
+    public CrudModelFactory(GenerationQueryContractFactory queryContractFactory) {
+        this.queryContractFactory = queryContractFactory;
+    }
 
     /**
      * eGovFrame 표준 감사(audit) 컬럼 — 서버가 값을 채우므로 등록/수정 폼에서
@@ -42,6 +68,46 @@ public class CrudModelFactory {
     public CrudTemplateModel fromSchema(String tableName, String domain,
                                         String packageName, String egovVersion,
                                         List<Map<String, Object>> rawColumns) {
+        return fromSchema(tableName, domain, packageName, egovVersion, rawColumns,
+                CrudProgramMetadata.fallback(null), CrudViewType.JSP,
+                ScreenSubsetMode.LIST_ONLY, null);
+    }
+
+    /**
+     * DB({@code LETTNPROGRMLIST}) 조회 메타데이터를 반영해 CrudTemplateModel을 생성한다.
+     * metadata가 각 화면 role에 대한 등록 URL을 찾지 못했으면 canonical URL만 사용한다.
+     *
+     * @param metadata {@link CrudProgramMetadataService#resolve} 결과 (fallback 허용)
+     */
+    public CrudTemplateModel fromSchema(String tableName, String domain,
+                                        String packageName, String egovVersion,
+                                        List<Map<String, Object>> rawColumns,
+                                        CrudProgramMetadata metadata) {
+        return fromSchema(tableName, domain, packageName, egovVersion, rawColumns, metadata,
+                CrudViewType.JSP, ScreenSubsetMode.LIST_ONLY, null);
+    }
+
+    public CrudTemplateModel fromSchema(String tableName, String domain,
+                                        String packageName, String egovVersion,
+                                        List<Map<String, Object>> rawColumns,
+                                        CrudProgramMetadata metadata,
+                                        ScreenSpecification screenSpecification) {
+        return fromSchema(tableName, domain, packageName, egovVersion, rawColumns, metadata,
+                CrudViewType.JSP, ScreenSubsetMode.LIST_ONLY, screenSpecification);
+    }
+
+    public CrudTemplateModel fromSchema(String tableName, String domain,
+                                        String packageName, String egovVersion,
+                                        List<Map<String, Object>> rawColumns,
+                                        CrudProgramMetadata metadata,
+                                        CrudViewType viewType,
+                                        ScreenSubsetMode subsetMode,
+                                        ScreenSpecification screenSpecification) {
+        CrudViewType resolvedViewType = viewType == null ? CrudViewType.JSP : viewType;
+        ScreenSubsetMode resolvedSubsetMode = subsetMode == null
+                ? (resolvedViewType == CrudViewType.THYMELEAF
+                        ? ScreenSubsetMode.LIST_AND_DETAIL : ScreenSubsetMode.LIST_ONLY)
+                : subsetMode;
         // Map → ColumnMeta 변환
         List<ColumnMeta> columns = rawColumns.stream()
                 .map(this::toColumnMeta)
@@ -68,19 +134,37 @@ public class CrudModelFactory {
         List<FieldModel> formFields = nonPkFields.stream()
                 .filter(f -> !SYSTEM_MANAGED_FIELDS.contains(f.javaName()))
                 .toList();
-        List<FieldModel> listFields = buildListFields(fields, pkField);
+        List<FieldModel> listFields = buildListFields(
+                fields, effectivePkFields,
+                resolvedSubsetMode == ScreenSubsetMode.NONE ? null : screenSpecification);
+        List<FieldModel> detailFields = buildDetailFields(
+                fields, effectivePkFields, resolvedSubsetMode, screenSpecification);
+        GenerationQueryContract queryContract = queryContractFactory.create(screenSpecification, fields);
+        if (resolvedSubsetMode != ScreenSubsetMode.NONE && !queryContract.displayFields().isEmpty()) {
+            java.util.ArrayList<FieldModel> extended = new java.util.ArrayList<>(listFields);
+            queryContract.displayFields().forEach(field -> addIfAbsent(extended, field));
+            listFields = List.copyOf(extended);
+        }
 
         // jakartaValidation: "5.x" 또는 "latest" → true (CrudPromptBuilderService:118-119 동일)
         boolean jakartaValidation = egovVersion != null
                 && (egovVersion.startsWith("5") || "latest".equalsIgnoreCase(egovVersion));
 
         String domainLc = domain.substring(0, 1).toLowerCase() + domain.substring(1);
-        String domainKr = CrudMappingUtils.extractKoreanName(tableName);
+        // 우선순위: 명시 programKoreanName > DB PROGRM_KOREAN_NM(둘 다 metadata.programKoreanName()에
+        // 이미 반영됨, CrudProgramMetadataService 참고) > 테이블명 기반 fallback.
+        // 화면 종류 접미어("목록"/"상세" 등)는 미리 제거한다 — 그러지 않으면 화면 제목에서
+        // 템플릿이 다시 붙이는 접미어와 중복된다("게시판 목록조회" + "목록" → "게시판 목록조회 목록").
+        String metadataKoreanName = metadata == null ? null : metadata.programKoreanName();
+        String domainKr = metadataKoreanName != null
+                ? CrudMappingUtils.stripScreenTypeSuffix(metadataKoreanName)
+                : CrudMappingUtils.extractKoreanName(tableName);
 
         // urlPrefix: "egovframework.let.emp" → "/emp/employer"
         String urlPrefix = "/" + packageName.replace("egovframework.let.", "")
                                             .replace(".", "/")
                            + "/" + domainLc;
+        CrudRouteModel route = buildRoute(urlPrefix, metadata);
 
         return new CrudTemplateModel(
                 packageName,
@@ -97,17 +181,83 @@ public class CrudModelFactory {
                 fields,
                 listFields,
                 nonPkFields,
-                formFields
+                formFields,
+                route,
+                queryContract,
+                detailFields,
+                screenSpecification == null
+                        ? LayoutDensity.STANDARD : screenSpecification.layoutDensity(),
+                screenSpecification == null
+                        ? FormColumnLayout.SINGLE_COLUMN : screenSpecification.formColumnLayout(),
+                screenSpecification == null
+                        ? ActionPlacement.TOP_RIGHT : screenSpecification.actionPlacement(),
+                screenSpecification == null
+                        ? SearchPanelPlacement.ABOVE_TABLE : screenSpecification.searchPanelPlacement()
+        );
+    }
+
+    private CrudRouteModel buildRoute(String urlPrefix, CrudProgramMetadata metadata) {
+        CrudProgramMetadata md = metadata == null ? CrudProgramMetadata.fallback(null) : metadata;
+        return new CrudRouteModel(
+                urlPrefix + "List.do",       md.registeredPath(CrudProgramMetadataService.ROLE_LIST),
+                urlPrefix + "Detail.do",     md.registeredPath(CrudProgramMetadataService.ROLE_DETAIL),
+                urlPrefix + "RegistView.do", md.registeredPath(CrudProgramMetadataService.ROLE_REGIST_VIEW),
+                urlPrefix + "Regist.do",     md.registeredPath(CrudProgramMetadataService.ROLE_REGIST),
+                urlPrefix + "UpdtView.do",   md.registeredPath(CrudProgramMetadataService.ROLE_UPDT_VIEW),
+                urlPrefix + "Updt.do",       md.registeredPath(CrudProgramMetadataService.ROLE_UPDT),
+                urlPrefix + "Delete.do",     md.registeredPath(CrudProgramMetadataService.ROLE_DELETE),
+                md.registeredListUrl()
         );
     }
 
     private List<FieldModel> buildListFields(List<FieldModel> fields, FieldModel pkField) {
+        return buildListFields(fields, List.of(pkField), null);
+    }
+
+    private List<FieldModel> buildListFields(
+            List<FieldModel> fields,
+            List<FieldModel> pkFields,
+            ScreenSpecification screenSpecification) {
+        FieldModel pkField = pkFields.get(0);
+        if (screenSpecification != null) {
+            List<String> columns = screenSpecification.pages().stream()
+                    .filter(page -> "list".equalsIgnoreCase(page.id()))
+                    .filter(page -> page.selectionSource() != FieldSelectionSource.DEFAULT)
+                    .flatMap(page -> page.fields().stream())
+                    .filter(field -> field.visible() && field.source() != null)
+                    .filter(field -> field.source().type() == FieldSourceType.COLUMN)
+                    .map(field -> field.source().column())
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            java.util.ArrayList<FieldModel> selected = new java.util.ArrayList<>();
+            pkFields.forEach(field -> addIfAbsent(selected, field));
+            for (String column : columns) {
+                fields.stream().filter(field -> field.columnName().equalsIgnoreCase(column))
+                        .filter(field -> !isSensitiveListField(field))
+                        .findFirst().ifPresent(field -> addIfAbsent(selected, field));
+                if (selected.size() >= 6) break;
+            }
+            if (selected.size() > 1 || columns.stream().anyMatch(pkField.columnName()::equalsIgnoreCase)) {
+                return List.copyOf(selected);
+            }
+        }
         List<String> preferred = List.of(
                 "userNm", "emplNo", "ofcpsNm", "emailAdres", "mbtlnum",
                 "orgnztId", "emplyrSttusCode", "brthdy", "sexdstnCode"
         );
         java.util.ArrayList<FieldModel> selected = new java.util.ArrayList<>();
-        selected.add(pkField);
+        pkFields.forEach(field -> addIfAbsent(selected, field));
+
+        for (var role : UiFieldRolePolicy.LIST_ROLE_PRIORITY) {
+            for (String columnName : UiFieldRolePolicy.candidateColumns(role)) {
+                fields.stream()
+                        .filter(field -> field.columnName().equalsIgnoreCase(columnName))
+                        .filter(field -> !isSensitiveListField(field))
+                        .findFirst()
+                        .ifPresent(field -> addIfAbsent(selected, field));
+                if (selected.size() >= 6) return List.copyOf(selected);
+            }
+        }
 
         for (String javaName : preferred) {
             fields.stream()
@@ -128,6 +278,39 @@ public class CrudModelFactory {
             if (!isSensitiveListField(field)) {
                 addIfAbsent(selected, field);
             }
+        }
+        return List.copyOf(selected);
+    }
+
+    private List<FieldModel> buildDetailFields(
+            List<FieldModel> fields,
+            List<FieldModel> pkFields,
+            ScreenSubsetMode subsetMode,
+            ScreenSpecification screenSpecification) {
+        if (subsetMode != ScreenSubsetMode.LIST_AND_DETAIL || screenSpecification == null) {
+            return SensitiveFieldPolicy.filterDisplayFields(fields);
+        }
+        List<String> columns = screenSpecification.pages().stream()
+                .filter(page -> "detail".equalsIgnoreCase(page.id()))
+                .filter(page -> page.selectionSource() != FieldSelectionSource.DEFAULT)
+                .flatMap(page -> page.fields().stream())
+                .filter(binding -> binding.visible() && binding.source() != null)
+                .filter(binding -> binding.source().type() == FieldSourceType.COLUMN)
+                .map(binding -> binding.source().column())
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (columns.isEmpty()) return SensitiveFieldPolicy.filterDisplayFields(fields);
+
+        java.util.ArrayList<FieldModel> selected = new java.util.ArrayList<>();
+        pkFields.stream()
+                .filter(field -> !SensitiveFieldPolicy.isSensitiveDisplayField(field))
+                .forEach(field -> addIfAbsent(selected, field));
+        for (String column : columns) {
+            fields.stream()
+                    .filter(field -> field.columnName().equalsIgnoreCase(column))
+                    .filter(field -> !SensitiveFieldPolicy.isSensitiveDisplayField(field))
+                    .findFirst()
+                    .ifPresent(field -> addIfAbsent(selected, field));
         }
         return List.copyOf(selected);
     }

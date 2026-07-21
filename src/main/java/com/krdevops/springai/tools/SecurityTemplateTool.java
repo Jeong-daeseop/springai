@@ -3,7 +3,7 @@ package com.krdevops.springai.tools;
 import com.krdevops.springai.service.SecurityTemplateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -37,7 +37,7 @@ public class SecurityTemplateTool {
                                                    → RTE EgovSecurityConfiguration이 이 Bean을 읽어 SecurityFilterChain 자동 구성
                                                    → 반드시 javaConfig(5.0)과 함께 사용 (단독 사용 불가)
                                   XSD 선언이 버전에 따라 다르므로 egovVersion 반드시 명시
-              securityMapper    → URL-ROLE 매핑 참조 SQL (COMTNROLEINFO / COMTNROLES_HIERARCHY)
+              securityMapper    → URL-ROLE 매핑 참조 SQL (LETTNROLEINFO / LETTNROLES_HIERARCHY)
 
             [Java Config 방식 — egovVersion에 따라 구조가 완전히 다름]
               javaConfig        → egovVersion=4.3: WebSecurityConfigurerAdapter 상속 방식
@@ -49,11 +49,11 @@ public class SecurityTemplateTool {
                                                    ⚠️ EgovSecurityConfiguration을 XML <bean>으로 직접 선언하면
                                                       Spring Security 6.5 + Java 17에서 BootstrapMethodError 발생
               userDetailsService → EgovUserDetailsServiceImpl.java
-                                  (COMTNEMPLYRINFO 사용자 조회 + COMTNEMPLYRSCRTYESTBS 권한 조회)
+                                  (LETTNEMPLYRINFO 사용자 조회 + LETTNEMPLYRSCRTYESTBS 권한 조회)
                                   ⚠️ eGovFrame 4.3 전용 — 5.0은 EgovJdbcUserDetailsManager(RTE 자동 구성)가 대체
                                      5.0에서는 context-security.xml의 jdbcUsersByUsernameQuery 프로퍼티로 설정
               roleHierarchy     → EgovRoleHierarchyConfig.java
-                                  (COMTNROLES_HIERARCHY 테이블 기반 ROLE 계층 동적 로드)
+                                  (LETTNROLES_HIERARCHY 테이블 기반 ROLE 계층 동적 로드)
                                   eGovFrame 4.3 / 5.0 공통 사용 가능
                                   ⚠️ XML 조합(setup-war-43-xml)에서는 미포함.
                                      context-security.xml이 roleHierarchy Bean을 이미 XML로 선언하므로
@@ -108,8 +108,8 @@ public class SecurityTemplateTool {
               loginPage         → egovLoginUsr.jsp (CSRF 토큰 포함 표준 로그인 폼)
 
             핵심 아키텍처:
-              DelegatingFilterProxy → springSecurityFilterChain → DB 인증 (COMTNEMPLYRINFO)
-              → Session 저장 → COMTNROLEINFO URL 패턴 매칭 → 접근 제어
+              DelegatingFilterProxy → springSecurityFilterChain → DB 인증 (LETTNEMPLYRINFO)
+              → Session 저장 → LETTNROLEINFO URL 패턴 매칭 → 접근 제어
               세션 기반 유지 (공공 SI 표준 — STATELESS 아님)
 
             주의: contextSecurity(XML의 <http>)와 javaConfig(SecurityFilterChain Bean)는

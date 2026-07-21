@@ -27,8 +27,8 @@ import org.springframework.security.web.access.intercept.FilterSecurityIntercept
  * eGovFrame 4.3 Spring Security Java Config
  *
  * 구조: WebSecurityConfigurerAdapter 상속 방식 (Spring Security 4.x~5.x 표준)
- * 인증: JDBC DB 기반 (COMTNEMPLYRINFO)
- * 권한: ROLE 기반 DB 동적 로드 (COMTNROLEINFO)
+ * 인증: JDBC DB 기반 (LETTNEMPLYRINFO)
+ * 권한: ROLE 기반 DB 동적 로드 (LETTNROLEINFO)
  * 세션: Session 기반 유지 (공공 SI 레거시 호환)
  *
  * 참고: Spring Security 6.0 이상에서 WebSecurityConfigurerAdapter 삭제됨.
@@ -109,7 +109,7 @@ public class EgovProjectSecurityConfig extends WebSecurityConfigurerAdapter {
             .exceptionHandling()
                 .accessDeniedHandler(egovAccessDeniedHandler)
             .and()
-            // DB 기반 동적 URL 접근 제어 필터 (COMTNROLEINFO URL 패턴 → ROLE 매핑)
+            // DB 기반 동적 URL 접근 제어 필터 (LETTNROLEINFO URL 패턴 → ROLE 매핑)
             .addFilterBefore(egovSecurityFilter(), FilterSecurityInterceptor.class);
     }
 

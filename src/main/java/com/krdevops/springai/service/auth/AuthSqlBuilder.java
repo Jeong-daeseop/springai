@@ -25,13 +25,13 @@ public class AuthSqlBuilder {
         statements.add(buildRoleInfoSql(roleCode, roleNm, rolePttrn, spec));
         statements.add(buildAuthorRoleRelateSql(roleCode));
         statements.add("-- 일반 사용자 권한도 부여하려면 아래 SQL을 추가 실행하세요:");
-        statements.add("-- INSERT INTO COMTNAUTHORROLERELATE (AUTHOR_CODE, ROLE_CODE, CREAT_DT) VALUES ('ROLE_USER', '" + esc(roleCode) + "', " + renderer.now() + ");");
+        statements.add("-- INSERT INTO LETTNAUTHORROLERELATE (AUTHOR_CODE, ROLE_CODE, CREAT_DT) VALUES ('ROLE_USER', '" + esc(roleCode) + "', " + renderer.now() + ");");
 
         List<String> warnings = new ArrayList<>();
-        warnings.add("※ ROLE_CODE(" + roleCode + ")는 SQL 생성 시점 기준입니다. 실행 직전 COMTNROLEINFO 중복 여부를 재확인하세요.");
+        warnings.add("※ ROLE_CODE(" + roleCode + ")는 SQL 생성 시점 기준입니다. 실행 직전 LETTNROLEINFO 중복 여부를 재확인하세요.");
         warnings.add("※ 생성된 ROLE_PTTRN: " + rolePttrn);
         warnings.add("※ 적용 대상 URL 예: " + spec.urlPrefix() + "/Example.do");
-        warnings.add("※ 이 SQL은 securityMapper가 COMTNROLEINFO / COMTNAUTHORROLERELATE를 조회할 때만 Security에 반영됩니다.");
+        warnings.add("※ 이 SQL은 securityMapper가 LETTNROLEINFO / LETTNAUTHORROLERELATE를 조회할 때만 Security에 반영됩니다.");
 
         List<String> nextSteps = List.of(
                 "1. 위 SQL을 DB에서 실행하세요.",
@@ -53,7 +53,7 @@ public class AuthSqlBuilder {
 
     private String buildRoleInfoSql(String roleCode, String roleNm, String rolePttrn,
                                      AuthRegistrationSpec spec) {
-        return "INSERT INTO COMTNROLEINFO (" +
+        return "INSERT INTO LETTNROLEINFO (" +
                 "ROLE_CODE, ROLE_NM, ROLE_PTTRN, ROLE_DC, ROLE_TY, ROLE_SORT, " +
                 "CREAT_DT, MDFCN_DT) VALUES (" +
                 "'" + esc(roleCode) + "', " +
@@ -66,7 +66,7 @@ public class AuthSqlBuilder {
     }
 
     private String buildAuthorRoleRelateSql(String roleCode) {
-        return "INSERT INTO COMTNAUTHORROLERELATE (AUTHOR_CODE, ROLE_CODE, CREAT_DT) VALUES ('ROLE_ADMIN', '" + esc(roleCode) + "', " + renderer.now() + ");";
+        return "INSERT INTO LETTNAUTHORROLERELATE (AUTHOR_CODE, ROLE_CODE, CREAT_DT) VALUES ('ROLE_ADMIN', '" + esc(roleCode) + "', " + renderer.now() + ");";
     }
 
     private String esc(String value) {

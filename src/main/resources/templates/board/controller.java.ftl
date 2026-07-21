@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * ${domainKr} Controller
+ * ${displayName} Controller
  * @author Claude AI
  * @since ${date}
  */
@@ -28,16 +28,33 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class Egov${domain}Controller {
 
+<#if route.defaultBbsId??>
+    private static final String DEFAULT_BBS_ID = "${route.defaultBbsId}";
+<#else>
+    private static final String DEFAULT_BBS_ID = null;
+</#if>
+
     private final ${domain}Service ${domainLc}Service;
     private final EgovPropertyService propertiesService;
 
-    /** ${domainKr} 목록 */
+    /** ${displayName} 목록 */
+<#if route.hasListAlias()>
+    @RequestMapping({"${urlPrefix}List.do", "${route.registeredListPath}"})
+<#else>
     @RequestMapping("${urlPrefix}List.do")
+</#if>
     public String select${domain}List(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
 
-        if (searchVO.getBbsId() != null && !searchVO.getBbsId().isEmpty()) {
+        searchVO.setBbsId(resolveBbsId(searchVO.getBbsId()));
+        if (isBlank(searchVO.getBbsId())) {
+            populateLayoutModel(model, "board-list", "목록", null);
+            model.addAttribute("message", "게시판 ID가 필요합니다.");
+            return "${domainLc}/Egov${domain}List";
+        }
+<#if useTableName??>
+        if (!isBlank(searchVO.getBbsId())) {
             String useAt = ${domainLc}Service.selectBoardUseAt(searchVO);
             if (!"Y".equals(useAt)) {
                 populateLayoutModel(model, "board-list", "목록", searchVO.getBbsId());
@@ -45,8 +62,13 @@ public class Egov${domain}Controller {
                 return "${domainLc}/Egov${domain}List";
             }
         }
+</#if>
 
-        searchVO.setPageUnit(propertiesService.getInt("pageUnit"));
+        int requestedPageUnit = searchVO.getPageUnit();
+        if (requestedPageUnit != 10 && requestedPageUnit != 20 && requestedPageUnit != 50) {
+            requestedPageUnit = propertiesService.getInt("pageUnit");
+        }
+        searchVO.setPageUnit(requestedPageUnit);
         searchVO.setPageSize(propertiesService.getInt("pageSize"));
 
         PaginationInfo paginationInfo = new PaginationInfo();
@@ -65,34 +87,43 @@ public class Egov${domain}Controller {
         return "${domainLc}/Egov${domain}List";
     }
 
-    /** ${domainKr} 상세 (조회수 자동 증가) */
+    /** ${displayName} 상세 (조회수 자동 증가) */
     @RequestMapping("${urlPrefix}Detail.do")
     public String select${domain}(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
 
-        if (searchVO.getNttId() == null) {
-            model.addAttribute("message", "게시물 번호가 필요합니다.");
-            return "forward:${urlPrefix}List.do";
+        searchVO.setBbsId(resolveBbsId(searchVO.getBbsId()));
+        if (!hasCompositeKey(searchVO)) {
+            model.addAttribute("message", "게시판 ID와 게시물 번호가 필요합니다.");
+            return redirectToList(searchVO.getBbsId());
         }
         ${domain}VO vo = ${domainLc}Service.select${domain}(searchVO);
         if (vo == null) {
             model.addAttribute("message", "게시물을 찾을 수 없습니다.");
-            return "forward:${urlPrefix}List.do";
+            return redirectToList(searchVO.getBbsId());
         }
         ${domainLc}Service.update${domain}ReadCount(searchVO);
         model.addAttribute("result", vo);
         model.addAttribute("prevPost", ${domainLc}Service.selectPrev${domain}(searchVO));
         model.addAttribute("nextPost", ${domainLc}Service.selectNext${domain}(searchVO));
+<#if hasFile && fileDetailTableName??>
+        model.addAttribute("fileList", ${domainLc}Service.selectFileList(vo.get${atchFileId.javaName?cap_first}()));
+</#if>
         populateLayoutModel(model, "board-list", "상세", searchVO.getBbsId());
         return "${domainLc}/Egov${domain}Detail";
     }
 
-    /** ${domainKr} 등록 화면 */
+    /** ${displayName} 등록 화면 */
     @RequestMapping("${urlPrefix}RegistView.do")
     public String insert${domain}View(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
+        searchVO.setBbsId(resolveBbsId(searchVO.getBbsId()));
+        if (isBlank(searchVO.getBbsId())) {
+            model.addAttribute("message", "게시판 ID가 필요합니다.");
+            return redirectToList(null);
+        }
         ${domain}VO ${domainLc}VO = new ${domain}VO();
         ${domainLc}VO.setBbsId(searchVO.getBbsId());
         model.addAttribute("${domainLc}VO", ${domainLc}VO);
@@ -100,65 +131,79 @@ public class Egov${domain}Controller {
         return "${domainLc}/Egov${domain}Regist";
     }
 
-    /** ${domainKr} 등록 처리 */
+    /** ${displayName} 등록 처리 */
     @RequestMapping("${urlPrefix}Regist.do")
     public String insert${domain}(
             @ModelAttribute("${domainLc}VO") @Valid ${domain}VO ${domainLc}VO,
             BindingResult bindingResult,
             ModelMap model) throws Exception {
+        ${domainLc}VO.setBbsId(resolveBbsId(${domainLc}VO.getBbsId()));
+        if (isBlank(${domainLc}VO.getBbsId())) {
+            bindingResult.reject("bbsId.required", "게시판 ID가 필요합니다.");
+        }
         if (bindingResult.hasErrors()) {
             populateLayoutModel(model, "board-regist", "등록", ${domainLc}VO.getBbsId());
             return "${domainLc}/Egov${domain}Regist";
         }
         ${domainLc}Service.insert${domain}(${domainLc}VO);
-        return "forward:${urlPrefix}List.do";
+        return redirectToList(${domainLc}VO.getBbsId());
     }
 
-    /** ${domainKr} 수정 화면 */
+    /** ${displayName} 수정 화면 */
     @RequestMapping("${urlPrefix}UpdtView.do")
     public String update${domain}View(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
-        model.addAttribute("${domainLc}VO", ${domainLc}Service.select${domain}(searchVO));
+        searchVO.setBbsId(resolveBbsId(searchVO.getBbsId()));
+        if (!hasCompositeKey(searchVO)) {
+            model.addAttribute("message", "게시판 ID와 게시물 번호가 필요합니다.");
+            return redirectToList(searchVO.getBbsId());
+        }
+        ${domain}VO result = ${domainLc}Service.select${domain}(searchVO);
+        if (result == null) {
+            model.addAttribute("message", "게시물을 찾을 수 없습니다.");
+            return redirectToList(searchVO.getBbsId());
+        }
+        model.addAttribute("${domainLc}VO", result);
         populateLayoutModel(model, "board-regist", "수정", searchVO.getBbsId());
         return "${domainLc}/Egov${domain}Updt";
     }
 
-    /** ${domainKr} 수정 처리 */
+    /** ${displayName} 수정 처리 */
     @RequestMapping("${urlPrefix}Updt.do")
     public String update${domain}(
             @ModelAttribute("${domainLc}VO") @Valid ${domain}VO ${domainLc}VO,
             BindingResult bindingResult,
             ModelMap model) throws Exception {
+        ${domainLc}VO.setBbsId(resolveBbsId(${domainLc}VO.getBbsId()));
+        if (!hasCompositeKey(${domainLc}VO)) {
+            bindingResult.reject("board.pk.required", "게시판 ID와 게시물 번호가 필요합니다.");
+        }
         if (bindingResult.hasErrors()) {
             populateLayoutModel(model, "board-regist", "수정", ${domainLc}VO.getBbsId());
             return "${domainLc}/Egov${domain}Updt";
         }
         ${domainLc}Service.update${domain}(${domainLc}VO);
-        return "forward:${urlPrefix}List.do";
+        return redirectToList(${domainLc}VO.getBbsId());
     }
 
-    /** ${domainKr} 논리삭제 */
+    /** ${displayName} 논리삭제 */
     @RequestMapping("${urlPrefix}Delete.do")
-    public String delete${domain}(${domain}VO ${domainLc}VO) throws Exception {
+    public String delete${domain}(${domain}VO ${domainLc}VO, ModelMap model) throws Exception {
+        ${domainLc}VO.setBbsId(resolveBbsId(${domainLc}VO.getBbsId()));
+        if (!hasCompositeKey(${domainLc}VO)) {
+            model.addAttribute("message", "게시판 ID와 게시물 번호가 필요합니다.");
+            return redirectToList(${domainLc}VO.getBbsId());
+        }
         ${domainLc}Service.delete${domain}(${domainLc}VO);
-        return "forward:${urlPrefix}List.do";
+        return redirectToList(${domainLc}VO.getBbsId());
     }
-<#if hasFile>
-
-    /** 첨부파일 다운로드 URL 반환 */
-    @RequestMapping("${urlPrefix}FileDownload.do")
-    public String fileDownload(${domain}VO ${domainLc}VO, ModelMap model) throws Exception {
-        // TODO: 파일 스트림 처리는 환경별로 구현
-        model.addAttribute("atchFileId", ${domainLc}VO.getAtchFileId());
-        return "forward:${urlPrefix}Detail.do";
-    }
-</#if>
-
     private void populateLayoutModel(ModelMap model, String currentMenuId, String currentPageSuffix, String bbsId) {
         String listUrl = withBbsId("${urlPrefix}List.do", bbsId);
         model.addAttribute("currentMenuId", currentMenuId);
         model.addAttribute("currentPageSuffix", currentPageSuffix);
+        model.addAttribute("menuContextUrl", "${route.resolvedMenuContextUrl()}");
+        model.addAttribute("resolvedBbsId", bbsId);
         model.addAttribute("lnbMenus", List.of(
                 menu("board-list", "목록", listUrl),
                 menu("board-regist", "글쓰기", withBbsId("${urlPrefix}RegistView.do", bbsId))
@@ -166,7 +211,23 @@ public class Egov${domain}Controller {
     }
 
     private String withBbsId(String baseUrl, String bbsId) {
-        return (bbsId == null || bbsId.isEmpty()) ? baseUrl : baseUrl + "?bbsId=" + bbsId;
+        return isBlank(bbsId) ? baseUrl : baseUrl + "?bbsId=" + bbsId;
+    }
+
+    private String resolveBbsId(String requestedBbsId) {
+        return isBlank(requestedBbsId) ? DEFAULT_BBS_ID : requestedBbsId;
+    }
+
+    private boolean hasCompositeKey(${domain}VO vo) {
+        return vo != null && !isBlank(vo.getBbsId()) && vo.getNttId() != null;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String redirectToList(String bbsId) {
+        return "redirect:" + withBbsId("${urlPrefix}List.do", bbsId);
     }
 
     private Map<String, Object> menu(String menuId, String label, String url) {

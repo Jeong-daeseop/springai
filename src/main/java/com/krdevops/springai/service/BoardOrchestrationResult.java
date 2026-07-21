@@ -18,11 +18,26 @@ public record BoardOrchestrationResult(
         List<String> succeededFiles,
         List<String> failedFiles,
         String validationSummary,
-        String historySummary
+        String historySummary,
+        String menuIntegrationStatus,
+        String resolvedProgramName,
+        String resolvedProgramUrl,
+        String canonicalUrl,
+        String resolvedBbsId,
+        String cssStatus,
+        List<String> warnings
 ) {
+    public BoardOrchestrationResult(
+            boolean tableNotFound, String database, String mainTable, String domain, String outputPath,
+            List<String> succeededFiles, List<String> failedFiles,
+            String validationSummary, String historySummary) {
+        this(tableNotFound, database, mainTable, domain, outputPath, succeededFiles, failedFiles,
+                validationSummary, historySummary, null, null, null, null, null, null, List.of());
+    }
+
     public static BoardOrchestrationResult notFound(String database, String mainTable) {
         return new BoardOrchestrationResult(true, database, mainTable, null, null,
-                List.of(), List.of(), null, null);
+                List.of(), List.of(), null, null, null, null, null, null, null, null, List.of());
     }
 
     public int successCount()   { return succeededFiles.size(); }

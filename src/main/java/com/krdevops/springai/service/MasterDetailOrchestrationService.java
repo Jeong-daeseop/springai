@@ -1,10 +1,13 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.crud.CrudLayoutMode;
+import com.krdevops.springai.model.crud.CrudProgramMetadata;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
 import com.krdevops.springai.model.crud.CrudViewType;
+import com.krdevops.springai.model.crud.ScreenSubsetMode;
 import com.krdevops.springai.model.masterdetail.MasterDetailLayerDefinition;
 import com.krdevops.springai.model.masterdetail.MasterDetailTemplateModel;
+import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.util.CrudMappingUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +34,8 @@ public class MasterDetailOrchestrationService {
     private final GenerationHistoryService generationHistoryService;
     private final ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
     private final ThymeleafLayoutValidator thymeleafLayoutValidator;
+    private final MyBatisRuntimeConfigurer myBatisRuntimeConfigurer;
+    private final GeneratedCodeContractAuditor generatedCodeContractAuditor;
 
     public MasterDetailOrchestrationResult orchestrate(
             String database,
@@ -57,6 +62,23 @@ public class MasterDetailOrchestrationService {
             String layoutMode,
             String layoutView,
             String breadcrumbView) {
+        return orchestrate(database, masterTable, detailTable, domain, packageName, outputPath,
+                egovVersion, viewType, layoutMode, layoutView, breadcrumbView, null);
+    }
+
+    public MasterDetailOrchestrationResult orchestrate(
+            String database,
+            String masterTable,
+            String detailTable,
+            String domain,
+            String packageName,
+            String outputPath,
+            String egovVersion,
+            String viewType,
+            String layoutMode,
+            String layoutView,
+            String breadcrumbView,
+            ScreenSpecification screenSpecification) {
 
         log.info("[master-detail-orchestrate] 시작: master={}, detail={}, domain={}, viewType={}",
                 masterTable, detailTable, domain, viewType);
@@ -74,17 +96,21 @@ public class MasterDetailOrchestrationService {
         }
 
         String detailDomain = deriveDetailDomain(detailTable);
-        CrudTemplateModel masterModel =
-                crudModelFactory.fromSchema(masterTable, domain, packageName, egovVersion, masterColumns);
-        CrudTemplateModel detailModel =
-                crudModelFactory.fromSchema(detailTable, detailDomain, packageName, egovVersion, detailColumns);
+        CrudViewType resolvedViewType = CrudViewType.from(viewType);
+        CrudTemplateModel masterModel = crudModelFactory.fromSchema(
+                masterTable, domain, packageName, egovVersion, masterColumns,
+                CrudProgramMetadata.fallback(null), resolvedViewType,
+                ScreenSubsetMode.NONE, screenSpecification);
+        CrudTemplateModel detailModel = crudModelFactory.fromSchema(
+                detailTable, detailDomain, packageName, egovVersion, detailColumns,
+                CrudProgramMetadata.fallback(null), resolvedViewType,
+                ScreenSubsetMode.NONE, null);
         String fkColumn = detectFkColumn(masterModel.pk().columnName(), detailColumns);
         String fkField = CrudMappingUtils.toCamelCase(fkColumn);
         MasterDetailTemplateModel model = new MasterDetailTemplateModel(
                 masterModel, detailModel, fkColumn, fkField);
 
         String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
-        CrudViewType resolvedViewType = CrudViewType.from(viewType);
         CrudLayoutMode resolvedLayoutMode = resolvedViewType == CrudViewType.THYMELEAF
                 ? CrudLayoutMode.from(layoutMode)
                 : CrudLayoutMode.CREATE;
@@ -141,6 +167,12 @@ public class MasterDetailOrchestrationService {
         if (resolvedViewType == CrudViewType.THYMELEAF) {
             thymeleafRuntimeConfigurer.ensureThymeleafRuntime(outputPath, egovVersion, failed);
         }
+        MyBatisRuntimeConfigurer.ConfigurationResult myBatis =
+                myBatisRuntimeConfigurer.ensureConfigured(
+                        outputPath, masterModel.packageName() + ".service.impl");
+        if (!myBatis.success()) {
+            failed.add("context-common.xml — " + myBatis.message());
+        }
         updateDefaultMainController(outputPath, masterModel, succeeded, failed);
         ensureServletContextScansCom(outputPath, failed);
 
@@ -150,6 +182,11 @@ public class MasterDetailOrchestrationService {
         } catch (Exception e) {
             validationSummary = "검증 실패: " + e.getMessage();
             log.warn("[master-detail-orchestrate] 코드 검증 실패: {}", e.getMessage());
+        }
+        List<String> contractFailures = generatedCodeContractAuditor.audit(outputPath);
+        if (!contractFailures.isEmpty()) {
+            failed.addAll(contractFailures.stream().map(value -> "생성 계약 감사 — " + value).toList());
+            validationSummary += "\n\n[생성 계약 감사]\n" + String.join("\n", contractFailures);
         }
 
         String historySummary;
@@ -250,7 +287,7 @@ public class EgovMainController {
     }
 
     private String deriveDetailDomain(String tableName) {
-        String base = tableName.replace("COMTN", "").replace("COMTS", "").replace("COMTC", "");
+        String base = tableName.replace("LETTN", "").replace("LETTS", "").replace("LETTC", "");
         String[] parts = base.toLowerCase().split("_");
         StringBuilder sb = new StringBuilder();
         for (String p : parts) {

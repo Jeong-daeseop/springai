@@ -20,7 +20,7 @@
 | 파일/디렉터리 오류 | `"파일 저장 실패"`, `"파일 읽기 실패"`, `"디렉터리 스캔 실패"`, `"프로젝트 디렉터리 읽기 실패"` 형식으로 반환한다. |
 | SQL 오류 | `"SQL 실행 실패: ..."`, `"EXPLAIN 실패: ..."` 형식으로 반환한다. |
 | RAG URL 오류 | 잘못된 URL, 허용되지 않는 URL 스킴, 내부 네트워크 접근, 알 수 없는 호스트, HTTP 오류를 실패 문자열로 반환한다. |
-| JSON 오류 | `generateSource()`는 `valuesJson` 파싱 실패 시 예시 JSON과 함께 오류 문자열을 반환한다. |
+| JSON 오류 | 호환용 `generateSource()`는 `valuesJson` 파싱 실패 시 예시 JSON과 함께 오류 문자열을 반환한다. 정상 생성은 `buildFullCrudPrompt(llmProvider="auto")`를 사용한다. |
 | Java 예외 전파 가능 | `DateTimeTool.getCurrentDateTime()`의 잘못된 IANA timezone처럼 Tool 내부에서 catch하지 않는 경우 런타임 예외가 호출자에게 전파될 수 있다. |
 
 ## Tool 전체 목록
@@ -31,7 +31,7 @@
 | `AuthTool` | `generateAuthInsertSql(urlPrefix, programNm, domain)` | URL 권한 등록 SQL 생성 |
 | `CodeSaverTool` | `saveGeneratedCode(filePath, code)` | 생성 소스 파일 저장 |
 | `CodeSaverTool` | `checkOutputDirectory(baseDir)` | 출력 디렉터리 상태 확인 |
-| `CodeSaverTool` | `generateSource(layer, valuesJson)` | 서버 템플릿 기반 소스 생성 |
+| `CodeSaverTool` | `generateSource(layer, valuesJson)` | **폐기 호환용** — 안내 메시지만 반환 |
 | `CodeTemplateTool` | `getCodeTemplate(layer)` | eGovFrame 레이어별 템플릿 반환 |
 | `CodeValidatorTool` | `validateGeneratedCode(filePath)` | 생성 파일 단건 검증 |
 | `CodeValidatorTool` | `validateGeneratedCodeDirectory(directoryPath)` | 생성 디렉터리 일괄 검증 |
@@ -42,6 +42,18 @@
 | `CrudPromptBuilderTool` | `buildJoinSelectPrompt(database, tableName)` | JOIN SELECT/resultMap/VO 필드 초안 생성 |
 | `DateTimeTool` | `getCurrentDateTime(timezone)` | 지정 시간대 현재 시각 반환 |
 | `DateTimeTool` | `celsiusToFahrenheit(celsius)` | 섭씨를 화씨로 변환 |
+| `CaptureWebPageTool` | `captureWebPage(request)` | 허용된 로컬 JSP 화면을 Chromium으로 캡처해 Design Artifact 생성 |
+| `DesignArtifactTool` | `getDesignArtifact(artifactId)` | 캡처 artifact 메타데이터·경고 조회 |
+| `DesignArtifactTool` | `prepareFigmaImport(artifactId)` | 검증된 `.figpack` export 준비 |
+| `DesignArtifactTool` | `analyzeCapturedDesign(artifactId, featureType)` | WEB_CAPTURE artifact를 `UiDesignSpec` 분석 결과로 변환 |
+| `DesignArtifactTool` | `getWebCaptureStatus()` | extractor·artifact 저장소 준비 상태 확인 |
+| `DesignReferenceTool` | `analyzeDesignReference(referencePath, pageRange, featureType)` | 로컬 이미지/PDF 디자인 참조 분석 |
+| `DesignReferenceTool` | `analyzeFigmaReference(figmaUrl, nodeId, featureType)` | 허용된 Figma 프레임을 결정론적으로 분석 |
+| `DesignReferenceTool` | `findReusableDesignAnalyses(query, expectedArchetype, expectedFeatureType, topK)` | 현재 분석 계약·화면 유형과 호환되는 재사용 후보 검색 |
+| `DesignReferenceTool` | `createScreenSpecification(...)` | DB 스키마와 디자인 분석을 화면명세로 결합 |
+| `DesignReferenceTool` | `approveScreenSpecification(id)` | 화면명세 승인 |
+| `DesignReferenceTool` | `reviseScreenSpecification(specification)` | 화면명세 수정본 저장 |
+| `DesignReferenceTool` | `getScreenSpecification(id)` | 최신 화면명세 조회 |
 | `EmployeeTool` | `getEmployeeList(keyword)` | 직원 목록 조회 |
 | `EmployeeTool` | `getEmployee(emplyrId)` | 직원 단건 조회 |
 | `EmployeeTool` | `createEmployee(...)` | 직원 등록 |
@@ -155,8 +167,9 @@ INSERT INTO COMTNAUTHORROLERELATE (...);
 
 #### `generateSource(layer, valuesJson)`
 
-- 사용 조건: `buildFullCrudPrompt()`가 제공한 플레이스홀더 값을 JSON으로 넘겨 서버 템플릿 기반 소스를 결정적으로 생성할 때 사용한다.
-- 사용 금지 조건: 플레이스홀더 값을 임의 추론하거나, `valuesJson`이 준비되지 않은 상태에서 호출하지 않는다.
+- 상태: **폐기 호환용**. JSON 형식만 확인한 뒤 `buildFullCrudPrompt(llmProvider="auto")` 사용 안내를 반환하며 소스를 생성하지 않는다.
+- 사용 조건: 기존 MCP 호출자가 마이그레이션 안내를 받아야 할 때만 사용한다.
+- 신규 CRUD 생성: `buildFullCrudPrompt(..., llmProvider="auto")`, 게시판은 `buildBoardFeature(...)`, 마스터-디테일은 `buildMasterDetailPrompt(...)`를 사용한다.
 - 입력 예시:
 
 ```json
@@ -166,15 +179,7 @@ INSERT INTO COMTNAUTHORROLERELATE (...);
 }
 ```
 
-- 출력 예시:
-
-```java
-package egovframework.let.emp.service;
-
-public class EmployerVO {
-    ...
-}
-```
+- 출력 예시: `[DEPRECATED] generateSource()는 더 이상 지원되지 않습니다. buildFullCrudPrompt(llmProvider="auto")를 사용하세요.`
 
 - 에러 처리 기준: JSON 파싱 실패 시 `"valuesJson 파싱 실패: ..."`와 올바른 JSON 예시를 반환한다. 지원하지 않는 layer는 서비스 또는 템플릿에서 오류 문자열을 반환한다.
 
@@ -183,7 +188,7 @@ public class EmployerVO {
 #### `getCodeTemplate(layer)`
 
 - 사용 조건: eGovFrame 5.x 레이어별 표준 템플릿 원문이 필요할 때 사용한다.
-- 사용 금지 조건: 템플릿에 없는 메서드, 주석, import를 임의 추가하는 용도로 사용하지 않는다. 일반적으로는 `generateSource()`를 우선 사용한다.
+- 사용 금지 조건: 템플릿에 없는 메서드, 주석, import를 임의 추가하는 용도로 사용하지 않는다. 전체 CRUD 생성에는 `buildFullCrudPrompt(llmProvider="auto")`를 우선 사용한다.
 - 입력 예시:
 
 ```json
@@ -1020,8 +1025,8 @@ rows: 12
 - 출력 예시:
 
 ```text
-다음 단계: Mapper 생성
-권장 Tool: generateSource(layer=mapper)
+다음 단계: CRUD 통합 생성
+권장 Tool: buildFullCrudPrompt(llmProvider="auto")
 ```
 
 - 에러 처리 기준: 컨텍스트가 비어도 오류가 아니라 전체 워크플로우를 반환한다.

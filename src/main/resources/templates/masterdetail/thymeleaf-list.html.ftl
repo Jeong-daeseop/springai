@@ -6,9 +6,9 @@
 <head>
     <title>${master.domainKr} 목록</title>
 </head>
-<th:block layout:fragment="content">
+<section layout:fragment="content" class="egov-crud-page">
 <#include "thymeleaf-list-body.html.ftl">
-</th:block>
+</section>
 
 <th:block layout:fragment="scripts">
 <script>

@@ -21,5 +21,7 @@ public interface ${master.domain}Service {
 
     void delete${master.domain}(${master.domain}VO ${master.domainLc}VO) throws Exception;
 
+    int delete${master.domain}Bulk(List<${master.pk.javaType}> ids) throws Exception;
+
     List<${detail.domain}VO> select${detail.domain}List(String ${fkField}) throws Exception;
 }

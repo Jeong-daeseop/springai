@@ -1,8 +1,14 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.board.BoardTemplateModel;
+import com.krdevops.springai.model.board.BoardDisplayModel;
+import com.krdevops.springai.model.board.BoardProgramMetadata;
+import com.krdevops.springai.model.board.BoardRouteModel;
 import com.krdevops.springai.model.crud.FieldModel;
+import com.krdevops.springai.model.design.GenerationQueryContract;
+import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.util.CrudMappingUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,11 +23,43 @@ import java.util.Map;
 @Service
 public class BoardModelFactory {
 
+    private final GenerationQueryContractFactory queryContractFactory;
+
+    public BoardModelFactory() {
+        this(new GenerationQueryContractFactory());
+    }
+
+    @Autowired
+    public BoardModelFactory(GenerationQueryContractFactory queryContractFactory) {
+        this.queryContractFactory = queryContractFactory;
+    }
+
     public BoardTemplateModel fromSchemas(
             String mainTable, String masterTable, String useTable,
             String fileDetailTable,
             String domain, String packageName, String egovVersion,
             Map<String, List<Map<String, Object>>> schemas) {
+        return fromSchemas(mainTable, masterTable, useTable, fileDetailTable,
+                domain, packageName, egovVersion, schemas, BoardProgramMetadata.fallback(null), null);
+    }
+
+    public BoardTemplateModel fromSchemas(
+            String mainTable, String masterTable, String useTable,
+            String fileDetailTable,
+            String domain, String packageName, String egovVersion,
+            Map<String, List<Map<String, Object>>> schemas,
+            BoardProgramMetadata metadata) {
+        return fromSchemas(mainTable, masterTable, useTable, fileDetailTable,
+                domain, packageName, egovVersion, schemas, metadata, null);
+    }
+
+    public BoardTemplateModel fromSchemas(
+            String mainTable, String masterTable, String useTable,
+            String fileDetailTable,
+            String domain, String packageName, String egovVersion,
+            Map<String, List<Map<String, Object>>> schemas,
+            BoardProgramMetadata metadata,
+            ScreenSpecification screenSpecification) {
 
         // mainTable 컬럼 → FieldModel 변환
         List<FieldModel> fields = schemas.get("main").stream()
@@ -39,11 +77,23 @@ public class BoardModelFactory {
         FieldModel atchFileId = fields.stream()
                 .filter(f -> f.columnName().equalsIgnoreCase("ATCH_FILE_ID"))
                 .findFirst().orElse(null);
-        boolean hasFile = atchFileId != null && schemas.containsKey("file");
+        boolean hasFile = atchFileId != null && !schemas.getOrDefault("file", List.of()).isEmpty();
+        String resolvedUseTable = !schemas.getOrDefault("use", List.of()).isEmpty() ? useTable : null;
+        String resolvedFileDetailTable = !schemas.getOrDefault("fileDetail", List.of()).isEmpty()
+                ? fileDetailTable : null;
 
         // listFields: 공지여부, 게시글번호, 제목, 작성자명, 등록일시 우선
         List<String> preferredList = List.of("noticeAt", "nttId", "nttSj", "ntcrNm", "frstRegistPnttm");
         List<FieldModel> listFields = buildPreferredFields(fields, preferredList, 6);
+        GenerationQueryContract queryContract = queryContractFactory.create(
+                screenSpecification, fields, "b", java.util.Set.of("b", "m"));
+        if (!queryContract.displayFields().isEmpty()) {
+            var extended = new java.util.ArrayList<>(listFields);
+            queryContract.displayFields().stream()
+                    .filter(field -> extended.stream().noneMatch(existing -> existing.javaName().equals(field.javaName())))
+                    .forEach(extended::add);
+            listFields = List.copyOf(extended);
+        }
 
         // insertFields: rdcnt·lastUpdtPnttm 등 DB 자동관리 컬럼만 제외 (bbsId·nttId 포함)
         List<String> excludeInsert = List.of("rdcnt", "lastUpdtPnttm");
@@ -72,16 +122,28 @@ public class BoardModelFactory {
         String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
         String urlPrefix = "/" + pkgSub + "/" + domainLc;
 
+        String fallbackName = CrudMappingUtils.extractKoreanName(mainTable);
+        String displayName = metadata != null && metadata.programKoreanName() != null
+                ? metadata.programKoreanName() : fallbackName;
+        BoardDisplayModel display = new BoardDisplayModel(
+                metadata == null ? null : metadata.programFileName(), displayName,
+                metadata == null ? null : metadata.upperMenuName());
+        BoardRouteModel route = new BoardRouteModel(urlPrefix,
+                metadata == null ? null : metadata.registeredUrl(),
+                metadata == null ? null : metadata.registeredPath(),
+                metadata == null ? null : metadata.defaultBbsId());
+
         return new BoardTemplateModel(
                 packageName, domain, domainLc,
-                CrudMappingUtils.extractKoreanName(mainTable),
-                mainTable, masterTable, useTable,
+                fallbackName,
+                mainTable, masterTable, resolvedUseTable,
                 urlPrefix,
                 java.time.LocalDate.now().toString(),
                 egovVersion, jakartaValidation,
                 bbsId, nttId,
-                hasFile, atchFileId, fileDetailTable,
-                fields, listFields, insertFields, formFields, searchFields, noticeAtExists
+                hasFile, atchFileId, resolvedFileDetailTable,
+                fields, listFields, insertFields, formFields, searchFields, noticeAtExists,
+                display, route, queryContract
         );
     }
 

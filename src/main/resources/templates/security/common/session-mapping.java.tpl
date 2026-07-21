@@ -19,7 +19,7 @@ import java.sql.SQLException;
  *   (나머지 컬럼은 loginVO에 담아 4번째 인자로 전달)
  *
  * ⚠️ 프로젝트 사용자 테이블 컬럼명에 맞게 수정 필요
- *    COM계열: COMTNEMPLYRINFO (USER_ID, PASSWORD, USER_NM, DEPT_ID)
+ *    COM계열: LETTNEMPLYRINFO (USER_ID, PASSWORD, USER_NM, DEPT_ID)
  * ⚠️ loginVO는 프로젝트 LoginVO 클래스로 교체 후 주석 해제
  */
 public class EgovSessionMapping extends EgovUsersByUsernameMapping {

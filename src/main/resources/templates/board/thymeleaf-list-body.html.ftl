@@ -1,6 +1,6 @@
     <div class="egov-page-header">
-        <h1 class="egov-page-title">${domainKr} 목록</h1>
-        <a th:href="@{${urlPrefix}RegistView.do(bbsId=${r"${searchVO.bbsId}"})}" class="krds-btn primary medium">
+        <h1 class="egov-page-title">${displayName} 목록</h1>
+        <a th:href="@{${urlPrefix}RegistView.do(bbsId=${r"${searchVO.bbsId}"})}" class="krds-btn primary medium egov-btn">
             <span aria-hidden="true">＋</span>
             등록
         </a>
@@ -15,22 +15,22 @@
     </script>
 
     <div class="egov-search-panel">
-        <form id="searchForm" th:action="@{${urlPrefix}List.do}" method="get">
+        <form id="searchForm" class="egov-search-form" th:action="@{${urlPrefix}List.do}" method="get">
             <input type="hidden" name="bbsId" th:value="${r"${searchVO.bbsId}"}"/>
             <input type="hidden" name="pageIndex" th:value="${r"${searchVO.pageIndex}"}"/>
             <div class="egov-search-row">
-                <select name="searchCondition" class="krds-form-select egov-search-condition" title="검색조건">
+                <select name="searchCondition" class="krds-form-select medium egov-control egov-search-condition" title="검색조건">
                     <option value="1" th:selected="${r"${searchVO.searchCondition == '1'}"}">제목</option>
                     <option value="2" th:selected="${r"${searchVO.searchCondition == '2'}"}">내용</option>
                     <option value="3" th:selected="${r"${searchVO.searchCondition == '3'}"}">작성자</option>
                 </select>
-                <input type="text" name="searchKeyword" class="krds-input"
+                <input type="text" name="searchKeyword" class="krds-input medium egov-control"
                        th:value="${r"${searchVO.searchKeyword}"}" placeholder="검색어를 입력하세요"/>
-                <button type="submit" class="krds-btn primary medium egov-inline-action">
+                <button type="submit" class="krds-btn primary medium egov-btn egov-inline-action">
                     <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 3 3"/></svg>
                     검색
                 </button>
-                <a th:href="@{${urlPrefix}List.do(bbsId=${r"${searchVO.bbsId}"})}" class="krds-btn secondary medium egov-inline-action">
+                <a th:href="@{${urlPrefix}List.do(bbsId=${r"${searchVO.bbsId}"})}" class="krds-btn secondary medium egov-btn egov-inline-action">
                     <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8a7 7 0 1 1 .8 3.2"/><path d="M4 3v5h5"/></svg>
                     초기화
                 </a>
@@ -49,11 +49,18 @@
             <span th:text="${r"${paginationInfo.totalPageCount}"}">1</span>
             페이지
         </span>
+        <label class="egov-page-unit-label" for="pageUnit">페이지당</label>
+        <select id="pageUnit" name="pageUnit" form="searchForm" class="krds-form-select small egov-page-unit"
+                onchange="this.form.pageIndex.value='1';this.form.submit()">
+            <option value="10" th:selected="${r"${searchVO.pageUnit == 10}"}">10개</option>
+            <option value="20" th:selected="${r"${searchVO.pageUnit == 20}"}">20개</option>
+            <option value="50" th:selected="${r"${searchVO.pageUnit == 50}"}">50개</option>
+        </select>
     </div>
 
     <div class="krds-table-wrap">
-        <table class="tbl data">
-            <caption>${domainKr} 목록 표</caption>
+        <table class="tbl data egov-list-table">
+            <caption>${displayName} 목록 표</caption>
             <colgroup>
                 <col class="egov-col-no">
 <#list listFields as f>
@@ -109,8 +116,8 @@
 <#if hasFile && atchFileId??>
                 <td class="egov-table-actions">
                     <a th:if="${r"${item."}${atchFileId.javaName}${r" != null and item."}${atchFileId.javaName}${r" != ''}"}"
-                       th:href="@{${urlPrefix}FileDownload.do(${bbsId.javaName}=${r"${item."}${bbsId.javaName}${r"}"},${nttId.javaName}=${r"${item."}${nttId.javaName}${r"}"},${atchFileId.javaName}=${r"${item."}${atchFileId.javaName}${r"}"})}"
-                       title="첨부파일 다운로드"
+                       th:href="@{${urlPrefix}Detail.do(${bbsId.javaName}=${r"${item."}${bbsId.javaName}${r"}"},${nttId.javaName}=${r"${item."}${nttId.javaName}${r"}"})}"
+                       title="첨부파일이 있는 게시글 보기"
                        onclick="event.stopPropagation();"
                        class="egov-file-link">
                         <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -118,7 +125,7 @@
                             <path d="m7 10 5 5 5-5"></path>
                             <path d="M5 21h14"></path>
                         </svg>
-                        <span class="egov-sr-only">첨부파일</span>
+                        <span class="egov-sr-only">첨부파일이 있는 게시글 보기</span>
                     </a>
                     <span th:unless="${r"${item."}${atchFileId.javaName}${r" != null and item."}${atchFileId.javaName}${r" != ''}"}"
                           class="egov-file-empty">-</span>
@@ -126,7 +133,7 @@
 </#if>
                 <td class="egov-table-actions">
                     <a th:href="@{${urlPrefix}Detail.do(${bbsId.javaName}=${r"${item."}${bbsId.javaName}${r"}"},${nttId.javaName}=${r"${item."}${nttId.javaName}${r"}"})}"
-                       class="krds-btn secondary small"
+                       class="krds-btn secondary small egov-btn"
                        onclick="event.stopPropagation();">상세</a>
                 </td>
             </tr>
@@ -145,7 +152,7 @@
         </table>
     </div>
 
-    <nav class="krds-pagination" aria-label="페이지 이동"
+    <nav class="krds-pagination egov-pagination" aria-label="페이지 이동"
          th:if="${r"${paginationInfo != null and paginationInfo.totalRecordCount > 0}"}">
         <a th:if="${r"${paginationInfo.currentPageNo > 1}"}"
            th:href="@{${urlPrefix}List.do(pageIndex=1,bbsId=${r"${searchVO.bbsId}"},searchCondition=${r"${searchVO.searchCondition}"},searchKeyword=${r"${searchVO.searchKeyword}"})}"

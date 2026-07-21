@@ -1,8 +1,11 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.board.BoardTemplateModel;
+import com.krdevops.springai.model.board.BoardProgramMetadata;
+import com.krdevops.springai.model.board.BoardTableSet;
 import com.krdevops.springai.model.crud.FieldModel;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
@@ -37,10 +40,41 @@ class BoardOrchestrationServiceTest {
     @Mock CodeValidatorService       codeValidatorService;
     @Mock GenerationHistoryService   generationHistoryService;
     @Mock ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
+    @Mock BoardTableSetResolver boardTableSetResolver;
+    @Mock BoardProgramMetadataService boardProgramMetadataService;
+    @Mock BoardRouteCollisionDetector boardRouteCollisionDetector;
+    @Mock KrdsStylesConfigurer krdsStylesConfigurer;
+    @Mock BoardGeneratedCodeAuditor boardGeneratedCodeAuditor;
+    @Mock GenerationDesignContextService generationDesignContextService;
+    @Mock GeneratedCodeContractAuditor generatedCodeContractAuditor;
+    @Mock MyBatisRuntimeConfigurer myBatisRuntimeConfigurer;
+    @Mock WarEntryPointConfigurer warEntryPointConfigurer;
     @Spy ThymeleafLayoutValidator thymeleafLayoutValidator = new ThymeleafLayoutValidator();
 
     @InjectMocks
     BoardOrchestrationService service;
+
+    @BeforeEach
+    void stubGenerationInfrastructure() {
+        lenient().when(warEntryPointConfigurer.configure(any(), any()))
+                .thenReturn(WarEntryPointConfigurer.ConfigurationResult.success("완료"));
+        lenient().when(boardTableSetResolver.resolve(any(), any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> new BoardTableSet(
+                        invocation.getArgument(1), invocation.getArgument(2), invocation.getArgument(3),
+                        invocation.getArgument(4), invocation.getArgument(5)));
+        lenient().when(boardProgramMetadataService.resolve(any(), any(), any(), any()))
+                .thenReturn(BoardProgramMetadata.fallback("fallback"));
+        lenient().when(boardRouteCollisionDetector.findConflicts(any(), any(), any()))
+                .thenReturn(List.of());
+        lenient().when(krdsStylesConfigurer.ensureBoardCrudStyles(any()))
+                .thenReturn(new KrdsStylesConfigurer.CssPatchResult(
+                        KrdsStylesConfigurer.Status.PRESERVED, null, "기존 보강 블록 유지"));
+        lenient().when(boardGeneratedCodeAuditor.audit(any(), any(), any(), any()))
+                .thenReturn("감사 통과");
+        lenient().when(myBatisRuntimeConfigurer.ensureConfigured(any(), any()))
+                .thenReturn(MyBatisRuntimeConfigurer.ConfigurationResult.success(
+                        Path.of("/tmp/context-common.xml"), false, "검증 통과"));
+    }
 
     private static final FieldModel BBS_ID = new FieldModel(
             "BBS_ID", "bbsId", "String", "게시판ID", true, false, false, 20, "VARCHAR");
@@ -50,7 +84,7 @@ class BoardOrchestrationServiceTest {
     private BoardTemplateModel dummyModel() {
         return new BoardTemplateModel(
                 "egovframework.let.bbs", "Bbs", "bbs", "BBS",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
                 "/bbs/bbs", "2026-06-22", "5.0", true,
                 BBS_ID, NTT_ID,
                 false, null, null,
@@ -60,8 +94,8 @@ class BoardOrchestrationServiceTest {
 
     private void stubSuccess(BoardTemplateModel model) {
         when(boardSchemaService.fetchBoardSchemas(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Map.of("COMTNBBS", List.of()));
-        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("LETTNBBS", List.of()));
+        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(model);
         doReturn("rendered").when(boardTemplateRenderer).renderByLayerKey(any(), any());
         doReturn("rendered").when(boardTemplateRenderer).renderByLayerKey(any(), any(), any(), any(), any(), any());
@@ -79,8 +113,8 @@ class BoardOrchestrationServiceTest {
 
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "thymeleaf",
                 "create", null, null);
 
         assertThat(result.succeededFiles()).hasSize(17);
@@ -90,14 +124,14 @@ class BoardOrchestrationServiceTest {
     @Test
     void thymeleafReuseWithoutLayout_returnsFailureBeforeSave(@TempDir Path tempDir) {
         when(boardSchemaService.fetchBoardSchemas(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Map.of("COMTNBBS", List.of()));
-        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("LETTNBBS", List.of()));
+        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(dummyModel());
 
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", tempDir.toString(),
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf");
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "thymeleaf");
 
         assertThat(result.successCount()).isZero();
         assertThat(result.failedFiles()).singleElement()
@@ -112,8 +146,8 @@ class BoardOrchestrationServiceTest {
     void thymeleafReuseCustomLayoutView_missingFileUnderCustomBase_returnsFailureBeforeSave(
             @TempDir Path tempDir) throws Exception {
         when(boardSchemaService.fetchBoardSchemas(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Map.of("COMTNBBS", List.of()));
-        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("LETTNBBS", List.of()));
+        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(dummyModel());
 
         Path customBase = tempDir.resolve("src/main/resources/templates/layout/admin");
@@ -124,8 +158,8 @@ class BoardOrchestrationServiceTest {
 
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", tempDir.toString(),
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "thymeleaf",
                 "reuse", "layout/admin/default", "layout/admin/breadcrumb");
 
         assertThat(result.successCount()).isZero();
@@ -151,12 +185,14 @@ class BoardOrchestrationServiceTest {
 
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", tempDir.toString(),
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "thymeleaf",
                 "reuse", "layout/admin/default", "layout/admin/breadcrumb");
 
         // reuse 기본값은 layout 레이어를 저장하지 않으므로 12개만 성공
         assertThat(result.succeededFiles()).hasSize(12);
+        verify(myBatisRuntimeConfigurer).ensureConfigured(
+                tempDir.toString(), "egovframework.let.bbs.service.impl");
         assertThat(result.failedFiles()).isEmpty();
         verify(boardTemplateRenderer, atLeastOnce()).renderByLayerKey(
                 any(), any(),
@@ -171,8 +207,8 @@ class BoardOrchestrationServiceTest {
 
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "jsp");
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "jsp");
 
         assertThat(result.succeededFiles()).hasSize(12);
     }
@@ -185,8 +221,8 @@ class BoardOrchestrationServiceTest {
 
         service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "thymeleaf",
                 "create", null, null);
 
         ArgumentCaptor<String> pathCaptor = ArgumentCaptor.forClass(String.class);
@@ -204,16 +240,11 @@ class BoardOrchestrationServiceTest {
 
         service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "thymeleaf",
                 "create", null, null);
 
-        verify(codeService).saveGeneratedCode(
-                "/tmp/out/src/main/webapp/index.jsp",
-                """
-<%@ page contentType="text/html;charset=UTF-8" %>
-<jsp:forward page="/bbs/bbsList.do"/>
-""");
+        verify(warEntryPointConfigurer).configure("/tmp/out", "/bbs/bbsList.do");
     }
 
     // ─── ThymeleafRuntimeConfigurer 호출 ─────────────────────────────────────
@@ -224,12 +255,14 @@ class BoardOrchestrationServiceTest {
 
         service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "thymeleaf",
                 "create", null, null);
 
         verify(thymeleafRuntimeConfigurer)
                 .ensureThymeleafRuntime(eq("/tmp/out"), eq("5.0"), any());
+        verify(thymeleafRuntimeConfigurer)
+                .ensureControllerComponentScan(eq("/tmp/out"), eq("egovframework.let.bbs.web"), any());
     }
 
     @Test
@@ -238,10 +271,11 @@ class BoardOrchestrationServiceTest {
 
         service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "jsp");
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "jsp");
 
         verify(thymeleafRuntimeConfigurer, never()).ensureThymeleafRuntime(any(), any(), any());
+        verify(thymeleafRuntimeConfigurer, never()).ensureControllerComponentScan(any(), any(), any());
     }
 
     // ─── 저장/렌더/검증/이력 실패 ─────────────────────────────────────────────
@@ -249,8 +283,8 @@ class BoardOrchestrationServiceTest {
     @Test
     void jsp_saveFails_recordsInFailedFiles() {
         when(boardSchemaService.fetchBoardSchemas(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Map.of("COMTNBBS", List.of()));
-        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("LETTNBBS", List.of()));
+        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(dummyModel());
         doReturn("rendered").when(boardTemplateRenderer).renderByLayerKey(any(), any());
         when(codeService.saveGeneratedCode(any(), any())).thenReturn("파일 저장 실패: 권한 없음");
@@ -259,8 +293,8 @@ class BoardOrchestrationServiceTest {
 
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "jsp");
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "jsp");
 
         assertThat(result.hasFailure()).isTrue();
         assertThat(result.failCount()).isEqualTo(12);
@@ -272,8 +306,8 @@ class BoardOrchestrationServiceTest {
     @Test
     void jsp_renderThrows_recordsInFailedFiles() {
         when(boardSchemaService.fetchBoardSchemas(any(), any(), any(), any(), any(), any()))
-                .thenReturn(Map.of("COMTNBBS", List.of()));
-        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("LETTNBBS", List.of()));
+        when(boardModelFactory.fromSchemas(any(), any(), any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(dummyModel());
         doThrow(new RuntimeException("템플릿 로딩 실패")).when(boardTemplateRenderer).renderByLayerKey(any(), any());
         when(codeValidatorService.validateDirectory(any())).thenReturn("검증 실패");
@@ -281,8 +315,8 @@ class BoardOrchestrationServiceTest {
 
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "jsp");
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "jsp");
 
         assertThat(result.hasFailure()).isTrue();
         assertThat(result.failedFiles())
@@ -298,11 +332,29 @@ class BoardOrchestrationServiceTest {
 
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "jsp");
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "jsp");
 
         assertThat(result.successCount()).isEqualTo(12);
         assertThat(result.validationSummary()).contains("검증 실패:");
+    }
+
+    @Test
+    void generatedCodeAuditFailureIsReportedAsGenerationFailure() {
+        stubSuccess(dummyModel());
+        when(boardGeneratedCodeAuditor.audit(any(), any(), any(), any()))
+                .thenReturn("감사 실패 1건: CSRF 누락");
+
+        BoardOrchestrationResult result = service.orchestrate(
+                "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "thymeleaf",
+                "create", null, null);
+
+        assertThat(result.failedFiles()).singleElement().asString()
+                .contains("게시판 생성 감사")
+                .contains("CSRF 누락");
+        assertThat(result.validationSummary()).contains("감사 실패 1건");
     }
 
     @Test
@@ -313,11 +365,41 @@ class BoardOrchestrationServiceTest {
 
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "jsp");
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "jsp");
 
         assertThat(result.successCount()).isEqualTo(12);
         assertThat(result.historySummary()).contains("이력 저장 실패:");
+    }
+
+    @Test
+    void ambiguousProgramMetadataStopsBeforeRenderingAndSaving() {
+        when(boardSchemaService.fetchBoardSchemas(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("main", List.of()));
+        when(boardProgramMetadataService.resolve(any(), any(), any(), any()))
+                .thenReturn(new BoardProgramMetadata(null, null, null, null, null, null, null,
+                        BoardProgramMetadata.Source.DATABASE, BoardProgramMetadata.Status.AMBIGUOUS,
+                        "프로그램 메타데이터 중복"));
+
+        BoardOrchestrationResult result = service.orchestrate(
+                "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "thymeleaf");
+
+        assertThat(result.failedFiles()).singleElement().asString().contains("중복");
+        verify(boardTemplateRenderer, never()).renderByLayerKey(any(), any());
+        verify(codeService, never()).saveGeneratedCode(any(), any());
+    }
+
+    @Test
+    void jspGenerationDoesNotPatchCss() {
+        stubSuccess(dummyModel());
+
+        service.orchestrate("com", "Bbs", "egovframework.let.bbs", "/tmp/out",
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "jsp");
+
+        verify(krdsStylesConfigurer, never()).ensureBoardCrudStyles(any());
     }
 
     // ─── 테이블 미존재 ────────────────────────────────────────────────────────
@@ -329,8 +411,8 @@ class BoardOrchestrationServiceTest {
 
         BoardOrchestrationResult result = service.orchestrate(
                 "com", "Bbs", "egovframework.let.bbs", "/tmp/out",
-                "COMTNBBS", "COMTNBBSMASTER", "COMTNBBSUSE",
-                "COMTNFILE", "COMTNFILEDETAIL", "5.0", "thymeleaf",
+                "LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "LETTNFILE", "LETTNFILEDETAIL", "5.0", "thymeleaf",
                 "create", null, null);
 
         assertThat(result.tableNotFound()).isTrue();

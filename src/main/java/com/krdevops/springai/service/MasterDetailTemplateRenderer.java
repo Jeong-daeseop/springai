@@ -37,6 +37,7 @@ public class MasterDetailTemplateRenderer {
         LAYER_TEMPLATE_MAP.put("jspList",           "masterdetail/jsp-list.jsp.ftl");
         LAYER_TEMPLATE_MAP.put("jspDetail",         "masterdetail/jsp-detail.jsp.ftl");
         LAYER_TEMPLATE_MAP.put("jspRegist",         "masterdetail/jsp-regist.jsp.ftl");
+        LAYER_TEMPLATE_MAP.put("jspUpdt",           "masterdetail/jsp-updt.jsp.ftl");
         LAYER_TEMPLATE_MAP.put("layoutHtml",        "masterdetail/layout/default.html.ftl");
         LAYER_TEMPLATE_MAP.put("layoutGnbHtml",     "masterdetail/layout/gnb.html.ftl");
         LAYER_TEMPLATE_MAP.put("layoutLnbHtml",     "masterdetail/layout/lnb.html.ftl");
@@ -45,6 +46,7 @@ public class MasterDetailTemplateRenderer {
         LAYER_TEMPLATE_MAP.put("thymeleafList",     "masterdetail/thymeleaf-list.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafDetail",   "masterdetail/thymeleaf-detail.html.ftl");
         LAYER_TEMPLATE_MAP.put("thymeleafRegist",   "masterdetail/thymeleaf-regist.html.ftl");
+        LAYER_TEMPLATE_MAP.put("thymeleafUpdt",     "masterdetail/thymeleaf-updt.html.ftl");
     }
 
     /** layoutMode=none 전용 — layout 참조 없는 독립 화면 템플릿 매핑 */
@@ -55,6 +57,7 @@ public class MasterDetailTemplateRenderer {
         STANDALONE_TEMPLATE_MAP.put("thymeleafList",   "masterdetail/thymeleaf-list-standalone.html.ftl");
         STANDALONE_TEMPLATE_MAP.put("thymeleafDetail", "masterdetail/thymeleaf-detail-standalone.html.ftl");
         STANDALONE_TEMPLATE_MAP.put("thymeleafRegist", "masterdetail/thymeleaf-regist-standalone.html.ftl");
+        STANDALONE_TEMPLATE_MAP.put("thymeleafUpdt",   "masterdetail/thymeleaf-updt-standalone.html.ftl");
     }
 
     private final Configuration freemarkerConfig;
@@ -153,6 +156,7 @@ public class MasterDetailTemplateRenderer {
         data.put("fields",            current.fields());
         data.put("listFields",        current.listFields());
         data.put("nonPkFields",       current.nonPkFields());
+        data.put("queryContract",     current.queryContract());
         data.put("fkColumn",          model.fkColumn());
         data.put("fkField",           model.fkField());
         data.put("layoutView",        layoutView);

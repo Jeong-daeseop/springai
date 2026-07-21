@@ -12,7 +12,7 @@ public class AuthTool {
     private final AuthService authService;
 
     @Tool(description = """
-            COMTNPROGRMLIST 에서 프로그램 목록을 키워드로 검색합니다.
+            프로그램 테이블(LETTNPROGRMLIST)에서 프로그램 목록을 키워드로 검색합니다.
             한국어명 / URL / PROGRM_FILE_NM 기준 LIKE 검색을 수행합니다.
             generateMenuInsertSql() 호출 전 중복 등록 여부를 반드시 확인하세요.
             PROGRM_FILE_NM은 PK이므로 중복 시 INSERT 오류가 발생합니다.
@@ -24,8 +24,8 @@ public class AuthTool {
 
     @Tool(description = """
             신규 도메인 URL 접근 제어에 필요한 SQL을 반환합니다.
-            SQL 1: COMTNROLEINFO INSERT (롤 등록 — ROLE_CODE 자동 계산, URL 패턴 자동 생성)
-            SQL 2: COMTNAUTHORROLERELATE INSERT (ROLE_ADMIN 권한에 롤 연결)
+            SQL 1: LETTNROLEINFO INSERT (롤 등록 — ROLE_CODE 자동 계산, URL 패턴 자동 생성)
+            SQL 2: LETTNAUTHORROLERELATE INSERT (ROLE_ADMIN 권한에 롤 연결)
             SQL 3: 추가 권한 그룹 연결 예시 (주석 처리, 필요 시 활성화)
             ※ SecurityTemplateTool에서 securityMapper 포함 조합을 먼저 생성해야 이 SQL이 Security에 반영됩니다.
             ※ ROLE_CODE는 기존 최대값 기준 자동 계산됩니다. 동시 실행 시 race condition 주의.

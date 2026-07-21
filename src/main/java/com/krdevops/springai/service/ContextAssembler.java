@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
  *   4순위: RAG 문서 — eGovFrame 표준 가이드 (참고)
  *
  * [테이블명 자동 감지]
- *   eGovFrame 표준 테이블 접두사 패턴: COMTN / COMTC / COMTH / LETGW
+ *   eGovFrame 표준 테이블 접두사 패턴: LETTN / LETTC / LETTH / LETGW
  *   사용자 질문에서 이 패턴과 일치하는 토큰을 추출하여 스키마 조회에 사용합니다.
  *   감지 실패 시 스키마·관계·이력 조회를 건너뛰고 RAG만 반환합니다.
  */
@@ -41,10 +41,10 @@ public class ContextAssembler {
 
     /**
      * eGovFrame 표준 테이블 접두사 패턴.
-     * COMTN / COMTC / COMTH / LETGW 로 시작하는 6자 이상 대문자+숫자+밑줄 조합.
+     * LETTN / LETTC / LETTH / LETGW 로 시작하는 6자 이상 대문자+숫자+밑줄 조합.
      */
     private static final Pattern EGOV_TABLE_PATTERN =
-        Pattern.compile("\\b(COMTN|COMTC|COMTH|LETGW)[A-Z0-9_]{2,}\\b");
+        Pattern.compile("\\b(LETTN|LETTC|LETTH|LETGW)[A-Z0-9_]{2,}\\b");
 
     private final SchemaService schemaService;
     private final TableRelationService tableRelationService;

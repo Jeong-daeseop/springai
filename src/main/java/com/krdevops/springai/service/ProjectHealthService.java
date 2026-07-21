@@ -18,6 +18,8 @@ public class ProjectHealthService {
 
     private final JdbcTemplate jdbcTemplate;
     private final CodeValidatorService codeValidatorService;
+    private final ProgramMetadataQueryService programMetadataQueryService;
+    private final WebCaptureHealthService webCaptureHealthService;
 
     public String checkProjectHealth(String projectRootPath, String domain) {
         Path root = Paths.get(projectRootPath);
@@ -50,8 +52,14 @@ public class ProjectHealthService {
         boolean testExists = checkTestCode(fileIndex, domainCap);
 
         // 5. 완성도 계산 및 리포트 생성
-        return buildReport(domain, domainCap, fileStatus, validationStatus,
+        String report = buildReport(domain, domainCap, fileStatus, validationStatus,
                            menuRegistered, authRegistered, testExists);
+        if (webCaptureHealthService == null) return report;
+        var capture = webCaptureHealthService.check();
+        return report + "\n[WEB_CAPTURE]\n  상태: " + capture.status()
+                + "\n  extractor: " + (capture.extractorReady() ? "✅" : "❌")
+                + "\n  artifact 경로: " + (capture.artifactPathWritable() ? "✅" : "❌")
+                + "\n  schema: " + capture.schemaVersion() + "\n";
     }
 
     // -------------------------------------------------------------------------
@@ -134,10 +142,12 @@ public class ProjectHealthService {
 
     private boolean checkMenuRegistration(String domain, String domainCap) {
         try {
+            String menuTable = programMetadataQueryService.firstExistingMenuTable();
+            String programTable = programMetadataQueryService.firstExistingProgramTable();
             String like = "%" + domain.toLowerCase() + "%";
             Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM COMTNMENUINFO m " +
-                "JOIN COMTNPROGRMLIST p ON m.PROGRM_FILE_NM = p.PROGRM_FILE_NM " +
+                "SELECT COUNT(*) FROM " + menuTable + " m " +
+                "JOIN " + programTable + " p ON m.PROGRM_FILE_NM = p.PROGRM_FILE_NM " +
                 "WHERE LOWER(p.URL) LIKE ?",
                 Integer.class, like
             );
@@ -150,9 +160,10 @@ public class ProjectHealthService {
 
     private boolean checkAuthRegistration(String domain, String domainCap) {
         try {
+            String programTable = programMetadataQueryService.firstExistingProgramTable();
             String like = "%" + domain.toLowerCase() + "%";
             Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM COMTNPROGRMLIST WHERE LOWER(URL) LIKE ?",
+                "SELECT COUNT(*) FROM " + programTable + " WHERE LOWER(URL) LIKE ?",
                 Integer.class, like
             );
             return count != null && count > 0;
@@ -206,8 +217,8 @@ public class ProjectHealthService {
 
         // 메뉴·권한 등록
         sb.append("[메뉴·권한 등록]\n");
-        sb.append("  ").append(menuRegistered ? "✅" : "❌").append(" COMTNMENUINFO 메뉴 등록\n");
-        sb.append("  ").append(authRegistered ? "✅" : "❌").append(" COMTNPROGRMLIST 프로그램 권한 등록\n\n");
+        sb.append("  ").append(menuRegistered ? "✅" : "❌").append(" LETTNMENUINFO 메뉴 등록\n");
+        sb.append("  ").append(authRegistered ? "✅" : "❌").append(" LETTNPROGRMLIST 프로그램 권한 등록\n\n");
 
         // 테스트 코드
         sb.append("[테스트 코드]\n");

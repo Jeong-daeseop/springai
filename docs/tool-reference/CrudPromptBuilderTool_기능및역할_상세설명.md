@@ -138,12 +138,10 @@ JSP 기본 생성은 11개 레이어를 만든다. `viewType="thymeleaf"`는 JSP
 ## auto 모드 처리 흐름
 
 ```
-1. buildPlaceholderValues()  — DB 컬럼 1회 조회, 21개 플레이스홀더 계산
-2. 11개 레이어 순서대로 반복:
-   ① codeService.generateSource(layerKey, values) — 템플릿 치환
-   ② codeService.saveGeneratedCode(filePath, code) — 파일 저장 (Path Traversal 차단)
-3. codeValidatorService.validateDirectory()       — 생성된 코드 일괄 검증
-4. generationHistoryService.saveHistory()         — 생성 이력 DB 저장
+1. CrudModelFactory — DB 컬럼과 프로그램 메타데이터로 타입 안전 모델 구성
+2. CrudTemplateRenderer — FreeMarker 레이어를 결정론적으로 렌더링
+3. CrudOrchestrationService — 허용 경로에 파일 저장 및 정적 계약 검사
+4. GenerationHistoryRecorder — 생성 이력 저장
 ```
 
 #### auto 모드 결과 예시

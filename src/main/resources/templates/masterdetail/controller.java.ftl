@@ -12,6 +12,7 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 <#if jakartaValidation>
 import jakarta.validation.Valid;
@@ -41,7 +42,11 @@ public class Egov${master.domain}Controller {
             @ModelAttribute("searchVO") ${master.domain}VO searchVO,
             ModelMap model) throws Exception {
 
-        searchVO.setPageUnit(propertiesService.getInt("pageUnit"));
+        int requestedPageUnit = searchVO.getPageUnit();
+        if (requestedPageUnit != 10 && requestedPageUnit != 20 && requestedPageUnit != 50) {
+            requestedPageUnit = propertiesService.getInt("pageUnit");
+        }
+        searchVO.setPageUnit(requestedPageUnit);
         searchVO.setPageSize(propertiesService.getInt("pageSize"));
 
         PaginationInfo paginationInfo = new PaginationInfo();
@@ -101,6 +106,33 @@ public class Egov${master.domain}Controller {
         return "redirect:${urlPrefix}List.do";
     }
 
+    @GetMapping("${urlPrefix}UpdtView.do")
+    public String update${master.domain}View(
+            @ModelAttribute("searchVO") ${master.domain}VO searchVO,
+            ModelMap model) throws Exception {
+
+        ${master.domain}VO vo = ${master.domainLc}Service.select${master.domain}(searchVO);
+        model.addAttribute("${master.domainLc}VO", vo);
+        populateLayoutModel(model, "masterdetail-list", "수정");
+        return "${master.domainLc}/Egov${master.domain}Updt";
+    }
+
+    @PostMapping("${urlPrefix}Updt.do")
+    public String update${master.domain}(
+            @ModelAttribute("${master.domainLc}VO") @Valid ${master.domain}VO ${master.domainLc}VO,
+            BindingResult bindingResult,
+            ModelMap model,
+            RedirectAttributes redirectAttributes) throws Exception {
+
+        if (bindingResult.hasErrors()) {
+            populateLayoutModel(model, "masterdetail-list", "수정");
+            return "${master.domainLc}/Egov${master.domain}Updt";
+        }
+        ${master.domainLc}Service.update${master.domain}(${master.domainLc}VO);
+        redirectAttributes.addFlashAttribute("message", "${master.domainKr}이(가) 수정되었습니다.");
+        return "redirect:${urlPrefix}Detail.do?${master.pk.javaName}=" + ${master.domainLc}VO.get${master.pk.javaName?cap_first}();
+    }
+
     @PostMapping("${urlPrefix}Delete.do")
     public String delete${master.domain}(
             ${master.domain}VO ${master.domainLc}VO,
@@ -108,6 +140,16 @@ public class Egov${master.domain}Controller {
 
         ${master.domainLc}Service.delete${master.domain}(${master.domainLc}VO);
         redirectAttributes.addFlashAttribute("message", "${master.domainKr}이(가) 삭제되었습니다.");
+        return "redirect:${urlPrefix}List.do";
+    }
+
+    @PostMapping("${urlPrefix}BulkDelete.do")
+    public String delete${master.domain}Bulk(
+            @RequestParam("ids") List<${master.pk.javaType}> ids,
+            RedirectAttributes redirectAttributes) throws Exception {
+
+        int deleted = ${master.domainLc}Service.delete${master.domain}Bulk(ids);
+        redirectAttributes.addFlashAttribute("message", deleted + "건이 삭제되었습니다.");
         return "redirect:${urlPrefix}List.do";
     }
 

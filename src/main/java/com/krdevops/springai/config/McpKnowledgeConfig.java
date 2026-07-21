@@ -59,7 +59,7 @@ public class McpKnowledgeConfig {
             promptSpecification(
                 "menu-generation",
                 "메뉴 생성 요청",
-                "COMTNMENUINFO/COMTNPROGRMLIST 메뉴 등록 SQL 생성 프롬프트를 구성합니다.",
+                "LETTNMENUINFO/LETTNPROGRMLIST 메뉴 등록 SQL 생성 프롬프트를 구성합니다.",
                 PROJECT_ROOT.resolve("templates/menu-prompt-template.md"),
                 menuArguments()
             )

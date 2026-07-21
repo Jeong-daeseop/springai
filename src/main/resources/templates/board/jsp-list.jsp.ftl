@@ -6,11 +6,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>${domainKr} 목록</title>
+    <title>${displayName} 목록</title>
     <link rel="stylesheet" href="<%=contextPath%>/resources/css/styles.css">
 </head>
 <body>
-<h1>${domainKr} 목록</h1>
+<h1>${displayName} 목록</h1>
 
 <!-- 검색 -->
 <form id="searchForm" method="get" action="${urlPrefix}List.do">
@@ -27,6 +27,7 @@
 
 <!-- 목록 -->
 <table>
+    <caption>${displayName} 목록 표</caption>
     <thead>
         <tr>
             <th>번호</th>
@@ -58,7 +59,7 @@
                    jsFunction="${domainLc}LinkPage"/>
 </div>
 
-<a href="${urlPrefix}RegistView.do">등록</a>
+<a href="${urlPrefix}RegistView.do?bbsId=${r"${searchVO.bbsId}"}">등록</a>
 
 <script>
 function ${domainLc}LinkPage(pageNo) {

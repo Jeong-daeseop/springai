@@ -10,7 +10,7 @@ Value Object(VO) 클래스 패키지. DB 레코드와 매핑되는 데이터 전
 
 | File | Description |
 |------|-------------|
-| `EmployeeVO.java` | `COMTNEMPLYRINFO` 테이블 매핑 VO — 직원 ID, 이름, 부서, 직위 등 필드 |
+| `EmployeeVO.java` | `LETTNEMPLYRINFO` 테이블 매핑 VO — 직원 ID, 이름, 부서, 직위 등 필드 |
 
 ## For AI Agents
 

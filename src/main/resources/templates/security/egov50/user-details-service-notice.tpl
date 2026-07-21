@@ -7,11 +7,11 @@ RTE EgovSecurityConfiguration이 EgovJdbcUserDetailsManager를 자동 구성합�
   <bean id="securityConfig" class="org.egovframe.rte.fdl.security.config.EgovSecurityConfig">
       <!-- 사용자 조회 SQL: EMPLYR_ID, PASSWORD, ENABLED 컬럼 필수 -->
       <property name="jdbcUsersByUsernameQuery"
-          value="SELECT EMPLYR_ID, PASSWORD, 1 ENABLED FROM COMTNEMPLYRINFO WHERE EMPLYR_ID = ?"/>
+          value="SELECT EMPLYR_ID, PASSWORD, 1 ENABLED FROM LETTNEMPLYRINFO WHERE EMPLYR_ID = ?"/>
       <!-- 권한 조회 SQL: USER_ID, AUTHORITY 컬럼 필수 -->
       <property name="jdbcAuthoritiesByUsernameQuery"
           value="SELECT SCRTY_DTRMN_TRGET_ID, AUTHOR_CODE AUTHORITY
-                 FROM COMTNEMPLYRSCRTYESTBS WHERE SCRTY_DTRMN_TRGET_ID = ?"/>
+                 FROM LETTNEMPLYRSCRTYESTBS WHERE SCRTY_DTRMN_TRGET_ID = ?"/>
       <!-- DB ResultSet → LoginVO → EgovUserDetails 변환 클래스 -->
       <property name="jdbcMapClass" value="egovframework.bopr.security.EgovSessionMapping"/>
   </bean>

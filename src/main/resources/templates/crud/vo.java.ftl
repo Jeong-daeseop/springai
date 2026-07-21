@@ -38,6 +38,11 @@ public class ${domain}VO {
     private ${f.javaType} ${f.javaName};
 
 </#list>
+<#list queryContract.displayFields() as f>
+    // ${f.comment} (화면명세 JOIN/공통코드 표시 필드)
+    private ${f.javaType} ${f.javaName};
+
+</#list>
     // 페이징/검색 공통 필드
     private int pageIndex = 1;
     private int pageUnit = 10;

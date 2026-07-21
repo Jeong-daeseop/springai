@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<style>body{font:12px Inter,sans-serif;padding:16px}button,input[type=file]{margin-top:12px;width:100%}pre{white-space:pre-wrap;max-height:150px;overflow:auto}.options{display:none;margin:10px 0;padding:8px;background:#f5f5f5}.options label{display:block;margin:6px 0}.options input{margin-right:6px}</style>
+<h3>Website Design Import</h3>
+<input id="file" type="file">
+<pre id="status">.figpack을 선택하세요.</pre>
+<section id="options" class="options"><strong>생성 옵션</strong><label><input id="styles" type="checkbox">공통 Paint/Text Style 생성·재사용</label><div id="candidates"></div></section>
+<button id="create" disabled>Figma Frame 생성</button>
+<button id="cancel" disabled>취소</button>
+<script>
+let bytes;
+const file = document.getElementById('file'), status = document.getElementById('status'), create = document.getElementById('create'), cancel=document.getElementById('cancel'),options=document.getElementById('options'),candidates=document.getElementById('candidates'),styles=document.getElementById('styles');
+file.onchange = async () => { const selected=file.files[0]; if(!selected)return; bytes=await selected.arrayBuffer(); create.disabled=true;options.style.display='none';status.textContent='패키지 검증 중…'; parent.postMessage({pluginMessage:{type:'PREVIEW',bytes}},'*'); };
+create.onclick = () => { const candidateTypes=[...candidates.querySelectorAll('input:checked')].map(input=>input.value);create.disabled=true; status.textContent='생성 중…'; parent.postMessage({pluginMessage:{type:'CREATE',candidateTypes,createStyles:styles.checked}},'*'); };
+cancel.onclick=()=>{parent.postMessage({pluginMessage:{type:'CANCEL'}},'*');create.disabled=true;cancel.disabled=true;options.style.display='none';status.textContent='취소했습니다.';};
+onmessage = ({data}) => { if(!data.pluginMessage)return; const message=data.pluginMessage;status.textContent=message.message;if(message.type==='PREVIEW_READY'){candidates.replaceChildren();for(const type of message.candidates||[]){const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=type;label.append(input,document.createTextNode(`${type} Component 생성`));candidates.append(label);}options.style.display='block';create.disabled=false;cancel.disabled=false;}else if(message.type==='RESULT'||message.type==='ERROR'){create.disabled=true;cancel.disabled=true;} };
+</script>
+</html>

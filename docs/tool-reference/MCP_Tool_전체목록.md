@@ -1,6 +1,6 @@
 # MCP Tool 전체 목록
 
-총 **20개 Tool 파일 / 45개 메서드**
+총 **23개 Tool 파일 / 74개 `@Tool` 메서드**
 
 ---
 
@@ -45,7 +45,7 @@
 ### CodeSaverTool (3개)
 | 메서드 | 설명 |
 |--------|------|
-| `generateSource(layerKey, placeholders)` | 템플릿 + 플레이스홀더 치환 → 소스 반환 |
+| `generateSource(layerKey, placeholders)` | **폐기 호환용** — `buildFullCrudPrompt(llmProvider="auto")` 전환 안내 반환 |
 | `saveGeneratedCode(filePath, code)` | 파일 저장 (Path Traversal 차단) |
 | `getDefaultOutputPath(domain)` | 기본 출력 경로 반환 (`~/Desktop/egov-generated/{domain}`) |
 
@@ -54,6 +54,30 @@
 |--------|------|
 | `validateGeneratedCode(filePath)` | 단일 파일 검증 (import, annotation, syntax 체크) |
 | `validateGeneratedCodeDirectory(dirPath)` | 디렉터리 내 전체 파일 일괄 검증 |
+
+### DesignReferenceTool (7개)
+| 메서드 | 설명 |
+|--------|------|
+| `analyzeDesignReference(referencePath, pageRange, featureType)` | PNG/JPEG/이미지형 PDF를 Vision으로 분석 |
+| `analyzeFigmaReference(figmaUrl, nodeId, featureType)` | Figma node JSON을 결정론적으로 `UiDesignSpec`에 매핑 |
+| `findReusableDesignAnalyses(query, expectedArchetype, expectedFeatureType, topK)` | 현재 실행 계약·화면 유형과 호환되는 분석 후보 검색 |
+| `createScreenSpecification(...)` | DB 스키마와 선택적 디자인 분석을 화면명세로 결합 |
+| `approveScreenSpecification(id)` | 화면명세 승인 |
+| `reviseScreenSpecification(specification)` | 검토 필요 화면명세 수정 |
+| `getScreenSpecification(id)` | 최신 화면명세 조회 |
+
+### CaptureWebPageTool (1개)
+| 메서드 | 설명 |
+|--------|------|
+| `captureWebPage(request)` | 허용된 로컬 JSP 화면을 Chromium으로 캡처해 Design Artifact 생성 |
+
+### DesignArtifactTool (4개)
+| 메서드 | 설명 |
+|--------|------|
+| `getDesignArtifact(artifactId)` | artifact 메타데이터·요약·경고 조회 |
+| `prepareFigmaImport(artifactId)` | Figma Plugin용 `.figpack` 준비 |
+| `analyzeCapturedDesign(artifactId, featureType)` | artifact를 결정론적 `UiDesignSpec`으로 변환 |
+| `getWebCaptureStatus()` | WEB_CAPTURE와 extractor 준비 상태 점검 |
 
 ---
 

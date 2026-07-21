@@ -6,7 +6,7 @@
 <head>
     <title>${master.domainKr} 상세</title>
 </head>
-<th:block layout:fragment="content">
+<section layout:fragment="content" class="egov-crud-page">
 <#include "thymeleaf-detail-body.html.ftl">
-</th:block>
+</section>
 </html>

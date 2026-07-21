@@ -6,7 +6,7 @@
 <head>
     <title>${domainKr} 등록</title>
 </head>
-<section layout:fragment="content">
+<section layout:fragment="content" class="egov-crud-page">
 <#include "thymeleaf-regist-body.html.ftl">
 </section>
 </html>

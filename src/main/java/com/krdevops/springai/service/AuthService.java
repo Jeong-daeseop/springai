@@ -24,9 +24,11 @@ public class AuthService {
     private final AuthInputValidator validator;
     private final AuthSqlBuilder sqlBuilder;
     private final AuthResultBuilder resultBuilder;
+    private final ProgramMetadataQueryService programMetadataQueryService;
 
     public String getProgramList(String keyword) {
-        List<Map<String, Object>> rows = authRepository.searchPrograms(keyword, renderer);
+        String programTable = programMetadataQueryService.firstExistingProgramTable();
+        List<Map<String, Object>> rows = authRepository.searchPrograms(keyword, renderer, programTable);
 
         if (rows.isEmpty()) {
             return "검색 결과가 없습니다." + (keyword != null && !keyword.isBlank() ? " (검색어: " + keyword + ")" : "");

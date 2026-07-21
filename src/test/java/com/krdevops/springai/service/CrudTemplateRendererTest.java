@@ -44,7 +44,7 @@ class CrudTemplateRendererTest {
             "Employer",
             "employer",
             "직원",
-            "COMTNEMPLYRINFO",
+            "LETTNEMPLYRINFO",
             "/emp/employer",
             "2026-06-15",
             jakarta ? "5.0" : "4.3",
@@ -56,6 +56,40 @@ class CrudTemplateRendererTest {
             NON_PK,
             NON_PK
         );
+    }
+
+    private CrudTemplateModel model(boolean jakarta, com.krdevops.springai.model.design.FormColumnLayout formColumnLayout) {
+        CrudTemplateModel base = model(jakarta);
+        return new CrudTemplateModel(
+            base.packageName(), base.domain(), base.domainLc(), base.domainKr(), base.tableName(),
+            base.urlPrefix(), base.date(), base.egovVersion(), base.jakartaValidation(), base.pk(),
+            base.pkFields(), base.fields(), base.listFields(), base.nonPkFields(), base.formFields(),
+            base.route(), base.queryContract(), base.detailFields(), base.layoutDensity(), formColumnLayout
+        );
+    }
+
+    private CrudTemplateModel model(
+            boolean jakarta,
+            com.krdevops.springai.model.design.ActionPlacement actionPlacement,
+            com.krdevops.springai.model.design.SearchPanelPlacement searchPanelPlacement) {
+        CrudTemplateModel base = model(jakarta);
+        return new CrudTemplateModel(
+            base.packageName(), base.domain(), base.domainLc(), base.domainKr(), base.tableName(),
+            base.urlPrefix(), base.date(), base.egovVersion(), base.jakartaValidation(), base.pk(),
+            base.pkFields(), base.fields(), base.listFields(), base.nonPkFields(), base.formFields(),
+            base.route(), base.queryContract(), base.detailFields(), base.layoutDensity(),
+            base.formColumnLayout(), actionPlacement, searchPanelPlacement
+        );
+    }
+
+    private int countOccurrences(String text, String token) {
+        int count = 0;
+        int index = 0;
+        while ((index = text.indexOf(token, index)) != -1) {
+            count++;
+            index += token.length();
+        }
+        return count;
     }
 
     // ─── VO 렌더링 ────────────────────────────────────────────────────────────
@@ -84,6 +118,56 @@ class CrudTemplateRendererTest {
         assertThat(result).contains("@Getter");
         assertThat(result).contains("@Setter");
         assertThat(result).contains("PaginationInfo paginationInfo");
+    }
+
+    @Test
+    void listSupportsRequestedPageUnit() {
+        assertThat(renderer.renderByLayerKey("controller", model(true)))
+                .contains("requestedPageUnit != 10")
+                .contains("searchVO.setPageUnit(requestedPageUnit)");
+        assertThat(renderer.renderByLayerKey("thymeleafList", model(true)))
+                .contains("name=\"pageUnit\"")
+                .contains(">50개</option>");
+    }
+
+    @Test
+    void thymeleafScreensApplyCrudScopeSizesAndCsrfContract() {
+        assertThat(renderer.renderByLayerKey("thymeleafList", model(true)))
+                .contains("class=\"egov-crud-page\"")
+                .contains("class=\"krds-form-select medium egov-control egov-search-condition\"")
+                .contains("class=\"krds-input medium egov-control\"")
+                .contains("class=\"tbl data egov-list-table\"")
+                .contains("class=\"krds-pagination egov-pagination\"");
+        assertThat(renderer.renderByLayerKey("thymeleafRegist", model(true)))
+                .contains("class=\"krds-input medium egov-control\"")
+                .contains("_csrf.parameterName")
+                .contains("_csrf.token");
+        assertThat(renderer.renderByLayerKey("thymeleafUpdt", model(true)))
+                .contains("_csrf.parameterName")
+                .contains("_csrf.token");
+        assertThat(renderer.renderByLayerKey("thymeleafDetail", model(true)))
+                .contains("id=\"deleteForm\"")
+                .contains("_csrf.parameterName")
+                .contains("_csrf.token");
+    }
+
+    @Test
+    void legacyModelStillFiltersSensitiveFieldsFromDetailRendering() {
+        FieldModel password = new FieldModel(
+                "PASSWORD_HASH", "passwordHash", "String", "비밀번호", false,
+                false, true, 255, "VARCHAR");
+        List<FieldModel> fields = List.of(FIELDS.get(0), FIELDS.get(1), password);
+        CrudTemplateModel legacy = new CrudTemplateModel(
+                "egovframework.let.emp", "Employer", "employer", "직원",
+                "LETTNEMPLYRINFO", "/emp/employer", "2026-06-15", "5.0", true,
+                PK, PK_FIELDS, fields, LIST_FIELDS, fields.subList(1, fields.size()),
+                fields.subList(1, fields.size()));
+
+        String jsp = renderer.renderByLayerKey("jspDetail", legacy);
+        String thymeleaf = renderer.renderByLayerKey("thymeleafDetail", legacy);
+
+        assertThat(jsp).contains("result.userNm").doesNotContain("result.passwordHash");
+        assertThat(thymeleaf).contains("result.userNm").doesNotContain("result.passwordHash");
     }
 
     @Test
@@ -149,9 +233,12 @@ class CrudTemplateRendererTest {
     void controller_delegatesLayoutModelToProgramListInterceptor() {
         String result = renderer.renderByLayerKey("controller", model(true));
 
-        assertThat(result).contains("populateLayoutModel(model, \"crud-list\")");
+        assertThat(result).contains("populateLayoutModel(model, \"crud-list\", \"목록\")");
         assertThat(result).contains("LETTNPROGRMLIST.URL과 현재 요청 경로를 매칭");
         assertThat(result).contains("model.addAttribute(\"currentMenuId\", currentMenuId)");
+        // 쿼리스트링(bbsId 등)이 있는 DB 등록 URL도 그대로 보존해야 하므로 path만인
+        // resolvedListPath()가 아니라 resolvedMenuContextUrl()을 써야 한다.
+        assertThat(result).contains("model.addAttribute(\"menuContextUrl\", \"/emp/employerList.do\")");
         assertThat(result).doesNotContain("model.addAttribute(\"lnbTitle\"");
         assertThat(result).doesNotContain("model.addAttribute(\"lnbMenus\"");
         assertThat(result).doesNotContain("model.addAttribute(\"breadcrumbs\"");
@@ -275,6 +362,109 @@ class CrudTemplateRendererTest {
         assertThat(detail).doesNotContain("style=\"");
         assertThat(regist).doesNotContain("style=\"");
         assertThat(updt).doesNotContain("style=\"");
+    }
+
+    // ─── 폼 2단 배치(formColumnLayout) ───────────────────────────────────────
+
+    @Test
+    void thymeleafRegist_singleColumn_rendersOneFieldPerRowWithoutTwoColClass() {
+        String result = renderer.renderByLayerKey(
+                "thymeleafRegist", model(true, com.krdevops.springai.model.design.FormColumnLayout.SINGLE_COLUMN));
+
+        assertThat(result).doesNotContain("egov-layout-two-col");
+        // PK 1행 + formFields(NON_PK, 2개) 각 1행씩 = 3개 <tr>
+        assertThat(countOccurrences(result, "<tr>")).isEqualTo(3);
+    }
+
+    @Test
+    void thymeleafRegist_twoColumn_groupsFormFieldsIntoPairedRows() {
+        String result = renderer.renderByLayerKey(
+                "thymeleafRegist", model(true, com.krdevops.springai.model.design.FormColumnLayout.TWO_COLUMN));
+
+        assertThat(result).contains("tbl col egov-form-table egov-layout-two-col");
+        // PK 1행 + formFields(NON_PK, 2개)가 한 행에 묶여 1행 = 2개 <tr>
+        assertThat(countOccurrences(result, "<tr>")).isEqualTo(2);
+        assertThat(result).contains("사용자명").contains("나이");
+    }
+
+    @Test
+    void thymeleafUpdt_twoColumn_groupsFormFieldsIntoPairedRows() {
+        String single = renderer.renderByLayerKey(
+                "thymeleafUpdt", model(true, com.krdevops.springai.model.design.FormColumnLayout.SINGLE_COLUMN));
+        String twoColumn = renderer.renderByLayerKey(
+                "thymeleafUpdt", model(true, com.krdevops.springai.model.design.FormColumnLayout.TWO_COLUMN));
+
+        assertThat(single).doesNotContain("egov-layout-two-col");
+        assertThat(countOccurrences(single, "<tr>")).isEqualTo(3);
+        assertThat(twoColumn).contains("tbl col egov-form-table egov-layout-two-col");
+        assertThat(countOccurrences(twoColumn, "<tr>")).isEqualTo(2);
+    }
+
+    @Test
+    void jspRegist_twoColumn_wrapsPairedFieldsInFormRowTwoCol() {
+        String single = renderer.renderByLayerKey(
+                "jspRegist", model(true, com.krdevops.springai.model.design.FormColumnLayout.SINGLE_COLUMN));
+        String twoColumn = renderer.renderByLayerKey(
+                "jspRegist", model(true, com.krdevops.springai.model.design.FormColumnLayout.TWO_COLUMN));
+
+        assertThat(single).doesNotContain("form-row-two-col");
+        assertThat(twoColumn).contains("form-row-two-col").contains("사용자명").contains("나이");
+    }
+
+    @Test
+    void jspUpdt_twoColumn_wrapsPairedFieldsInFormRowTwoCol() {
+        String single = renderer.renderByLayerKey(
+                "jspUpdt", model(true, com.krdevops.springai.model.design.FormColumnLayout.SINGLE_COLUMN));
+        String twoColumn = renderer.renderByLayerKey(
+                "jspUpdt", model(true, com.krdevops.springai.model.design.FormColumnLayout.TWO_COLUMN));
+
+        assertThat(single).doesNotContain("form-row-two-col");
+        assertThat(twoColumn).contains("form-row-two-col");
+    }
+
+    // ─── 목록 화면 구조적 섹션 배치(actionPlacement/searchPanelPlacement) ──────
+
+    @Test
+    void thymeleafList_topRightAboveTable_rendersHeaderButtonAndVisibleSearchPanel() {
+        String result = renderer.renderByLayerKey("thymeleafList", model(true,
+                com.krdevops.springai.model.design.ActionPlacement.TOP_RIGHT,
+                com.krdevops.springai.model.design.SearchPanelPlacement.ABOVE_TABLE));
+
+        assertThat(result).contains("class=\"egov-search-panel\"");
+        int headerEnd = result.indexOf("</div>", result.indexOf("egov-page-header"));
+        assertThat(result.substring(0, headerEnd)).contains("등록");
+    }
+
+    @Test
+    void thymeleafList_bottomRightNone_hidesSearchPanelAndMovesButtonBelowPagination() {
+        String result = renderer.renderByLayerKey("thymeleafList", model(true,
+                com.krdevops.springai.model.design.ActionPlacement.BOTTOM_RIGHT,
+                com.krdevops.springai.model.design.SearchPanelPlacement.NONE));
+
+        assertThat(result).doesNotContain("class=\"egov-search-panel\"");
+        int headerEnd = result.indexOf("</div>", result.indexOf("egov-page-header"));
+        assertThat(result.substring(0, headerEnd)).doesNotContain("등록");
+        assertThat(result).contains("class=\"egov-form-actions\"");
+        assertThat(result.indexOf("</nav>")).isLessThan(result.indexOf("class=\"egov-form-actions\""));
+    }
+
+    @Test
+    void jspList_topRightAboveTable_rendersRegisterButtonAndVisibleSearchFieldset() {
+        String result = renderer.renderByLayerKey("jspList", model(true,
+                com.krdevops.springai.model.design.ActionPlacement.TOP_RIGHT,
+                com.krdevops.springai.model.design.SearchPanelPlacement.ABOVE_TABLE));
+
+        assertThat(result).contains("<!-- 검색 -->").contains("class=\"sch-right\"");
+    }
+
+    @Test
+    void jspList_bottomRightNone_hidesSearchFieldsetAndMovesButtonBelowPagination() {
+        String result = renderer.renderByLayerKey("jspList", model(true,
+                com.krdevops.springai.model.design.ActionPlacement.BOTTOM_RIGHT,
+                com.krdevops.springai.model.design.SearchPanelPlacement.NONE));
+
+        assertThat(result).doesNotContain("<!-- 검색 -->").doesNotContain("class=\"sch-right\"");
+        assertThat(result).contains("class=\"btn-area\"");
     }
 
     // ─── 알 수 없는 layerKey ─────────────────────────────────────────────────
@@ -456,6 +646,9 @@ class CrudTemplateRendererTest {
             .contains("model.get(\"currentPageSuffix\")")
             .contains("matchesMenuContext(request, servletPath, menu.getUrl())")
             .contains("queryParameter(menuUrl, \"bbsId\")")
-            .contains("menu.getProgrmKoreanNm()");
+            .contains("request.getAttribute(\"resolvedBbsId\")")
+            .contains("menu.getProgrmKoreanNm()")
+            .contains("request.getAttribute(\"menuContextUrl\")")
+            .contains("ctxUrl.equals(menuUrl)");
     }
 }

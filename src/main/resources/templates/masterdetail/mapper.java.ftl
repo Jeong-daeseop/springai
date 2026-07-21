@@ -2,6 +2,7 @@ package ${packageName}.service.impl;
 
 import ${packageName}.service.${domain}VO;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -24,4 +25,6 @@ public interface ${domain}Mapper {
     void update${domain}(${domain}VO ${domainLc}VO);
 
     void delete${domain}(${domain}VO ${domainLc}VO);
+
+    int delete${domain}Bulk(@Param("ids") List<${pk.javaType}> ids);
 }

@@ -88,6 +88,54 @@ class CodeServiceTest {
         assertThat(target).doesNotExist();
     }
 
+    @Test
+    void saveGeneratedBinary_relativePath_savesUnderBasePath() throws Exception {
+        Path basePath = tempDir.resolve("workspace").resolve("egov-generated");
+        CodeService service = new CodeService(egovProperties(basePath));
+        byte[] content = {1, 2, 3, 4};
+
+        String result = service.saveGeneratedBinary("resources/images/egov-logo.png", content);
+
+        assertThat(result).startsWith("파일 저장 완료:");
+        Path saved = basePath.resolve("resources/images/egov-logo.png");
+        assertThat(saved).exists();
+        assertThat(Files.readAllBytes(saved)).isEqualTo(content);
+    }
+
+    @Test
+    void saveGeneratedBinary_relativeTraversal_isBlocked() {
+        Path basePath = tempDir.resolve("workspace").resolve("egov-generated");
+        CodeService service = new CodeService(egovProperties(basePath));
+
+        String result = service.saveGeneratedBinary("../escape.png", new byte[] {1});
+
+        assertThat(result).startsWith("파일 저장 실패: 허용 범위 밖 경로입니다.");
+        assertThat(basePath.getParent().resolve("escape.png")).doesNotExist();
+    }
+
+    @Test
+    void deleteGeneratedFile_underAllowedPath_deletesFile() throws Exception {
+        Path basePath = tempDir.resolve("workspace").resolve("egov-generated");
+        CodeService service = new CodeService(egovProperties(basePath));
+        Path target = basePath.resolve("index.html");
+        Files.createDirectories(target.getParent());
+        Files.writeString(target, "legacy");
+
+        String result = service.deleteGeneratedFile(target.toString());
+
+        assertThat(result).startsWith("파일 삭제 완료:");
+        assertThat(target).doesNotExist();
+    }
+
+    @Test
+    void generateSourceDeprecationNotice_guidesToAutoGenerator() {
+        CodeService service = new CodeService(egovProperties(tempDir.resolve("egov-generated")));
+
+        assertThat(service.generateSourceDeprecationNotice())
+                .contains("[DEPRECATED]")
+                .contains("buildFullCrudPrompt(llmProvider=\"auto\")");
+    }
+
     private static EgovProperties egovProperties(Path basePath) {
         return egovProperties(basePath, null);
     }

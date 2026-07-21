@@ -11,6 +11,9 @@
 <#list nonPkFields as f>
         <result property="${f.javaName}" column="${f.columnName}"/>
 </#list>
+<#list queryContract.displayFields() as f>
+        <result property="${f.javaName}" column="${f.columnName}"/>
+</#list>
     </resultMap>
 
     <!-- 검색 조건 -->
@@ -19,10 +22,10 @@
             <if test="searchKeyword != null and searchKeyword != ''">
                 <choose>
                     <when test="searchCondition == '1'">
-                        AND ${pk.columnName} LIKE CONCAT('%', #{searchKeyword}, '%')
+                        AND <#if queryContract.hasJoins()>t.</#if>${pk.columnName} LIKE CONCAT('%', #{searchKeyword}, '%')
                     </when>
                     <otherwise>
-                        AND ${pk.columnName} LIKE CONCAT('%', #{searchKeyword}, '%')
+                        AND <#if queryContract.hasJoins()>t.</#if>${pk.columnName} LIKE CONCAT('%', #{searchKeyword}, '%')
                     </otherwise>
                 </choose>
             </if>
@@ -32,10 +35,13 @@
     <!-- 목록 조회 -->
     <select id="select${domain}List" parameterType="${packageName}.service.${domain}VO"
             resultMap="${domainLc}Map">
-        SELECT <#list fields as f>${f.columnName}<#sep>, </#list>
-        FROM ${tableName}
+        SELECT <#list fields as f><#if queryContract.hasJoins()>t.</#if>${f.columnName}<#sep>, </#list><#list queryContract.projections as p>, ${p.selectExpression}</#list>
+        FROM ${tableName}<#if queryContract.hasJoins()> t</#if>
+<#list queryContract.joins as join>
+        ${join.joinType} JOIN ${join.schema}.${join.table} ${join.alias} ON ${join.onExpression}
+</#list>
         <include refid="searchCondition"/>
-        ORDER BY ${pk.columnName} DESC
+        ORDER BY <#if queryContract.hasJoins()>t.</#if>${pk.columnName} DESC
         LIMIT #{paginationInfo.firstRecordIndex}, #{paginationInfo.recordCountPerPage}
     </select>
 
@@ -43,16 +49,19 @@
     <select id="select${domain}ListTotCnt" parameterType="${packageName}.service.${domain}VO"
             resultType="int">
         SELECT COUNT(*)
-        FROM ${tableName}
+        FROM ${tableName}<#if queryContract.hasJoins()> t</#if>
         <include refid="searchCondition"/>
     </select>
 
     <!-- 단건 조회 -->
     <select id="select${domain}" parameterType="${packageName}.service.${domain}VO"
             resultMap="${domainLc}Map">
-        SELECT <#list fields as f>${f.columnName}<#sep>, </#list>
-        FROM ${tableName}
-        WHERE <#list pkFields as p>${p.columnName} = #{${p.javaName}}<#sep> AND </#sep></#list>
+        SELECT <#list fields as f><#if queryContract.hasJoins()>t.</#if>${f.columnName}<#sep>, </#list><#list queryContract.projections as p>, ${p.selectExpression}</#list>
+        FROM ${tableName}<#if queryContract.hasJoins()> t</#if>
+<#list queryContract.joins as join>
+        ${join.joinType} JOIN ${join.schema}.${join.table} ${join.alias} ON ${join.onExpression}
+</#list>
+        WHERE <#list pkFields as p><#if queryContract.hasJoins()>t.</#if>${p.columnName} = #{${p.javaName}}<#sep> AND </#sep></#list>
     </select>
 
     <!-- 등록 -->

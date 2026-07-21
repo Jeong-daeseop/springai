@@ -30,13 +30,13 @@ public class EmployeeRepository {
         if (keyword == null || keyword.isBlank()) {
             return jdbcTemplate.query(
                 "SELECT EMPLYR_ID, USER_NM, EMAIL_ADRES, OFCPS_NM, MBTLNUM, EMPLYR_STTUS_CODE, ESNTL_ID " +
-                "FROM COMTNEMPLYRINFO ORDER BY USER_NM LIMIT 20",
+                "FROM LETTNEMPLYRINFO ORDER BY USER_NM LIMIT 20",
                 rowMapper);
         }
         String like = "%" + keyword + "%";
         return jdbcTemplate.query(
             "SELECT EMPLYR_ID, USER_NM, EMAIL_ADRES, OFCPS_NM, MBTLNUM, EMPLYR_STTUS_CODE, ESNTL_ID " +
-            "FROM COMTNEMPLYRINFO " +
+            "FROM LETTNEMPLYRINFO " +
             "WHERE USER_NM LIKE ? OR EMAIL_ADRES LIKE ? OR OFCPS_NM LIKE ? " +
             "ORDER BY USER_NM LIMIT 20",
             rowMapper, like, like, like);
@@ -45,14 +45,14 @@ public class EmployeeRepository {
     public EmployeeVO selectEmployee(String emplyrId) {
         List<EmployeeVO> list = jdbcTemplate.query(
             "SELECT EMPLYR_ID, USER_NM, EMAIL_ADRES, OFCPS_NM, MBTLNUM, EMPLYR_STTUS_CODE, ESNTL_ID " +
-            "FROM COMTNEMPLYRINFO WHERE EMPLYR_ID = ?",
+            "FROM LETTNEMPLYRINFO WHERE EMPLYR_ID = ?",
             rowMapper, emplyrId);
         return list.isEmpty() ? null : list.get(0);
     }
 
     public int insertEmployee(EmployeeVO vo) {
         return jdbcTemplate.update(
-            "INSERT INTO COMTNEMPLYRINFO " +
+            "INSERT INTO LETTNEMPLYRINFO " +
             "(EMPLYR_ID, USER_NM, EMAIL_ADRES, OFCPS_NM, MBTLNUM, EMPLYR_STTUS_CODE, ESNTL_ID, " +
             " PASSWORD, HOUSE_ADRES, PASSWORD_HINT, PASSWORD_CNSR, HOUSE_END_TELNO, HOUSE_MIDDLE_TELNO, AREA_NO, ZIP) " +
             "VALUES (?, ?, ?, ?, ?, 'A', ?, ?, '', '', '', '', '', '', '')",
@@ -61,7 +61,7 @@ public class EmployeeRepository {
     }
 
     public int updateEmployee(EmployeeVO vo) {
-        StringBuilder sql = new StringBuilder("UPDATE COMTNEMPLYRINFO SET ");
+        StringBuilder sql = new StringBuilder("UPDATE LETTNEMPLYRINFO SET ");
         var params = new java.util.ArrayList<>();
 
         if (vo.getUserNm() != null)     { sql.append("USER_NM=?, ");     params.add(vo.getUserNm()); }
@@ -77,6 +77,6 @@ public class EmployeeRepository {
     }
 
     public int deleteEmployee(String emplyrId) {
-        return jdbcTemplate.update("DELETE FROM COMTNEMPLYRINFO WHERE EMPLYR_ID=?", emplyrId);
+        return jdbcTemplate.update("DELETE FROM LETTNEMPLYRINFO WHERE EMPLYR_ID=?", emplyrId);
     }
 }

@@ -1,0 +1,19 @@
+{
+  "name": "jsp-to-figma-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/code.ts --bundle --outfile=dist/code.js",
+    "fixture:cleanup": "node scripts/create-cleanup-failure-fixture.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.7.1",
+    "fflate": "^0.8.2"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.117.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.0"
+  }
+}

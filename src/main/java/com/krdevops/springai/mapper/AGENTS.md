@@ -11,7 +11,7 @@ MyBatis 미사용 — Spring Boot 4.x 호환성으로 JdbcTemplate 사용.
 
 | File | Description |
 |------|-------------|
-| `EmployeeRepository.java` | `COMTNEMPLYRINFO` 테이블 CRUD — 직원 목록 조회, 단건 조회, 등록/수정/삭제 |
+| `EmployeeRepository.java` | `LETTNEMPLYRINFO` 테이블 CRUD — 직원 목록 조회, 단건 조회, 등록/수정/삭제 |
 | `GenerationHistoryRepository.java` | eGovFrame 코드 생성 이력 저장/조회 — 생성된 파일 경로, 테이블명, 타임스탬프 |
 
 ## For AI Agents
@@ -24,7 +24,7 @@ MyBatis 미사용 — Spring Boot 4.x 호환성으로 JdbcTemplate 사용.
 ### Common Patterns
 ```java
 // JdbcTemplate 조회 패턴
-jdbcTemplate.query("SELECT * FROM COMTNEMPLYRINFO WHERE EMPLYR_ID = ?",
+jdbcTemplate.query("SELECT * FROM LETTNEMPLYRINFO WHERE EMPLYR_ID = ?",
     ps -> ps.setString(1, emplyrId),
     (rs, rowNum) -> mapToVO(rs));
 ```

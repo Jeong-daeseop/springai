@@ -15,8 +15,8 @@
     ============================================================
     eGovFrame 4.3 Spring Security 설정
     구조: DelegatingFilterProxy → springSecurityFilterChain → DB 인증
-    인증: JDBC DB 기반 (COMTNEMPLYRINFO)
-    권한: ROLE 기반 (COMTNROLEINFO → URL 패턴 매칭)
+    인증: JDBC DB 기반 (LETTNEMPLYRINFO)
+    권한: ROLE 기반 (LETTNROLEINFO → URL 패턴 매칭)
     세션: Session 기반 유지 (공공 SI 레거시 호환)
     ============================================================
     -->
@@ -53,7 +53,7 @@
         <intercept-url pattern="/sym/ccm/zip/**"        access="IS_AUTHENTICATED_ANONYMOUSLY"/>
 
         <!-- 2-2. 나머지는 DB 기반 동적 접근 제어
-             EgovFilterInvocationSecurityMetadataSource 가 COMTNROLEINFO 로드 -->
+             EgovFilterInvocationSecurityMetadataSource 가 LETTNROLEINFO 로드 -->
 
         <!-- 2-3. 로그인 설정 -->
         <form-login
@@ -117,8 +117,8 @@
         <beans:property name="securityMetadataSource" ref="egovSecurityMetadataSource"/>
     </beans:bean>
 
-    <!-- 7. COMTNROLEINFO 기반 URL 패턴 로드
-         서버 시작 시 COMTNROLEINFO 전체 조회
+    <!-- 7. LETTNROLEINFO 기반 URL 패턴 로드
+         서버 시작 시 LETTNROLEINFO 전체 조회
          URL 패턴(ROLE_PTTRN) → 필요 ROLE(AUTHOR_CODE) Map 구성 -->
     <beans:bean id="egovSecurityMetadataSource"
         class="egovframework.rte.fdl.security.intercept.EgovReloadableFilterInvocationSecurityMetadataSource">

@@ -53,6 +53,6 @@ public class CodeSaverTool {
             return "valuesJson 파싱 실패: " + e.getMessage()
                 + "\n올바른 JSON 형식으로 전달하세요. 예: {\"PACKAGE\":\"...\",\"DOMAIN\":\"...\"}";
         }
-        return codeService.generateSource(layer, values);
+        return codeService.generateSourceDeprecationNotice();
     }
 }

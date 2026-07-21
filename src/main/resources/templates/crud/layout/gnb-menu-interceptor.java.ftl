@@ -54,6 +54,16 @@ public class EgovGnbMenuInterceptor implements HandlerInterceptor {
         if ("/error".equals(servletPath) || isSkipPath(servletPath)) {
             return;
         }
+        Object resolvedBbsId = modelAndView.getModel().get("resolvedBbsId");
+        if (request.getParameter("bbsId") == null && resolvedBbsId instanceof String value && !value.isBlank()) {
+            request.setAttribute("resolvedBbsId", value);
+        }
+        // 상세/등록/수정처럼 메뉴에 직접 등록되지 않은 화면도, Controller가 넘긴
+        // menuContextUrl(자신이 속한 목록 화면의 URL)로 같은 메뉴/LNB/브레드크럼 문맥을 찾는다.
+        Object menuContextUrl = modelAndView.getModel().get("menuContextUrl");
+        if (menuContextUrl instanceof String ctxUrl && !ctxUrl.isBlank()) {
+            request.setAttribute("menuContextUrl", ctxUrl);
+        }
 
         List<GnbMenuVO> gnbMenus;
         try {
@@ -111,7 +121,18 @@ public class EgovGnbMenuInterceptor implements HandlerInterceptor {
         if (matchesUrl(request, servletPath, menuUrl)) {
             return true;
         }
+        // menuContextUrl은 등록된 경우 LETTNPROGRMLIST 원본 URL을 쿼리스트링까지 그대로 담고
+        // 있다(등록이 없으면 canonical path). path만 비교하면 bbsId만 다르고 path는 같은
+        // 여러 게시판 메뉴(흔한 패턴)를 구분하지 못하므로, menuUrl과 정확히(쿼리 포함) 비교한다.
+        Object menuContextUrl = request.getAttribute("menuContextUrl");
+        if (menuContextUrl instanceof String ctxUrl && !ctxUrl.isBlank() && ctxUrl.equals(menuUrl)) {
+            return true;
+        }
         String requestBbsId = request.getParameter("bbsId");
+        if (requestBbsId == null) {
+            Object resolvedBbsId = request.getAttribute("resolvedBbsId");
+            requestBbsId = resolvedBbsId instanceof String value ? value : null;
+        }
         return requestBbsId != null && requestBbsId.equals(queryParameter(menuUrl, "bbsId"));
     }
 

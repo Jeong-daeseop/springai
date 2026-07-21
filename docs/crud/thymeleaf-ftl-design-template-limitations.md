@@ -6,6 +6,14 @@
 >
 > 참조 원본: `/Users/jeongdaeseob/Downloads/KRDS Design System/templates/`
 
+> **상태 안내 (2026-07-17):** 이 문서는 2026-07-01 당시의 한계 스냅샷이다. 이후 공통
+> 레이아웃/CSS, 모달·토스트, Board 공지·첨부·이전/다음, 공개여부 radio·글자수 카운터,
+> 공통 페이지당 건수 선택, MasterDetail 상태·일괄삭제 백엔드까지 구현됐다. 현재 상태와
+> 잔여 항목은 `thymeleaf-ftl-design-template-gap-analysis.md`의 구현 현황을 기준으로 한다.
+> 남은 핵심 기능은 승인된 코드 그룹을 사용하는 Board 카테고리 select, 기관별 저장 정책이
+> 필요한 파일 업로드, 브라우저 시각 회귀이다. CRUD·MasterDetail의 공통 화면 스코프,
+> KRDS 크기 modifier와 POST 폼 CSRF 계약도 2026-07-17 보완됐다.
+
 ## 결론
 
 현재 `CrudPromptBuilderTool` 계열 Thymeleaf FTL은 KRDS 클래스 기반 화면으로 전환되어 있지만,
@@ -249,4 +257,3 @@ MasterDetail 화면은 다음 `egov-*` 구조 클래스를 사용한다.
 4. MasterDetail 목록의 체크박스, 일괄 삭제, 상태 배지, 모달, 토스트를 추가한다.
 5. CRUD 일반형 목록/상세를 `FtcList`, `FtcDetail` 구조에 맞춰 재설계한다.
 6. 인라인 스타일 기반 Design Template과 클래스 기반 FTL 사이의 토큰/간격 차이를 시각 검증으로 조정한다.
-

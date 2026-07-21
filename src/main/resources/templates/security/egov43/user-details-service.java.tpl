@@ -14,8 +14,8 @@ import java.util.List;
 /**
  * eGovFrame 4.3 표준 UserDetailsService 구현체
  *
- * 사용자 조회: COMTNEMPLYRINFO (EMPLYR_ID, PASSWORD, LOCK_AT, EMPLYR_STTUS_CODE)
- * 권한 조회:  COMTNEMPLYRSCRTYESTBS → AUTHOR_CODE (ROLE_ADMIN, ROLE_USER 등)
+ * 사용자 조회: LETTNEMPLYRINFO (EMPLYR_ID, PASSWORD, LOCK_AT, EMPLYR_STTUS_CODE)
+ * 권한 조회:  LETTNEMPLYRSCRTYESTBS → AUTHOR_CODE (ROLE_ADMIN, ROLE_USER 등)
  *
  * EMPLYR_STTUS_CODE = 'ESC01' → 재직중 사용자만 인증
  *
@@ -35,10 +35,10 @@ public class EgovUserDetailsServiceImpl implements UserDetailsService {
     public UserDetails loadUserByUsername(String username)
             throws UsernameNotFoundException {
 
-        // 1. COMTNEMPLYRINFO 에서 사용자 조회 (재직중만)
+        // 1. LETTNEMPLYRINFO 에서 사용자 조회 (재직중만)
         List<java.util.Map<String, Object>> users = jdbcTemplate.queryForList(
             "SELECT EMPLYR_ID, PASSWORD, LOCK_AT " +
-            "FROM COMTNEMPLYRINFO " +
+            "FROM LETTNEMPLYRINFO " +
             "WHERE EMPLYR_ID = ? AND EMPLYR_STTUS_CODE = 'ESC01'",
             username
         );
@@ -52,10 +52,10 @@ public class EgovUserDetailsServiceImpl implements UserDetailsService {
         String  password = (String) user.get("PASSWORD");
         boolean locked   = "Y".equals(user.get("LOCK_AT"));
 
-        // 2. COMTNEMPLYRSCRTYESTBS 에서 권한(AUTHOR_CODE) 조회
+        // 2. LETTNEMPLYRSCRTYESTBS 에서 권한(AUTHOR_CODE) 조회
         List<GrantedAuthority> authorities = jdbcTemplate.query(
             "SELECT AUTHOR_CODE " +
-            "FROM COMTNEMPLYRSCRTYESTBS " +
+            "FROM LETTNEMPLYRSCRTYESTBS " +
             "WHERE SCRTY_DTRMN_TRGET_ID = ?",
             (rs, rowNum) ->
                 new SimpleGrantedAuthority(rs.getString("AUTHOR_CODE")),

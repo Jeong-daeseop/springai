@@ -28,7 +28,7 @@
                 <col>
             </colgroup>
             <tbody>
-<#list fields as f>
+<#list effectiveDetailFields as f>
             <tr>
                 <th scope="row">${f.comment}</th>
                 <td><c:out value="${'$'}{result.${f.javaName}}"/></td>
@@ -40,10 +40,10 @@
 
     <!-- 버튼 -->
     <div class="btn-area">
-        <a href="<c:url value='${urlPrefix}List.do'/>" class="krds-btn secondary medium">목록</a>
-        <a href="<c:url value='${urlPrefix}UpdtView.do'/>?<#list pkFields as p>${p.javaName}=${'$'}{result.${p.javaName}}<#sep>&</#sep></#list>"
+        <a href="<c:url value='${route.resolvedListPath()}'/>" class="krds-btn secondary medium">목록</a>
+        <a href="<c:url value='${route.resolvedUpdtViewPath()}'/>?<#list pkFields as p>${p.javaName}=${'$'}{result.${p.javaName}}<#sep>&</#sep></#list>"
            class="krds-btn primary medium">수정</a>
-        <form name="deleteForm" action="<c:url value='${urlPrefix}Delete.do'/>" method="post" class="egov-jsp-inline-form">
+        <form name="deleteForm" action="<c:url value='${route.resolvedDeletePath()}'/>" method="post" class="egov-jsp-inline-form">
 <#list pkFields as p>
             <input type="hidden" name="${p.javaName}" value="${'$'}{result.${p.javaName}}"/>
 </#list>

@@ -22,44 +22,97 @@ public class CodeService {
      * @deprecated text-block 치환 방식은 FreeMarker 전환으로 제거되었습니다.
      *             buildFullCrudPrompt(llmProvider="auto")를 사용하세요.
      */
-    @Deprecated
+    @Deprecated(forRemoval = true)
     public String generateSource(String layer, Map<String, String> values) {
+        return generateSourceDeprecationNotice();
+    }
+
+    public String generateSourceDeprecationNotice() {
         return "[DEPRECATED] generateSource()는 더 이상 지원되지 않습니다. "
             + "buildFullCrudPrompt(llmProvider=\"auto\")를 사용하세요.";
     }
 
     public String saveGeneratedCode(String filePath, String code) {
         try {
-            Path target = Paths.get(filePath);
-            if (target.isAbsolute()) {
-                target = target.normalize();
-                // 절대경로 allowlist: basePath, 그 부모(workspace root), 명시 allowedPaths 하위만 허용
-                // e.g., basePath=~/Desktop/egov-generated -> workspace=~/Desktop 까지 허용
-                Path basePath      = Paths.get(egovProperties.getOutput().getBasePath()).toAbsolutePath().normalize();
-                Path workspaceRoot = basePath.getParent();
-                boolean underBase      = target.startsWith(basePath);
-                boolean underWorkspace = workspaceRoot != null && target.startsWith(workspaceRoot);
-                boolean underAllowedPath = egovProperties.getOutput().getAllowedPaths().stream()
-                    .map(path -> Paths.get(path).toAbsolutePath().normalize())
-                    .anyMatch(target::startsWith);
-                if (!underBase && !underWorkspace && !underAllowedPath) {
-                    log.warn("허용 범위 밖 절대경로 차단: {}", filePath);
-                    return "파일 저장 실패: 허용 범위 밖 경로입니다 (egov.output.base-path, workspace 또는 allowed-paths 하위만 허용).";
-                }
-            } else {
-                // 상대경로: base-path 아래로 한정 (Path Traversal 방어)
-                Path base = Paths.get(egovProperties.getOutput().getBasePath()).toAbsolutePath().normalize();
-                target = base.resolve(filePath).normalize();
-                if (!target.startsWith(base)) {
-                    log.warn("Path Traversal 시도 차단: {}", filePath);
-                    return "파일 저장 실패: 허용 범위 밖 경로입니다.";
-                }
-            }
+            Path target = resolveAndValidateTarget(filePath);
             Files.createDirectories(target.getParent());
             Files.writeString(target, code);
             return "파일 저장 완료: " + target + " (" + code.length() + " chars)";
+        } catch (PathNotAllowedException e) {
+            return e.getMessage();
         } catch (IOException e) {
             return "파일 저장 실패: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 이미지 등 텍스트로 표현할 수 없는 바이너리 자산(로고 등)을 저장한다.
+     * 경로 검증(allowlist/Path Traversal 방어)은 saveGeneratedCode와 동일하게 적용된다.
+     */
+    public String saveGeneratedBinary(String filePath, byte[] content) {
+        try {
+            Path target = resolveAndValidateTarget(filePath);
+            Files.createDirectories(target.getParent());
+            Files.write(target, content);
+            return "파일 저장 완료: " + target + " (" + content.length + " bytes)";
+        } catch (PathNotAllowedException e) {
+            return e.getMessage();
+        } catch (IOException e) {
+            return "파일 저장 실패: " + e.getMessage();
+        }
+    }
+
+    /**
+     * 생성기 관리 대상 파일을 안전하게 삭제한다.
+     * 저장 API와 동일한 allowlist 및 Path Traversal 검증을 적용한다.
+     */
+    public String deleteGeneratedFile(String filePath) {
+        try {
+            Path target = resolveAndValidateTarget(filePath);
+            if (Files.deleteIfExists(target)) {
+                return "파일 삭제 완료: " + target;
+            }
+            return "파일 없음: " + target;
+        } catch (PathNotAllowedException e) {
+            return e.getMessage();
+        } catch (IOException e) {
+            return "파일 삭제 실패: " + e.getMessage();
+        }
+    }
+
+    private Path resolveAndValidateTarget(String filePath) throws PathNotAllowedException {
+        Path target = Paths.get(filePath);
+        if (target.isAbsolute()) {
+            target = target.normalize();
+            // 절대경로 allowlist: basePath, 그 부모(workspace root), 명시 allowedPaths 하위만 허용
+            // e.g., basePath=~/Desktop/egov-generated -> workspace=~/Desktop 까지 허용
+            Path basePath      = Paths.get(egovProperties.getOutput().getBasePath()).toAbsolutePath().normalize();
+            Path workspaceRoot = basePath.getParent();
+            boolean underBase      = target.startsWith(basePath);
+            boolean underWorkspace = workspaceRoot != null && target.startsWith(workspaceRoot);
+            boolean underAllowedPath = egovProperties.getOutput().getAllowedPaths().stream()
+                .map(path -> Paths.get(path).toAbsolutePath().normalize())
+                .anyMatch(target::startsWith);
+            if (!underBase && !underWorkspace && !underAllowedPath) {
+                log.warn("허용 범위 밖 절대경로 차단: {}", filePath);
+                throw new PathNotAllowedException(
+                    "파일 저장 실패: 허용 범위 밖 경로입니다 (egov.output.base-path, workspace 또는 allowed-paths 하위만 허용).");
+            }
+            return target;
+        }
+        // 상대경로: base-path 아래로 한정 (Path Traversal 방어)
+        Path base = Paths.get(egovProperties.getOutput().getBasePath()).toAbsolutePath().normalize();
+        target = base.resolve(filePath).normalize();
+        if (!target.startsWith(base)) {
+            log.warn("Path Traversal 시도 차단: {}", filePath);
+            throw new PathNotAllowedException("파일 저장 실패: 허용 범위 밖 경로입니다.");
+        }
+        return target;
+    }
+
+    private static final class PathNotAllowedException extends Exception {
+        PathNotAllowedException(String message) {
+            super(message);
         }
     }
 

@@ -24,32 +24,36 @@ class AuthServiceTest {
     @Mock
     private AuthRepository authRepository;
 
+    @Mock
+    private ProgramMetadataQueryService programMetadataQueryService;
+
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
         SqlDialectRenderer renderer = new SqlDialectRenderer(DbDialect.MYSQL_MARIADB);
+        lenient().when(programMetadataQueryService.firstExistingProgramTable()).thenReturn("LETTNPROGRMLIST");
         authService = new AuthService(authRepository, renderer, new AuthInputValidator(),
-                new AuthSqlBuilder(renderer), new AuthResultBuilder());
+                new AuthSqlBuilder(renderer), new AuthResultBuilder(), programMetadataQueryService);
     }
 
     @Test
-    void generateAuthInsertSql_정상입력_COMTNROLEINFO_SQL_포함() {
+    void generateAuthInsertSql_정상입력_LETTNROLEINFO_SQL_포함() {
         when(authRepository.findNextRoleNum(any())).thenReturn(42);
 
         String result = authService.generateAuthInsertSql("/emp/employer", "직원관리", "emp");
 
-        assertThat(result).contains("INSERT INTO COMTNROLEINFO");
+        assertThat(result).contains("INSERT INTO LETTNROLEINFO");
         assertThat(result).contains("web-000042");
     }
 
     @Test
-    void generateAuthInsertSql_정상입력_COMTNAUTHORROLERELATE_SQL_포함() {
+    void generateAuthInsertSql_정상입력_LETTNAUTHORROLERELATE_SQL_포함() {
         when(authRepository.findNextRoleNum(any())).thenReturn(1);
 
         String result = authService.generateAuthInsertSql("/emp/employer", "직원관리", "emp");
 
-        assertThat(result).contains("INSERT INTO COMTNAUTHORROLERELATE");
+        assertThat(result).contains("INSERT INTO LETTNAUTHORROLERELATE");
         assertThat(result).contains("ROLE_ADMIN");
     }
 
@@ -116,7 +120,7 @@ class AuthServiceTest {
 
     @Test
     void getProgramList_keyword_null_오류없이반환() {
-        when(authRepository.searchPrograms(isNull(), any())).thenReturn(List.of());
+        when(authRepository.searchPrograms(isNull(), any(), eq("LETTNPROGRMLIST"))).thenReturn(List.of());
 
         String result = authService.getProgramList(null);
 
@@ -149,7 +153,8 @@ class AuthServiceTest {
         when(authRepository.findNextRoleNum(any())).thenReturn(1);
         SqlDialectRenderer oracleRenderer = new SqlDialectRenderer(DbDialect.ORACLE);
         AuthService oracleService = new AuthService(authRepository, oracleRenderer,
-                new AuthInputValidator(), new AuthSqlBuilder(oracleRenderer), new AuthResultBuilder());
+                new AuthInputValidator(), new AuthSqlBuilder(oracleRenderer), new AuthResultBuilder(),
+                programMetadataQueryService);
 
         String result = oracleService.generateAuthInsertSql("/emp/employer", "직원관리", "emp");
 

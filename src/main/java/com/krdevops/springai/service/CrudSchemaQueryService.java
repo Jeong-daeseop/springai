@@ -49,4 +49,11 @@ public class CrudSchemaQueryService {
             database, tableName
         );
     }
+
+    public boolean tableExists(String database, String tableName) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?",
+                Integer.class, database, tableName);
+        return count != null && count > 0;
+    }
 }

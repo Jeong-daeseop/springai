@@ -59,13 +59,13 @@ XSD:  spring-beans.xsd (Spring 6 기반) — egov-security 네임스페이스 5.
         <!-- ⚠️ 프로젝트 테이블명/컬럼명으로 변경 필요 -->
         <property name="jdbcUsersByUsernameQuery"
             value="SELECT EMPLYR_ID, USER_NM, PASSWORD, 1 ENABLED, ORGNZT_ID
-                   FROM COMTNEMPLYRINFO WHERE EMPLYR_ID = ?"/>
+                   FROM LETTNEMPLYRINFO WHERE EMPLYR_ID = ?"/>
 
         <!-- ⑤ 권한 조회 SQL (반환 컬럼: username, authority) -->
         <!-- ⚠️ 프로젝트 테이블명/컬럼명으로 변경 필요 -->
         <property name="jdbcAuthoritiesByUsernameQuery"
             value="SELECT A.SCRTY_DTRMN_TRGET_ID USER_ID, A.AUTHOR_CODE AUTHORITY
-                   FROM COMTNEMPLYRSCRTYESTBS A, COMTNEMPLYRINFO B
+                   FROM LETTNEMPLYRSCRTYESTBS A, LETTNEMPLYRINFO B
                    WHERE A.SCRTY_DTRMN_TRGET_ID = B.EMPLYR_ID AND B.EMPLYR_ID = ?"/>
 
         <!-- ⑥ ResultSet → LoginVO → EgovUserDetails 변환 클래스 -->
@@ -126,29 +126,29 @@ XSD:  spring-beans.xsd (Spring 6 기반) — egov-security 네임스페이스 5.
         <!-- ⚠️ 프로젝트 테이블명/컬럼명으로 변경 필요 -->
         <property name="sqlRolesAndUrl"
             value="SELECT a.ROLE_PTTRN url, b.AUTHOR_CODE authority
-                   FROM COMTNROLEINFO a, COMTNAUTHORROLERELATE b
+                   FROM LETTNROLEINFO a, LETTNAUTHORROLERELATE b
                    WHERE a.ROLE_CODE = b.ROLE_CODE AND a.ROLE_TY = 'url'
                    ORDER BY a.ROLE_SORT"/>
 
         <!-- ⑭ 메서드 권한 매핑 SQL (supportMethod=true인 경우) -->
         <property name="sqlRolesAndMethod"
             value="SELECT a.ROLE_PTTRN method, b.AUTHOR_CODE authority
-                   FROM COMTNROLEINFO a, COMTNAUTHORROLERELATE b
+                   FROM LETTNROLEINFO a, LETTNAUTHORROLERELATE b
                    WHERE a.ROLE_CODE = b.ROLE_CODE AND a.ROLE_TY = 'method'
                    ORDER BY a.ROLE_SORT"/>
 
         <!-- ⑮ 포인트컷 권한 매핑 SQL (supportPointcut=true인 경우) -->
         <property name="sqlRolesAndPointcut"
             value="SELECT a.ROLE_PTTRN pointcut, b.AUTHOR_CODE authority
-                   FROM COMTNROLEINFO a, COMTNAUTHORROLERELATE b
+                   FROM LETTNROLEINFO a, LETTNAUTHORROLERELATE b
                    WHERE a.ROLE_CODE = b.ROLE_CODE AND a.ROLE_TY = 'pointcut'
                    ORDER BY a.ROLE_SORT"/>
 
         <!-- ⑯ ROLE 계층 SQL -->
         <property name="sqlHierarchicalRoles"
             value="SELECT a.CHLDRN_ROLE child, a.PARNTS_ROLE parent
-                   FROM COMTNROLES_HIERARCHY a
-                   LEFT JOIN COMTNROLES_HIERARCHY b ON (a.CHLDRN_ROLE = b.PARNTS_ROLE)"/>
+                   FROM LETTNROLES_HIERARCHY a
+                   LEFT JOIN LETTNROLES_HIERARCHY b ON (a.CHLDRN_ROLE = b.PARNTS_ROLE)"/>
 
         <!-- ⑰ 메서드/포인트컷 보안 활성화 -->
         <property name="supportMethod"

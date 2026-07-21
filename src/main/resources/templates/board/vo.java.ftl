@@ -26,9 +26,10 @@ public class ${domain}VO extends ${domain}SearchVO {
 
 <#list fields as f>
     /** ${f.comment} */
-<#if f.required && f.stringType>
+<#-- nttId는 Service의 ID 생성기가 등록 시 채우므로 요청 Bean Validation 대상에서 제외한다. -->
+<#if f.required && f.javaName != nttId.javaName && f.stringType>
     @NotBlank
-<#elseif f.required && !f.stringType>
+<#elseif f.required && f.javaName != nttId.javaName && !f.stringType>
     @NotNull
 </#if>
 <#if f.maxLength??>
@@ -37,7 +38,12 @@ public class ${domain}VO extends ${domain}SearchVO {
     private ${f.javaType} ${f.javaName};
 
 </#list>
-    /** 게시판명 (COMTNBBSMASTER.BBS_NM 조인 표시용) */
+<#list queryContract.displayFields() as f>
+    /** ${f.comment} (화면명세 JOIN/공통코드 표시 필드) */
+    private ${f.javaType} ${f.javaName};
+
+</#list>
+    /** 게시판명 (LETTNBBSMASTER.BBS_NM 조인 표시용) */
     private String bbsNm;
 
 }

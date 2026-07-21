@@ -1,0 +1,11 @@
+{
+  "packageVersion": "figpack-v1",
+  "mimeType": "application/vnd.springai.figpack+zip",
+  "captureId": "11111111-1111-4111-8111-111111111111",
+  "documentKey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "contentHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "entries": [
+    {"path": "document.json", "byteLength": 100, "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
+    {"path": "preview.png", "byteLength": 100, "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}
+  ]
+}

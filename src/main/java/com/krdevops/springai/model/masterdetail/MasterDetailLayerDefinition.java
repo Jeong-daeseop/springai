@@ -39,7 +39,8 @@ public record MasterDetailLayerDefinition(
             COMMON_LAYERS,
             new MasterDetailLayerDefinition("jspList",   "master", "List.jsp",   "src/main/webapp/WEB-INF/jsp/{DOMAIN_LC}/"),
             new MasterDetailLayerDefinition("jspDetail", "master", "Detail.jsp", "src/main/webapp/WEB-INF/jsp/{DOMAIN_LC}/"),
-            new MasterDetailLayerDefinition("jspRegist", "master", "Regist.jsp", "src/main/webapp/WEB-INF/jsp/{DOMAIN_LC}/")
+            new MasterDetailLayerDefinition("jspRegist", "master", "Regist.jsp", "src/main/webapp/WEB-INF/jsp/{DOMAIN_LC}/"),
+            new MasterDetailLayerDefinition("jspUpdt",   "master", "Updt.jsp",   "src/main/webapp/WEB-INF/jsp/{DOMAIN_LC}/")
     );
 
     public static final List<MasterDetailLayerDefinition> THYMELEAF_LAYERS = concat(
@@ -51,7 +52,8 @@ public record MasterDetailLayerDefinition(
             new MasterDetailLayerDefinition("layoutFooterHtml", "layout", "layout/footer.html", "src/main/resources/templates/"),
             new MasterDetailLayerDefinition("thymeleafList",   "master", "List.html",           "src/main/resources/templates/{DOMAIN_LC}/"),
             new MasterDetailLayerDefinition("thymeleafDetail", "master", "Detail.html",         "src/main/resources/templates/{DOMAIN_LC}/"),
-            new MasterDetailLayerDefinition("thymeleafRegist", "master", "Regist.html",         "src/main/resources/templates/{DOMAIN_LC}/")
+            new MasterDetailLayerDefinition("thymeleafRegist", "master", "Regist.html",         "src/main/resources/templates/{DOMAIN_LC}/"),
+            new MasterDetailLayerDefinition("thymeleafUpdt",   "master", "Updt.html",           "src/main/resources/templates/{DOMAIN_LC}/")
     );
 
     public static List<MasterDetailLayerDefinition> forViewType(CrudViewType viewType) {

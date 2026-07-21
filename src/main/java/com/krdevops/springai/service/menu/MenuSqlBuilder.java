@@ -16,14 +16,15 @@ public class MenuSqlBuilder {
 
     private final SqlDialectRenderer renderer;
 
-    public SqlPlan build(MenuRegistrationSpec spec, BigDecimal nextMenuNo, BigDecimal nextMenuOrdr) {
+    public SqlPlan build(MenuRegistrationSpec spec, BigDecimal nextMenuNo, BigDecimal nextMenuOrdr,
+                          String menuTable, String programTable) {
         String url = spec.urlPrefix() + "/" + spec.progrmFileNm() + ".do";
         String stre = spec.urlPrefix() + "/";
 
         List<String> statements = new ArrayList<>();
 
-        statements.add(buildProgramSql(spec, url, stre));
-        statements.add(buildMenuSql(spec, nextMenuNo, nextMenuOrdr, url));
+        statements.add(buildProgramSql(spec, url, stre, programTable));
+        statements.add(buildMenuSql(spec, nextMenuNo, nextMenuOrdr, url, menuTable));
 
         List<String> warnings = new ArrayList<>();
         warnings.add("※ MENU_NO(" + nextMenuNo + "), MENU_ORDR(" + nextMenuOrdr + ")는 SQL 생성 시점 기준입니다. 실행 전 중복 여부를 재확인하세요.");
@@ -39,9 +40,9 @@ public class MenuSqlBuilder {
         return new SqlPlan("메뉴/프로그램 등록 SQL", statements, warnings, nextSteps);
     }
 
-    private String buildProgramSql(MenuRegistrationSpec spec, String url, String stre) {
-        // 스키마: COMTNPROGRMLIST (PROGRM_FILE_NM, PROGRM_STRE_PATH, PROGRM_KOREAN_NM, PROGRM_DC, URL)
-        return "INSERT INTO COMTNPROGRMLIST (" +
+    private String buildProgramSql(MenuRegistrationSpec spec, String url, String stre, String programTable) {
+        // 스키마: LETTNPROGRMLIST (PROGRM_FILE_NM, PROGRM_STRE_PATH, PROGRM_KOREAN_NM, PROGRM_DC, URL)
+        return "INSERT INTO " + programTable + " (" +
                 "PROGRM_FILE_NM, PROGRM_STRE_PATH, PROGRM_KOREAN_NM, PROGRM_DC, URL) VALUES (" +
                 "'" + esc(spec.progrmFileNm()) + "', " +
                 "'" + esc(stre) + "', " +
@@ -51,10 +52,10 @@ public class MenuSqlBuilder {
     }
 
     private String buildMenuSql(MenuRegistrationSpec spec, BigDecimal nextMenuNo,
-                                 BigDecimal nextMenuOrdr, String url) {
-        // 스키마: COMTNMENUINFO (MENU_NO, UPPER_MENU_NO, MENU_NM, PROGRM_FILE_NM, MENU_ORDR)
+                                 BigDecimal nextMenuOrdr, String url, String menuTable) {
+        // 스키마: LETTNMENUINFO (MENU_NO, UPPER_MENU_NO, MENU_NM, PROGRM_FILE_NM, MENU_ORDR)
         // URL 컬럼 없음 — PROGRM_FILE_NM으로 프로그램 연결
-        return "INSERT INTO COMTNMENUINFO (" +
+        return "INSERT INTO " + menuTable + " (" +
                 "MENU_NO, UPPER_MENU_NO, MENU_NM, PROGRM_FILE_NM, MENU_ORDR) VALUES (" +
                 nextMenuNo + ", " +
                 spec.upperMenuNo() + ", " +

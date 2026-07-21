@@ -3,6 +3,7 @@ package com.krdevops.springai.service;
 import com.krdevops.springai.exception.CrudTemplateRenderException;
 import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
+import com.krdevops.springai.policy.SensitiveFieldPolicy;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
@@ -224,6 +225,7 @@ public class CrudTemplateRenderer {
         data.put("domainKr",          model.domainKr());
         data.put("tableName",         model.tableName());
         data.put("urlPrefix",         model.urlPrefix());
+        data.put("route",             model.route());
         data.put("date",              model.date());
         data.put("egovVersion",       model.egovVersion());
         data.put("jakartaValidation", model.jakartaValidation());
@@ -231,8 +233,17 @@ public class CrudTemplateRenderer {
         data.put("pkFields",          model.pkFields());
         data.put("fields",            model.fields());
         data.put("listFields",        model.listFields());
+        data.put("detailFields",      model.detailFields());
+        data.put("effectiveDetailFields", model.detailFields() == null
+                ? SensitiveFieldPolicy.filterDisplayFields(model.fields())
+                : model.detailFields());
+        data.put("layoutDensity",     model.layoutDensity());
+        data.put("formColumnLayout",  model.formColumnLayout());
+        data.put("actionPlacement",   model.actionPlacement());
+        data.put("searchPanelPlacement", model.searchPanelPlacement());
         data.put("nonPkFields",       model.nonPkFields());
         data.put("formFields",        model.formFields());
+        data.put("queryContract",     model.queryContract());
         data.put("layoutView",        layoutView);
         data.put("breadcrumbView",    breadcrumbView);
         data.put("layoutBasePath",    layoutBasePath);

@@ -2,7 +2,11 @@ package com.krdevops.springai.service;
 
 import com.krdevops.springai.model.crud.CrudLayerDefinition;
 import com.krdevops.springai.model.crud.CrudLayoutMode;
+import com.krdevops.springai.model.crud.CrudProgramMetadata;
 import com.krdevops.springai.model.crud.CrudViewType;
+import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.model.design.FieldSelectionSource;
+import com.krdevops.springai.policy.SensitiveFieldPolicy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,10 +25,11 @@ public class CrudPromptBuilderService {
     private final CommonCodeService commonCodeService;
     private final EgovPromptBuilder promptBuilder;
     private final CrudSchemaQueryService crudSchemaQueryService;
+    private final ScreenSpecificationPromptFormatter screenSpecificationPromptFormatter;
 
     /**
-     * 플레이스홀더 치환에 필요한 모든 값을 담는 레코드.
-     * auto 모드에서 CodeService.generateSource() 호출 시 재사용합니다.
+     * Claude 프롬프트의 레거시 플레이스홀더 계약과 스키마 설명에 필요한 값을 담는 레코드.
+     * auto 모드는 이 Map 치환 경로가 아니라 CrudModelFactory와 FreeMarker renderer를 사용합니다.
      */
     public record PlaceholderValues(
         String packageName,
@@ -49,7 +54,7 @@ public class CrudPromptBuilderService {
         String jspDetailRows,
         String jspFormInputs
     ) {
-        /** Map 형태로 변환 — CodeService.generateSource(layer, values) 에 그대로 전달합니다. */
+        /** 기존 Java 호출자의 플레이스홀더 계약 호환을 위한 Map 변환. */
         public Map<String, String> toMap() {
             Map<String, String> map = new LinkedHashMap<>();
             map.put("PACKAGE",            packageName);
@@ -124,6 +129,9 @@ public class CrudPromptBuilderService {
         String validationImport = isJakarta
             ? "import jakarta.validation.constraints.NotBlank;\nimport jakarta.validation.constraints.NotNull;\nimport jakarta.validation.constraints.Size;"
             : "import javax.validation.constraints.NotBlank;\nimport javax.validation.constraints.NotNull;\nimport javax.validation.constraints.Size;";
+        List<Map<String, Object>> safeDetailColumns = columns.stream()
+                .filter(column -> !isSensitiveDisplayColumn(column))
+                .toList();
 
         return new PlaceholderValues(
             packageName,
@@ -145,7 +153,7 @@ public class CrudPromptBuilderService {
             buildResultMapFields(columns, packageName, domain),
             buildJspListTh(columns),
             buildJspListTd(columns, pkField),
-            buildJspDetailRows(columns),
+            buildJspDetailRows(safeDetailColumns),
             buildJspFormInputs(columns, pkColumn)
         );
     }
@@ -172,6 +180,35 @@ public class CrudPromptBuilderService {
                                       String domain, String packageName, String outputPath,
                                       String egovVersion, String viewType,
                                       String layoutMode, String layoutView, String breadcrumbView) {
+        return buildFullCrudPrompt(database, tableName, domain, packageName, outputPath, egovVersion, viewType,
+                layoutMode, layoutView, breadcrumbView, CrudProgramMetadata.fallback(null));
+    }
+
+    /**
+     * llmProvider="claude" 경로에서도 auto 모드(CrudOrchestrationService)와 동일한
+     * LETTNPROGRMLIST 메타데이터를 반영한다 — 화면 한글명과 GET 등록 URL(list/detail/registView/updtView)을
+     * 프롬프트에 포함해 Claude가 수작업으로 만드는 Controller도 동일한 alias를 갖도록 안내한다.
+     */
+    public String buildFullCrudPrompt(String database, String tableName,
+                                      String domain, String packageName, String outputPath,
+                                      String egovVersion, String viewType,
+                                      String layoutMode, String layoutView, String breadcrumbView,
+                                      CrudProgramMetadata metadata) {
+        return buildFullCrudPrompt(database, tableName, domain, packageName, outputPath,
+                egovVersion, viewType, layoutMode, layoutView, breadcrumbView, metadata, null);
+    }
+
+    public String buildFullCrudPrompt(String database, String tableName,
+                                      String domain, String packageName, String outputPath,
+                                      String egovVersion, String viewType,
+                                      String layoutMode, String layoutView, String breadcrumbView,
+                                      CrudProgramMetadata metadata,
+                                      ScreenSpecification screenSpecification) {
+        CrudProgramMetadata md =
+                metadata == null ? CrudProgramMetadata.fallback(null) : metadata;
+        if (md.blocksGeneration()) {
+            return "프로그램 메타데이터 검증 실패: " + md.message();
+        }
         CrudViewType resolvedViewType = CrudViewType.from(viewType);
         CrudLayoutMode resolvedLayoutMode = resolvedViewType == CrudViewType.THYMELEAF
                 ? CrudLayoutMode.from(layoutMode)
@@ -191,6 +228,28 @@ public class CrudPromptBuilderService {
         // 3. 통합 프롬프트 조립
         StringBuilder sb = new StringBuilder();
         sb.append("=== eGovFrame 5.x CRUD 전체 소스 생성 지시 ===\n\n");
+        if (screenSpecification != null) {
+            sb.append(screenSpecificationPromptFormatter.format(screenSpecification)).append('\n');
+            boolean detailSubsetRequested = screenSpecification.pages().stream()
+                    .filter(page -> "detail".equalsIgnoreCase(page.id()))
+                    .findFirst()
+                    .map(page -> page.selectionSource() != FieldSelectionSource.DEFAULT)
+                    .orElse(false);
+            if (resolvedViewType == CrudViewType.JSP && detailSubsetRequested) {
+                sb.append("[호환성 경고]\n")
+                        .append("- JSP 생성에서는 detail 화면 필드 subset을 지원하지 않아 표준 상세 필드를 사용합니다.\n\n");
+            }
+        }
+        List<String> excludedDetailColumns = columns.stream()
+                .filter(this::isSensitiveDisplayColumn)
+                .map(column -> String.valueOf(column.get("COLUMN_NAME")))
+                .toList();
+        if (!excludedDetailColumns.isEmpty()) {
+            sb.append("[상세 화면 민감정보 제외 계약]\n");
+            sb.append("- 상세 화면에는 다음 필드를 표시하지 마세요: ")
+                    .append(String.join(", ", excludedDetailColumns)).append("\n");
+            sb.append("- JSP와 Thymeleaf 모두 동일하며, VO/Mapper/등록·수정 폼의 스키마 필드는 유지하세요.\n\n");
+        }
 
         sb.append("[테이블 정보]\n");
         sb.append("  DB        : ").append(database).append("\n");
@@ -202,7 +261,10 @@ public class CrudPromptBuilderService {
         sb.append("  {{PACKAGE}}           = ").append(pv.packageName()).append("\n");
         sb.append("  {{DOMAIN}}            = ").append(pv.domain()).append("\n");
         sb.append("  {{DOMAIN_LC}}         = ").append(pv.domainLc()).append("\n");
-        sb.append("  {{DOMAIN_KR}}         = ").append(pv.domainKr()).append("\n");
+        String resolvedDomainKr = md.programKoreanName() != null
+                ? com.krdevops.springai.util.CrudMappingUtils.stripScreenTypeSuffix(md.programKoreanName())
+                : pv.domainKr();
+        sb.append("  {{DOMAIN_KR}}         = ").append(resolvedDomainKr).append("\n");
         sb.append("  {{TABLE_NAME}}        = ").append(pv.tableName()).append("\n");
         sb.append("  {{PK_FIELD}}          = ").append(pv.pkField()).append("\n");
         sb.append("  {{PK_COLUMN}}         = ").append(pv.pkColumn()).append("\n");
@@ -224,6 +286,31 @@ public class CrudPromptBuilderService {
         if (!commonCodeSection.isEmpty()) {
             sb.append("[공통 코드 참조]\n").append(commonCodeSection).append("\n");
         }
+
+        if (!md.registeredPathByRole().isEmpty()) {
+            sb.append("[LETTNPROGRMLIST 등록 URL — Controller에 추가 alias로 포함하세요]\n");
+            sb.append("  GNB/LNB 메뉴가 클릭하는 실제 URL이므로, canonical URL({{URL_PREFIX}}+화면)을 ");
+            sb.append("주 매핑으로 유지한 채 아래 URL을 같은 GET 핸들러의 @GetMapping({...}) 배열에 추가하세요:\n");
+            appendRegisteredRole(sb, md, CrudProgramMetadataService.ROLE_LIST, "목록(List)");
+            appendRegisteredRole(sb, md, CrudProgramMetadataService.ROLE_DETAIL, "상세(Detail)");
+            appendRegisteredRole(sb, md, CrudProgramMetadataService.ROLE_REGIST_VIEW, "등록화면(RegistView)");
+            appendRegisteredRole(sb, md, CrudProgramMetadataService.ROLE_UPDT_VIEW, "수정화면(UpdtView)");
+            sb.append("  (등록/수정/삭제 처리 URL은 POST 전용이라 DB 등록 URL을 그대로 alias로 붙이지 않습니다.)\n\n");
+        }
+
+        String menuContextUrlValue = md.registeredListUrl() != null
+                ? md.registeredListUrl() : pv.urlPrefix() + "List.do";
+        sb.append("[메뉴 문맥 유지 — auto 모드(CrudOrchestrationService)와 동일하게 구현하세요]\n");
+        sb.append("  목록 화면만 LETTNMENUINFO에 등록되고 상세/등록/수정 화면은 등록되지 않는 경우가 ");
+        sb.append("일반적입니다. EgovGnbMenuInterceptor가 LNB/브레드크럼을 채울 때 이 화면들도 목록의 ");
+        sb.append("메뉴 문맥을 쓰도록, 뷰를 반환하는 모든 핸들러에서 아래 두 model 속성을 반드시 채우세요:\n");
+        sb.append("  - menuContextUrl : 이 화면이 속한 목록 화면의 최종 URL. 우선순위는 다음과 같습니다 — ");
+        sb.append("(1) LETTNPROGRMLIST에 목록 프로그램이 등록돼 있으면 그 원본 URL을 쿼리스트링까지 ");
+        sb.append("그대로(예: \"...?bbsId=BBS_NOTICE\") 사용하세요 — path만 쓰면 같은 path에 bbsId만 다른 ");
+        sb.append("여러 게시판 메뉴(흔한 패턴)를 구분하지 못합니다. (2) 등록이 없으면 canonical list path만 ");
+        sb.append("(쿼리스트링 없이) 사용하세요. 이 화면의 값: \"").append(menuContextUrlValue).append("\"\n");
+        sb.append("  - currentPageSuffix : 화면 종류 — 목록/상세/등록/수정 (인터셉터가 프로그램 한글명 ");
+        sb.append("뒤에 붙여 브레드크럼 마지막 항목을 만듭니다, 예: \"공지사항 상세\")\n\n");
 
         sb.append(promptBuilder.crudConstraints());
         appendViewTypeInstruction(sb, resolvedViewType, resolvedLayoutMode, resolvedLayoutView, resolvedBreadcrumbView);
@@ -257,6 +344,13 @@ public class CrudPromptBuilderService {
 
         log.info("CRUD 프롬프트 빌드 완료: table={}, domain={}", tableName, domain);
         return sb.toString();
+    }
+
+    private void appendRegisteredRole(StringBuilder sb, CrudProgramMetadata metadata, String role, String label) {
+        String path = metadata.registeredPath(role);
+        if (path != null) {
+            sb.append("    - ").append(label).append(": ").append(path).append("\n");
+        }
     }
 
     private void appendViewTypeInstruction(
@@ -416,6 +510,13 @@ public class CrudPromptBuilderService {
         return sb.toString();
     }
 
+    private boolean isSensitiveDisplayColumn(Map<String, Object> column) {
+        Object raw = column.get("COLUMN_NAME");
+        if (raw == null) raw = column.get("column_name");
+        String columnName = raw == null ? null : raw.toString();
+        return SensitiveFieldPolicy.isSensitiveDisplayField(toCamelCase(columnName), columnName);
+    }
+
     private String buildJspFormInputs(List<Map<String, Object>> columns, String pkColumn) {
         StringBuilder sb = new StringBuilder();
         for (Map<String, Object> col : columns) {
@@ -434,11 +535,11 @@ public class CrudPromptBuilderService {
     }
 
     private String buildCommonCodeSection(List<Map<String, Object>> columns) {
-        // COMTCCMMNCODE 전체를 1회만 조회하여 Map으로 캐싱 (N회 쿼리 → 1회)
+        // LETTCCMMNCODE 전체를 1회만 조회하여 Map으로 캐싱 (N회 쿼리 → 1회)
         Map<String, String> codeIdMap;
         try {
             codeIdMap = jdbcTemplate.queryForList(
-                "SELECT CODE_ID, CODE_ID_NM FROM COMTCCMMNCODE"
+                "SELECT CODE_ID, CODE_ID_NM FROM LETTCCMMNCODE"
             ).stream().collect(Collectors.toMap(
                 r -> (String) r.get("CODE_ID"),
                 r -> r.get("CODE_ID_NM") != null ? (String) r.get("CODE_ID_NM") : "",
@@ -523,6 +624,6 @@ public class CrudPromptBuilderService {
 
     private String extractKoreanName(String tableName) {
         // 테이블명에서 도메인 힌트 추출 (기본값 반환)
-        return tableName.replace("COMTN", "").replace("COMTS", "").replace("COMTC", "");
+        return tableName.replace("LETTN", "").replace("LETTS", "").replace("LETTC", "");
     }
 }

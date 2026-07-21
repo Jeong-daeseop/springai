@@ -191,6 +191,10 @@ public class BoardTemplateRenderer {
         data.put("formFields",          model.formFields());
         data.put("searchFields",        model.searchFields());
         data.put("noticeAtExists",      model.noticeAtExists());
+        data.put("queryContract",       model.queryContract());
+        data.put("display",             model.display());
+        data.put("route",               model.route());
+        data.put("displayName",         model.display().displayName());
         data.put("layoutView",          layoutView);
         data.put("breadcrumbView",      breadcrumbView);
         data.put("layoutBasePath",      layoutBasePath);

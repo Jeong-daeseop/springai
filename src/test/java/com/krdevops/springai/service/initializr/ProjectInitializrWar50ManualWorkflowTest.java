@@ -175,7 +175,7 @@ class ProjectInitializrWar50ManualWorkflowTest {
                 .toList();
 
         assertThat(paths).contains(
-                "src/main/webapp/index.html",
+                "src/main/webapp/index.jsp",
                 "src/main/resources/templates/egovframework/main/main.html",
                 "src/main/resources/templates/layout/default.html",
                 "src/main/resources/templates/layout/gnb.html",
@@ -184,7 +184,7 @@ class ProjectInitializrWar50ManualWorkflowTest {
                 "src/main/resources/templates/layout/footer.html"
         );
         assertThat(paths).doesNotContain(
-                "src/main/webapp/index.jsp",
+                "src/main/webapp/index.html",
                 "src/main/webapp/WEB-INF/jsp/egovframework/main/main.jsp"
         );
 
@@ -227,7 +227,7 @@ class ProjectInitializrWar50ManualWorkflowTest {
                 "egov-footer-bottom"
         );
 
-        assertThat(new WebXmlBuilder().build(spec)).contains("<welcome-file>index.html</welcome-file>");
+        assertThat(new WebXmlBuilder().build(spec)).contains("<welcome-file>index.jsp</welcome-file>");
         assertThat(new DispatcherServletBuilder().build(spec)).contains("ThymeleafViewResolver");
         assertThat(new WarBuildGradleBuilder().build(ProjectSpec.of(
                 "sample-war", "egovframework.let", "sample-war", "egovframework.let.sample",

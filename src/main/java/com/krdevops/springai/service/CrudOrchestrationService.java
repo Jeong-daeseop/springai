@@ -1,9 +1,16 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.model.crud.CrudGenerationOptions;
 import com.krdevops.springai.model.crud.CrudLayerDefinition;
 import com.krdevops.springai.model.crud.CrudLayoutMode;
+import com.krdevops.springai.model.crud.CrudProgramMetadata;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
 import com.krdevops.springai.model.crud.CrudViewType;
+import com.krdevops.springai.model.crud.ScreenSubsetMode;
+import com.krdevops.springai.model.design.FieldSelectionSource;
+import com.krdevops.springai.model.design.FormColumnLayout;
+import com.krdevops.springai.model.design.LayoutDensity;
+import com.krdevops.springai.model.design.ScreenSpecification;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +39,13 @@ public class CrudOrchestrationService {
     private final GenerationHistoryService generationHistoryService;
     private final ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
     private final ThymeleafLayoutValidator thymeleafLayoutValidator;
+    private final CrudProgramMetadataService crudProgramMetadataService;
+    private final BoardRouteCollisionDetector routeCollisionDetector;
+    private final MyBatisRuntimeConfigurer myBatisRuntimeConfigurer;
+    private final WarEntryPointConfigurer warEntryPointConfigurer;
+    private final GenerationDesignContextService generationDesignContextService;
+    private final GeneratedCodeContractAuditor generatedCodeContractAuditor;
+    private final KrdsStylesConfigurer krdsStylesConfigurer;
 
     /**
      * 지정 테이블의 CRUD 소스를 viewType별 레이어 수(JSP: 11개, Thymeleaf: 16개)만큼 생성·저장하고 결과를 반환한다.
@@ -59,6 +73,18 @@ public class CrudOrchestrationService {
             String domain, String packageName,
             String outputPath, String egovVersion, String viewType,
             String layoutMode, String layoutView, String breadcrumbView) {
+        return orchestrate(database, tableName, domain, packageName, outputPath, egovVersion, viewType,
+                layoutMode, layoutView, breadcrumbView, CrudGenerationOptions.empty());
+    }
+
+    public CrudOrchestrationResult orchestrate(
+            String database, String tableName,
+            String domain, String packageName,
+            String outputPath, String egovVersion, String viewType,
+            String layoutMode, String layoutView, String breadcrumbView,
+            CrudGenerationOptions options) {
+
+        CrudGenerationOptions resolvedOptions = options == null ? CrudGenerationOptions.empty() : options;
 
         CrudViewType resolvedViewType = CrudViewType.from(viewType);
         CrudLayoutMode resolvedLayoutMode = resolvedViewType == CrudViewType.THYMELEAF
@@ -87,8 +113,44 @@ public class CrudOrchestrationService {
         }
         String pkgSub = packageName
                 .replace("egovframework.let.", "").replace(".", "/");
-        CrudTemplateModel model =
-                crudModelFactory.fromSchema(tableName, domain, packageName, egovVersion, rawColumns);
+
+        CrudProgramMetadata metadata = crudProgramMetadataService.resolve(database, domain, tableName, resolvedOptions);
+        List<String> warnings = new ArrayList<>();
+        if (metadata.message() != null) warnings.add(metadata.message());
+        if (metadata.blocksGeneration()) {
+            return new CrudOrchestrationResult(false, database, tableName, domain, outputPath,
+                    List.of(), List.of(metadata.message()), "메타데이터 검증 실패", "",
+                    metadata.menuIntegrationStatus(), metadata.programKoreanName(), null, null, warnings);
+        }
+
+        ScreenSpecification screenSpecification = generationDesignContextService.resolve(
+                database, tableName, metadata.programKoreanName(), "crud",
+                resolvedOptions.designReferenceId(), resolvedOptions.screenSpecificationId());
+        ScreenSubsetMode subsetMode = resolvedViewType == CrudViewType.THYMELEAF
+                ? ScreenSubsetMode.LIST_AND_DETAIL : ScreenSubsetMode.LIST_ONLY;
+        CrudTemplateModel model = crudModelFactory.fromSchema(
+                tableName, domain, packageName, egovVersion, rawColumns, metadata,
+                resolvedViewType, subsetMode, screenSpecification);
+
+        boolean detailSubsetRequested = screenSpecification != null
+                && screenSpecification.pages().stream()
+                        .filter(page -> "detail".equalsIgnoreCase(page.id()))
+                        .findFirst()
+                        .map(page -> page.selectionSource() != FieldSelectionSource.DEFAULT)
+                        .orElse(false);
+        if (resolvedViewType == CrudViewType.JSP && detailSubsetRequested) {
+            warnings.add("JSP 생성에서는 detail 화면 필드 subset을 지원하지 않아 표준 상세 필드를 사용합니다.");
+        }
+
+        Map<String, String> aliasConflicts = checkAliasConflicts(
+                model, domain, outputPath, pkgSub, resolvedViewType);
+        if (!aliasConflicts.isEmpty()) {
+            String message = "Controller URL alias 충돌(ambiguous mapping 위험): " + aliasConflicts;
+            return new CrudOrchestrationResult(false, database, tableName, domain, outputPath,
+                    List.of(), List.of(message), "URL 검증 실패", "",
+                    metadata.menuIntegrationStatus(), metadata.programKoreanName(),
+                    model.route().registeredListPath(), model.route().canonicalListPath(), warnings);
+        }
 
         if (resolvedViewType == CrudViewType.THYMELEAF && resolvedLayoutMode == CrudLayoutMode.REUSE) {
             ThymeleafLayoutValidator.LayoutValidationResult validation =
@@ -97,6 +159,30 @@ public class CrudOrchestrationService {
                 String message = thymeleafLayoutValidator.missingLayoutMessage(outputPath, validation);
                 return new CrudOrchestrationResult(false, database, tableName, domain, outputPath,
                         List.of(), List.of(message), "layout 검증 실패", "");
+            }
+        }
+
+        if (model.layoutDensity() != LayoutDensity.STANDARD) {
+            KrdsStylesConfigurer.CssPatchResult css =
+                    krdsStylesConfigurer.ensureTableDensityStyles(outputPath);
+            if (css.failed()) {
+                return new CrudOrchestrationResult(false, database, tableName, domain, outputPath,
+                        List.of(), List.of("styles.css — " + css.message()), "CSS 보강 실패", "",
+                        metadata.menuIntegrationStatus(), metadata.programKoreanName(),
+                        model.route().hasListAlias() ? model.route().registeredListPath() : null,
+                        model.route().canonicalListPath(), warnings);
+            }
+        }
+
+        if (model.formColumnLayout() != FormColumnLayout.SINGLE_COLUMN) {
+            KrdsStylesConfigurer.CssPatchResult css =
+                    krdsStylesConfigurer.ensureFormColumnLayoutStyles(outputPath);
+            if (css.failed()) {
+                return new CrudOrchestrationResult(false, database, tableName, domain, outputPath,
+                        List.of(), List.of("styles.css — " + css.message()), "CSS 보강 실패", "",
+                        metadata.menuIntegrationStatus(), metadata.programKoreanName(),
+                        model.route().hasListAlias() ? model.route().registeredListPath() : null,
+                        model.route().canonicalListPath(), warnings);
             }
         }
 
@@ -141,6 +227,14 @@ public class CrudOrchestrationService {
         updateDefaultIndexForward(outputPath, model, resolvedViewType, succeeded, failed);
         if (resolvedViewType == CrudViewType.THYMELEAF) {
             thymeleafRuntimeConfigurer.ensureThymeleafRuntime(outputPath, egovVersion, failed);
+            thymeleafRuntimeConfigurer.ensureControllerComponentScan(
+                    outputPath, model.packageName() + ".web", failed);
+        }
+        MyBatisRuntimeConfigurer.ConfigurationResult myBatis =
+                myBatisRuntimeConfigurer.ensureConfigured(
+                        outputPath, model.packageName() + ".service.impl");
+        if (!myBatis.success()) {
+            failed.add("context-common.xml — " + myBatis.message());
         }
 
         // 4. 코드 검증
@@ -150,6 +244,11 @@ public class CrudOrchestrationService {
         } catch (Exception e) {
             validationSummary = "검증 실패: " + e.getMessage();
             log.warn("[orchestrate] 코드 검증 실패: {}", e.getMessage());
+        }
+        List<String> contractFailures = generatedCodeContractAuditor.audit(outputPath);
+        if (!contractFailures.isEmpty()) {
+            failed.addAll(contractFailures.stream().map(value -> "생성 계약 감사 — " + value).toList());
+            validationSummary += "\n\n[생성 계약 감사]\n" + String.join("\n", contractFailures);
         }
 
         // 5. 생성 이력
@@ -165,7 +264,41 @@ public class CrudOrchestrationService {
         log.info("[orchestrate] 완료: successCount={}, failCount={}", succeeded.size(), failed.size());
         return new CrudOrchestrationResult(
                 false, database, tableName, domain, outputPath,
-                succeeded, failed, validationSummary, historySummary);
+                succeeded, failed, validationSummary, historySummary,
+                metadata.menuIntegrationStatus(), metadata.programKoreanName(),
+                model.route().hasListAlias() ? model.route().registeredListPath() : null,
+                model.route().canonicalListPath(), warnings);
+    }
+
+    /** route의 모든 alias(role별 GET/POST)를 대상으로 기존 Controller와의 충돌을 검사한다. */
+    private Map<String, String> checkAliasConflicts(
+            CrudTemplateModel model, String domain, String outputPath,
+            String pkgSub, CrudViewType viewType) {
+        var route = model.route();
+        String targetPath = CrudLayerDefinition.forViewType(viewType).stream()
+                .filter(layer -> "controller".equals(layer.layerKey()))
+                .findFirst()
+                .map(layer -> outputPath + "/" + layer.resolveSubPath(pkgSub, model.domainLc())
+                        + CrudLayerDefinition.resolveFileName("controller", domain, layer.fileNameSuffix()))
+                .orElse("Egov" + domain + "Controller.java");
+        Map<String, String> conflicts = new java.util.LinkedHashMap<>();
+        record AliasCheck(boolean present, String path, String method) {}
+        List<AliasCheck> checks = List.of(
+                new AliasCheck(route.hasListAlias(), route.registeredListPath(), "GET"),
+                new AliasCheck(route.hasDetailAlias(), route.registeredDetailPath(), "GET"),
+                new AliasCheck(route.hasRegistViewAlias(), route.registeredRegistViewPath(), "GET"),
+                new AliasCheck(route.hasUpdtViewAlias(), route.registeredUpdtViewPath(), "GET"),
+                new AliasCheck(route.hasRegistAlias(), route.registeredRegistPath(), "POST"),
+                new AliasCheck(route.hasUpdtAlias(), route.registeredUpdtPath(), "POST"),
+                new AliasCheck(route.hasDeleteAlias(), route.registeredDeletePath(), "POST")
+        );
+        for (AliasCheck check : checks) {
+            if (!check.present()) continue;
+            List<String> found = routeCollisionDetector.findConflicts(
+                    outputPath, check.path(), check.method(), targetPath);
+            if (!found.isEmpty()) conflicts.put(check.path(), String.join(", ", found));
+        }
+        return conflicts;
     }
 
     private void updateDefaultIndexForward(
@@ -178,19 +311,14 @@ public class CrudOrchestrationService {
             return;
         }
 
-        String indexPath = outputPath + "/src/main/webapp/index.jsp";
-        String listUrl = model.urlPrefix() + "List.do";
-        String indexJsp = """
-<%%@ page contentType="text/html;charset=UTF-8" %%>
-<jsp:forward page="%s"/>
-""".formatted(listUrl);
-
-        String saveResult = codeService.saveGeneratedCode(indexPath, indexJsp);
-        if (saveResult == null || saveResult.startsWith("파일 저장 실패")) {
-            failed.add("index.jsp — " + saveResult);
-            log.error("[orchestrate] index.jsp 기본 진입점 갱신 실패: {}", indexPath);
+        String listUrl = model.route().resolvedListPath();
+        WarEntryPointConfigurer.ConfigurationResult result =
+                warEntryPointConfigurer.configure(outputPath, listUrl);
+        if (!result.success()) {
+            failed.add("WAR 기본 진입점 — " + result.message());
+            log.error("[orchestrate] WAR 기본 진입점 갱신 실패: {}", result.message());
         } else {
-            log.info("[orchestrate] index.jsp 기본 진입점 갱신 완료: {} -> {}", indexPath, listUrl);
+            log.info("[orchestrate] WAR 기본 진입점 갱신 완료: {}", result.message());
         }
     }
 }

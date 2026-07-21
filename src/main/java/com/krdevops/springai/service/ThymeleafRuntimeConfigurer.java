@@ -30,6 +30,45 @@ public class ThymeleafRuntimeConfigurer {
         ensureThymeleafServletContext(outputPath, spring6, failed);
     }
 
+    /** 생성된 Controller 패키지를 기존 필터형 component-scan에 멱등적으로 추가한다. */
+    public void ensureControllerComponentScan(
+            String outputPath, String controllerPackage, List<String> failed) {
+        Path servletContextPath = Path.of(outputPath,
+                "src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml");
+        if (!Files.exists(servletContextPath)) {
+            log.info("[thymeleaf-configurer] servlet-context.xml 없음 — Controller scan 보강 생략: {}",
+                    servletContextPath);
+            return;
+        }
+        if (controllerPackage == null || controllerPackage.isBlank()) {
+            failed.add("servlet-context.xml — 추가할 Controller 패키지가 비어 있습니다.");
+            return;
+        }
+        try {
+            String xml = Files.readString(servletContextPath, StandardCharsets.UTF_8);
+            Pattern pattern = Pattern.compile(
+                    "(<context:component-scan\\b[^>]*\\bbase-package=\")([^\"]*)(\"[^>]*>)");
+            Matcher matcher = pattern.matcher(xml);
+            if (!matcher.find()) {
+                failed.add("servlet-context.xml — component-scan base-package 패턴을 찾을 수 없습니다.");
+                return;
+            }
+            List<String> packages = List.of(matcher.group(2).split("\\s*[,;]\\s*"));
+            if (packages.contains(controllerPackage)) {
+                log.info("[thymeleaf-configurer] Controller component-scan 이미 등록됨: {}", controllerPackage);
+                return;
+            }
+            String replacement = matcher.group(1) + matcher.group(2) + "," + controllerPackage
+                    + matcher.group(3);
+            String updated = matcher.replaceFirst(Matcher.quoteReplacement(replacement));
+            Files.writeString(servletContextPath, updated, StandardCharsets.UTF_8);
+            log.info("[thymeleaf-configurer] Controller component-scan 추가 완료: {}", controllerPackage);
+        } catch (Exception e) {
+            failed.add("servlet-context.xml — Controller component-scan 보강 실패: " + e.getMessage());
+            log.warn("[thymeleaf-configurer] Controller component-scan 보강 실패: {}", e.getMessage());
+        }
+    }
+
     /** egovVersion이 5.x 또는 latest면 Spring 6 기반으로 판단한다. */
     private boolean isSpring6(String egovVersion) {
         return egovVersion != null

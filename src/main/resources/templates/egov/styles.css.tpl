@@ -20,6 +20,91 @@
     --krds-mobile-font-size-label-large: 16px;
 }
 
+/* === egov-board-crud:start === */
+/* 화면 스코프 → 구조 클래스 → 요소 modifier 순으로 책임을 좁힌다. */
+:root {
+    --egov-screen-control-height: 48px;
+    --egov-screen-control-padding-x: 16px;
+    --egov-screen-textarea-min-height: 220px;
+    --egov-screen-font-size: 16px;
+    --egov-screen-link-font-size: 13px;
+}
+.egov-crud-page { font-size: var(--egov-screen-font-size); line-height: 1.5; }
+.egov-crud-page .egov-search-form { width: 100%; }
+.egov-crud-page .egov-control {
+    min-height: var(--egov-screen-control-height);
+    padding-inline: var(--egov-screen-control-padding-x);
+    font-size: var(--egov-screen-font-size);
+}
+.egov-crud-page textarea.egov-control.egov-textarea {
+    min-height: var(--egov-screen-textarea-min-height);
+    padding-block: 12px;
+}
+.egov-crud-page .egov-btn { min-height: var(--egov-screen-control-height); font-size: 15px; }
+.egov-crud-page .egov-btn.small { min-height: 40px; }
+.egov-crud-page .egov-list-table,
+.egov-crud-page .egov-form-table { width: 100%; font-size: 15px; }
+.egov-crud-page .egov-pagination,
+.egov-crud-page .egov-pagination ol { display: flex; align-items: center; justify-content: center; }
+.egov-crud-page .egov-pagination a,
+.egov-crud-page .egov-pagination li { min-width: 40px; min-height: 40px; line-height: 40px; text-align: center; }
+.krds-btn {
+    --krds-button--size-height-medium: 38px;
+    --krds-button--size-height-small: 34px;
+    --krds-button--size-height-large: 38px;
+    --krds-button--padding-x-medium: 16px;
+}
+.krds-input {
+    --krds-input--size-height-medium: 38px;
+    --krds-input--size-height-large: 38px;
+    --krds-input--size-height-small: 34px;
+    --krds-input--textarea-size-height: var(--egov-screen-textarea-min-height);
+}
+.krds-form-select {
+    --krds-form-select--size-height-medium: 38px;
+    --krds-form-select--size-height-large: 38px;
+    --krds-form-select--size-height-small: 34px;
+}
+.krds-table-wrap .tbl.data {
+    --krds-table--data-tbody-padding: 10px;
+    --krds-table--data-tbody-padding-sides: 16px;
+    --krds-table--data-thead-th-padding: 10px;
+    --krds-table--data-thead-th-padding-sides: 16px;
+}
+.krds-pagination { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.krds-pagination ol { display: flex; align-items: center; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.krds-pagination li a,
+.krds-pagination > a[class^="btn-"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 6px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+.egov-crud-page .egov-primary-text,
+.egov-crud-page .egov-detail-link,
+.egov-crud-page .egov-file-detail-link,
+.egov-crud-page .egov-file-empty,
+.egov-crud-page .egov-post-nav-link { font-size: var(--egov-screen-link-font-size); }
+/* === egov-board-crud:end === */
+
+/* === egov-table-density:start === */
+.egov-density-compact .tbl.data th,
+.egov-density-compact .tbl.data td { padding-block: 6px; }
+.egov-density-comfortable .tbl.data th,
+.egov-density-comfortable .tbl.data td { padding-block: 16px; }
+/* === egov-table-density:end === */
+
+/* === egov-form-column-layout:start === */
+.egov-form-table.egov-layout-two-col th { width: 90px; }
+.egov-form-table.egov-layout-two-col td { width: auto; }
+.form-row-two-col { display: flex; gap: 16px; }
+.form-row-two-col .form-group { flex: 1; min-width: 0; }
+/* === egov-form-column-layout:end === */
+
 /* tbl col: 라벨-값 정의 테이블 (상세/등록/수정 화면) */
 .krds-table-wrap .tbl.col { border-top: 2px solid #1e2124; width: 100%; }
 .krds-table-wrap .tbl.col th,
@@ -39,6 +124,90 @@
     --krds-table--data-thead-mobile-font-size: 14px;
     --krds-table--data-tbody-pc-font-size: 13px;
     --krds-table--data-tbody-mobile-font-size: 13px;
+}
+
+/* 버튼/입력창/셀렉트 높이 토큰 재정의 (실사고, 2026-07-13 확인).
+   위 폰트 크기 토큰만 줄이면 "글자는 작은데 박스는 그대로 큰" 불균형이 남는다 — 폰트와
+   별개로 _ds_bundle.css의 --krds-button/input/form-select--size-height-*(medium 기준
+   --krds-size-height-7 = 4.8rem = 76.8px, large는 --krds-size-height-8 = 5.6rem = 89.6px)가
+   업무화면 컨트롤(36~40px) 대비 2배 이상 크다. 이 토큰은 .krds-btn/.krds-input/
+   .krds-form-select 컴포넌트 선택자 자기 자신 위에서 재선언되므로 :root에 재정의해도
+   조용히 무시된다 — 반드시 같은 컴포넌트 선택자에 재정의해야 특이도가 같아 소스 순서상
+   이 파일이 이긴다. */
+.krds-btn {
+    --krds-button--size-height-medium: 38px;
+    --krds-button--size-height-small: 34px;
+    --krds-button--size-height-large: 38px;
+    --krds-button--padding-x-medium: 16px;
+}
+.krds-input {
+    --krds-input--size-height-medium: 38px;
+    --krds-input--size-height-large: 38px;
+    --krds-input--size-height-small: 34px;
+    --krds-input--textarea-size-height: var(--egov-screen-textarea-min-height);
+}
+.krds-form-select {
+    --krds-form-select--size-height-medium: 38px;
+    --krds-form-select--size-height-large: 38px;
+    --krds-form-select--size-height-small: 34px;
+}
+.krds-table-wrap .tbl.data {
+    --krds-table--data-tbody-padding: 10px;
+    --krds-table--data-tbody-padding-sides: 16px;
+    --krds-table--data-thead-th-padding: 10px;
+    --krds-table--data-thead-th-padding-sides: 16px;
+}
+
+/* 페이지네이션 (실사고, 2026-07-13 확인).
+   _ds_bundle.css의 실제 pagination 컴포넌트는 .page-navi/.page-link 클래스를 전제로
+   --krds-pagination--size-height 토큰을 적용하는데, 이 프로젝트의 실제 생성 화면
+   (예: EgovNoticeList.html)은 레거시 eGovFrame JSP <ui:pagination> 태그립 관례를 그대로
+   따라 <nav class="krds-pagination"><a class="btn-first|btn-prev|btn-next|btn-last">,
+   <ol><li><a>페이지번호</a></li></ol> 구조로 생성된다. btn-first/btn-prev/btn-next/btn-last와
+   페이지번호 <a>는 _ds_bundle.css 어디에도 대응 규칙이 없어 스타일을 전혀 못 받고 브라우저
+   기본값(16px)으로 렌더링된다 — "페이지 번호 글자 크기가 크다"는 증상의 직접 원인. 실제
+   생성되는 마크업 기준으로 별도 규칙을 추가한다.
+
+   추가 실사고(2026-07-14 확인): nav.krds-pagination 자체에 display:flex/align-items가
+   없으면, 직계 자식인 btn-first/btn-prev/btn-next/btn-last <a>(높이 32px 고정 → stretch가
+   무효화되어 기본값인 flex-start=위쪽 정렬)와 <ol>(높이 auto → nav 높이만큼 stretch된 뒤 그
+   안에서 align-items:center로 li를 중앙 정렬)가 서로 다른 기준으로 정렬되어, 페이지 번호
+   숫자 배지만 텍스트 링크보다 아래로 처져 보인다. 아래 .krds-pagination(nav 셀렉터 자체)
+   규칙이 이 정렬 기준을 통일시켜 배지를 텍스트와 같은 라인으로 끌어올린다. */
+.krds-pagination {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.krds-pagination ol {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.krds-pagination li a,
+.krds-pagination > a[class^="btn-"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 6px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #464c53;
+    text-decoration: none;
+}
+.krds-pagination li.on a {
+    background: #256ef4;
+    color: #fff;
+    font-weight: 700;
+}
+.krds-pagination li a:hover,
+.krds-pagination > a[class^="btn-"]:hover {
+    background: #f4f5f6;
 }
 
 /* eGovFrame generated Thymeleaf screens */
@@ -109,6 +278,9 @@ input::placeholder, textarea::placeholder { color: #8a949e; }
 }
 .egov-brand-mark.header { width: 36px; height: 36px; font-size: 14px; }
 .egov-brand-mark.footer { width: 28px; height: 28px; font-size: 12px; }
+/* GNB 브랜드 로고 이미지(generateThymeleafLayout이 복사하는 egov-logo.png).
+   원본 172x40 비율을 유지한 채 헤더 높이(36px 아이콘 기준)에 맞춘다. */
+.egov-brand-logo { display: block; height: 36px; width: auto; }
 
 .egov-main-menu { position: relative; width: 100%; }
 .egov-main-menu-list {
@@ -433,12 +605,14 @@ input::placeholder, textarea::placeholder { color: #8a949e; }
 .egov-list-summary {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 10px;
     margin-bottom: 10px;
 }
+.egov-page-unit-label { margin-left: auto; color: #58616a; font-size: 13px; }
+.egov-page-unit { width: auto; min-width: 84px; }
 .egov-muted-text { color: #6d7882; font-size: 13px; }
 .egov-subtle-text { color: #8a949e; font-size: 13px; }
-.egov-primary-text { color: #083891; }
+.egov-primary-text { color: #083891; font-size: var(--egov-screen-link-font-size); }
 .egov-col-check { width: 40px; }
 .egov-col-no { width: 64px; }
 .egov-col-file { width: 70px; }
@@ -450,7 +624,7 @@ input::placeholder, textarea::placeholder { color: #8a949e; }
 .egov-row-link { cursor: pointer; }
 .egov-row-notice { background: #eef3fe; }
 .egov-table-no { color: #8a949e; font-size: 13px; text-align: center; }
-.egov-detail-link { color: #1e2124; font-weight: 500; }
+.egov-detail-link { color: #1e2124; font-size: var(--egov-screen-link-font-size); font-weight: 500; }
 .egov-detail-link.strong { color: #256ef4; font-family: monospace; font-weight: 700; }
 .egov-table-actions { text-align: center; }
 .egov-notice-badge {
@@ -495,10 +669,11 @@ input::placeholder, textarea::placeholder { color: #8a949e; }
     align-items: center;
     gap: 8px;
     color: #256ef4;
+    font-size: var(--egov-screen-link-font-size);
     font-weight: 700;
 }
 .egov-file-id { color: #8a949e; font-size: 13px; font-weight: 500; }
-.egov-file-empty { color: #cdd1d5; }
+.egov-file-empty { color: #cdd1d5; font-size: var(--egov-screen-link-font-size); }
 .egov-sr-only {
     position: absolute;
     width: 1px;
@@ -531,6 +706,9 @@ input::placeholder, textarea::placeholder { color: #8a949e; }
     color: #6d7882;
     font-size: 13px;
 }
+.egov-char-count { margin: 6px 0 0; color: #6d7882; font-size: 12px; text-align: right; }
+.egov-radio-group { display: flex; align-items: center; gap: 18px; }
+.egov-radio-group label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 14px; }
 .egov-required-mark {
     margin-left: 2px;
     color: #d9363e;
@@ -624,7 +802,7 @@ input::placeholder, textarea::placeholder { color: #8a949e; }
     display: flex;
     align-items: center;
 }
-.egov-post-nav-link { color: #256ef4; font-weight: 500; }
+.egov-post-nav-link { color: #256ef4; font-size: var(--egov-screen-link-font-size); font-weight: 500; }
 .egov-post-nav-empty { color: #8a949e; font-size: 13px; }
 .egov-modal {
     border: 0;

@@ -8,6 +8,9 @@
 <#list fields as f>
         <result property="${f.javaName}" column="${f.columnName}"/>
 </#list>
+<#list queryContract.displayFields() as f>
+        <result property="${f.javaName}" column="${f.columnName}"/>
+</#list>
         <result property="bbsNm" column="BBS_NM"/>
     </resultMap>
 
@@ -29,9 +32,12 @@
     <!-- 목록 조회 (게시판 마스터 JOIN) -->
     <select id="select${domain}List" parameterType="${packageName}.service.${domain}VO"
             resultMap="${domainLc}Map">
-        SELECT b.*, m.BBS_NM
+        SELECT b.*, m.BBS_NM<#list queryContract.projections as p>, ${p.selectExpression}</#list>
         FROM ${tableName} b
         LEFT JOIN ${masterTableName} m ON b.BBS_ID = m.BBS_ID
+<#list queryContract.joins as join>
+        ${join.joinType} JOIN ${join.schema}.${join.table} ${join.alias} ON ${join.onExpression}
+</#list>
         <include refid="searchCondition"/>
         ORDER BY <#if noticeAtExists>b.NOTICE_AT DESC, </#if>b.SORT_ORDR DESC, b.NTT_ID DESC
         LIMIT ${r"#"}{paginationInfo.firstRecordIndex}, ${r"#"}{paginationInfo.recordCountPerPage}
@@ -48,13 +54,25 @@
     <!-- 단건 조회 -->
     <select id="select${domain}" parameterType="${packageName}.service.${domain}VO"
             resultMap="${domainLc}Map">
-        SELECT b.*, m.BBS_NM
+        SELECT b.*, m.BBS_NM<#list queryContract.projections as p>, ${p.selectExpression}</#list>
         FROM ${tableName} b
         LEFT JOIN ${masterTableName} m ON b.BBS_ID = m.BBS_ID
+<#list queryContract.joins as join>
+        ${join.joinType} JOIN ${join.schema}.${join.table} ${join.alias} ON ${join.onExpression}
+</#list>
         WHERE b.BBS_ID = ${r"#"}{${bbsId.javaName}}
           AND b.NTT_ID = ${r"#"}{${nttId.javaName}}
     </select>
 
+<#if nttId.javaType != "String">
+    <!-- 숫자형 게시물 ID 채번: insert와 같은 트랜잭션에서 마지막 PK 범위를 잠근다. -->
+    <select id="selectNext${domain}NttId" resultType="${nttId.javaType}">
+        SELECT COALESCE(MAX(${nttId.columnName}), 0) + 1
+          FROM ${tableName}
+        FOR UPDATE
+    </select>
+
+</#if>
     <!-- 등록 (BBS_ID·NTT_ID 포함) -->
     <insert id="insert${domain}" parameterType="${packageName}.service.${domain}VO">
         INSERT INTO ${tableName} (
@@ -92,13 +110,18 @@
            AND NTT_ID = ${r"#"}{${nttId.javaName}}
     </update>
 
-    <!-- 게시판 사용 여부 조회 -->
+<#if useTableName??>
+    <!-- 게시판 사용 여부 조회: 복수 사용기관 행이 있어도 단일 결과를 반환한다. -->
     <select id="selectBoardUseAt" parameterType="${packageName}.service.${domain}VO"
             resultType="String">
-        SELECT USE_AT
-          FROM ${useTableName!"COMTNBBSUSE"}
-         WHERE BBS_ID = ${r"#"}{bbsId}
+        SELECT CASE WHEN EXISTS (
+                   SELECT 1
+                     FROM ${useTableName}
+                    WHERE BBS_ID = ${r"#"}{bbsId}
+                      AND USE_AT = 'Y'
+               ) THEN 'Y' ELSE 'N' END
     </select>
+</#if>
 
     <!-- 이전 게시글 조회 -->
     <select id="selectPrev${domain}" parameterType="${packageName}.service.${domain}VO"
@@ -123,5 +146,19 @@
          ORDER BY b.${nttId.columnName} ASC
          LIMIT 1
     </select>
+
+<#if hasFile && fileDetailTableName??>
+    <!-- eGovFrame 공통 파일 다운로드 화면용 상세 목록 -->
+    <select id="selectFileList" resultType="map">
+        SELECT ATCH_FILE_ID AS atchFileId,
+               FILE_SN AS fileSn,
+               ORIGNL_FILE_NM AS originalFileName,
+               FILE_SIZE AS fileSize,
+               FILE_EXTSN AS fileExtension
+          FROM ${fileDetailTableName}
+         WHERE ATCH_FILE_ID = ${r"#"}{atchFileId}
+         ORDER BY FILE_SN
+    </select>
+</#if>
 
 </mapper>

@@ -14,7 +14,7 @@ public class GenerationHistoryTool {
     @Tool(description = """
             eGovFrame CRUD 소스 생성 이력을 DB에 저장합니다.
             소스 생성 완료 후 반드시 호출하여 이력을 기록하세요.
-            tableName: 대상 테이블명 (예: COMTNEMPLYRINFO)
+            tableName: 대상 테이블명 (예: LETTNEMPLYRINFO)
             domain: 도메인명 (예: Employer)
             packageName: 패키지명 (예: egovframework.let.emp)
             outputPath: 소스가 저장된 디렉터리 경로
