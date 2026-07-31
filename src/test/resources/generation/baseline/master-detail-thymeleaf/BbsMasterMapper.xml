@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="egovframework.let.bbs.service.impl.BbsMasterMapper">
+
+    <resultMap id="bbsMasterMap" type="egovframework.let.bbs.service.BbsMasterVO">
+        <id property="bbsId" column="BBS_ID"/>
+        <result property="bbsNm" column="BBS_NM"/>
+        <result property="bbsIntrcn" column="BBS_INTRCN"/>
+    </resultMap>
+
+    <sql id="searchCondition">
+        <where>
+            <if test="searchKeyword != null and searchKeyword != ''">
+                AND BBS_ID LIKE CONCAT('%', #{searchKeyword}, '%')
+            </if>
+        </where>
+    </sql>
+
+    <select id="selectBbsMasterList" parameterType="egovframework.let.bbs.service.BbsMasterVO"
+            resultMap="bbsMasterMap">
+        SELECT BBS_ID, BBS_NM, BBS_INTRCN
+        FROM LETTNBBSMASTER
+        <include refid="searchCondition"/>
+        ORDER BY BBS_ID DESC
+        LIMIT #{paginationInfo.firstRecordIndex}, #{paginationInfo.recordCountPerPage}
+    </select>
+
+    <select id="selectBbsMasterListTotCnt" parameterType="egovframework.let.bbs.service.BbsMasterVO"
+            resultType="int">
+        SELECT COUNT(*)
+        FROM LETTNBBSMASTER
+        <include refid="searchCondition"/>
+    </select>
+
+    <select id="selectBbsMaster" parameterType="egovframework.let.bbs.service.BbsMasterVO"
+            resultMap="bbsMasterMap">
+        SELECT BBS_ID, BBS_NM, BBS_INTRCN
+        FROM LETTNBBSMASTER
+        WHERE BBS_ID = #{bbsId}
+    </select>
+
+    <insert id="insertBbsMaster" parameterType="egovframework.let.bbs.service.BbsMasterVO">
+        INSERT INTO LETTNBBSMASTER (
+            BBS_ID, BBS_NM, BBS_INTRCN
+        ) VALUES (
+            #{bbsId, jdbcType=VARCHAR}, #{bbsNm, jdbcType=VARCHAR}, #{bbsIntrcn, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <update id="updateBbsMaster" parameterType="egovframework.let.bbs.service.BbsMasterVO">
+        UPDATE LETTNBBSMASTER
+        <set>
+            BBS_NM = #{bbsNm, jdbcType=VARCHAR},
+            BBS_INTRCN = #{bbsIntrcn, jdbcType=VARCHAR}
+        </set>
+        WHERE BBS_ID = #{bbsId}
+    </update>
+
+    <delete id="deleteBbsMaster" parameterType="egovframework.let.bbs.service.BbsMasterVO">
+        DELETE FROM LETTNBBSMASTER
+        WHERE BBS_ID = #{bbsId}
+    </delete>
+
+    <delete id="deleteBbsMasterBulk">
+        DELETE FROM LETTNBBSMASTER
+        WHERE BBS_ID IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

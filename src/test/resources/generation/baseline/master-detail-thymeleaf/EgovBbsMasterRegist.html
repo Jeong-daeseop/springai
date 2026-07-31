@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>BBSMASTER 등록</title>
+</head>
+<section layout:fragment="content" class="egov-crud-page">
+    <div class="egov-page-header">
+        <h1 class="egov-page-title">BBSMASTER 등록</h1>
+    </div>
+
+    <div class="egov-form-required-guide">
+        <span class="egov-required-mark" aria-hidden="true">*</span>
+        <span>표시는 필수 입력 항목입니다.</span>
+    </div>
+
+    <form class="egov-search-form" th:action="@{/bbs/bbsMasterRegist.do}" th:object="${bbsMasterVO}" method="post">
+        <input th:if="${_csrf != null}" type="hidden"
+               th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="krds-table-wrap">
+            <table class="tbl col egov-form-table">
+                <caption>BBSMASTER 등록 입력 폼</caption>
+                <tbody>
+                <tr>
+                    <th scope="row">
+                        <label for="bbsNm">
+                            게시판명<span class="egov-required-mark">*</span>
+                        </label>
+                    </th>
+                    <td>
+                        <input type="text"
+                               th:field="*{bbsNm}"
+                               id="bbsNm"
+                               class="krds-input medium egov-control"
+                               maxlength="100"
+                               placeholder="게시판명을(를) 입력하세요"/>
+                        <p class="egov-field-error"
+                           th:if="${#fields.hasErrors('bbsNm')}"
+                           th:errors="*{bbsNm}"></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="bbsIntrcn">
+                            게시판소개
+                        </label>
+                    </th>
+                    <td>
+                        <input type="text"
+                               th:field="*{bbsIntrcn}"
+                               id="bbsIntrcn"
+                               class="krds-input medium egov-control"
+                               maxlength="2,000"
+                               placeholder="게시판소개을(를) 입력하세요"/>
+                        <p class="egov-field-error"
+                           th:if="${#fields.hasErrors('bbsIntrcn')}"
+                           th:errors="*{bbsIntrcn}"></p>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="egov-form-actions">
+            <a th:href="@{/bbs/bbsMasterList.do}" class="krds-btn secondary medium egov-btn">취소</a>
+            <button type="submit" class="krds-btn primary medium egov-btn">
+                <span aria-hidden="true">✓</span>
+                저장
+            </button>
+        </div>
+    </form>
+</section>
+</html>

@@ -1,0 +1,7 @@
+<nav th:fragment="breadcrumb" class="krds-breadcrumb-wrap" aria-label="breadcrumb">
+    <th:block th:each="crumb, stat : ${breadcrumbs}">
+        <a th:if="${crumb.url != null}" th:href="${crumb.url}" th:text="${crumb.label}">홈</a>
+        <span th:unless="${crumb.url != null}" aria-current="page" th:text="${crumb.label}">현재</span>
+        <span th:if="${!stat.last}">›</span>
+    </th:block>
+</nav>

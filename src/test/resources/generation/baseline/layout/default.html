@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title layout:title-pattern="$CONTENT_TITLE - eGovFrame">eGovFrame</title>
+    <link rel="stylesheet" th:href="@{/resources/css/styles.css}">
+    <th:block layout:fragment="head"></th:block>
+</head>
+<body>
+<th:block th:replace="~{layout/gnb :: gnb}"></th:block>
+<th:block th:if="${mainPath != true}" th:replace="~{layout/breadcrumb :: breadcrumb}"></th:block>
+<main class="egov-layout-shell" th:classappend="${mainPath == true} ? ' egov-main-shell'">
+    <th:block th:if="${mainPath != true}" th:replace="~{layout/lnb :: lnb}"></th:block>
+    <section class="egov-layout-content" th:classappend="${mainPath == true} ? ' egov-main-content'">
+        <th:block layout:fragment="content"></th:block>
+    </section>
+</main>
+<th:block th:replace="~{layout/footer :: footer}"></th:block>
+<script th:src="@{/resources/js/krds.min.js}"></script>
+<th:block layout:fragment="scripts"></th:block>
+</body>
+</html>

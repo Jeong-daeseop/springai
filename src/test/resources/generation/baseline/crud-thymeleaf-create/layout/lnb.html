@@ -1,0 +1,28 @@
+<aside th:fragment="lnb" class="egov-lnb">
+    <nav aria-label="좌측 메뉴">
+        <strong th:text="${lnbTitle ?: '업무관리'}" class="egov-lnb-title">업무관리</strong>
+        <ul class="egov-lnb-list">
+            <li th:each="menu : ${lnbMenus}">
+                <a th:if="${menu.url != null}" th:href="${menu.url}" class="lnb-link"
+                   th:classappend="${(menu.menuId == currentMenuId ? ' lnb-active' : '') + (!#lists.isEmpty(menu.children) ? ' has-children' : '')}">
+                    <span th:text="${menu.label}">목록</span>
+                    <span th:if="${!#lists.isEmpty(menu.children)}" class="lnb-chevron" aria-hidden="true">&rsaquo;</span>
+                </a>
+                <span th:unless="${menu.url != null}" class="lnb-link lnb-group-label"
+                      th:classappend="${!#lists.isEmpty(menu.children)} ? ' has-children'">
+                    <span th:text="${menu.label}">목록</span>
+                    <span th:if="${!#lists.isEmpty(menu.children)}" class="lnb-chevron" aria-hidden="true">&rsaquo;</span>
+                </span>
+                <ul th:if="${!#lists.isEmpty(menu.children)}" class="egov-lnb-sublist">
+                    <li th:each="child : ${menu.children}">
+                        <a th:if="${child.url != null}" th:href="${child.url}" class="lnb-link lnb-sublink"
+                           th:classappend="${child.menuId == currentMenuId} ? 'lnb-active'">
+                            <span th:text="${child.label}">하위메뉴</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            <li th:if="${#lists.isEmpty(lnbMenus)}" class="egov-lnb-empty">하위 메뉴가 없습니다.</li>
+        </ul>
+    </nav>
+</aside>

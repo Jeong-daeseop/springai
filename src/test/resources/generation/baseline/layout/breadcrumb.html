@@ -1,0 +1,20 @@
+<div th:fragment="breadcrumb"
+     class="egov-breadcrumb-band"
+     th:if="${breadcrumbs != null and !#lists.isEmpty(breadcrumbs)}">
+    <nav class="egov-breadcrumb" aria-label="현재 위치">
+        <th:block th:each="crumb, stat : ${breadcrumbs}">
+            <a th:if="${crumb.url != null and !stat.last}"
+               th:href="${crumb.url}"
+               th:classappend="${stat.first} ? 'egov-breadcrumb-home' : ''"
+               th:aria-label="${stat.first} ? '홈' : null">
+                <span th:if="${stat.first}" aria-hidden="true">⌂</span>
+                <span th:unless="${stat.first}" th:text="${crumb.label}">상위</span>
+            </a>
+            <span th:if="${crumb.url == null or stat.last}"
+                  th:class="${stat.last} ? 'egov-breadcrumb-current' : ''"
+                  th:aria-current="${stat.last} ? 'page' : null"
+                  th:text="${crumb.label}">현재</span>
+            <span th:if="${!stat.last}" class="egov-breadcrumb-separator" aria-hidden="true">›</span>
+        </th:block>
+    </nav>
+</div>

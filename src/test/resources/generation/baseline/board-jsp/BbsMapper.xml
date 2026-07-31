@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="egovframework.let.bbs.service.impl.BbsMapper">
+
+    <resultMap id="bbsMap" type="egovframework.let.bbs.service.BbsVO">
+        <result property="bbsId" column="BBS_ID"/>
+        <result property="nttId" column="NTT_ID"/>
+        <result property="nttSj" column="NTT_SJ"/>
+        <result property="nttCn" column="NTT_CN"/>
+        <result property="ntcrNm" column="NTCR_NM"/>
+        <result property="noticeAt" column="NOTICE_AT"/>
+        <result property="atchFileId" column="ATCH_FILE_ID"/>
+        <result property="frstRegistPnttm" column="FRST_REGIST_PNTTM"/>
+        <result property="rdcnt" column="RDCNT"/>
+        <result property="bbsNm" column="BBS_NM"/>
+    </resultMap>
+
+    <!-- 검색 조건 -->
+    <sql id="searchCondition">
+        <where>
+            AND b.BBS_ID = #{bbsId}
+            AND b.USE_AT = 'Y'
+            <if test="searchKeyword != null and searchKeyword != ''">
+                <choose>
+                    <when test="searchCondition == '1'">AND b.NTT_SJ LIKE CONCAT('%', #{searchKeyword}, '%')</when>
+                    <when test="searchCondition == '2'">AND b.NTT_CN LIKE CONCAT('%', #{searchKeyword}, '%')</when>
+                    <otherwise>AND b.NTCR_NM LIKE CONCAT('%', #{searchKeyword}, '%')</otherwise>
+                </choose>
+            </if>
+        </where>
+    </sql>
+
+    <!-- 목록 조회 (게시판 마스터 JOIN) -->
+    <select id="selectBbsList" parameterType="egovframework.let.bbs.service.BbsVO"
+            resultMap="bbsMap">
+        SELECT b.*, m.BBS_NM
+        FROM LETTNBBS b
+        LEFT JOIN LETTNBBSMASTER m ON b.BBS_ID = m.BBS_ID
+        <include refid="searchCondition"/>
+        ORDER BY b.NOTICE_AT DESC, b.SORT_ORDR DESC, b.NTT_ID DESC
+        LIMIT #{paginationInfo.firstRecordIndex}, #{paginationInfo.recordCountPerPage}
+    </select>
+
+    <!-- 목록 건수 -->
+    <select id="selectBbsListTotCnt" parameterType="egovframework.let.bbs.service.BbsVO"
+            resultType="int">
+        SELECT COUNT(*)
+        FROM LETTNBBS b
+        <include refid="searchCondition"/>
+    </select>
+
+    <!-- 단건 조회 -->
+    <select id="selectBbs" parameterType="egovframework.let.bbs.service.BbsVO"
+            resultMap="bbsMap">
+        SELECT b.*, m.BBS_NM
+        FROM LETTNBBS b
+        LEFT JOIN LETTNBBSMASTER m ON b.BBS_ID = m.BBS_ID
+        WHERE b.BBS_ID = #{bbsId}
+          AND b.NTT_ID = #{nttId}
+    </select>
+
+    <!-- 숫자형 게시물 ID 채번: insert와 같은 트랜잭션에서 마지막 PK 범위를 잠근다. -->
+    <select id="selectNextBbsNttId" resultType="Long">
+        SELECT COALESCE(MAX(NTT_ID), 0) + 1
+          FROM LETTNBBS
+        FOR UPDATE
+    </select>
+
+    <!-- 등록 (BBS_ID·NTT_ID 포함) -->
+    <insert id="insertBbs" parameterType="egovframework.let.bbs.service.BbsVO">
+        INSERT INTO LETTNBBS (
+            BBS_ID, NTT_ID, NTT_SJ, NTT_CN, NTCR_NM, NOTICE_AT, ATCH_FILE_ID, FRST_REGIST_PNTTM
+        ) VALUES (
+            #{bbsId, jdbcType=VARCHAR}, #{nttId, jdbcType=BIGINT}, #{nttSj, jdbcType=VARCHAR}, #{nttCn, jdbcType=VARCHAR}, #{ntcrNm, jdbcType=VARCHAR}, #{noticeAt, jdbcType=VARCHAR}, #{atchFileId, jdbcType=VARCHAR}, #{frstRegistPnttm, jdbcType=TIMESTAMP}
+        )
+    </insert>
+
+    <!-- 수정 -->
+    <update id="updateBbs" parameterType="egovframework.let.bbs.service.BbsVO">
+        UPDATE LETTNBBS
+        <set>
+            NTT_SJ = #{nttSj, jdbcType=VARCHAR},
+            NTT_CN = #{nttCn, jdbcType=VARCHAR},
+            NTCR_NM = #{ntcrNm, jdbcType=VARCHAR},
+            NOTICE_AT = #{noticeAt, jdbcType=VARCHAR},
+            ATCH_FILE_ID = #{atchFileId, jdbcType=VARCHAR},
+            FRST_REGIST_PNTTM = #{frstRegistPnttm, jdbcType=TIMESTAMP}
+        </set>
+        WHERE BBS_ID = #{bbsId}
+          AND NTT_ID = #{nttId}
+    </update>
+
+    <!-- 논리삭제 -->
+    <update id="deleteBbs" parameterType="egovframework.let.bbs.service.BbsVO">
+        UPDATE LETTNBBS
+           SET USE_AT = 'N'
+         WHERE BBS_ID = #{bbsId}
+           AND NTT_ID = #{nttId}
+    </update>
+
+    <!-- 조회수 증가 -->
+    <update id="updateReadCount" parameterType="egovframework.let.bbs.service.BbsVO">
+        UPDATE LETTNBBS
+           SET RDCNT = COALESCE(RDCNT, 0) + 1
+         WHERE BBS_ID = #{bbsId}
+           AND NTT_ID = #{nttId}
+    </update>
+
+    <!-- 게시판 사용 여부 조회: 복수 사용기관 행이 있어도 단일 결과를 반환한다. -->
+    <select id="selectBoardUseAt" parameterType="egovframework.let.bbs.service.BbsVO"
+            resultType="String">
+        SELECT CASE WHEN EXISTS (
+                   SELECT 1
+                     FROM LETTNBBSUSE
+                    WHERE BBS_ID = #{bbsId}
+                      AND USE_AT = 'Y'
+               ) THEN 'Y' ELSE 'N' END
+    </select>
+
+    <!-- 이전 게시글 조회 -->
+    <select id="selectPrevBbs" parameterType="egovframework.let.bbs.service.BbsVO"
+            resultMap="bbsMap">
+        SELECT b.NTT_ID, b.NTT_SJ
+          FROM LETTNBBS b
+         WHERE b.BBS_ID = #{bbsId}
+           AND b.USE_AT = 'Y'
+           AND b.NTT_ID &lt; #{nttId}
+         ORDER BY b.NTT_ID DESC
+         LIMIT 1
+    </select>
+
+    <!-- 다음 게시글 조회 -->
+    <select id="selectNextBbs" parameterType="egovframework.let.bbs.service.BbsVO"
+            resultMap="bbsMap">
+        SELECT b.NTT_ID, b.NTT_SJ
+          FROM LETTNBBS b
+         WHERE b.BBS_ID = #{bbsId}
+           AND b.USE_AT = 'Y'
+           AND b.NTT_ID &gt; #{nttId}
+         ORDER BY b.NTT_ID ASC
+         LIMIT 1
+    </select>
+
+    <!-- eGovFrame 공통 파일 다운로드 화면용 상세 목록 -->
+    <select id="selectFileList" resultType="map">
+        SELECT ATCH_FILE_ID AS atchFileId,
+               FILE_SN AS fileSn,
+               ORIGNL_FILE_NM AS originalFileName,
+               FILE_SIZE AS fileSize,
+               FILE_EXTSN AS fileExtension
+          FROM LETTNFILEDETAIL
+         WHERE ATCH_FILE_ID = #{atchFileId}
+         ORDER BY FILE_SN
+    </select>
+
+</mapper>

@@ -1,0 +1,173 @@
+package com.krdevops.springai.service;
+
+import com.krdevops.springai.model.crud.CrudProgramMetadata;
+import com.krdevops.springai.model.crud.CrudRouteModel;
+import com.krdevops.springai.model.crud.CrudTemplateModel;
+import com.krdevops.springai.model.crud.CrudViewType;
+import com.krdevops.springai.model.crud.FieldModel;
+import com.krdevops.springai.model.crud.PkModel;
+import com.krdevops.springai.model.crud.ScreenSubsetMode;
+import com.krdevops.springai.model.design.FormColumnLayout;
+import com.krdevops.springai.model.design.LayoutDensity;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.Spy;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
+import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
+
+/**
+ * 계획서 §10.6이 서술하는 CRUD Processor 실행 순서
+ * (PRE_WRITE 100 Table Density CSS → 110 Form Column CSS → WRITE(레이어별 렌더링/저장)
+ * → POST_WRITE 100 Entry Point → 200 Thymeleaf Runtime → 210 Controller Scan → 300 MyBatis
+ * → PRE_VERIFY 100 Common Contract → VERIFY → HISTORY)와
+ * {@link CrudOrchestrationService#orchestrate}의 실제 협력 객체 호출 순서를 대조해
+ * Mockito {@link InOrder}로 캡처·문서화하는 Characterization 테스트다.
+ *
+ * <p>이 단계에서는 실제 Processor 추상화를 만들지 않는다(WP-4에서 Pipeline으로 전환할 때
+ * 이 테스트가 기준선이 된다) — "지금 실제 순서가 무엇인가"만 검증한다.
+ *
+ * <p><b>발견된 순서 차이</b>: 명세서는 PRE_VERIFY(Common Contract 감사)가 VERIFY보다 먼저
+ * 실행된다고 서술하지만, 실제 구현({@code orchestrate()}의 "4. 코드 검증" 블록)은
+ * {@code codeValidatorService.validateDirectory}(VERIFY)를
+ * {@code generatedCodeContractAuditor.audit}(Common Contract 감사)보다 먼저 호출한다.
+ * WP-4에서 Pipeline을 설계할 때 이 순서를 그대로 유지할지, 명세서 순서로 바로잡을지 결정해야 한다.
+ */
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+class CrudOrchestrationProcessorOrderTest {
+
+    @Mock CrudSchemaQueryService crudSchemaQueryService;
+    @Mock CrudModelFactory crudModelFactory;
+    @Mock CrudTemplateRenderer crudTemplateRenderer;
+    @Mock CodeService codeService;
+    @Mock CodeValidatorService codeValidatorService;
+    @Mock GenerationHistoryService generationHistoryService;
+    @Mock ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
+    @Mock CrudProgramMetadataService crudProgramMetadataService;
+    @Mock BoardRouteCollisionDetector routeCollisionDetector;
+    @Mock MyBatisRuntimeConfigurer myBatisRuntimeConfigurer;
+    @Mock WarEntryPointConfigurer warEntryPointConfigurer;
+    @Mock GenerationDesignContextService generationDesignContextService;
+    @Mock GeneratedCodeContractAuditor generatedCodeContractAuditor;
+    @Mock KrdsStylesConfigurer krdsStylesConfigurer;
+    @Spy ThymeleafLayoutValidator thymeleafLayoutValidator = new ThymeleafLayoutValidator();
+
+    @InjectMocks
+    CrudOrchestrationService sut;
+
+    @BeforeEach
+    void stubFullSuccessPath() {
+        given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
+        given(crudProgramMetadataService.resolve(any(), any(), any(), any()))
+                .willReturn(CrudProgramMetadata.fallback("fallback"));
+        given(routeCollisionDetector.findConflicts(any(), any(), any(), any())).willReturn(List.of());
+        // 밀도/폼 컬럼 배치를 STANDARD/SINGLE_COLUMN이 아닌 값으로 고정해 PRE_WRITE 100/110이
+        // 모두 실행되도록 한다.
+        given(crudModelFactory.fromSchema(any(), any(), any(), any(), any(), any(),
+                any(CrudViewType.class), any(ScreenSubsetMode.class), any()))
+                .willReturn(fakeModel(LayoutDensity.COMPACT, FormColumnLayout.TWO_COLUMN));
+        given(krdsStylesConfigurer.ensureTableDensityStyles(any()))
+                .willReturn(new KrdsStylesConfigurer.CssPatchResult(
+                        KrdsStylesConfigurer.Status.PATCHED, "styles.css", "OK"));
+        given(krdsStylesConfigurer.ensureFormColumnLayoutStyles(any()))
+                .willReturn(new KrdsStylesConfigurer.CssPatchResult(
+                        KrdsStylesConfigurer.Status.PATCHED, "styles.css", "OK"));
+        given(crudTemplateRenderer.renderByLayerKey(any(), any(), any(), any(), any(), any()))
+                .willReturn("// code");
+        given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 완료: ...");
+        given(warEntryPointConfigurer.configure(any(), any()))
+                .willReturn(WarEntryPointConfigurer.ConfigurationResult.success("완료"));
+        given(myBatisRuntimeConfigurer.ensureConfigured(any(), any()))
+                .willReturn(MyBatisRuntimeConfigurer.ConfigurationResult.success(
+                        Path.of("/tmp/context-common.xml"), false, "검증 통과"));
+        given(codeValidatorService.validateDirectory(any())).willReturn("검증 통과");
+        given(generatedCodeContractAuditor.audit(any())).willReturn(List.of());
+        given(generationHistoryService.saveHistory(any(), any(), any(), any(), any()))
+                .willReturn("이력 저장 완료");
+    }
+
+    @Test
+    void orchestrate_thymeleafCreateWithNonStandardDensityAndFormLayout_callsCollaboratorsInDocumentedOrder() {
+        sut.orchestrate("com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp",
+                "/tmp/egov-test", "5.0", "thymeleaf", "create", null, null);
+
+        InOrder order = inOrder(
+                krdsStylesConfigurer, crudTemplateRenderer, codeService, warEntryPointConfigurer,
+                thymeleafRuntimeConfigurer, myBatisRuntimeConfigurer, codeValidatorService,
+                generatedCodeContractAuditor, generationHistoryService);
+
+        // PRE_WRITE 100: Table Density CSS
+        order.verify(krdsStylesConfigurer).ensureTableDensityStyles("/tmp/egov-test");
+        // PRE_WRITE 110: Form Column CSS
+        order.verify(krdsStylesConfigurer).ensureFormColumnLayoutStyles("/tmp/egov-test");
+        // WRITE: 레이어별 렌더링 + 저장 (최소 1회 이상 — 레이어 수만큼 반복)
+        order.verify(crudTemplateRenderer, Mockito.atLeastOnce())
+                .renderByLayerKey(any(), any(), any(), any(), any(), any());
+        order.verify(codeService, Mockito.atLeastOnce()).saveGeneratedCode(any(), any());
+        // POST_WRITE 100: Entry Point(index.jsp 기본 진입점 갱신)
+        order.verify(warEntryPointConfigurer).configure(any(), any());
+        // POST_WRITE 200: Thymeleaf Runtime
+        order.verify(thymeleafRuntimeConfigurer).ensureThymeleafRuntime(any(), any(), any());
+        // POST_WRITE 210: Controller Scan
+        order.verify(thymeleafRuntimeConfigurer).ensureControllerComponentScan(any(), any(), any());
+        // POST_WRITE 300: MyBatis
+        order.verify(myBatisRuntimeConfigurer).ensureConfigured(any(), any());
+        // VERIFY — 클래스 Javadoc 참고: 명세서는 이 앞에 PRE_VERIFY 100을 두지만
+        // 실제 구현은 코드 검증(VERIFY)을 먼저 실행한다.
+        order.verify(codeValidatorService).validateDirectory(any());
+        // 실제 구현상 Common Contract 감사는 VERIFY "다음"에 실행된다(명세서 PRE_VERIFY 순서와 다름).
+        order.verify(generatedCodeContractAuditor).audit(any());
+        // HISTORY
+        order.verify(generationHistoryService).saveHistory(any(), any(), any(), any(), any());
+    }
+
+    private static List<Map<String, Object>> fakeColumns() {
+        Map<String, Object> col = new HashMap<>();
+        col.put("COLUMN_NAME", "EMPLYR_ID");
+        col.put("DATA_TYPE", "varchar");
+        col.put("CHARACTER_MAXIMUM_LENGTH", 20L);
+        col.put("IS_NULLABLE", "NO");
+        col.put("COLUMN_COMMENT", "직원ID");
+        col.put("COLUMN_KEY", "PRI");
+        return List.of(col);
+    }
+
+    private static CrudTemplateModel fakeModel(LayoutDensity density, FormColumnLayout formColumnLayout) {
+        PkModel pk = new PkModel("EMPLYR_ID", "emplyrId", "String");
+        FieldModel pkField = new FieldModel(
+                "EMPLYR_ID", "emplyrId", "String", "직원ID",
+                true, true, true, 20, "VARCHAR");
+        return new CrudTemplateModel(
+                "egovframework.let.emp", "Employer", "employer", "직원",
+                "LETTNEMPLYRINFO", "/emp/employer", "2026-07-31", "5.0", true,
+                pk, List.of(pkField), List.of(pkField), List.of(pkField), List.of(), List.of(),
+                fakeRoute(), null, List.of(pkField), density, formColumnLayout);
+    }
+
+    private static CrudRouteModel fakeRoute() {
+        return new CrudRouteModel(
+                "/emp/employerList.do", null,
+                "/emp/employerDetail.do", null,
+                "/emp/employerRegistView.do", null,
+                "/emp/employerRegist.do", null,
+                "/emp/employerUpdtView.do", null,
+                "/emp/employerUpdt.do", null,
+                "/emp/employerDelete.do", null,
+                null);
+    }
+}

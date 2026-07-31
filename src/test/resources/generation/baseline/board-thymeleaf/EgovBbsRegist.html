@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>BBS 등록</title>
+</head>
+<section layout:fragment="content" class="egov-crud-page">
+    <div class="egov-page-header">
+        <h1 class="egov-page-title">BBS 등록</h1>
+    </div>
+
+    <div class="egov-form-required-guide">
+        <span class="egov-required-mark" aria-hidden="true">*</span>
+        <span>표시는 필수 입력 항목입니다.</span>
+    </div>
+
+    <form class="egov-search-form" th:action="@{/bbs/bbsRegist.do}" method="post">
+        <input th:if="${_csrf != null}" type="hidden"
+               th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" th:name="bbsId"
+               th:value="${bbsVO.bbsId}"/>
+
+        <div class="krds-table-wrap">
+            <table class="tbl col egov-form-table">
+                <caption>BBS 등록 입력 폼</caption>
+                <tbody>
+                <tr>
+                    <th scope="row">
+                        <label for="nttSj">
+                            제목<span class="egov-required-mark">*</span>
+                        </label>
+                    </th>
+                    <td>
+                        <input type="text"
+                               class="krds-input medium egov-control"
+                               id="nttSj"
+                               th:name="nttSj"
+                               th:value="${bbsVO.nttSj}"
+                               placeholder="제목을(를) 입력하세요"/>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="nttCn">
+                            내용
+                        </label>
+                    </th>
+                    <td>
+                        <textarea class="krds-input medium egov-control egov-textarea"
+                                  id="nttCn"
+                                  th:name="nttCn"
+                                  rows="12"
+                                  maxlength="4000"
+                                  aria-describedby="nttCnCount"
+                                  oninput="document.getElementById('nttCnCount').textContent=this.value.length+' / '+this.maxLength"
+                                  placeholder="내용을(를) 입력하세요"
+                                  th:text="${bbsVO.nttCn}"></textarea>
+                        <p id="nttCnCount" class="egov-char-count" aria-live="polite">0 / 4000</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="ntcrNm">
+                            작성자명
+                        </label>
+                    </th>
+                    <td>
+                        <input type="text"
+                               class="krds-input medium egov-control"
+                               id="ntcrNm"
+                               th:name="ntcrNm"
+                               th:value="${bbsVO.ntcrNm}"
+                               placeholder="작성자명을(를) 입력하세요"/>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="noticeAt">
+                            공지여부
+                        </label>
+                    </th>
+                    <td>
+                        <input type="text"
+                               class="krds-input medium egov-control"
+                               id="noticeAt"
+                               th:name="noticeAt"
+                               th:value="${bbsVO.noticeAt}"
+                               placeholder="공지여부을(를) 입력하세요"/>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="atchFileId">
+                            첨부파일ID
+                        </label>
+                    </th>
+                    <td>
+                        <input type="text"
+                               class="krds-input medium egov-control"
+                               id="atchFileId"
+                               th:name="atchFileId"
+                               th:value="${bbsVO.atchFileId}"
+                               placeholder="첨부파일ID을(를) 입력하세요"/>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="frstRegistPnttm">
+                            최초등록시점
+                        </label>
+                    </th>
+                    <td>
+                        <input type="text"
+                               class="krds-input medium egov-control"
+                               id="frstRegistPnttm"
+                               th:name="frstRegistPnttm"
+                               th:value="${bbsVO.frstRegistPnttm}"
+                               placeholder="최초등록시점을(를) 입력하세요"/>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="egov-form-actions">
+            <a th:href="@{/bbs/bbsList.do(bbsId=${bbsVO.bbsId})}"
+               class="krds-btn secondary medium egov-btn">취소</a>
+            <button type="submit" class="krds-btn primary medium egov-btn">
+                <span aria-hidden="true">✓</span>
+                저장
+            </button>
+        </div>
+    </form>
+</section>
+</html>

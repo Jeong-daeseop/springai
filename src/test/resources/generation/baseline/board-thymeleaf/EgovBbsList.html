@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>BBS 목록</title>
+</head>
+<section layout:fragment="content" class="egov-crud-page">
+    <div class="egov-page-header">
+        <h1 class="egov-page-title">BBS 목록</h1>
+        <a th:href="@{/bbs/bbsRegistView.do(bbsId=${searchVO.bbsId})}" class="krds-btn primary medium egov-btn">
+            <span aria-hidden="true">＋</span>
+            등록
+        </a>
+    </div>
+
+    <div id="toast-alert" th:if="${message}" class="egov-toast" role="alert" aria-live="polite">
+        <span aria-hidden="true" class="egov-toast-icon">✓</span>
+        <span th:text="${message}">처리되었습니다.</span>
+    </div>
+    <script>
+    (function(){var t=document.getElementById('toast-alert');if(t){setTimeout(function(){t.style.transition='opacity 0.4s';t.style.opacity='0';setTimeout(function(){t.remove();},400);},3000);}})();
+    </script>
+
+    <div class="egov-search-panel">
+        <form id="searchForm" class="egov-search-form" th:action="@{/bbs/bbsList.do}" method="get">
+            <input type="hidden" name="bbsId" th:value="${searchVO.bbsId}"/>
+            <input type="hidden" name="pageIndex" th:value="${searchVO.pageIndex}"/>
+            <div class="egov-search-row">
+                <select name="searchCondition" class="krds-form-select medium egov-control egov-search-condition" title="검색조건">
+                    <option value="1" th:selected="${searchVO.searchCondition == '1'}">제목</option>
+                    <option value="2" th:selected="${searchVO.searchCondition == '2'}">내용</option>
+                    <option value="3" th:selected="${searchVO.searchCondition == '3'}">작성자</option>
+                </select>
+                <input type="text" name="searchKeyword" class="krds-input medium egov-control"
+                       th:value="${searchVO.searchKeyword}" placeholder="검색어를 입력하세요"/>
+                <button type="submit" class="krds-btn primary medium egov-btn egov-inline-action">
+                    <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 3 3"/></svg>
+                    검색
+                </button>
+                <a th:href="@{/bbs/bbsList.do(bbsId=${searchVO.bbsId})}" class="krds-btn secondary medium egov-btn egov-inline-action">
+                    <svg aria-hidden="true" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 8a7 7 0 1 1 .8 3.2"/><path d="M4 3v5h5"/></svg>
+                    초기화
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="egov-list-summary">
+        <span class="egov-muted-text">
+            총 <strong class="egov-primary-text"
+                       th:text="${paginationInfo != null ? paginationInfo.totalRecordCount : 0}">0</strong>건
+        </span>
+        <span class="egov-subtle-text" th:if="${paginationInfo != null}">
+            <span th:text="${paginationInfo.currentPageNo}">1</span>
+            /
+            <span th:text="${paginationInfo.totalPageCount}">1</span>
+            페이지
+        </span>
+        <label class="egov-page-unit-label" for="pageUnit">페이지당</label>
+        <select id="pageUnit" name="pageUnit" form="searchForm" class="krds-form-select small egov-page-unit"
+                onchange="this.form.pageIndex.value='1';this.form.submit()">
+            <option value="10" th:selected="${searchVO.pageUnit == 10}">10개</option>
+            <option value="20" th:selected="${searchVO.pageUnit == 20}">20개</option>
+            <option value="50" th:selected="${searchVO.pageUnit == 50}">50개</option>
+        </select>
+    </div>
+
+    <div class="krds-table-wrap">
+        <table class="tbl data egov-list-table">
+            <caption>BBS 목록 표</caption>
+            <colgroup>
+                <col class="egov-col-no">
+                <col>
+                <col>
+                <col>
+                <col>
+                <col>
+                <col>
+                <col class="egov-col-file">
+                <col class="egov-col-actions">
+            </colgroup>
+            <thead>
+            <tr>
+                <th scope="col">번호</th>
+                <th scope="col">공지여부</th>
+                <th scope="col">게시글번호</th>
+                <th scope="col">제목</th>
+                <th scope="col">작성자명</th>
+                <th scope="col">최초등록시점</th>
+                <th scope="col">게시판ID</th>
+                <th scope="col">첨부</th>
+                <th scope="col">관리</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="item, status : ${resultList}"
+                th:data-href="@{/bbs/bbsDetail.do(bbsId=${item.bbsId},nttId=${item.nttId})}"
+                data-row-link="true" class="egov-row-link"
+                th:classappend="${item.noticeAt == 'Y'} ? ' egov-row-notice' : ''"
+                >
+                <td class="egov-table-no"
+                    >
+                    <span th:if="${item.noticeAt == 'Y'}"
+                          class="egov-notice-badge">공지</span>
+                    <span th:unless="${item.noticeAt == 'Y'}" th:text="${status.count}">1</span>
+                </td>
+                <td>
+                    <a th:href="@{/bbs/bbsDetail.do(bbsId=${item.bbsId},nttId=${item.nttId})}"
+                       class="egov-status-badge"
+                       th:text="${item.noticeAt == 'Y' ? '공지' : '일반'}"></a>
+                </td>
+                <td>
+                    <a th:href="@{/bbs/bbsDetail.do(bbsId=${item.bbsId},nttId=${item.nttId})}"
+                       th:text="${item.nttId}"
+                       class="egov-detail-link strong"></a>
+                </td>
+                <td>
+                    <a th:href="@{/bbs/bbsDetail.do(bbsId=${item.bbsId},nttId=${item.nttId})}"
+                       th:text="${item.nttSj}"
+                       class="egov-detail-link"></a>
+                </td>
+                <td>
+                    <a th:href="@{/bbs/bbsDetail.do(bbsId=${item.bbsId},nttId=${item.nttId})}"
+                       th:text="${item.ntcrNm}"
+                       class="egov-detail-link"></a>
+                </td>
+                <td>
+                    <a th:href="@{/bbs/bbsDetail.do(bbsId=${item.bbsId},nttId=${item.nttId})}"
+                       th:text="${item.frstRegistPnttm}"
+                       class="egov-detail-link"></a>
+                </td>
+                <td>
+                    <a th:href="@{/bbs/bbsDetail.do(bbsId=${item.bbsId},nttId=${item.nttId})}"
+                       th:text="${item.bbsId}"
+                       class="egov-detail-link strong"></a>
+                </td>
+                <td class="egov-table-actions">
+                    <a th:if="${item.atchFileId != null and item.atchFileId != ''}"
+                       th:href="@{/bbs/bbsDetail.do(bbsId=${item.bbsId},nttId=${item.nttId})}"
+                       title="첨부파일이 있는 게시글 보기"
+                       onclick="event.stopPropagation();"
+                       class="egov-file-link">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 3v12"></path>
+                            <path d="m7 10 5 5 5-5"></path>
+                            <path d="M5 21h14"></path>
+                        </svg>
+                        <span class="egov-sr-only">첨부파일이 있는 게시글 보기</span>
+                    </a>
+                    <span th:unless="${item.atchFileId != null and item.atchFileId != ''}"
+                          class="egov-file-empty">-</span>
+                </td>
+                <td class="egov-table-actions">
+                    <a th:href="@{/bbs/bbsDetail.do(bbsId=${item.bbsId},nttId=${item.nttId})}"
+                       class="krds-btn secondary small egov-btn"
+                       onclick="event.stopPropagation();">상세</a>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(resultList)}">
+                <td colspan="9" class="egov-empty-cell">
+                    <div class="egov-empty-state">
+                        <svg aria-hidden="true" viewBox="0 0 48 48" width="42" height="42" fill="none">
+                            <rect x="10" y="8" width="28" height="32" rx="3" stroke="#cdd1d5" stroke-width="2"/>
+                            <path d="M16 18h16M16 25h16M16 32h10" stroke="#8a949e" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                        <span>검색 결과가 없습니다.</span>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <nav class="krds-pagination egov-pagination" aria-label="페이지 이동"
+         th:if="${paginationInfo != null and paginationInfo.totalRecordCount > 0}">
+        <a th:if="${paginationInfo.currentPageNo > 1}"
+           th:href="@{/bbs/bbsList.do(pageIndex=1,bbsId=${searchVO.bbsId},searchCondition=${searchVO.searchCondition},searchKeyword=${searchVO.searchKeyword})}"
+           class="btn-first" title="처음"></a>
+        <a th:if="${paginationInfo.currentPageNo > 1}"
+           th:href="@{/bbs/bbsList.do(pageIndex=${paginationInfo.currentPageNo - 1},bbsId=${searchVO.bbsId},searchCondition=${searchVO.searchCondition},searchKeyword=${searchVO.searchKeyword})}"
+           class="btn-prev" title="이전"></a>
+        <ol>
+            <li th:each="pageNo : ${#numbers.sequence(paginationInfo.firstPageNoOnPageList, paginationInfo.lastPageNoOnPageList)}"
+                th:classappend="${pageNo == paginationInfo.currentPageNo} ? ' on' : ''">
+                <a th:href="@{/bbs/bbsList.do(pageIndex=${pageNo},bbsId=${searchVO.bbsId},searchCondition=${searchVO.searchCondition},searchKeyword=${searchVO.searchKeyword})}"
+                   th:text="${pageNo}">1</a>
+            </li>
+        </ol>
+        <a th:if="${paginationInfo.currentPageNo < paginationInfo.totalPageCount}"
+           th:href="@{/bbs/bbsList.do(pageIndex=${paginationInfo.currentPageNo + 1},bbsId=${searchVO.bbsId},searchCondition=${searchVO.searchCondition},searchKeyword=${searchVO.searchKeyword})}"
+           class="btn-next" title="다음"></a>
+        <a th:if="${paginationInfo.currentPageNo < paginationInfo.totalPageCount}"
+           th:href="@{/bbs/bbsList.do(pageIndex=${paginationInfo.totalPageCount},bbsId=${searchVO.bbsId},searchCondition=${searchVO.searchCondition},searchKeyword=${searchVO.searchKeyword})}"
+           class="btn-last" title="마지막"></a>
+    </nav>
+</section>
+
+<th:block layout:fragment="scripts">
+<script>
+document.querySelectorAll('tr[data-row-link="true"][data-href]').forEach(function(row) {
+    row.addEventListener('click', function() {
+        window.location.href = this.dataset.href;
+    });
+});
+</script>
+</th:block>
+</html>

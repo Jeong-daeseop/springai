@@ -1,0 +1,2291 @@
+[ {
+  "name" : "analyzeCapturedDesign",
+  "description" : "Design Artifact를 기존 UiDesignSpec 분석 결과로 결정론적으로 변환합니다.\n반환된 analysisId는 createScreenSpecification에 전달할 수 있습니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "artifactId" : {
+        "type" : "string"
+      },
+      "featureType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "artifactId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "analyzeDesignReference",
+  "description" : "PNG/JPEG 또는 이미지형 PDF 디자인 참조를 분석하여 UiDesignSpec을 생성합니다.\n보안 검토 후 app.design-vision.provider가 openai 또는 ollama로 설정된 환경에서만 실행됩니다.\npageRange는 PDF의 1-based 페이지 범위이며 예: 1-3,5 형식입니다.\n반환된 analysisId를 createScreenSpecification의 designAnalysisId로 전달하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "featureType" : {
+        "type" : "string"
+      },
+      "pageRange" : {
+        "type" : "string"
+      },
+      "referencePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "referencePath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "analyzeFigmaReference",
+  "description" : "Figma Design의 단일 화면 FRAME URL에서 레이어 트리와 기하 정보를 분석하여 UiDesignSpec을 생성합니다.\nhttps://www.figma.com/file/... 또는 /design/... URL만 허용하며 node-id가 필요합니다.\nSECTION, CANVAS, DOCUMENT 등 여러 화면을 포함할 수 있는 노드는 지원하지 않습니다.\nURL의 node-id와 별도 nodeId가 모두 있으면 두 값이 일치해야 합니다.\napp.design-vision.figma.enabled=true이고 FIGMA_ACCESS_TOKEN이 설정된 환경에서만 실행됩니다.\n반환된 analysisId를 createScreenSpecification의 designAnalysisId로 전달하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "featureType" : {
+        "type" : "string"
+      },
+      "figmaUrl" : {
+        "type" : "string"
+      },
+      "nodeId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "figmaUrl" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "approveScreenSpecification",
+  "description" : "미해결 이슈가 없는 ScreenSpecification을 승인 상태로 확정합니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "screenSpecificationId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "screenSpecificationId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "auditComponentRegistry",
+  "description" : "저장된 ComponentRegistry와 DesignSystemProfile의 Publish 상태·버전 드리프트를 점검합니다.\nfigmaMcpSecret 인증값이 반드시 필요합니다.\nComponent/Variable 공개 Key 원문은 응답하지 않으며 삭제·교체는 사람 승인 없이 수행하지 않습니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
+      "profileId" : {
+        "type" : "string"
+      },
+      "registryVersion" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "figmaMcpSecret", "profileId", "registryVersion" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "auditGeneratedQuality",
+  "description" : "생성 결과의 공통 계약과 기본 접근성 계약을 함께 검사합니다.\nFreeMarker/Claude Design 잔존 태그, Mapper ${} 치환, 외부 URL과\nhtml lang, img alt, 이름 없는 button을 진단합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "directoryPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "directoryPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "buildBoardFeature",
+  "description" : "eGovFrame 게시판(BBS) 소스를 업무 단위로 생성합니다.\n이 Tool은 프로젝트 초기화용이 아닙니다. initializeProject()와는 별도 단계입니다.\n사용자가 게시판(BBS) 생성을 명시했을 때만 호출하세요.\nLETTNBBS(게시글), LETTNBBSMASTER(게시판마스터), LETTNBBSUSE(사용권한) 연동 포함.\n목록/상세/등록/수정/논리삭제 + 조회수 증가 + 마스터 이름 조회를 한 번에 생성합니다.\ndatabase        : 데이터베이스명 (예: com)\ndomain          : 도메인명 PascalCase (예: Bbs)\npackageName     : 패키지명 (예: egovframework.let.bbs)\noutputPath      : 소스 저장 절대경로\nmainTable       : 게시글 테이블 (기본값: LETTNBBS)\nmasterTable     : 게시판 마스터 테이블 (기본값: LETTNBBSMASTER)\nuseTable        : 게시판 사용/권한 테이블 (기본값: LETTNBBSUSE, 생략 가능)\nfileTable       : 첨부파일 묶음 테이블 (기본값: LETTNFILE, 생략 가능)\nfileDetailTable : 첨부파일 상세 테이블 (기본값: LETTNFILEDETAIL, 생략 가능)\negovVersion     : eGovFrame 버전 (기본값: \"5.0\")\nviewType        : 화면 종류 (기본값: \"jsp\", \"thymeleaf\" 선택 가능)\n  - \"jsp\"       : JSP 화면 4개 포함 12개 파일 생성\n  - \"thymeleaf\" : HTML 화면 4개 포함 12개 파일 생성(layoutMode=create 시 17개)\nlayoutMode      : Thymeleaf layout 처리 방식 (선택, 기본값 \"reuse\")\n  - \"reuse\" : 기존 layout 재사용. layout이 없으면 generateThymeleafLayout() 실행 안내와 함께 실패\n  - \"create\": layout 레이어까지 함께 생성\nlayoutView      : 화면이 참조할 layout 경로 (선택, 기본값 \"layout/default\")\nbreadcrumbView  : 화면이 참조할 breadcrumb 경로 (선택, 기본값 \"layout/breadcrumb\")\nprogramFileName : 프로그램 파일명. 명시값이 DB 자동조회보다 우선합니다.\nprogramUrl      : LETTNPROGRMLIST URL. query는 bbsId로, path는 Controller alias로 사용합니다.\nprogramKoreanName: 화면 title/H1/caption에 사용할 프로그램 한글명입니다.\nprogramStorePath: 프로그램 저장 경로 메타데이터입니다.\ndefaultBbsId    : 요청 bbsId가 없을 때만 사용할 게시판 ID이며 마스터 테이블에서 검증합니다.\ndesignReferenceId: analyzeDesignReference()가 반환한 분석 ID입니다.\nscreenSpecificationId: 게시글 주 테이블 기준 APPROVED 화면명세 ID입니다.\n우선순위는 명시 파라미터 > DB 자동조회 > 기존 규칙 fallback 입니다.\nlayout 파일은 generateThymeleafLayout()로 먼저 생성하는 것을 권장합니다.\n정적 리소스    : 생성 화면은 initializeProject()가 만든 /resources/css/styles.css와 /resources/js/krds.min.js를 사용합니다.\n  - WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되며 URL은 /resources/** 로 동일하게 유지합니다.\n  - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "breadcrumbView" : {
+        "type" : "string"
+      },
+      "database" : {
+        "type" : "string"
+      },
+      "defaultBbsId" : {
+        "type" : "string"
+      },
+      "designReferenceId" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "fileDetailTable" : {
+        "type" : "string"
+      },
+      "fileTable" : {
+        "type" : "string"
+      },
+      "layoutMode" : {
+        "type" : "string"
+      },
+      "layoutView" : {
+        "type" : "string"
+      },
+      "mainTable" : {
+        "type" : "string"
+      },
+      "masterTable" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "programFileName" : {
+        "type" : "string"
+      },
+      "programKoreanName" : {
+        "type" : "string"
+      },
+      "programStorePath" : {
+        "type" : "string"
+      },
+      "programUrl" : {
+        "type" : "string"
+      },
+      "screenSpecificationId" : {
+        "type" : "string"
+      },
+      "useTable" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "buildFullCrudPrompt",
+  "description" : "eGovFrame 5.x CRUD 전체 소스 생성에 필요한 통합 프롬프트를 반환합니다.\n이 Tool 하나로 getTableSchema + 공통코드 조회 + 플레이스홀더 매핑을 한 번에 처리합니다.\n반환된 프롬프트의 지시에 따라 viewType별 레이어 소스를 순서대로 생성하고 저장하세요.\n(JSP: 11개, Thymeleaf 기본 reuse: 화면/Java/Mapper 11개, layoutMode=create: 16개)\ndatabase   : 데이터베이스명 (예: com)\ntableName  : 테이블명 (예: LETTNEMPLYRINFO)\ndomain     : 도메인명 대문자 시작 (예: Employer)\npackageName: 패키지명 (예: egovframework.let.emp)\noutputPath : 소스 저장 절대경로 (예: /Users/user/Desktop/egov-gen/emp)\nllmProvider: 소스 생성 주체 선택 (생략 시 \"auto\" 기본값)\n  - \"auto\"  : 서버 내부 오케스트레이션 — CrudOrchestrationService가 viewType별 파일을 생성·저장 (Claude 토큰 97% 절감)\n  - \"claude\": 스키마 정보와 지시를 반환하고 Claude가 소스를 직접 작성·저장\nviewType   : 화면 템플릿 종류 (선택, 기본값 \"jsp\")\n  - \"jsp\"       : /WEB-INF/jsp/{domainLc}/Egov{Domain}*.jsp 생성\n  - \"thymeleaf\" : src/main/resources/templates/{domainLc}/Egov{Domain}*.html 생성\nlayoutMode : Thymeleaf layout 처리 방식 (선택, 기본값 \"reuse\")\n  - \"reuse\" : 기존 layout 재사용. layout이 없으면 generateThymeleafLayout() 실행 안내와 함께 실패\n  - \"create\": layout 레이어까지 함께 생성\nlayoutView     : 화면이 참조할 layout 경로 (선택, 기본값 \"layout/default\")\nbreadcrumbView : 화면이 참조할 breadcrumb 경로 (선택, 기본값 \"layout/breadcrumb\")\nlayout 파일은 generateThymeleafLayout()로 먼저 생성하는 것을 권장합니다.\n정적 리소스: 생성 화면은 initializeProject()가 만든 /resources/css/styles.css와 /resources/js/krds.min.js를 사용합니다.\n  - WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되며 URL은 /resources/** 로 동일하게 유지합니다.\n  - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.\n  - Thymeleaf 화면과 layout은 인라인 style을 생성하지 않고 styles.css의 egov-* 공통 클래스를 사용합니다.\negovVersion: eGovFrame 버전 (선택, 기본값 \"5.0\")\n  - \"5.0\" 또는 \"latest\" : jakarta.validation.* import 사용\n  - \"4.3\"               : javax.validation.* import 사용\n  initializeProject() 완료 후 PROJECT_CONTEXT 블록의 egovVersion 값을 그대로 전달하세요.\nprogramFileName : LETTNPROGRMLIST의 목록(list) 화면 프로그램 파일명. 명시값이 DB 자동조회보다 우선합니다.\nprogramUrl      : LETTNPROGRMLIST 목록 화면 URL. Controller alias로 사용합니다.\nprogramKoreanName: 화면 title/H1/캡션에 사용할 프로그램 한글명입니다.\nprogramStorePath: 프로그램 저장 경로 메타데이터입니다.\ndesignReferenceId: analyzeDesignReference()가 반환한 분석 ID입니다. 화면명세 초안 생성에 사용합니다.\nscreenSpecificationId: APPROVED 상태의 화면명세 ID입니다. designReferenceId보다 우선합니다.\n우선순위는 명시 파라미터 > DB 자동조회(LETTNPROGRMLIST/LETTNMENUINFO, domain 기준 목록/상세/등록/수정/삭제 화면별 매칭) > 기존 규칙(packageName+domain) fallback 입니다.\ndomain과 일치하는 프로그램이 LETTNPROGRMLIST에 여러 건(목록 화면 기준) 있으면 자동 선택하지 않고 실패하니 programFileName을 명시하세요.\n\n[중요] outputPath 결정 규칙 — 반드시 아래 순서를 따르세요:\n1. 사용자가 저장 경로를 명시한 경우 → 그 경로를 그대로 사용\n2. 사용자가 기존 프로젝트 경로를 알려준 경우 → resolveProjectOutputPath() 먼저 호출하여 경로 확정\n3. 경로를 모르거나 언급이 없는 경우 → getDefaultOutputPath(domain) 호출하여 기본 경로 사용\n   (기본 경로: ~/Desktop/egov-generated/{domain})\n절대로 경로를 임의로 결정하거나 추측하지 마세요.\noutputPath를 확정한 후 사용자에게 \"이 경로에 생성합니다: {path}\" 라고 먼저 알리고 진행하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "breadcrumbView" : {
+        "type" : "string"
+      },
+      "database" : {
+        "type" : "string"
+      },
+      "designReferenceId" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "layoutMode" : {
+        "type" : "string"
+      },
+      "layoutView" : {
+        "type" : "string"
+      },
+      "llmProvider" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "programFileName" : {
+        "type" : "string"
+      },
+      "programKoreanName" : {
+        "type" : "string"
+      },
+      "programStorePath" : {
+        "type" : "string"
+      },
+      "programUrl" : {
+        "type" : "string"
+      },
+      "screenSpecificationId" : {
+        "type" : "string"
+      },
+      "tableName" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "tableName", "domain", "packageName", "outputPath", "llmProvider" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "buildJoinSelectPrompt",
+  "description" : "단일 테이블에 JOIN이 필요한 경우 SELECT 쿼리·resultMap·VO 추가 필드를 자동 생성합니다.\ngetTableRelations()에서 공통코드·부서 등 JOIN 후보 컬럼이 탐지된 경우 사용하세요.\n기존 buildFullCrudPrompt()로 생성된 소스에 JOIN을 추가할 때 활용합니다.\n이 Tool은 Mapper XML/VO 보강 지시만 반환하며 HTML/CSS/JS 화면 파일은 생성하지 않습니다.\ndatabase  : 데이터베이스명 (예: com)\ntableName : JOIN을 추가할 테이블명 (예: LETTNEMPLYRINFO)\n반환값: JOIN SELECT 쿼리 초안 + resultMap 추가 항목 + VO 추가 필드 목록\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "tableName" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "tableName" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "buildMasterDetailPrompt",
+  "description" : "1:N 마스터-디테일 구조의 eGovFrame CRUD 소스 생성 지시를 반환합니다.\n마스터 테이블 상세화면에 디테일 테이블 목록 그리드 탭이 포함됩니다.\ngetTableRelations()에서 자식 테이블이 탐지된 경우 이 Tool을 사용하세요.\ndatabase    : 데이터베이스명 (예: com)\nmasterTable : 마스터(부모) 테이블명 (예: LETTNEMPLYRINFO)\ndetailTable : 디테일(자식) 테이블명 (예: LETTNEMPLYRATTRBINFO)\ndomain      : 마스터 도메인명 대문자 시작 (예: Employer)\npackageName : 패키지명 (예: egovframework.let.emp)\noutputPath  : 소스 저장 절대경로 (예: /Users/user/Desktop/egov-gen/emp)\nllmProvider : 소스 생성 주체 선택 (생략 시 \"auto\" 기본값)\n  - \"auto\"  : 서버 내부 오케스트레이션 — MasterDetailOrchestrationService가 파일을 생성·저장\n  - \"claude\": 스키마 정보와 지시를 반환하고 Claude가 소스를 직접 작성·저장\negovVersion : eGovFrame 버전 (선택, 기본값 \"5.0\")\n  - \"5.0\" 또는 \"latest\" : jakarta.validation.* import 사용\n  - \"4.3\"               : javax.validation.* import 사용\nviewType    : 화면 템플릿 종류 (선택, 기본값 \"jsp\")\n  - \"jsp\"       : /WEB-INF/jsp/{domainLc}/Egov{Domain}*.jsp 생성 (총 14개)\n  - \"thymeleaf\" : src/main/resources/templates/{domainLc}/Egov{Domain}*.html 생성\nlayoutMode  : Thymeleaf layout 처리 방식 (선택, 기본값 \"reuse\")\n  - \"reuse\" : 기존 layout 재사용. layout이 없으면 generateThymeleafLayout() 실행 안내와 함께 실패\n  - \"create\": layout 레이어까지 함께 생성\nlayoutView     : 화면이 참조할 layout 경로 (선택, 기본값 \"layout/default\")\nbreadcrumbView : 화면이 참조할 breadcrumb 경로 (선택, 기본값 \"layout/breadcrumb\")\ndesignReferenceId: analyzeDesignReference()가 반환한 분석 ID입니다.\nscreenSpecificationId: 마스터 테이블 기준 APPROVED 화면명세 ID입니다.\nlayout 파일은 generateThymeleafLayout()로 먼저 생성하는 것을 권장합니다.\n정적 리소스: 생성 화면은 initializeProject()가 만든 /resources/css/styles.css와 /resources/js/krds.min.js를 사용합니다.\n  - WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되며 URL은 /resources/** 로 동일하게 유지합니다.\n  - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.\n\n[중요] outputPath 결정 규칙 — 반드시 아래 순서를 따르세요:\n1. 사용자가 저장 경로를 명시한 경우 → 그 경로를 그대로 사용\n2. 사용자가 기존 프로젝트 경로를 알려준 경우 → resolveProjectOutputPath() 먼저 호출하여 경로 확정\n3. 경로를 모르거나 언급이 없는 경우 → getDefaultOutputPath(domain) 호출하여 기본 경로 사용\n   (기본 경로: ~/Desktop/egov-generated/{domain})\n절대로 경로를 임의로 결정하거나 추측하지 마세요.\noutputPath를 확정한 후 사용자에게 \"이 경로에 생성합니다: {path}\" 라고 먼저 알리고 진행하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "breadcrumbView" : {
+        "type" : "string"
+      },
+      "database" : {
+        "type" : "string"
+      },
+      "designReferenceId" : {
+        "type" : "string"
+      },
+      "detailTable" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "layoutMode" : {
+        "type" : "string"
+      },
+      "layoutView" : {
+        "type" : "string"
+      },
+      "llmProvider" : {
+        "type" : "string"
+      },
+      "masterTable" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "screenSpecificationId" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "masterTable", "detailTable", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "captureWebPage",
+  "description" : "허용된 로컬 또는 개발 JSP 화면 URL을 Chromium으로 분석하여 Figma import와\n화면명세 생성에 사용할 Design Artifact를 만듭니다. Release 1은 LOCAL_JSP,\n단일 desktop viewport와 비인증 화면만 지원하며 서버는 미리 실행되어 있어야 합니다.\n인증정보, 쿠키 또는 토큰을 인자로 전달하지 마세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "request" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "featureType" : {
+            "type" : "string"
+          },
+          "profile" : {
+            "const" : "LOCAL_JSP",
+            "type" : "string"
+          },
+          "readiness" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "hiddenSelector" : {
+                "type" : "string"
+              },
+              "readySelector" : {
+                "type" : "string"
+              },
+              "timeoutMillis" : {
+                "format" : "int32",
+                "type" : "integer"
+              }
+            },
+            "required" : [ "hiddenSelector", "readySelector", "timeoutMillis" ],
+            "type" : "object"
+          },
+          "url" : {
+            "type" : "string"
+          },
+          "viewport" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "deviceScaleFactor" : {
+                "format" : "double",
+                "type" : "number"
+              },
+              "height" : {
+                "format" : "int32",
+                "type" : "integer"
+              },
+              "name" : {
+                "type" : "string"
+              },
+              "width" : {
+                "format" : "int32",
+                "type" : "integer"
+              }
+            },
+            "required" : [ "deviceScaleFactor", "height", "name", "width" ],
+            "type" : "object"
+          }
+        },
+        "required" : [ "featureType", "profile", "readiness", "url", "viewport" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "request" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "celsiusToFahrenheit",
+  "description" : "섭씨(Celsius) 온도를 화씨(Fahrenheit)로 변환합니다.\ncelsius 파라미터에 변환할 섭씨 온도 값을 입력하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "celsius" : {
+        "type" : "number"
+      }
+    },
+    "required" : [ "celsius" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "checkOutputDirectory",
+  "description" : "eGovFrame CRUD 소스를 저장할 기본 경로를 확인합니다.\nbaseDir: 확인할 디렉터리 경로\n해당 경로의 존재 여부와 기존 파일 목록을 반환합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "baseDir" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "baseDir" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "checkProjectHealth",
+  "description" : "eGovFrame 프로젝트의 특정 도메인 소스 생성 완성도를 점검합니다.\nprojectRootPath: 프로젝트 루트 절대경로 (예: /Users/user/project) 또는 소스 출력 경로\ndomain: 도메인명 소문자 (예: employer, bbs, board)\n점검 항목:\n  - 레이어별 파일 존재 여부 (VO/Mapper/MapperXML/Service/ServiceImpl/Controller/화면 4종: JSP 또는 Thymeleaf)\n  - eGovFrame 표준 준수 여부 (validateGeneratedCode 연동)\n  - LETTNMENUINFO 메뉴 등록 여부\n  - LETTNPROGRMLIST 권한 등록 여부\n  - 테스트 코드 존재 여부\n반환값: 완성도 %(점수), 항목별 ✅/❌, 다음 권장 작업 목록\n소스 생성 완료 후 최종 점검 또는 작업 재개 전 현황 파악 시 사용합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "domain" : {
+        "type" : "string"
+      },
+      "projectRootPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "projectRootPath", "domain" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "createEmployee",
+  "description" : "eGovFrame 직원을 신규 등록합니다.\nemplyrId(ID), userNm(이름), emailAdres(이메일), ofcpsNm(직위), mbtlnum(휴대폰), esntlId(고유ID)를 입력하세요.\nesntlId는 20자리 고유 식별자입니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "emailAdres" : {
+        "type" : "string"
+      },
+      "emplyrId" : {
+        "type" : "string"
+      },
+      "esntlId" : {
+        "type" : "string"
+      },
+      "mbtlnum" : {
+        "type" : "string"
+      },
+      "ofcpsNm" : {
+        "type" : "string"
+      },
+      "userNm" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "emplyrId", "userNm", "emailAdres", "ofcpsNm", "mbtlnum", "esntlId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "createScreenSpecification",
+  "description" : "DB 스키마와 선택적인 디자인 분석 결과를 결합하여 실행 가능한 ScreenSpecification을 만듭니다.\n명확한 표준 매핑은 APPROVED, 미매핑·JOIN·불확실성이 있으면 REVIEW_REQUIRED로 반환합니다.\ndesignAnalysisId가 없으면 DB 스키마만으로 표준 CRUD 화면명세를 생성합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "designAnalysisId" : {
+        "type" : "string"
+      },
+      "detailColumns" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "featureType" : {
+        "type" : "string"
+      },
+      "listColumns" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "screenName" : {
+        "type" : "string"
+      },
+      "tableName" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "tableName" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "deleteEmployee",
+  "description" : "eGovFrame 직원을 삭제합니다.\nemplyrId에 삭제할 직원 ID를 입력하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "emplyrId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "emplyrId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "executeQuery",
+  "description" : "SELECT 쿼리를 직접 실행하고 결과를 테이블 형식으로 반환합니다.\nSELECT / SHOW / EXPLAIN / DESC 만 실행 가능합니다. INSERT·UPDATE·DELETE·DDL은 차단됩니다.\n결과는 최대 100행까지 표시됩니다.\n예시:\n  SELECT * FROM com.LETTNEMPLYRINFO LIMIT 10\n  SHOW TABLES FROM com\n  DESC com.LETTNEMPLYRINFO\nCRUD 생성 후 실제 데이터 확인, 컬럼 값 범위 파악, 쿼리 동작 검증에 사용하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "sql" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sql" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "explainQuery",
+  "description" : "EXPLAIN으로 쿼리 실행 계획을 분석합니다.\n인덱스 사용 여부, 풀스캔 여부, 조인 순서 등을 확인할 수 있습니다.\nCRUD 생성 후 selectList 쿼리 성능을 점검할 때 사용하세요.\n예시:\n  SELECT * FROM com.LETTNEMPLYRINFO WHERE ORGNZT_ID = 'ORG001'\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "sql" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sql" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "findReusableDesignAnalyses",
+  "description" : "화면 설명으로 과거 디자인 분석의 시맨틱 후보를 찾고 현재 provider/model/promptVersion 및\n기대 archetype, featureType과의 호환성을 재검증합니다. reusable=true여도 자동 대체하지 않으며,\n사용자가 분석 결과를 확인한 뒤 designAnalysisId로 선택해야 합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "expectedArchetype" : {
+        "type" : "string"
+      },
+      "expectedFeatureType" : {
+        "type" : "string"
+      },
+      "query" : {
+        "type" : "string"
+      },
+      "topK" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ "query", "topK" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateAuthInsertSql",
+  "description" : "신규 도메인 URL 접근 제어에 필요한 SQL을 반환합니다.\nSQL 1: LETTNROLEINFO INSERT (롤 등록 — ROLE_CODE 자동 계산, URL 패턴 자동 생성)\nSQL 2: LETTNAUTHORROLERELATE INSERT (ROLE_ADMIN 권한에 롤 연결)\nSQL 3: 추가 권한 그룹 연결 예시 (주석 처리, 필요 시 활성화)\n※ SecurityTemplateTool에서 securityMapper 포함 조합을 먼저 생성해야 이 SQL이 Security에 반영됩니다.\n※ ROLE_CODE는 기존 최대값 기준 자동 계산됩니다. 동시 실행 시 race condition 주의.\n※ DB 방언은 app.sql.dialect 설정을 따릅니다. 지원값: mysql_mariadb, oracle, auto (JDBC metadata 자동 감지).\n이 Tool은 SQL을 반환만 합니다. 직접 DB에 INSERT하지 않으므로 사용자가 검토 후 실행하세요.\nSQL 실행 후 Spring Security 재기동 또는 캐시 갱신이 필요합니다.\nurlPrefix : URL 경로 접두사 (예: \"/emp/employer\")\nprogramNm : 프로그램 한국어명 (예: \"직원관리\")\ndomain    : 도메인 식별자 (예: \"emp\") — 롤 설명에 사용됨\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "domain" : {
+        "type" : "string"
+      },
+      "programNm" : {
+        "type" : "string"
+      },
+      "urlPrefix" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "urlPrefix", "programNm", "domain" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateBoardDetail",
+  "description" : "게시판(BBS) 상세 화면 1개만 렌더링하여 반환합니다.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\n프로그램 메타데이터 선택값은 buildBoardFeature와 동일하게 적용됩니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "defaultBbsId" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "fileDetailTable" : {
+        "type" : "string"
+      },
+      "fileTable" : {
+        "type" : "string"
+      },
+      "mainTable" : {
+        "type" : "string"
+      },
+      "masterTable" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "programFileName" : {
+        "type" : "string"
+      },
+      "programKoreanName" : {
+        "type" : "string"
+      },
+      "programStorePath" : {
+        "type" : "string"
+      },
+      "programUrl" : {
+        "type" : "string"
+      },
+      "useTable" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateBoardList",
+  "description" : "게시판(BBS) 목록 화면 1개만 렌더링하여 반환합니다.\n`generateBoardList`는 기존 README의 화면별 MCP Tool 패턴과 호환하기 위해 추가된 세분 Tool입니다.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\ndatabase        : 데이터베이스명\ndomain          : 도메인명 PascalCase\npackageName     : 패키지명 (egovframework.let.*)\noutputPath      : 저장 기준 절대경로\nmainTable       : 게시글 테이블 (기본값 LETTNBBS)\nmasterTable     : 게시판 마스터 테이블 (기본값 LETTNBBSMASTER)\nuseTable        : 게시판 사용/권한 테이블 (기본값 LETTNBBSUSE)\nfileTable       : 첨부파일 묶음 테이블 (기본값 LETTNFILE)\nfileDetailTable : 첨부파일 상세 테이블 (기본값 LETTNFILEDETAIL)\negovVersion     : eGovFrame 버전 (기본값 5.0)\nviewType        : jsp 또는 thymeleaf (기본값 jsp)\nprogramFileName/programUrl/programKoreanName/programStorePath/defaultBbsId:\n  buildBoardFeature와 동일한 프로그램 메타데이터 선택값이며 명시값 > DB > fallback 순입니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "defaultBbsId" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "fileDetailTable" : {
+        "type" : "string"
+      },
+      "fileTable" : {
+        "type" : "string"
+      },
+      "mainTable" : {
+        "type" : "string"
+      },
+      "masterTable" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "programFileName" : {
+        "type" : "string"
+      },
+      "programKoreanName" : {
+        "type" : "string"
+      },
+      "programStorePath" : {
+        "type" : "string"
+      },
+      "programUrl" : {
+        "type" : "string"
+      },
+      "useTable" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateBoardRegist",
+  "description" : "게시판(BBS) 등록 화면 1개만 렌더링하여 반환합니다.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\n프로그램 메타데이터 선택값은 buildBoardFeature와 동일하게 적용됩니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "defaultBbsId" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "fileDetailTable" : {
+        "type" : "string"
+      },
+      "fileTable" : {
+        "type" : "string"
+      },
+      "mainTable" : {
+        "type" : "string"
+      },
+      "masterTable" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "programFileName" : {
+        "type" : "string"
+      },
+      "programKoreanName" : {
+        "type" : "string"
+      },
+      "programStorePath" : {
+        "type" : "string"
+      },
+      "programUrl" : {
+        "type" : "string"
+      },
+      "useTable" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateBoardUpdt",
+  "description" : "게시판(BBS) 수정 화면 1개만 렌더링하여 반환합니다.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\n프로그램 메타데이터 선택값은 buildBoardFeature와 동일하게 적용됩니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "defaultBbsId" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "fileDetailTable" : {
+        "type" : "string"
+      },
+      "fileTable" : {
+        "type" : "string"
+      },
+      "mainTable" : {
+        "type" : "string"
+      },
+      "masterTable" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "programFileName" : {
+        "type" : "string"
+      },
+      "programKoreanName" : {
+        "type" : "string"
+      },
+      "programStorePath" : {
+        "type" : "string"
+      },
+      "programUrl" : {
+        "type" : "string"
+      },
+      "useTable" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateCrudDetail",
+  "description" : "단일 테이블 CRUD 상세 화면 1개만 렌더링하여 반환합니다.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\ndatabase    : 데이터베이스명\ntableName   : 단일 CRUD 대상 테이블명\ndomain      : 도메인명 PascalCase\npackageName : 패키지명 (egovframework.let.*)\noutputPath  : 저장 기준 절대경로\negovVersion : eGovFrame 버전 (기본값 5.0)\nviewType    : jsp 또는 thymeleaf (기본값 jsp)\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "tableName" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "tableName", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateCrudList",
+  "description" : "단일 테이블 CRUD 목록 화면 1개만 렌더링하여 반환합니다.\nJava/Mapper 전체 세트를 만들지 않고 List 화면 소스만 확인하거나 미세 조정할 때 사용하세요.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\ndatabase    : 데이터베이스명\ntableName   : 단일 CRUD 대상 테이블명\ndomain      : 도메인명 PascalCase\npackageName : 패키지명 (egovframework.let.*)\noutputPath  : 저장 기준 절대경로\negovVersion : eGovFrame 버전 (기본값 5.0)\nviewType    : jsp 또는 thymeleaf (기본값 jsp)\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "tableName" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "tableName", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateCrudRegist",
+  "description" : "단일 테이블 CRUD 등록 화면 1개만 렌더링하여 반환합니다.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\ndatabase    : 데이터베이스명\ntableName   : 단일 CRUD 대상 테이블명\ndomain      : 도메인명 PascalCase\npackageName : 패키지명 (egovframework.let.*)\noutputPath  : 저장 기준 절대경로\negovVersion : eGovFrame 버전 (기본값 5.0)\nviewType    : jsp 또는 thymeleaf (기본값 jsp)\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "tableName" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "tableName", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateCrudUpdt",
+  "description" : "단일 테이블 CRUD 수정 화면 1개만 렌더링하여 반환합니다.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\ndatabase    : 데이터베이스명\ntableName   : 단일 CRUD 대상 테이블명\ndomain      : 도메인명 PascalCase\npackageName : 패키지명 (egovframework.let.*)\noutputPath  : 저장 기준 절대경로\negovVersion : eGovFrame 버전 (기본값 5.0)\nviewType    : jsp 또는 thymeleaf (기본값 jsp)\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "tableName" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "tableName", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateFigmaScreenSpec",
+  "description" : "승인된 ScreenSpecification에서 FigmaScreenSpec을 생성합니다.\nfigmaMcpSecret 인증값이 반드시 필요합니다.\n이 도구는 Figma Library Publish·삭제·Component Key 교체를 수행하지 않으며,\nPublish와 Breaking 변경은 사람의 Preview 승인 후 별도 절차로 진행해야 합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
+      "request" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "designSystemProfileId" : {
+            "type" : "string"
+          },
+          "exportMode" : {
+            "enum" : [ "PREVIEW", "FINAL" ],
+            "type" : "string"
+          },
+          "pageId" : {
+            "type" : "string"
+          },
+          "screenSpecificationId" : {
+            "type" : "string"
+          },
+          "screenSpecificationVersion" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "syncMode" : {
+            "enum" : [ "PREVIEW", "MERGE", "REPLACE" ],
+            "type" : "string"
+          },
+          "viewport" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "designSystemProfileId", "exportMode", "pageId", "screenSpecificationId", "screenSpecificationVersion", "syncMode", "viewport" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "figmaMcpSecret", "request" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateMasterDetail",
+  "description" : "마스터-디테일 구조의 마스터 상세 화면 1개만 렌더링하여 반환합니다.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "detailTable" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "masterTable" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "masterTable", "detailTable", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateMasterList",
+  "description" : "마스터-디테일 구조의 마스터 목록 화면 1개만 렌더링하여 반환합니다.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\ndatabase    : 데이터베이스명\nmasterTable : 마스터 테이블명\ndetailTable : 디테일 테이블명\ndomain      : 마스터 도메인명 PascalCase\npackageName : 패키지명 (egovframework.let.*)\noutputPath  : 저장 기준 절대경로\negovVersion : eGovFrame 버전 (기본값 5.0)\nviewType    : jsp 또는 thymeleaf (기본값 jsp)\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "detailTable" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "masterTable" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "masterTable", "detailTable", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateMasterRegist",
+  "description" : "마스터-디테일 구조의 마스터 등록 화면 1개만 렌더링하여 반환합니다.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "detailTable" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "masterTable" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "masterTable", "detailTable", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateMasterUpdt",
+  "description" : "마스터-디테일 구조의 마스터 수정 화면 1개만 렌더링하여 반환합니다.\n파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "detailTable" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "masterTable" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "masterTable", "detailTable", "domain", "packageName", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateMenuInsertSql",
+  "description" : "신규 메뉴 등록에 필요한 SQL 2개를 반환합니다.\nSQL 1: 프로그램 테이블(LETTNPROGRMLIST) INSERT (프로그램 등록)\nSQL 2: 메뉴 테이블(LETTNMENUINFO) INSERT (메뉴 등록)\nMENU_NO와 MENU_ORDR은 기존 최대값 기준으로 자동 계산됩니다.\n※ 상위 메뉴 존재 여부, PROGRM_FILE_NM 중복, URL 중복을 자동 검증합니다.\n※ securityMapper가 DB 기반 URL 권한을 조회하는 구성이어야 이 SQL이 Security에 반영됩니다.\n※ DB 방언은 app.sql.dialect 설정을 따릅니다. 지원값: mysql_mariadb, oracle, auto (JDBC metadata 자동 감지).\n이 Tool은 SQL을 반환만 합니다. 직접 DB에 INSERT하지 않으므로 사용자가 검토 후 실행하세요.\nupperMenuNo : 상위 메뉴 번호 (예: \"6000000\")\nurlPrefix   : URL 경로 접두사 (예: \"/emp/employer\")\nmenuNm      : 메뉴명 (예: \"직원관리\")\nprogrmFileNm: 프로그램 파일명 (예: \"EgovEmployerList\") — getProgramList()로 중복 확인 필수\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "menuNm" : {
+        "type" : "string"
+      },
+      "progrmFileNm" : {
+        "type" : "string"
+      },
+      "upperMenuNo" : {
+        "type" : "string"
+      },
+      "urlPrefix" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "upperMenuNo", "urlPrefix", "menuNm", "progrmFileNm" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateSource",
+  "description" : "[DEPRECATED] 이 Tool은 더 이상 사용되지 않습니다.\n\ntext-block {{플레이스홀더}} 방식은 FreeMarker 템플릿으로 전환되었으며,\ngenerateSource()를 호출하면 deprecation 안내 메시지만 반환됩니다.\n\neGovFrame CRUD 소스 생성은 buildFullCrudPrompt(llmProvider=\"auto\")를 사용하세요.\nauto 모드는 FreeMarker 템플릿으로 viewType별 파일을 한 번에 생성·저장합니다 (JSP: 11개, Thymeleaf: 16개).\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "layer" : {
+        "type" : "string"
+      },
+      "valuesJson" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "layer", "valuesJson" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "generateThymeleafLayout",
+  "description" : "Thymeleaf 공통 layout 파일 5종(default.html, gnb.html, lnb.html, breadcrumb.html, footer.html)과\nGNB 동적 메뉴 컴포넌트 4종(GnbMenuVO.java, GnbMenuMapper.java/xml, EgovGnbMenuInterceptor.java)을 생성하고,\nGNB 브랜드 영역에 쓸 eGovFrame 로고 이미지(src/main/webapp/resources/images/egov-logo.png)를 생성하고,\nMainController가 반환하는 egovframework/main/main 뷰를 Thymeleaf main.html로 렌더링하도록 메인 화면을 생성합니다.\nWAR 기본 진입점(index.jsp/index.html/web.xml)은 화면 생성기의 책임이므로 변경하지 않습니다.\nWAR 프로젝트의 servlet-context.xml에 EgovGnbMenuInterceptor 등록 블록을 자동으로 patch합니다(이미 등록되어 있으면 skip).\nGNB Mapper가 동작하도록 context-common.xml의 mapperLocations와 MapperScannerConfigurer도 자동으로 보강합니다.\n또한 Thymeleaf 런타임 의존성과 ViewResolver를 보강해 JSP resolver보다 classpath:/templates/*.html 화면을 우선 렌더링합니다.\nGNB는 menuTableName(기본 LETTNMENUINFO, UPPER_MENU_NO=0)+programTableName(기본 LETTNPROGRMLIST)을 조회해 매 요청마다 동적으로 렌더링됩니다.\n생성되는 layout HTML은 인라인 style을 생성하지 않고 initializeProject()가 만든 /resources/css/styles.css의 egov-* 공통 클래스를 사용합니다.\nCrudPromptBuilderTool의 Thymeleaf 생성은 layoutMode=reuse가 기본값이므로,\n신규 프로젝트에서는 buildFullCrudPrompt/buildBoardFeature/buildMasterDetailPrompt 실행 전에 이 Tool을 먼저 호출하세요.\n\noutputPath      : 프로젝트 루트 절대경로\nlayoutBasePath  : templates 아래 layout base 경로 (기본값: \"layout\")\n  - \"layout\"       => src/main/resources/templates/layout/*.html\n  - \"layout/admin\" => src/main/resources/templates/layout/admin/*.html\noverwriteLayout : 기존 layout/GNB 컴포넌트 파일 덮어쓰기 여부 (기본값 true)\n  - true : 기존 파일 갱신(생략 시 기본 동작)\n  - false: 기존 파일 보존(커스터마이징한 layout/인터셉터를 유지하려면 명시적으로 false 지정)\npackageName     : GNB 메뉴 컴포넌트가 생성될 패키지 (예: egovframework.let.emp)\n  [중요] initializeProject()에 전달했던 packageName과 반드시 동일해야 합니다.\n  다르면 EgovGnbMenuInterceptor가 실제 CRUD 패키지와 어긋난 위치에 생성되어 동작하지 않습니다.\n  생략 시 \"egovframework.let.sample\"을 쓰지만 실제 프로젝트에서는 반드시 명시하세요.\nmenuTableName   : 메뉴 테이블명 (기본값: \"LETTNMENUINFO\")\nprogramTableName: 프로그램 테이블명 (기본값: \"LETTNPROGRMLIST\")\n[1차 구현 제약] WAR 프로젝트만 지원(Boot는 서보플릿 XML이 없어 인터셉터 등록 불가),\n  Jakarta Servlet(eGovFrame 5.0)만 지원(4.3/javax는 미지원).\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "layoutBasePath" : {
+        "type" : "string"
+      },
+      "menuTableName" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "overwriteLayout" : {
+        "type" : "boolean"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "programTableName" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getCodeTemplate",
+  "description" : "eGovFrame 5.x CRUD FreeMarker 템플릿(.ftl) 원문을 반환합니다.\n디버깅·확인 용도로 사용하며, 실제 소스 생성은 buildFullCrudPrompt(llmProvider=\"auto\")를 사용하세요.\nlayer 파라미터 — 공통 Java:\n  vo, controller, service, serviceimpl, mapper, mapperxml, controlleradvice\nlayer 파라미터 — JSP 화면 (viewType=jsp):\n  jsplist, jspdetail, jspregist, jspupdt\nlayer 파라미터 — Thymeleaf 화면 (viewType=thymeleaf):\n  layouthtml, layoutgnbhtml, layoutlnbhtml, layoutbreadcrumbhtml, layoutfooterhtml,\n  thymeleaflist, thymeleafdetail, thymeleafregist, thymeleafupdt\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "layer" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "layer" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getCommonCode",
+  "description" : "eGovFrame 공통 코드 상세 목록을 조회합니다. (LETTCCMMNDETAILCODE)\ncodeId: 조회할 코드ID (예: COM034, COM001)\n반환값: 코드값(CODE), 코드명(CODE_NM), 사용여부(USE_AT), 설명(CODE_DC)\nJSP select box 생성용 HTML도 함께 반환합니다.\nVO 필드 매핑, JSP <select> 옵션 생성, 검색 조건 코드값 확인 시 사용합니다.\n코드ID를 모를 경우 searchCommonCode 로 먼저 검색하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "codeId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "codeId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getConfigTemplate",
+  "description" : "eGovFrame 설정 파일 템플릿을 반환합니다. (추가_권장_항목 12번)\n신규 프로젝트 구성 또는 기존 프로젝트 설정 누락 항목 보완 시 사용합니다.\n\n[configType 목록]\n  contextCommon      — context-common.xml\n                       컴포넌트 스캔, SqlSessionFactory, MapperScanner 설정\n  contextDatasource  — context-datasource.xml\n                       HikariCP DataSource 설정 (DB 연결 정보 포함)\n  contextTransaction — context-transaction.xml\n                       DataSourceTransactionManager + AOP 트랜잭션 설정\n  dispatcherServlet  — servlet-context.xml (DispatcherServlet 웹 계층 설정)\n                       Spring MVC 컨트롤러 스캔, ViewResolver, 파일 업로드 설정\n  webXml             — web.xml (Jakarta EE 6.0 기준)\n                       ContextLoaderListener, DispatcherServlet, 인코딩 필터 설정\n  logback            — logback-spring.xml (Spring Boot 전용)\n                       콘솔 + 파일 롤링 로그 설정\n  log4j2             — log4j2.xml (WAR 전통 방식 전용)\n                       콘솔 + 파일 롤링 로그 설정\n  applicationYml     — application.yml (Spring Boot 전용)\n                       datasource / mybatis / server / logging 설정\n                       local / prod 프로파일 분리 포함\n\n[packageName]\n  contextCommon, dispatcherServlet, applicationYml 에서 패키지명으로 사용됩니다.\n  생략 시 egovframework.let.sample 이 적용됩니다.\n\n기존 프로젝트에서 특정 설정 파일만 필요할 때 또는\ninitializeProject() 이후 개별 설정 파일을 수정·보완할 때 사용하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "configType" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "configType", "packageName" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getCurrentDateTime",
+  "description" : "현재 날짜와 시간을 지정한 시간대(timezone)로 반환합니다.\ntimezone은 IANA 형식으로 입력하세요. 예: Asia/Seoul, UTC, America/New_York, Europe/London\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "timezone" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "timezone" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getDefaultOutputPath",
+  "description" : "CRUD 소스를 저장할 기본 경로를 반환합니다.\n사용자가 저장 경로를 모르거나 별도 프로젝트가 없을 때 사용하세요.\n기본 경로: ~/Desktop/egov-generated/{domainLc}\n환경변수 EGOV_OUTPUT_PATH로 변경 가능합니다.\n\ndomain: 도메인명 대문자 시작 (예: Employee)\n\n반환값을 buildFullCrudPrompt()의 outputPath 파라미터로 그대로 사용하세요.\n사용자가 경로를 지정하지 않았을 때 이 Tool을 먼저 호출하여 경로를 확정한 후 CRUD 생성을 시작하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "domain" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "domain" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getDesignArtifact",
+  "description" : "저장된 Design Artifact의 메타데이터, 요약과 경고를 조회합니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "artifactId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "artifactId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getEmployee",
+  "description" : "eGovFrame 직원 단건을 조회합니다.\nemplyrId에 직원 ID를 입력하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "emplyrId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "emplyrId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getEmployeeList",
+  "description" : "eGovFrame 직원 목록을 조회합니다.\nkeyword로 이름, 이메일, 직위를 검색할 수 있습니다. 전체 조회 시 keyword를 빈 문자열로 입력하세요.\n최대 20건 반환합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "keyword" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "keyword" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getGenerationHistory",
+  "description" : "eGovFrame CRUD 소스 생성 이력을 조회합니다.\nkeyword: 검색어 (테이블명, 도메인명, 패키지명 대상) — 비어 있으면 최근 20건 반환\n이전에 어떤 테이블로 소스를 생성했는지 확인하거나, 동일한 패턴으로 재생성할 때 사용합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "keyword" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "keyword" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getMenuStructure",
+  "description" : "eGovFrame 메뉴 테이블(LETTNMENUINFO) 기준 메뉴 트리 구조를 조회합니다.\nmenuNo = \"0\" 이면 전체 트리를 반환합니다.\n특정 menuNo를 지정하면 해당 메뉴의 하위 트리를 반환합니다.\n반환값에 신규 등록 시 권장 MENU_NO / MENU_ORDR 이 자동 계산되어 포함됩니다.\nmenuNo: 조회할 메뉴 번호 (예: \"0\"=전체, \"6000000\"=시스템관리 하위)\n※ menuNo는 숫자 문자열이어야 합니다. null/빈값/비숫자 입력 시 오류 메시지를 반환합니다.\n새 메뉴 등록 위치 파악 후 generateMenuInsertSql() 을 호출하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "menuNo" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "menuNo" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getProgramList",
+  "description" : "프로그램 테이블(LETTNPROGRMLIST)에서 프로그램 목록을 키워드로 검색합니다.\n한국어명 / URL / PROGRM_FILE_NM 기준 LIKE 검색을 수행합니다.\ngenerateMenuInsertSql() 호출 전 중복 등록 여부를 반드시 확인하세요.\nPROGRM_FILE_NM은 PK이므로 중복 시 INSERT 오류가 발생합니다.\nkeyword: 검색어 (예: \"employer\", \"직원\", \"EgovEmployer\")\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "keyword" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "keyword" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getSampleData",
+  "description" : "테이블의 샘플 데이터를 조회합니다.\ndatabase : 데이터베이스명 (예: com)\ntableName: 테이블명 (예: LETTNEMPLYRINFO)\nlimit    : 조회 행 수 (1~100, 기본 10)\nVO 필드의 실제 값 범위를 파악하거나 CRUD 생성 후 데이터를 확인할 때 사용하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "limit" : {
+        "type" : "integer"
+      },
+      "tableName" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "tableName", "limit" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getScreenSpecification",
+  "description" : "저장된 최신 ScreenSpecification을 ID로 조회합니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "screenSpecificationId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "screenSpecificationId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getSecurityTemplate",
+  "description" : "eGovFrame 표준 Spring Security 설정 파일 템플릿을 반환합니다.\neGovFrame 4.3(Spring Security 5.x)과 5.0(Spring Security 6.x) 모두 지원합니다.\nXML 방식(공공 SI 레거시 호환)과 Java Config 방식(신규) 모두 지원합니다.\n\n[레거시 XML 방식]\n  webXmlFilter      → web.xml 6-filter 체인 전체 (선언 순서 포함)\n                      ⚠️ eGovFrame 4.3 WAR XML Security 전용\n                         5.0에서는 미지원 — setup-war-50을 사용하세요.\n                      ① CharacterEncodingFilter (UTF-8, *.do)\n                      ② HTMLTagFilter (XSS 방어, *.do)\n                      ③ LoginPolicyFilter (비밀번호 만료/계정 잠금, 로그인 URL)\n                      ④ EgovSpringSecurityLoginFilter (DB 인증 핵심, *.do)\n                      ⑤ springSecurityFilterChain (Spring Security 전체, /*)\n                      ⑥ EgovSpringSecurityLogoutFilter (세션 초기화, 로그아웃 URL)\n                      ⚠️ ④는 반드시 ⑤ 앞에 선언 (순서 바뀌면 인증 우회됨)\n  contextSecurity   → context-security.xml\n                      egovVersion=4.3: spring-beans-4.0.xsd + egov-security-4.3.0.xsd\n                                       <egov-security:config> 포함 (RTE 보안 초기화 필수)\n                                       <http> / <authentication-manager> / Bean 선언 포함\n                      egovVersion=5.0: spring-beans.xsd만 사용 (egov-security 네임스페이스 없음)\n                                       → EgovSecurityConfig Bean 1개 (설정값 POJO, 32개 property)\n                                       → RTE EgovSecurityConfiguration이 이 Bean을 읽어 SecurityFilterChain 자동 구성\n                                       → 반드시 javaConfig(5.0)과 함께 사용 (단독 사용 불가)\n                      XSD 선언이 버전에 따라 다르므로 egovVersion 반드시 명시\n  securityMapper    → URL-ROLE 매핑 참조 SQL (LETTNROLEINFO / LETTNROLES_HIERARCHY)\n\n[Java Config 방식 — egovVersion에 따라 구조가 완전히 다름]\n  javaConfig        → egovVersion=4.3: WebSecurityConfigurerAdapter 상속 방식\n                                       (antMatchers / authorizeRequests / .and() 체이닝)\n                      egovVersion=5.0: @Import(EgovSecurityConfiguration.class) 진입점만 생성\n                                       → EgovProjectSecurityConfig.java (내용 없음)\n                                       → RTE EgovSecurityConfiguration이 SecurityFilterChain 자동 구성\n                                       → 반드시 contextsecurity(5.0)과 함께 사용 (EgovSecurityConfig Bean 필요)\n                                       ⚠️ EgovSecurityConfiguration을 XML <bean>으로 직접 선언하면\n                                          Spring Security 6.5 + Java 17에서 BootstrapMethodError 발생\n  userDetailsService → EgovUserDetailsServiceImpl.java\n                      (LETTNEMPLYRINFO 사용자 조회 + LETTNEMPLYRSCRTYESTBS 권한 조회)\n                      ⚠️ eGovFrame 4.3 전용 — 5.0은 EgovJdbcUserDetailsManager(RTE 자동 구성)가 대체\n                         5.0에서는 context-security.xml의 jdbcUsersByUsernameQuery 프로퍼티로 설정\n  roleHierarchy     → EgovRoleHierarchyConfig.java\n                      (LETTNROLES_HIERARCHY 테이블 기반 ROLE 계층 동적 로드)\n                      eGovFrame 4.3 / 5.0 공통 사용 가능\n                      ⚠️ XML 조합(setup-war-43-xml)에서는 미포함.\n                         context-security.xml이 roleHierarchy Bean을 이미 XML로 선언하므로\n                         Java Config @Bean과 동시 로드 시 Bean 중복 → 기동 실패.\n\n[핸들러 구현체 — javaConfig 4.3 전용]\n  ※ XML 방식(contextSecurity)에서는 eGovFrame RTE가 핸들러 클래스를 직접 제공하므로 불필요.\n    XML에서 커스텀 핸들러로 교체 시 class 속성을 fully-qualified name으로 수정 필요.\n  ※ javaConfig 5.0에서도 불필요 — RTE EgovSecurityConfiguration이 자동 처리.\n     로그인 성공/실패는 EgovSecurityConfig.defaultTargetUrl / loginFailureUrl 프로퍼티로 설정.\n\n  successHandler    → EgovAuthenticationSuccessHandler.java\n                      (로그인 성공 후 defaultTargetUrl 리다이렉트)\n                      ⚠️ javaConfig 4.3 전용 — 5.0은 EgovSecurityConfig.defaultTargetUrl 프로퍼티로 대체\n                      eGovFrame 4.3(javax) 전용\n  failureHandler    → EgovAuthenticationFailureHandler.java\n                      (로그인 실패 후 defaultFailureUrl 리다이렉트)\n                      ⚠️ javaConfig 4.3 전용 — 5.0은 EgovSecurityConfig.loginFailureUrl 프로퍼티로 대체\n                      eGovFrame 4.3(javax) 전용\n  accessDeniedHandler → EgovAccessDeniedHandler.java\n                      (HTTP 403 접근 거부 시 /cmm/error/accessDenied.do 리다이렉트)\n                      javaConfig 내부에서 생성자 주입으로 EgovAccessDeniedHandler 참조\n                      eGovFrame 4.3(javax) / 5.0(jakarta) 분기\n\n[인증/로그아웃 필터 구현체 — bopr 방식, jakarta]\n  loginFilter         → EgovSpringSecurityLoginFilter.java\n                        Spring Security formLogin() 우회 — DB 직접 인증\n                        SecurityContextHolder 설정 + 세션 저장\n                        ⚠️ verifyPassword() 구현 필수 (SHA-256+Base64 또는 BCrypt)\n                        ⚠️ web.xml에서 springSecurityFilterChain 앞에 선언\n                        ⚠️ UserDetailsService 생성자 주입이 있어 web.xml 직접 등록 불가.\n                           webXmlFilter 는 DelegatingFilterProxy + targetBeanName 방식으로 등록.\n                           context-security.xml(4.3)에 egovSpringSecurityLoginFilter Bean 자동 포함됨.\n  logoutFilter        → EgovSpringSecurityLogoutFilter.java\n                        session loginVO=null 초기화 → /egov_security_logout 위임\n  loginPolicyFilter   → EgovLoginPolicyFilter.java\n                        로그인 전 비밀번호 만료/계정 잠금 사전 체크\n                        ⚠️ 계정 정책 DB 조회 로직 직접 구현 필요\n  sessionMapping      → EgovSessionMapping.java\n                        DB ResultSet → EgovUserDetails 변환\n                        context-security.xml jdbcMapClass 프로퍼티에서 참조\n\n[인증 헬퍼]\n  userDetailsHelper    → EgovUserDetailsHelper 컨트롤러 사용 예시\n                         isAuthenticated() / getAuthenticatedUser() / getAuthorities()\n                         eGovFrame 4.3 / 5.0 공통\n  userDetailsHelperXml → context-egovuserdetailshelper.xml\n                         dummy/session/security Spring Profile 분기 XML\n                         globals.properties Globals.Auth 값으로 활성 Profile 결정\n\n[공통]\n  loginPage         → egovLoginUsr.jsp (CSRF 토큰 포함 표준 로그인 폼)\n\n핵심 아키텍처:\n  DelegatingFilterProxy → springSecurityFilterChain → DB 인증 (LETTNEMPLYRINFO)\n  → Session 저장 → LETTNROLEINFO URL 패턴 매칭 → 접근 제어\n  세션 기반 유지 (공공 SI 표준 — STATELESS 아님)\n\n주의: contextSecurity(XML의 <http>)와 javaConfig(SecurityFilterChain Bean)는\n      Spring Security 설정으로 동시 선언 불가 (springSecurityFilterChain Bean 충돌).\n      단, DataSource·TX 등 다른 Bean은 XML/Java Config 혼용 가능.\n      userDetailsService·roleHierarchy·핸들러는 XML Security와도 함께 사용 가능.\n\n[조합 생성 키워드 — outputPath와 함께 사용]\n  ⚠️ 4.3 전용 키워드(setup-war-43-*)에 egovVersion=5.0 지정 시 예외 발생.\n     5.0 전용 키워드(setup-war-50/setup-all-war-50)에 egovVersion=4.3 지정 시 예외 발생.\n\n  --- 4.3 XML Security 방식 (공공 SI 표준) ---\n  setup-war-43        → setup-war-43-xml alias (하위 호환 유지)\n  setup-war-43-xml    → 4.3 XML Security 기본 셋업 (9개 파일)\n                        webXmlFilter + contextSecurity + userDetailsService +\n                        sessionMapping + loginFilter + logoutFilter +\n                        loginPolicyFilter + loginPage + userDetailsHelperXml\n                        ※ javaConfig / roleHierarchy 미포함\n                          (contextSecurity XML이 roleHierarchy Bean 직접 선언)\n                        ※ 필터 3종 포함 이유: webXmlFilter가 이 클래스를 참조하므로\n                          조합 안에서 참조가 완결되어야 함\n\n  --- 4.3 Java Config 방식 (WebSecurityConfigurerAdapter) ---\n  setup-war-43-java   → 4.3 Java Config 기본 셋업 (7개 파일)\n                        javaConfig + userDetailsService + roleHierarchy +\n                        successHandler + failureHandler + accessDeniedHandler + loginPage\n                        ※ contextSecurity 미포함 (XML <http>와 동시 사용 불가)\n\n  --- 5.0 ---\n  setup-war-50        → 5.0 WAR Security 기본 셋업 (5개 파일)\n                        contextSecurity + javaConfig + roleHierarchy +\n                        loginPage + userDetailsHelperXml\n\n  --- 필터/핸들러 조합 ---\n  setup-filters       → DB 인증 필터 셋업 (4개 파일)\n                        loginFilter + logoutFilter + loginPolicyFilter + sessionMapping\n  setup-handlers-43   → 4.3 Java Config 핸들러 셋업 (3개 파일)\n                        successHandler + failureHandler + accessDeniedHandler\n\n  --- 전체 조합 ---\n  setup-all-war-43        → setup-all-war-43-xml alias (하위 호환 유지)\n  setup-all-war-43-xml    → 4.3 XML Security 전체 셋업 (10개 파일, 중복 제거)\n                            setup-war-43-xml + setup-filters + securityMapper\n  setup-all-war-43-java   → 4.3 Java Config 전체 셋업 (12개 파일)\n                            setup-war-43-java + setup-filters + securityMapper\n  setup-all-war-50        → 5.0 전체 보안 셋업 (11개 파일)\n                            setup-war-50 + setup-filters + accessDeniedHandler + securityMapper\n\nsecurityType: 위 목록 중 하나 (대소문자 무관)\npackageName : Java 패키지명 (예: egovframework.let.emp) — javaConfig/userDetailsService/roleHierarchy/핸들러에서 사용\negovVersion : \"4.3\" 또는 \"5.0\" (미입력 시 5.0 기본값)\noutputPath  : (선택) 파일을 직접 저장할 프로젝트 루트 경로. 예: /Users/me/myproject\n              입력 시 지정 경로에 파일을 생성하고 결과를 반환.\n              미입력 시 템플릿 내용을 문자열로 반환 (하위 호환).\nprojectType : (선택) \"war\" 또는 \"boot\". 미입력 시 \"war\" 기본값.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "projectType" : {
+        "type" : "string"
+      },
+      "securityType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "securityType", "packageName", "egovVersion" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getTableList",
+  "description" : "MySQL 데이터베이스 내 테이블 목록을 조회합니다.\ndatabase 파라미터에 조회할 데이터베이스명을 입력하세요. 예: com, egovfrm\neGovFrame CRUD 소스 생성 전에 테이블 목록을 확인할 때 사용합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getTableRelations",
+  "description" : "테이블의 연관관계를 분석합니다.\nFK(물리적 외래키) 및 컬럼명 매칭 기반 암묵적 JOIN 후보를 함께 반환합니다.\ndatabase  : 데이터베이스명 (예: com)\ntableName : 분석할 테이블명 (예: LETTNEMPLYRINFO)\n반환값:\n  - 이 테이블이 참조하는 부모 테이블 목록 (자식→부모 FK)\n  - 이 테이블을 참조하는 자식 테이블 목록 (부모→자식 FK)\n  - 컬럼명 매칭 기반 암묵적 JOIN 후보\n  - 공통코드(LETTCCMMNDETAILCODE) JOIN 후보\n  - 마스터-디테일 구조 여부 판단 및 다음 Tool 호출 권장\nCRUD 소스 생성 전 테이블 관계 파악이 필요할 때 사용하세요.\n자식 테이블이 있으면 buildMasterDetailPrompt(), JOIN 후보만 있으면 buildJoinSelectPrompt() 사용을 권장합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "tableName" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "tableName" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getTableSchema",
+  "description" : "MySQL 테이블의 컬럼 상세 정보를 조회합니다.\ndatabase: 데이터베이스명 (예: com)\ntableName: 테이블명 (예: LETTNEMPLYRINFO)\n반환값: 컬럼명, 데이터타입, PK여부, Null허용여부, 기본값, 컬럼설명\neGovFrame 5.x CRUD 소스(VO, Mapper, Service, Controller) 자동 생성에 사용합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "tableName" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "tableName" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "getWebCaptureStatus",
+  "description" : "WEB_CAPTURE 기능, extractor와 artifact 저장소 준비 상태를 확인합니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : { },
+    "required" : [ ],
+    "type" : "object"
+  }
+}, {
+  "name" : "initializeProject",
+  "description" : "⚠️ 이 Tool이 outputPath 경로에 프로젝트 파일을 직접 생성합니다.\nDesktop Commander, Bash, 기타 파일 생성 도구를 사용하지 마세요.\neGovFrame 표준 구조(build.gradle/pom.xml, application.yml, Application.java,\ncontext-*.xml 등)는 이 Tool만 올바르게 생성합니다.\n\nSpring Initializr처럼 eGovFrame 신규 프로젝트 골격을 한 번에 생성합니다.\n\n[projectType]\n  war  — 전통 eGovFrame WAR 배포 방식\n         web.xml + root-context.xml + servlet-context.xml + context-*.xml 구성\n         외부 Tomcat에 WAR 배포\n  boot — Spring Boot 기반 eGovFrame\n         application.yml + @SpringBootApplication 구성\n         내장 서버(jar) 실행\n\n[egovVersion]\n  4.3    — eGovFrame 4.3.0 / Spring Boot 2.7.18 / Spring 5.3.37\n           Spring Security 5.8.13 / Spring Batch 4.3.10 / Java 11 / javax.servlet 4.0\n  latest — eGovFrame 5.0.0 / Spring Boot 3.5.6 / Spring 6.2.11\n           Spring Security 6.5.5 / Spring Batch 5.2.3 / Java 17 / Jakarta EE 10\n\n[지원 조합]\n  war  + 4.3    → Spring 5.3.37 / Java 11 / javax.servlet  / XML 설정\n  war  + latest → Spring 6.2.11 / Java 17 / Jakarta EE 10  / XML 설정\n  boot + 4.3    → Spring Boot 2.7.18 / Java 11 / mybatis-spring-boot-starter 2.x\n  boot + latest → Spring Boot 3.5.6  / Java 17 / mybatis-spring-boot-starter 3.x\n\n[생성 파일]\n  공통 : 표준 디렉터리 구조, pom.xml 또는 build.gradle, .gitignore\n  war  : root-context.xml, servlet-context.xml, context-common/datasource/transaction.xml,\n         web.xml, log4j2.xml, index.jsp,\n         resources/css/styles.css, resources/css/_ds_bundle.css, resources/js/krds.min.js\n  boot : application.yml, logback-spring.xml,\n         static/resources/css/styles.css, static/resources/css/_ds_bundle.css,\n         static/resources/js/krds.min.js,\n         {Domain}Application.java, {Domain}ApplicationTests.java\n\n[파라미터]\n  projectName : 프로젝트 폴더명       (예: egov-myproject)\n  groupId     : Maven groupId          (예: kr.go.myorg)\n  artifactId  : Maven artifactId       (예: myproject)\n  packageName : 기본 Java 패키지       (예: egovframework.let.myproject)\n  buildTool   : maven 또는 gradle\n  projectType : war 또는 boot\n  egovVersion : 4.3 또는 5.0 또는 latest (5.0 = latest 동일)\n  outputPath  : 생성 상위 경로         (예: /Users/user/Desktop)\n  viewType    : 화면 기술              (선택, 기본값 \"jsp\")\n                - \"jsp\"       : 공통 index.jsp + MainController + WEB-INF/jsp/egovframework/main/main.jsp 생성\n                - \"thymeleaf\" : MainController + templates/egovframework/main/main.html\n                                + layout 5종 + 공통 index.jsp + Thymeleaf ViewResolver 생성\n\n⚠️ 사용자가 \"프로젝트 생성\", \"새 프로젝트 만들어줘\", \"프로젝트 초기화\" 요청 시\n   반드시 이 Tool을 직접 호출하세요. Desktop Commander나 Bash로 대체하지 마세요.\n이 Tool은 프로젝트 골격 생성 전용입니다. CRUD/게시판 소스 생성은 자동으로 이어서 호출하지 마세요.\nCRUD/게시판 생성은 사용자가 별도로 요청했을 때만 해당 Tool을 사용하세요.\nprojectType 또는 egovVersion 미입력 시 사용자에게 물어보세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "artifactId" : {
+        "type" : "string"
+      },
+      "buildTool" : {
+        "type" : "string"
+      },
+      "egovVersion" : {
+        "type" : "string"
+      },
+      "groupId" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "projectName" : {
+        "type" : "string"
+      },
+      "projectType" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "projectName", "groupId", "artifactId", "packageName", "buildTool", "projectType", "egovVersion", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "preflightComponentRegistry",
+  "description" : "화면 생성 전에 Registry/Profile 드리프트와 필수 논리 컴포넌트의 alias·replacement 해석 가능 여부를 점검합니다.\nfigmaMcpSecret 인증값이 반드시 필요하며 Published Component Key 원문은 응답하지 않습니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
+      "profileId" : {
+        "type" : "string"
+      },
+      "registryVersion" : {
+        "type" : "string"
+      },
+      "requiredLogicalTypes" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      }
+    },
+    "required" : [ "figmaMcpSecret", "profileId", "registryVersion", "requiredLogicalTypes" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "prepareFigmaImport",
+  "description" : "검증된 Design Artifact를 Figma Plugin에서 가져올 수 있는 .figpack 파일로 내보냅니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "artifactId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "artifactId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "ragIngest",
+  "description" : "텍스트 문서를 Vector Store에 임베딩하여 RAG 검색 대상으로 등록합니다.\ndocId: 문서 식별자 (예: egov-login-guide, history-20260518)\ncontent: 임베딩할 텍스트 내용\ntype: 문서 유형 — document(가이드/문서), source_code(소스코드), history(생성이력)\n이후 ragSearch 또는 ragChat으로 유사 문서를 검색할 수 있습니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "content" : {
+        "type" : "string"
+      },
+      "docId" : {
+        "type" : "string"
+      },
+      "type" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "docId", "content", "type" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "ragIngestDirectory",
+  "description" : "디렉터리 내 .java 파일을 전부 Vector Store에 임베딩합니다.\ndirectoryPath: 스캔할 디렉터리 절대 경로 (예: /Users/user/project/src/main/java)\n기존 프로젝트 소스코드를 참조 컨텍스트로 등록할 때 사용합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "directoryPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "directoryPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "ragIngestUrl",
+  "description" : "단일 URL의 HTML 페이지를 크롤링하여 텍스트를 추출하고 Vector Store에 임베딩합니다.\nurl  : 크롤링할 URL (예: https://www.egovframe.go.kr/docs/5.0/getting-started/)\ndocId: 문서 식별자. 비워두면 URL에서 자동 생성됩니다.\nHTML 태그·스크립트·네비게이션을 제거한 순수 텍스트를 1000자 단위 청크로 분할 저장합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "docId" : {
+        "type" : "string"
+      },
+      "url" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "url", "docId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "ragIngestUrls",
+  "description" : "여러 URL을 한 번에 크롤링하여 Vector Store에 일괄 임베딩합니다.\nurls: 쉼표(,)로 구분된 URL 목록\n예) \"https://url1.com, https://url2.com, https://url3.com\"\n각 URL을 순서대로 처리하고 성공/실패 결과를 반환합니다.\neGovFrame 공식 문서, 가이드, API 레퍼런스 등 여러 페이지를 한 번에 등록할 때 사용합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "urls" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "urls" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "ragSearch",
+  "description" : "Vector Store에서 쿼리와 유사한 문서를 검색합니다.\nquery: 검색 쿼리 (자연어)\ntopK: 반환할 최대 문서 수 (기본 3)\n등록된 가이드 문서, 소스코드, 생성 이력 중 관련 내용을 찾을 때 사용합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "query" : {
+        "type" : "string"
+      },
+      "topK" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ "query", "topK" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "resolveProjectOutputPath",
+  "description" : "기존 eGovFrame 프로젝트를 스캔하여 CRUD 소스를 저장할 실제 경로를 분석합니다.\n사용자가 기존 프로젝트에 직접 소스를 추가하려 할 때 사용하세요.\n\nprojectRootPath: 기존 eGovFrame 프로젝트 루트 절대경로 (예: /Users/user/workspace/my-egov-project)\npackageName    : 패키지명 (예: egovframework.let.emp)\ndomain         : 도메인명 대문자 시작 (예: Employee)\n\n반환값:\n  - 레이어별 실제 저장 경로 (VO / Mapper / Service / ServiceImpl / Controller / MapperXml / JSP)\n  - buildFullCrudPrompt()의 outputPath 권장값\n\n사용자가 \"기존 프로젝트에 넣어줘\" 또는 프로젝트 경로를 제공한 경우 이 Tool을 먼저 호출하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "domain" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "projectRootPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "projectRootPath", "packageName", "domain" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "reviseScreenSpecification",
+  "description" : "REVIEW_REQUIRED 화면명세의 미매핑 필드·JOIN·Action을 수정한 전체 명세를 새 버전으로 저장합니다.\n주 데이터베이스와 주 테이블은 변경할 수 없으며, COLUMN 출처는 실제 스키마에 존재하는지 다시 검증합니다.\n반환 상태가 APPROVED일 때만 코드 생성 Tool의 screenSpecificationId로 전달하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "specification" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "actionPlacement" : {
+            "enum" : [ "TOP_RIGHT", "BOTTOM_RIGHT" ],
+            "type" : "string"
+          },
+          "archetype" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "type" : "string"
+          },
+          "dataSources" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "alias" : {
+                  "type" : "string"
+                },
+                "id" : {
+                  "type" : "string"
+                },
+                "joinExpression" : {
+                  "type" : "string"
+                },
+                "joinType" : {
+                  "type" : "string"
+                },
+                "primary" : {
+                  "type" : "boolean"
+                },
+                "schema" : {
+                  "type" : "string"
+                },
+                "table" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "alias", "id", "joinExpression", "joinType", "primary", "schema", "table" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "database" : {
+            "type" : "string"
+          },
+          "featureType" : {
+            "type" : "string"
+          },
+          "formColumnLayout" : {
+            "enum" : [ "SINGLE_COLUMN", "TWO_COLUMN" ],
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "issues" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "code" : {
+                  "type" : "string"
+                },
+                "fieldId" : {
+                  "type" : "string"
+                },
+                "message" : {
+                  "type" : "string"
+                },
+                "severity" : {
+                  "enum" : [ "INFO", "WARNING", "ERROR" ],
+                  "type" : "string"
+                }
+              },
+              "required" : [ "code", "fieldId", "message", "severity" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "layoutDensity" : {
+            "enum" : [ "STANDARD", "COMPACT", "COMFORTABLE" ],
+            "type" : "string"
+          },
+          "pages" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "actions" : {
+                  "items" : {
+                    "type" : "string"
+                  },
+                  "type" : "array"
+                },
+                "fields" : {
+                  "items" : {
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "confidence" : {
+                        "format" : "double",
+                        "type" : "number"
+                      },
+                      "control" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "label" : {
+                        "type" : "string"
+                      },
+                      "required" : {
+                        "type" : "boolean"
+                      },
+                      "role" : {
+                        "enum" : [ "ID", "ROW_NUMBER", "TITLE", "CONTENT", "CATEGORY", "STATUS", "AUTHOR", "DEPARTMENT", "CREATED_AT", "UPDATED_AT", "ATTACHMENT", "SORT_ORDER", "GENERIC" ],
+                        "type" : "string"
+                      },
+                      "searchable" : {
+                        "type" : "boolean"
+                      },
+                      "sortable" : {
+                        "type" : "boolean"
+                      },
+                      "source" : {
+                        "additionalProperties" : false,
+                        "properties" : {
+                          "codeGroup" : {
+                            "type" : "string"
+                          },
+                          "column" : {
+                            "type" : "string"
+                          },
+                          "expression" : {
+                            "type" : "string"
+                          },
+                          "tableAlias" : {
+                            "type" : "string"
+                          },
+                          "type" : {
+                            "enum" : [ "COLUMN", "JOIN_COLUMN", "DERIVED", "COMMON_CODE", "CONSTANT", "RUNTIME", "UNMAPPED" ],
+                            "type" : "string"
+                          }
+                        },
+                        "required" : [ "codeGroup", "column", "expression", "tableAlias", "type" ],
+                        "type" : "object"
+                      },
+                      "visible" : {
+                        "type" : "boolean"
+                      }
+                    },
+                    "required" : [ "confidence", "control", "id", "label", "required", "role", "searchable", "sortable", "source", "visible" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                },
+                "id" : {
+                  "type" : "string"
+                },
+                "selectionSource" : {
+                  "enum" : [ "DEFAULT", "DESIGN_REFERENCE", "EXPLICIT" ],
+                  "type" : "string"
+                },
+                "template" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "actions", "fields", "id", "selectionSource", "template" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "primaryTable" : {
+            "type" : "string"
+          },
+          "screenName" : {
+            "type" : "string"
+          },
+          "searchPanelPlacement" : {
+            "enum" : [ "ABOVE_TABLE", "NONE" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "DRAFT", "REVIEW_REQUIRED", "APPROVED", "SUPERSEDED" ],
+            "type" : "string"
+          },
+          "version" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "required" : [ "actionPlacement", "archetype", "createdAt", "dataSources", "database", "featureType", "formColumnLayout", "id", "issues", "layoutDensity", "pages", "primaryTable", "screenName", "searchPanelPlacement", "status", "version" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "specification" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "saveGeneratedCode",
+  "description" : "Claude가 생성한 eGovFrame 소스 코드를 파일로 저장합니다.\nfilePath: 저장할 절대경로 (예: /Users/jeongdaeseob/Desktop/egov-gen/EmployerController.java)\ncode: 저장할 소스 코드 전체 내용\n디렉터리가 없으면 자동 생성합니다.\neGovFrame 5.x CRUD 생성 시 VO, Mapper, Service, ServiceImpl, Controller, MapperXML 저장에 사용합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "code" : {
+        "type" : "string"
+      },
+      "filePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "filePath", "code" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "saveGenerationHistory",
+  "description" : "eGovFrame CRUD 소스 생성 이력을 DB에 저장합니다.\n소스 생성 완료 후 반드시 호출하여 이력을 기록하세요.\ntableName: 대상 테이블명 (예: LETTNEMPLYRINFO)\ndomain: 도메인명 (예: Employer)\npackageName: 패키지명 (예: egovframework.let.emp)\noutputPath: 소스가 저장된 디렉터리 경로\ngeneratedFiles: 생성된 파일 목록 (쉼표 구분, 예: EmployerVO.java, EmployerMapper.java, ...)\n저장된 이력은 RAG Vector Store에도 등록되어 이후 유사 소스 생성 시 참조됩니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "domain" : {
+        "type" : "string"
+      },
+      "generatedFiles" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "tableName" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "tableName", "domain", "packageName", "outputPath", "generatedFiles" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "scanProjectStructure",
+  "description" : "기존 eGovFrame 프로젝트의 구조를 스캔하여 소스 생성에 필요한 정보를 반환합니다.\nprojectRootPath: 스캔할 eGovFrame 프로젝트의 루트 절대경로\n반환 정보:\n  - 패키지 루트 (예: egovframework.let)\n  - 도메인 목록 (예: emp, bbs, board ...)\n  - URL 패턴 샘플 (기존 @RequestMapping 값)\n  - 레이어별 디렉터리 경로 (web/service/impl/mapper/mapperXml/jsp)\n  - 주요 설정 파일 목록 (context-*.xml, web.xml 등)\n  - 소스 통계 (Controller/ServiceImpl/Mapper/VO/MapperXml/JSP 파일 수)\neGovFrame CRUD 소스 생성 전에 호출하여 패키지명, URL 패턴, 출력 경로를 정확히 파악하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "projectRootPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "projectRootPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "searchCommonCode",
+  "description" : "eGovFrame 공통 코드 그룹을 키워드로 검색합니다. (LETTCCMMNCODE)\nkeyword: 검색어 (코드ID명, 설명 대상) — 비어 있으면 전체 50건 반환\n예: \"직원\" 검색 → 직원 관련 코드 그룹(CODE_ID) 목록 반환\n원하는 코드 그룹을 찾은 후 getCommonCode(codeId)로 상세 코드를 조회하세요.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "keyword" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "keyword" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "suggestNextStep",
+  "description" : "eGovFrame CRUD 소스 생성 워크플로우 안내 도구.\ncurrentContext에 지금까지 완료한 작업 내용을 입력하면 다음 단계를 안내합니다.\n빈 문자열을 입력하면 전체 14단계 워크플로우를 처음부터 안내합니다.\n\n14단계: DB스키마조회 → VO → Mapper → MapperXML → Service → ServiceImpl\n       → Controller → 목록JSP → 상세JSP → 등록JSP → 수정JSP\n       → 입력값검증 → 이력저장 → 상태확인\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "currentContext" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "currentContext" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "suggestProjectSetupCrudWorkflow",
+  "description" : "ProjectInitializrTool.initializeProject() 실행 후 다음 작업을 안내하는 workflow 도구.\ninitializeProject 결과의 PROJECT_CONTEXT 블록과 현재 완료한 작업 내용을 currentContext에 넣으면\nDB 설정, DB 스키마 조회, CRUD 프롬프트 생성, 코드 저장, 빌드 검증 순서로 다음 단계를 안내합니다.\n빈 문자열을 입력하면 전체 9단계 workflow를 처음부터 안내합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "currentContext" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "currentContext" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "suggestSecurityMenuAuthWorkflow",
+  "description" : "eGovFrame Security / 메뉴 등록 / URL 권한 등록 워크플로우 안내 도구.\nSecurityTemplateTool → MenuTool → AuthTool 의 올바른 적용 순서를 안내합니다.\ncurrentContext에 지금까지 완료한 작업 내용을 입력하면 다음 단계를 안내합니다.\n빈 문자열을 입력하면 전체 9단계 워크플로우를 처음부터 안내합니다.\n\n9단계: SecurityTemplateTool 생성 → securityMapper 확인 → 상위 메뉴 조회\n      → 프로그램 중복 확인 → 메뉴 SQL 생성 → 권한 SQL 생성\n      → SQL 실행 → 서버 재기동 → 접근 테스트\n\n※ 현재는 기존 호출자 호환성을 위해 방식 B(전용 메서드)를 유지한다.\n   workflowType 기반 방식 A 전환은 별도 리팩터링으로 진행한다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "currentContext" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "currentContext" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "updateEmployee",
+  "description" : "eGovFrame 직원 정보를 수정합니다.\nemplyrId(ID)는 필수이며, 수정할 항목만 입력하세요. 수정하지 않을 항목은 빈 문자열로 입력하세요.\n수정 가능 항목: userNm(이름), emailAdres(이메일), ofcpsNm(직위), mbtlnum(휴대폰)\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "emailAdres" : {
+        "type" : "string"
+      },
+      "emplyrId" : {
+        "type" : "string"
+      },
+      "mbtlnum" : {
+        "type" : "string"
+      },
+      "ofcpsNm" : {
+        "type" : "string"
+      },
+      "userNm" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "emplyrId", "userNm", "emailAdres", "ofcpsNm", "mbtlnum" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "validateDesignSystemSpec",
+  "description" : "에이전트가 만든 DesignSystemSpec의 논리 Component·Property·Pattern 참조를 검증합니다.\nfigmaMcpSecret 인증값이 반드시 필요합니다.\n이 도구는 Library를 Publish하지 않으며, 실제 Publish는 사람이 Preview를 검토·승인한 뒤 수행합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
+      "spec" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "components" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "additionalProperties" : false,
+                "aliases" : {
+                  "items" : {
+                    "type" : "string"
+                  },
+                  "type" : "array"
+                },
+                "description" : {
+                  "type" : "string"
+                },
+                "developer" : {
+                  "additionalProperties" : false,
+                  "properties" : {
+                    "codeComponent" : {
+                      "type" : "string"
+                    },
+                    "documentationUrl" : {
+                      "type" : "string"
+                    },
+                    "packageName" : {
+                      "type" : "string"
+                    }
+                  },
+                  "required" : [ "codeComponent", "documentationUrl", "packageName" ],
+                  "type" : "object"
+                },
+                "id" : {
+                  "type" : "string"
+                },
+                "layout" : {
+                  "additionalProperties" : false,
+                  "properties" : {
+                    "alignment" : {
+                      "type" : "string"
+                    },
+                    "gap" : {
+                      "type" : "string"
+                    },
+                    "maxHeight" : {
+                      "type" : "string"
+                    },
+                    "maxWidth" : {
+                      "type" : "string"
+                    },
+                    "minHeight" : {
+                      "type" : "string"
+                    },
+                    "minWidth" : {
+                      "type" : "string"
+                    },
+                    "mode" : {
+                      "type" : "string"
+                    },
+                    "paddingX" : {
+                      "type" : "string"
+                    },
+                    "paddingY" : {
+                      "type" : "string"
+                    }
+                  },
+                  "required" : [ "alignment", "gap", "maxHeight", "maxWidth", "minHeight", "minWidth", "mode", "paddingX", "paddingY" ],
+                  "type" : "object"
+                },
+                "lifecycleStatus" : {
+                  "enum" : [ "ACTIVE", "DEPRECATED" ],
+                  "type" : "string"
+                },
+                "name" : {
+                  "type" : "string"
+                },
+                "properties" : {
+                  "items" : {
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "defaultValue" : {
+                        "type" : "string"
+                      },
+                      "name" : {
+                        "type" : "string"
+                      },
+                      "type" : {
+                        "enum" : [ "TEXT", "BOOLEAN", "VARIANT", "INSTANCE_SWAP" ],
+                        "type" : "string"
+                      }
+                    },
+                    "required" : [ "defaultValue", "name", "type" ],
+                    "type" : "object"
+                  },
+                  "type" : "array"
+                },
+                "replacementLogicalType" : {
+                  "type" : "string"
+                },
+                "variants" : {
+                  "type" : "object"
+                }
+              },
+              "required" : [ "aliases", "description", "developer", "id", "layout", "lifecycleStatus", "name", "properties", "replacementLogicalType", "variants" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "issues" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "code" : {
+                  "type" : "string"
+                },
+                "message" : {
+                  "type" : "string"
+                },
+                "severity" : {
+                  "enum" : [ "FATAL", "ERROR", "WARNING" ],
+                  "type" : "string"
+                },
+                "targetId" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "code", "message", "severity", "targetId" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "patterns" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "composedOf" : {
+                  "items" : {
+                    "type" : "string"
+                  },
+                  "type" : "array"
+                },
+                "id" : {
+                  "type" : "string"
+                },
+                "name" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "composedOf", "id", "name" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "tokens" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "category" : {
+                  "type" : "string"
+                },
+                "name" : {
+                  "type" : "string"
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "category", "name", "value" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "variableCollections" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "modes" : {
+                  "items" : {
+                    "type" : "string"
+                  },
+                  "type" : "array"
+                },
+                "name" : {
+                  "type" : "string"
+                },
+                "valuesByMode" : {
+                  "type" : "object"
+                }
+              },
+              "required" : [ "modes", "name", "valuesByMode" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "version" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "components", "id", "issues", "name", "patterns", "tokens", "variableCollections", "version" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "figmaMcpSecret", "spec" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "validateFigmaScreenSpec",
+  "description" : "저장된 FigmaScreenSpec의 필수값·logicalNodeId·지원 Component 문제를 검증합니다.\nfigmaMcpSecret 인증값이 반드시 필요하며 Registry 공개 Key는 응답에 포함하지 않습니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
+      "screenId" : {
+        "type" : "string"
+      },
+      "version" : {
+        "type" : "integer"
+      }
+    },
+    "required" : [ "figmaMcpSecret", "screenId", "version" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "validateGeneratedCode",
+  "description" : "생성된 eGovFrame 5.x 소스 파일 단건을 검증합니다.\nfilePath: 검증할 파일의 절대경로\n파일 종류에 따라 아래 규칙을 자동으로 적용합니다:\n  *Controller.java  → @Controller, @RequestMapping, EgovPropertyService, PaginationInfo 등\n  *ServiceImpl.java → EgovAbstractServiceImpl 상속, @Transactional, @Override 등\n  *Service.java     → interface 선언, 목록/건수 메서드, throws Exception 등\n  *Mapper.java      → @Mapper, EgovAbstractMapper 상속 등\n  *VO.java          → @Getter/@Setter, PaginationInfo, 검색 필드 등\n  *Mapper.xml       → namespace, resultMap, 페이징 LIMIT, searchCondition 등\n  *List.jsp         → UTF-8, JSTL, <c:url>, pageIndex 등\n  *Detail/Regist/Updt.jsp → UTF-8, JSTL, <c:url> 등 (pageIndex 검사 없음)\n미준수 항목은 ❌, 통과 항목은 ✅ 로 표시합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "filePath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "filePath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "validateGeneratedCodeDirectory",
+  "description" : "디렉터리 내 eGovFrame 5.x 소스 파일 전체를 일괄 검증합니다.\ndirectoryPath: 검증할 디렉터리 절대경로 (하위 디렉터리 포함)\n.java / .xml / .jsp 파일을 자동으로 탐색하여 레이어별 표준 준수 여부를 검사합니다.\n미준수 항목이 있는 파일만 상세 내용을 출력합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "directoryPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "directoryPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "validateGeneratedProjectBuild",
+  "description" : "생성된 eGovFrame 프로젝트를 별도 Maven/Gradle 프로세스로 컴파일 검증합니다.\n보안을 위해 기본 비활성이며, 운영자가 EGOV_ALLOW_BUILD_EXECUTION=true를 설정하고\negov.output 허용 경로 안의 프로젝트를 지정한 경우에만 실행됩니다.\nMaven은 offline compile, Gradle은 offline compileJava를 직접 인자로 실행합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "projectRootPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "projectRootPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "validateThymeleafRendering",
+  "description" : "생성 결과 디렉터리의 HTML을 실제 Thymeleaf 엔진과 기본 fixture 모델로 렌더링합니다.\n템플릿 식 구문 오류와 렌더링 시점 오류를 파일별로 반환합니다.\n실제 업무 모델이 필요한 오류는 fixture를 보완해 다시 검사해야 합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "directoryPath" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "directoryPath" ],
+    "type" : "object"
+  }
+} ]

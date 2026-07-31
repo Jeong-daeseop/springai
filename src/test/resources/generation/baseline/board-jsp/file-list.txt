@@ -1,0 +1,12 @@
+BbsMapper.java
+BbsMapper.xml
+BbsSearchVO.java
+BbsService.java
+BbsVO.java
+EgovBbsController.java
+EgovBbsDetail.jsp
+EgovBbsList.jsp
+EgovBbsRegist.jsp
+EgovBbsServiceImpl.java
+EgovBbsUpdt.jsp
+EgovBbsValidationHandler.java

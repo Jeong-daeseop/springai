@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="egovframework.let.bbs.service.impl.BbsuseMapper">
+
+    <resultMap id="bbsuseMap" type="egovframework.let.bbs.service.BbsuseVO">
+        <id property="bbsId" column="BBS_ID"/>
+        <result property="useAt" column="USE_AT"/>
+        <result property="sendTargetClassify" column="SEND_TARGET_CLASSIFY"/>
+    </resultMap>
+
+    <select id="selectBbsuseList" parameterType="String"
+            resultMap="bbsuseMap">
+        SELECT BBS_ID, USE_AT, SEND_TARGET_CLASSIFY
+        FROM LETTNBBSUSE
+        WHERE BBS_ID = #{bbsId}
+        ORDER BY BBS_ID DESC
+    </select>
+
+    <select id="selectBbsuse" parameterType="egovframework.let.bbs.service.BbsuseVO"
+            resultMap="bbsuseMap">
+        SELECT BBS_ID, USE_AT, SEND_TARGET_CLASSIFY
+        FROM LETTNBBSUSE
+        WHERE BBS_ID = #{bbsId}
+    </select>
+
+    <insert id="insertBbsuse" parameterType="egovframework.let.bbs.service.BbsuseVO">
+        INSERT INTO LETTNBBSUSE (
+            BBS_ID, USE_AT, SEND_TARGET_CLASSIFY
+        ) VALUES (
+            #{bbsId, jdbcType=VARCHAR}, #{useAt, jdbcType=VARCHAR}, #{sendTargetClassify, jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <update id="updateBbsuse" parameterType="egovframework.let.bbs.service.BbsuseVO">
+        UPDATE LETTNBBSUSE
+        <set>
+            USE_AT = #{useAt, jdbcType=VARCHAR},
+            SEND_TARGET_CLASSIFY = #{sendTargetClassify, jdbcType=VARCHAR}
+        </set>
+        WHERE BBS_ID = #{bbsId}
+    </update>
+
+    <delete id="deleteBbsuse" parameterType="egovframework.let.bbs.service.BbsuseVO">
+        DELETE FROM LETTNBBSUSE
+        WHERE BBS_ID = #{bbsId}
+    </delete>
+
+    <delete id="deleteBbsuseByMasterIds">
+        DELETE FROM LETTNBBSUSE
+        WHERE BBS_ID IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+</mapper>

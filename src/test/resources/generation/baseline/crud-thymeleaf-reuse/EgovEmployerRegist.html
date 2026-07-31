@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>EMPLYRINFO 등록</title>
+</head>
+<section layout:fragment="content" class="egov-crud-page">
+    <div class="egov-page-header">
+        <h1 class="egov-page-title">EMPLYRINFO 등록</h1>
+    </div>
+
+    <div class="egov-form-required-guide">
+        <span class="egov-required-mark" aria-hidden="true">*</span>
+        <span>표시는 필수 입력 항목입니다.</span>
+    </div>
+
+    <form class="egov-search-form" th:object="${employerVO}" th:action="@{/emp/employerRegist.do}" method="post">
+        <input th:if="${_csrf != null}" type="hidden"
+               th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <div class="krds-table-wrap">
+            <table class="tbl col egov-form-table">
+                <caption>EMPLYRINFO 등록 입력 폼</caption>
+                <tbody>
+                <tr>
+                    <th scope="row">
+                        <label for="emplyrId">
+                            직원ID<span class="egov-required-mark">*</span>
+                        </label>
+                    </th>
+                    <td>
+                        <input type="text"
+                               th:field="*{emplyrId}"
+                               id="emplyrId"
+                               class="krds-input medium egov-control"
+                               maxlength="20"
+                               placeholder="직원ID을(를) 입력하세요"/>
+                        <p th:if="${#fields.hasErrors('emplyrId')}"
+                           class="egov-field-error"
+                           th:errors="*{emplyrId}"></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="emplyrNm">
+                            직원명<span class="egov-required-mark">*</span>
+                        </label>
+                    </th>
+                    <td>
+                        <input type="text"
+                               th:field="*{emplyrNm}"
+                               id="emplyrNm"
+                               class="krds-input medium egov-control"
+                               maxlength="50"
+                               placeholder="직원명을(를) 입력하세요"/>
+                        <p th:if="${#fields.hasErrors('emplyrNm')}"
+                           class="egov-field-error"
+                           th:errors="*{emplyrNm}"></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="emailAdres">
+                            이메일주소
+                        </label>
+                    </th>
+                    <td>
+                        <input type="text"
+                               th:field="*{emailAdres}"
+                               id="emailAdres"
+                               class="krds-input medium egov-control"
+                               maxlength="100"
+                               placeholder="이메일주소을(를) 입력하세요"/>
+                        <p th:if="${#fields.hasErrors('emailAdres')}"
+                           class="egov-field-error"
+                           th:errors="*{emailAdres}"></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="ofcpsNm">
+                            직급명
+                        </label>
+                    </th>
+                    <td>
+                        <input type="text"
+                               th:field="*{ofcpsNm}"
+                               id="ofcpsNm"
+                               class="krds-input medium egov-control"
+                               maxlength="50"
+                               placeholder="직급명을(를) 입력하세요"/>
+                        <p th:if="${#fields.hasErrors('ofcpsNm')}"
+                           class="egov-field-error"
+                           th:errors="*{ofcpsNm}"></p>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="egov-form-actions">
+            <a th:href="@{/emp/employerList.do}" class="krds-btn secondary medium egov-btn">취소</a>
+            <button type="submit" class="krds-btn primary medium egov-btn">
+                <span aria-hidden="true">✓</span>
+                저장
+            </button>
+        </div>
+    </form>
+</section>
+</html>

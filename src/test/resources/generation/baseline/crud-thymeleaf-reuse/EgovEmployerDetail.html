@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout/default}">
+<head>
+    <title>EMPLYRINFO 상세</title>
+</head>
+<section layout:fragment="content" class="egov-crud-page">
+    <div class="egov-page-header">
+        <h1 class="egov-page-title">EMPLYRINFO 상세</h1>
+        <a th:href="@{/emp/employerList.do}" class="krds-btn secondary medium egov-btn">목록</a>
+    </div>
+
+    <div id="toast-alert" th:if="${message}" class="egov-toast" role="alert" aria-live="polite">
+        <span aria-hidden="true" class="egov-toast-icon">✓</span>
+        <span th:text="${message}">처리되었습니다.</span>
+    </div>
+    <script>
+    (function(){var t=document.getElementById('toast-alert');if(t){setTimeout(function(){t.style.transition='opacity 0.4s';t.style.opacity='0';setTimeout(function(){t.remove();},400);},3000);}})();
+    </script>
+
+    <section class="egov-section">
+        <h2 class="egov-section-title">EMPLYRINFO 정보</h2>
+        <div class="krds-table-wrap">
+            <table class="tbl col egov-form-table">
+                <caption>EMPLYRINFO 상세 정보</caption>
+                <tbody>
+                <tr>
+                    <th scope="row">직원ID</th>
+                    <td th:text="${result.emplyrId}"></td>
+                </tr>
+                <tr>
+                    <th scope="row">직원명</th>
+                    <td th:text="${result.emplyrNm}"></td>
+                </tr>
+                <tr>
+                    <th scope="row">이메일주소</th>
+                    <td th:text="${result.emailAdres}"></td>
+                </tr>
+                <tr>
+                    <th scope="row">직급명</th>
+                    <td th:text="${result.ofcpsNm}"></td>
+                </tr>
+                <tr>
+                    <th scope="row">최초등록시점</th>
+                    <td th:text="${result.frstRegistPnttm}"></td>
+                </tr>
+                <tr>
+                    <th scope="row">최종수정시점</th>
+                    <td th:text="${result.lastUpdtPnttm}"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="egov-form-actions">
+        <a th:href="@{/emp/employerList.do}" class="krds-btn secondary medium egov-btn">목록</a>
+        <div class="egov-button-group">
+            <a th:href="@{/emp/employerUpdtView.do(emplyrId=${result.emplyrId})}"
+               class="krds-btn primary medium egov-btn">수정</a>
+            <button type="button" class="krds-btn negative medium egov-btn"
+                    onclick="document.getElementById('deleteModal').showModal()">삭제</button>
+        </div>
+    </div>
+
+    <dialog id="deleteModal" class="egov-modal">
+        <h2 class="egov-modal-title">삭제 확인</h2>
+        <p class="egov-modal-desc">삭제하시겠습니까?<br>삭제된 데이터는 복구할 수 없습니다.</p>
+        <div class="egov-modal-actions">
+            <button type="button" class="krds-btn secondary medium egov-btn"
+                    onclick="document.getElementById('deleteModal').close()">취소</button>
+            <button type="button" class="krds-btn negative medium egov-btn"
+                    onclick="document.getElementById('deleteForm').submit()">삭제</button>
+        </div>
+    </dialog>
+    <form id="deleteForm" th:action="@{/emp/employerDelete.do}" method="post" class="egov-hidden">
+        <input th:if="${_csrf != null}" type="hidden"
+               th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+        <input type="hidden" name="emplyrId" th:value="${result.emplyrId}"/>
+    </form>
+</section>
+</html>
