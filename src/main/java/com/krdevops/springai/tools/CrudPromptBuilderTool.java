@@ -1,47 +1,25 @@
 package com.krdevops.springai.tools;
 
-import com.krdevops.springai.model.board.BoardLayerDefinition;
-import com.krdevops.springai.model.board.BoardTemplateModel;
 import com.krdevops.springai.model.board.BoardGenerationOptions;
-import com.krdevops.springai.model.board.BoardProgramMetadata;
-import com.krdevops.springai.model.board.BoardTableSet;
 import com.krdevops.springai.model.crud.CrudGenerationOptions;
-import com.krdevops.springai.model.crud.CrudLayerDefinition;
-import com.krdevops.springai.model.crud.CrudProgramMetadata;
-import com.krdevops.springai.model.crud.CrudTemplateModel;
-import com.krdevops.springai.model.crud.CrudViewType;
-import com.krdevops.springai.model.crud.ScreenSubsetMode;
 import com.krdevops.springai.model.design.ScreenSpecification;
-import com.krdevops.springai.model.masterdetail.MasterDetailLayerDefinition;
-import com.krdevops.springai.model.masterdetail.MasterDetailTemplateModel;
-import com.krdevops.springai.service.BoardModelFactory;
 import com.krdevops.springai.service.BoardOrchestrationResult;
 import com.krdevops.springai.service.BoardOrchestrationService;
-import com.krdevops.springai.service.BoardSchemaService;
-import com.krdevops.springai.service.BoardTemplateRenderer;
-import com.krdevops.springai.service.BoardProgramMetadataService;
-import com.krdevops.springai.service.BoardTableSetResolver;
-import com.krdevops.springai.service.CrudModelFactory;
 import com.krdevops.springai.service.CrudOrchestrationResult;
 import com.krdevops.springai.service.CrudOrchestrationService;
 import com.krdevops.springai.service.CrudProgramMetadataService;
 import com.krdevops.springai.service.CrudPromptBuilderService;
-import com.krdevops.springai.service.CrudSchemaQueryService;
-import com.krdevops.springai.service.CrudTemplateRenderer;
 import com.krdevops.springai.service.MasterDetailOrchestrationResult;
 import com.krdevops.springai.service.MasterDetailOrchestrationService;
 import com.krdevops.springai.service.MasterDetailService;
-import com.krdevops.springai.service.MasterDetailTemplateRenderer;
 import com.krdevops.springai.service.GenerationDesignContextService;
-import com.krdevops.springai.util.CrudMappingUtils;
+import com.krdevops.springai.service.generation.mcp.ScreenSourceMcpFacade;
+import com.krdevops.springai.service.generation.model.ScreenType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Component
@@ -50,20 +28,12 @@ public class CrudPromptBuilderTool {
 
     private final CrudOrchestrationService crudOrchestrationService;
     private final CrudProgramMetadataService crudProgramMetadataService;
-    private final CrudSchemaQueryService crudSchemaQueryService;
-    private final CrudModelFactory crudModelFactory;
-    private final CrudTemplateRenderer crudTemplateRenderer;
     private final CrudPromptBuilderService crudPromptBuilderService;
     private final MasterDetailService      masterDetailService;
-    private final MasterDetailTemplateRenderer masterDetailTemplateRenderer;
     private final MasterDetailOrchestrationService masterDetailOrchestrationService;
-    private final BoardSchemaService boardSchemaService;
-    private final BoardModelFactory boardModelFactory;
-    private final BoardTemplateRenderer boardTemplateRenderer;
     private final BoardOrchestrationService boardOrchestrationService;
-    private final BoardTableSetResolver boardTableSetResolver;
-    private final BoardProgramMetadataService boardProgramMetadataService;
     private final GenerationDesignContextService generationDesignContextService;
+    private final ScreenSourceMcpFacade screenSourceMcpFacade;
 
     @Tool(description = """
             eGovFrame 5.x CRUD 전체 소스 생성에 필요한 통합 프롬프트를 반환합니다.
@@ -400,8 +370,8 @@ public class CrudPromptBuilderTool {
             String outputPath,
             @Nullable String egovVersion,
             @Nullable String viewType) {
-        return generateCrudScreen(database, tableName, domain, packageName, outputPath,
-                egovVersion, viewType, "List", "jspList", "thymeleafList");
+        return screenSourceMcpFacade.generateCrudScreenSource(ScreenType.LIST,
+                database, tableName, domain, packageName, outputPath, egovVersion, viewType);
     }
 
     @Tool(description = """
@@ -423,8 +393,8 @@ public class CrudPromptBuilderTool {
             String outputPath,
             @Nullable String egovVersion,
             @Nullable String viewType) {
-        return generateCrudScreen(database, tableName, domain, packageName, outputPath,
-                egovVersion, viewType, "Detail", "jspDetail", "thymeleafDetail");
+        return screenSourceMcpFacade.generateCrudScreenSource(ScreenType.DETAIL,
+                database, tableName, domain, packageName, outputPath, egovVersion, viewType);
     }
 
     @Tool(description = """
@@ -446,8 +416,8 @@ public class CrudPromptBuilderTool {
             String outputPath,
             @Nullable String egovVersion,
             @Nullable String viewType) {
-        return generateCrudScreen(database, tableName, domain, packageName, outputPath,
-                egovVersion, viewType, "Regist", "jspRegist", "thymeleafRegist");
+        return screenSourceMcpFacade.generateCrudScreenSource(ScreenType.REGIST,
+                database, tableName, domain, packageName, outputPath, egovVersion, viewType);
     }
 
     @Tool(description = """
@@ -469,8 +439,8 @@ public class CrudPromptBuilderTool {
             String outputPath,
             @Nullable String egovVersion,
             @Nullable String viewType) {
-        return generateCrudScreen(database, tableName, domain, packageName, outputPath,
-                egovVersion, viewType, "Updt", "jspUpdt", "thymeleafUpdt");
+        return screenSourceMcpFacade.generateCrudScreenSource(ScreenType.UPDT,
+                database, tableName, domain, packageName, outputPath, egovVersion, viewType);
     }
 
     @Tool(description = """
@@ -508,10 +478,11 @@ public class CrudPromptBuilderTool {
             @Nullable String programKoreanName,
             @Nullable String programStorePath,
             @Nullable String defaultBbsId) {
-        return generateBoardScreen(database, domain, packageName, outputPath,
+        return screenSourceMcpFacade.generateBoardScreenSource(ScreenType.LIST,
+                database, domain, packageName, outputPath,
                 mainTable, masterTable, useTable, fileTable, fileDetailTable,
                 egovVersion, viewType, programFileName, programUrl, programKoreanName,
-                programStorePath, defaultBbsId, "List", "jspList", "thymeleafList");
+                programStorePath, defaultBbsId);
     }
 
     public String generateBoardList(String database, String domain, String packageName, String outputPath,
@@ -544,10 +515,11 @@ public class CrudPromptBuilderTool {
             @Nullable String programKoreanName,
             @Nullable String programStorePath,
             @Nullable String defaultBbsId) {
-        return generateBoardScreen(database, domain, packageName, outputPath,
+        return screenSourceMcpFacade.generateBoardScreenSource(ScreenType.DETAIL,
+                database, domain, packageName, outputPath,
                 mainTable, masterTable, useTable, fileTable, fileDetailTable,
                 egovVersion, viewType, programFileName, programUrl, programKoreanName,
-                programStorePath, defaultBbsId, "Detail", "jspDetail", "thymeleafDetail");
+                programStorePath, defaultBbsId);
     }
 
     public String generateBoardDetail(String database, String domain, String packageName, String outputPath,
@@ -580,10 +552,11 @@ public class CrudPromptBuilderTool {
             @Nullable String programKoreanName,
             @Nullable String programStorePath,
             @Nullable String defaultBbsId) {
-        return generateBoardScreen(database, domain, packageName, outputPath,
+        return screenSourceMcpFacade.generateBoardScreenSource(ScreenType.REGIST,
+                database, domain, packageName, outputPath,
                 mainTable, masterTable, useTable, fileTable, fileDetailTable,
                 egovVersion, viewType, programFileName, programUrl, programKoreanName,
-                programStorePath, defaultBbsId, "Regist", "jspRegist", "thymeleafRegist");
+                programStorePath, defaultBbsId);
     }
 
     public String generateBoardRegist(String database, String domain, String packageName, String outputPath,
@@ -616,10 +589,11 @@ public class CrudPromptBuilderTool {
             @Nullable String programKoreanName,
             @Nullable String programStorePath,
             @Nullable String defaultBbsId) {
-        return generateBoardScreen(database, domain, packageName, outputPath,
+        return screenSourceMcpFacade.generateBoardScreenSource(ScreenType.UPDT,
+                database, domain, packageName, outputPath,
                 mainTable, masterTable, useTable, fileTable, fileDetailTable,
                 egovVersion, viewType, programFileName, programUrl, programKoreanName,
-                programStorePath, defaultBbsId, "Updt", "jspUpdt", "thymeleafUpdt");
+                programStorePath, defaultBbsId);
     }
 
     public String generateBoardUpdt(String database, String domain, String packageName, String outputPath,
@@ -651,8 +625,8 @@ public class CrudPromptBuilderTool {
             String outputPath,
             @Nullable String egovVersion,
             @Nullable String viewType) {
-        return generateMasterDetailScreen(database, masterTable, detailTable, domain, packageName, outputPath,
-                egovVersion, viewType, "List", "jspList", "thymeleafList");
+        return screenSourceMcpFacade.generateMasterDetailScreenSource(ScreenType.LIST,
+                database, masterTable, detailTable, domain, packageName, outputPath, egovVersion, viewType);
     }
 
     @Tool(description = """
@@ -668,8 +642,8 @@ public class CrudPromptBuilderTool {
             String outputPath,
             @Nullable String egovVersion,
             @Nullable String viewType) {
-        return generateMasterDetailScreen(database, masterTable, detailTable, domain, packageName, outputPath,
-                egovVersion, viewType, "Detail", "jspDetail", "thymeleafDetail");
+        return screenSourceMcpFacade.generateMasterDetailScreenSource(ScreenType.DETAIL,
+                database, masterTable, detailTable, domain, packageName, outputPath, egovVersion, viewType);
     }
 
     @Tool(description = """
@@ -685,8 +659,8 @@ public class CrudPromptBuilderTool {
             String outputPath,
             @Nullable String egovVersion,
             @Nullable String viewType) {
-        return generateMasterDetailScreen(database, masterTable, detailTable, domain, packageName, outputPath,
-                egovVersion, viewType, "Regist", "jspRegist", "thymeleafRegist");
+        return screenSourceMcpFacade.generateMasterDetailScreenSource(ScreenType.REGIST,
+                database, masterTable, detailTable, domain, packageName, outputPath, egovVersion, viewType);
     }
 
     @Tool(description = """
@@ -702,218 +676,8 @@ public class CrudPromptBuilderTool {
             String outputPath,
             @Nullable String egovVersion,
             @Nullable String viewType) {
-        return generateMasterDetailScreen(database, masterTable, detailTable, domain, packageName, outputPath,
-                egovVersion, viewType, "Updt", "jspUpdt", "thymeleafUpdt");
-    }
-
-    private String generateCrudScreen(
-            String database,
-            String tableName,
-            String domain,
-            String packageName,
-            String outputPath,
-            @Nullable String egovVersion,
-            @Nullable String viewType,
-            String screenName,
-            String jspLayerKey,
-            String thymeleafLayerKey) {
-
-        List<Map<String, Object>> columns = crudSchemaQueryService.fetchColumns(database, tableName);
-        if (columns.isEmpty()) {
-            return "테이블을 찾을 수 없습니다: " + database + "." + tableName;
-        }
-
-        String resolvedVersion = resolveEgovVersion(egovVersion);
-        CrudViewType resolvedViewType = CrudViewType.from(viewType);
-        ScreenSubsetMode subsetMode = resolvedViewType == CrudViewType.THYMELEAF
-                ? ScreenSubsetMode.LIST_AND_DETAIL : ScreenSubsetMode.LIST_ONLY;
-        CrudTemplateModel model = crudModelFactory.fromSchema(
-                tableName, domain, packageName, resolvedVersion, columns,
-                CrudProgramMetadata.fallback(null), resolvedViewType, subsetMode, null);
-        String layerKey = selectLayerKey(resolvedViewType, jspLayerKey, thymeleafLayerKey);
-        String code = crudTemplateRenderer.renderByLayerKey(layerKey, model);
-        String filePath = resolveCrudScreenPath(outputPath, packageName, model.domainLc(), domain, resolvedViewType, layerKey);
-        return formatGeneratedScreen("CRUD", domain, screenName, resolvedViewType, layerKey, filePath, code);
-    }
-
-    private String generateBoardScreen(
-            String database,
-            String domain,
-            String packageName,
-            String outputPath,
-            @Nullable String mainTable,
-            @Nullable String masterTable,
-            @Nullable String useTable,
-            @Nullable String fileTable,
-            @Nullable String fileDetailTable,
-            @Nullable String egovVersion,
-            @Nullable String viewType,
-            @Nullable String programFileName,
-            @Nullable String programUrl,
-            @Nullable String programKoreanName,
-            @Nullable String programStorePath,
-            @Nullable String defaultBbsId,
-            String screenName,
-            String jspLayerKey,
-            String thymeleafLayerKey) {
-
-        BoardTableSet tables = boardTableSetResolver.resolve(
-                database, mainTable, masterTable, useTable, fileTable, fileDetailTable);
-        String resolvedVersion    = resolveEgovVersion(egovVersion);
-        CrudViewType resolvedViewType = CrudViewType.from(viewType);
-
-        Map<String, List<Map<String, Object>>> schemas;
-        try {
-            schemas = boardSchemaService.fetchBoardSchemas(
-                    database, tables.mainTable(), tables.masterTable(), tables.useTable(),
-                    tables.fileTable(), tables.fileDetailTable());
-        } catch (IllegalArgumentException e) {
-            return e.getMessage();
-        }
-
-        BoardProgramMetadata metadata = boardProgramMetadataService.resolve(
-                database, domain, tables.masterTable(), new BoardGenerationOptions(
-                        programFileName, programUrl, programKoreanName, programStorePath, defaultBbsId));
-        if (metadata.blocksGeneration()) return metadata.message();
-        BoardTemplateModel model = boardModelFactory.fromSchemas(
-                tables.mainTable(), tables.masterTable(), tables.useTable(), tables.fileDetailTable(),
-                domain, packageName, resolvedVersion, schemas, metadata);
-        String layerKey = selectLayerKey(resolvedViewType, jspLayerKey, thymeleafLayerKey);
-        String code = boardTemplateRenderer.renderByLayerKey(layerKey, model);
-        String filePath = resolveBoardScreenPath(outputPath, packageName, model.domainLc(), domain, resolvedViewType, layerKey);
-        return formatGeneratedScreen("BOARD", domain, screenName, resolvedViewType, layerKey, filePath, code);
-    }
-
-    private String generateMasterDetailScreen(
-            String database,
-            String masterTable,
-            String detailTable,
-            String domain,
-            String packageName,
-            String outputPath,
-            @Nullable String egovVersion,
-            @Nullable String viewType,
-            String screenName,
-            String jspLayerKey,
-            String thymeleafLayerKey) {
-
-        List<Map<String, Object>> masterColumns = crudSchemaQueryService.fetchColumns(database, masterTable);
-        if (masterColumns.isEmpty()) {
-            return "마스터 테이블을 찾을 수 없습니다: " + database + "." + masterTable;
-        }
-        List<Map<String, Object>> detailColumns = crudSchemaQueryService.fetchColumns(database, detailTable);
-        if (detailColumns.isEmpty()) {
-            return "디테일 테이블을 찾을 수 없습니다: " + database + "." + detailTable;
-        }
-
-        String resolvedVersion = resolveEgovVersion(egovVersion);
-        CrudViewType resolvedViewType = CrudViewType.from(viewType);
-        String detailDomain = deriveDetailDomain(detailTable);
-        CrudTemplateModel masterModel = crudModelFactory.fromSchema(
-                masterTable, domain, packageName, resolvedVersion, masterColumns,
-                CrudProgramMetadata.fallback(null), resolvedViewType, ScreenSubsetMode.NONE, null);
-        CrudTemplateModel detailModel = crudModelFactory.fromSchema(
-                detailTable, detailDomain, packageName, resolvedVersion, detailColumns,
-                CrudProgramMetadata.fallback(null), resolvedViewType, ScreenSubsetMode.NONE, null);
-        String fkColumn = detectFkColumn(masterModel.pk().columnName(), detailColumns);
-        MasterDetailTemplateModel model = new MasterDetailTemplateModel(
-                masterModel, detailModel, fkColumn, CrudMappingUtils.toCamelCase(fkColumn));
-        String layerKey = selectLayerKey(resolvedViewType, jspLayerKey, thymeleafLayerKey);
-        String code = masterDetailTemplateRenderer.renderByLayerKey(layerKey, model);
-        String filePath = resolveMasterDetailScreenPath(outputPath, packageName, masterModel.domainLc(),
-                domain, detailDomain, resolvedViewType, layerKey);
-        return formatGeneratedScreen("MASTER_DETAIL", domain, screenName, resolvedViewType, layerKey, filePath, code);
-    }
-
-    private String resolveCrudScreenPath(
-            String outputPath, String packageName, String domainLc, String domain,
-            CrudViewType viewType, String layerKey) {
-        CrudLayerDefinition layer = CrudLayerDefinition.forViewType(viewType).stream()
-                .filter(candidate -> candidate.layerKey().equals(layerKey))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("지원하지 않는 layerKey: " + layerKey));
-        String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
-        String fileName = CrudLayerDefinition.resolveFileName(layerKey, domain, layer.fileNameSuffix());
-        return outputPath + "/" + layer.resolveSubPath(pkgSub, domainLc) + fileName;
-    }
-
-    private String resolveBoardScreenPath(
-            String outputPath, String packageName, String domainLc, String domain,
-            CrudViewType viewType, String layerKey) {
-        BoardLayerDefinition layer = BoardLayerDefinition.forViewType(viewType).stream()
-                .filter(candidate -> candidate.layerKey().equals(layerKey))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("지원하지 않는 layerKey: " + layerKey));
-        String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
-        String fileName = BoardLayerDefinition.resolveFileName(layer.layerKey(), domain, layer.fileNameSuffix());
-        return outputPath + "/" + layer.resolveSubPath(pkgSub, domainLc) + fileName;
-    }
-
-    private String resolveMasterDetailScreenPath(
-            String outputPath, String packageName, String domainLc, String masterDomain, String detailDomain,
-            CrudViewType viewType, String layerKey) {
-        MasterDetailLayerDefinition layer = MasterDetailLayerDefinition.forViewType(viewType).stream()
-                .filter(candidate -> candidate.layerKey().equals(layerKey))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("지원하지 않는 layerKey: " + layerKey));
-        String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
-        String fileName = MasterDetailLayerDefinition.resolveFileName(layer, masterDomain, detailDomain);
-        return outputPath + "/" + layer.resolveSubPath(pkgSub, domainLc) + fileName;
-    }
-
-    private String formatGeneratedScreen(
-            String featureType,
-            String domain,
-            String screenName,
-            CrudViewType viewType,
-            String layerKey,
-            String filePath,
-            String code) {
-        return """
-                === 화면 소스 생성 완료 ===
-
-                featureType: %s
-                domain: %s
-                screen: %s
-                viewType: %s
-                layerKey: %s
-                권장 저장 경로: %s
-
-                [source]
-                %s
-                """.formatted(featureType, domain, screenName, viewType.value(), layerKey, filePath, code);
-    }
-
-    private String selectLayerKey(CrudViewType viewType, String jspLayerKey, String thymeleafLayerKey) {
-        return viewType == CrudViewType.THYMELEAF ? thymeleafLayerKey : jspLayerKey;
-    }
-
-    private String resolveEgovVersion(@Nullable String egovVersion) {
-        return (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
-    }
-
-    private String defaultIfBlank(@Nullable String value, String defaultValue) {
-        return (value == null || value.isBlank()) ? defaultValue : value;
-    }
-
-    private String detectFkColumn(String masterPkColumn, List<Map<String, Object>> detailColumns) {
-        return detailColumns.stream()
-                .map(c -> (String) c.get("COLUMN_NAME"))
-                .filter(masterPkColumn::equals)
-                .findFirst()
-                .orElse(masterPkColumn);
-    }
-
-    private String deriveDetailDomain(String tableName) {
-        String base = tableName.replace("LETTN", "").replace("LETTS", "").replace("LETTC", "");
-        String[] parts = base.toLowerCase().split("_");
-        StringBuilder sb = new StringBuilder();
-        for (String part : parts) {
-            if (!part.isBlank()) {
-                sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
-            }
-        }
-        return sb.toString();
+        return screenSourceMcpFacade.generateMasterDetailScreenSource(ScreenType.UPDT,
+                database, masterTable, detailTable, domain, packageName, outputPath, egovVersion, viewType);
     }
 
     private String formatBoardResult(BoardOrchestrationResult r) {
