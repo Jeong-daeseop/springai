@@ -14,7 +14,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 기존 {@link CodeService#saveGeneratedCode}를 감싸는 유일한 WRITE 어댑터.
+ * 기존 {@link CodeService#saveGeneratedCode}를 감싸는, CRUD Pipeline 내 유일한 WRITE 어댑터.
+ * (Board/Master-Detail Orchestration Service, Thymeleaf Layout 생성 등 이 Pipeline 밖의 다른
+ * 경로는 여전히 {@code codeService.saveGeneratedCode}를 직접 호출한다.)
  *
  * <p>파일 하나가 실패해도 다음 파일 저장을 계속하며, 이미 저장된 파일을 자동 삭제하지 않는다.
  * {@code "파일 저장 실패"} 접두어로 실패를 판정하는 기존 규약을 그대로 유지한다.

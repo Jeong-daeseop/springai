@@ -488,6 +488,13 @@ public enum GenerationStage {
 }
 ```
 
+**주의**: 실제 CRUD Pipeline 실행 순서는 `PRE_WRITE`가 `RENDER`보다 먼저이며, 이는 enum 선언
+순서와 반대다. `GenerationProcessorRunner`는 stage를 호출자가 넘기는 필터 인자로만 사용할 뿐
+enum ordinal을 읽지 않으므로, 실제 stage 실행 순서는 각 처리 단계 호출자
+(`CrudGenerationApplicationService` 등)가 명시한 순서로 결정된다(§10.7의
+`GenerationVerifierRunner`만 ordinal 기반 정렬을 사용한다). WP-0 `CrudOrchestrationProcessorOrderTest`가
+실측한 기존 동작(`ORT-PRN-005`)을 보존하기 위한 결과다.
+
 ### 10.2 Preflight
 
 ```java
@@ -522,12 +529,15 @@ public record GenerationBlueprint(
 ```java
 public record FileBlueprint(
         String layerKey,
+        String displayName,
         Path targetPath,
         RenderRequest renderRequest
 ) {}
 ```
 
-Blueprint는 Source 문자열을 보유하지 않는다.
+Blueprint는 Source 문자열을 보유하지 않는다. `displayName`은 결과 성공/실패 목록에 노출되는
+이름이며 파일 시스템 경로의 마지막 조각과 항상 같지는 않다 — 예: Thymeleaf layout 레이어는
+경로가 `.../templates/layout/default.html`이지만 표시 이름은 `layout/default.html`이다.
 
 ### 10.4 Renderer
 
@@ -540,10 +550,16 @@ public interface GenerationRenderer {
 ```java
 public record RenderedFilePlan(
         String layerKey,
+        String displayName,
         Path targetPath,
-        String source
+        String source,
+        GenerationFailure renderFailure
 ) {}
 ```
+
+`displayName`은 §10.3 `FileBlueprint.displayName`을 그대로 이어받는다. 렌더링에 실패한
+레이어도 목록에서 빠지지 않고 `renderFailure`가 채워진 채로 남는다 — Executor가 레이어 순서
+그대로 순회하면서 실패를 누적해야 기존의 성공/실패 목록 순서가 보존되기 때문이다.
 
 ```java
 public record RenderedGenerationPlan(
@@ -567,10 +583,16 @@ public interface GenerationExecutor {
 ```java
 public record GenerationExecution(
         RenderedGenerationPlan plan,
-        List<Path> succeededFiles,
+        List<RenderedFilePlan> succeededFiles,
         List<GenerationFailure> failedFiles
-) {}
+) {
+    public List<String> succeededNames();
+}
 ```
+
+`succeededFiles`는 `Path` 목록이 아니라 `RenderedFilePlan` 목록이다 — `displayName`을 포함한
+전체 정보를 결과 조립 단계까지 그대로 전달하기 위함이다. `succeededNames()`는 각 항목의
+`displayName`만 뽑아 반환하는 편의 메서드다.
 
 규칙:
 
@@ -610,22 +632,37 @@ public record ProcessorStep(
 ```
 
 Processor 실행 순서는 `stage`, `order`, `processorId` 순으로 결정한다. Spring Bean 주입 순서에 의존하지 않는다.
+단, 이 정렬은 `GenerationProcessorRunner` 호출 시점에 특정 `stage` 값이 이미 필터로 주어졌을 때
+그 안에서의 순서만 정한다 — `GenerationProcessorRunner` 자신은 `GenerationStage` enum의 ordinal을
+읽지 않으며, 어떤 stage들을 어떤 순서로 호출할지는 전적으로 호출자가 결정한다(§10.1 참고).
+이 점에서 아래 §10.7 `GenerationVerifierRunner`와 다르다.
 
 ### 10.7 Verifier
 
 ```java
 public interface GenerationVerifier {
+    String id();
+    GenerationStage stage();
+    int order();
+    boolean supports(GenerationContext context);
     VerificationResult verify(GenerationProcessingContext context);
 }
 ```
 
 Verifier 구성:
 
-- `CodeDirectoryVerifier`
-- `CommonGeneratedContractVerifier`
+- `CodeDirectoryVerifier` (`PRE_VERIFY`)
+- `CommonGeneratedContractVerifier` (`VERIFY`)
 - `BoardGeneratedContractVerifier`
 - 선택적 `ThymeleafRenderVerifier`
 - 선택적 `GeneratedProjectBuildVerifier`
+
+**`GenerationVerifierRunner`**: 등록된 `GenerationVerifier`를 `stage().ordinal()` → `order()` →
+`id()` 순으로 정렬해 실행하고 요약 조각을 이어붙인다. `GenerationStageProcessor`/
+`GenerationProcessorRunner`(§10.6)와 달리 이 Runner는 `GenerationStage` enum의 ordinal을 1차
+정렬 키로 실제로 사용한다 — 그래서 "Directory 검증이 항상 Common Contract 감사보다 먼저"라는
+순서가 배선이 아니라 stage 배정(`CodeDirectoryVerifier`=`PRE_VERIFY`,
+`CommonGeneratedContractVerifier`=`VERIFY`) 자체로 보장된다(§11.1~§11.3 표 참고).
 
 ### 10.8 History Recorder
 
@@ -653,9 +690,16 @@ public interface GenerationHistoryRecorder {
 | 200 | `POST_WRITE` | `ThymeleafRuntimeProcessor` | `CONTINUE` |
 | 210 | `POST_WRITE` | `ControllerScanProcessor` | `CONTINUE` |
 | 300 | `POST_WRITE` | `MyBatisRuntimeProcessor` | `CONTINUE` |
-| 100 | `PRE_VERIFY` | `CommonGeneratedContractProcessor` | `CONTINUE` |
+| 100 | `PRE_VERIFY` | `CodeDirectoryVerifier`* | - |
+| 100 | `VERIFY` | `CommonGeneratedContractVerifier`* | - |
 
 JSP에서는 Thymeleaf 관련 Processor가 `supports()`에서 제외된다.
+
+\* `PRE_VERIFY`/`VERIFY` 행은 `GenerationStageProcessor`가 아니라 `GenerationVerifier`(§10.7) 등록이다.
+`GenerationVerifier`에는 `실패 정책`(`FailurePolicy`) 개념이 없다 — `GenerationVerifierRunner`는
+Verifier를 항상 끝까지 순회하며 실패를 누적할 뿐 중단하지 않는다. 실행 순서는 `stage().ordinal()`이
+1차 키이므로 `CodeDirectoryVerifier`(`PRE_VERIFY`)가 `CommonGeneratedContractVerifier`(`VERIFY`)보다
+항상 먼저 실행된다.
 
 ### 11.2 게시판
 
@@ -666,8 +710,14 @@ JSP에서는 Thymeleaf 관련 Processor가 `supports()`에서 제외된다.
 | 120 | `POST_WRITE` | `BoardCrudCssProcessor` | `CONTINUE` |
 | 200 | `POST_WRITE` | `MyBatisRuntimeProcessor` | `CONTINUE` |
 | 300 | `POST_WRITE` | `BoardEntryPointProcessor` | `CONTINUE` |
-| 100 | `PRE_VERIFY` | `CommonGeneratedContractProcessor` | `CONTINUE` |
+| 100 | `PRE_VERIFY` | `CodeDirectoryVerifier`* | - |
+| 100 | `VERIFY` | `CommonGeneratedContractVerifier`* | - |
 | 110 | `PRE_VERIFY` | `BoardGeneratedContractProcessor` | `CONTINUE` |
+
+\* `CodeDirectoryVerifier`/`CommonGeneratedContractVerifier`는 `GenerationVerifier`(§10.7) 등록이며
+`실패 정책` 개념이 없다 — 자세한 내용은 §11.1의 각주 참고. `BoardGeneratedContractProcessor`는
+Board Pipeline이 공통 Pipeline으로 전환되지 않은 현재 시점 기준으로 아직 미구현이다(Board/Master-Detail
+Pipeline 전환은 이 문서 범위 밖의 후속 WP).
 
 ### 11.3 Master/Detail
 
@@ -677,7 +727,10 @@ JSP에서는 Thymeleaf 관련 Processor가 `supports()`에서 제외된다.
 | 200 | `POST_WRITE` | `MyBatisRuntimeProcessor` | `CONTINUE` |
 | 300 | `POST_WRITE` | `MainControllerProcessor` | `CONTINUE` |
 | 400 | `POST_WRITE` | `ServletContextScanProcessor` | `CONTINUE` |
-| 100 | `PRE_VERIFY` | `CommonGeneratedContractProcessor` | `CONTINUE` |
+| 100 | `PRE_VERIFY` | `CodeDirectoryVerifier`* | - |
+| 100 | `VERIFY` | `CommonGeneratedContractVerifier`* | - |
+
+\* `GenerationVerifier`(§10.7) 등록이며 `실패 정책` 개념이 없다 — 자세한 내용은 §11.1의 각주 참고.
 
 ### 11.4 Thymeleaf Layout
 
