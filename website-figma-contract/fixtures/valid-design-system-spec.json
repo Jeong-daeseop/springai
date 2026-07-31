@@ -1,0 +1,54 @@
+{
+  "id": "ftc-krds",
+  "name": "FTC 정부 포털 Design System",
+  "version": "1.0.0",
+  "tokens": [
+    {"category": "COLOR", "name": "color.primary", "value": "#246BEB"}
+  ],
+  "variableCollections": [
+    {
+      "name": "Foundation",
+      "modes": ["Light"],
+      "valuesByMode": {
+        "Light": {"color.primary": "#246BEB"}
+      }
+    }
+  ],
+  "components": [
+    {
+      "id": "krds.button",
+      "name": "Button",
+      "description": "KRDS 업무 액션 버튼",
+      "developer": {
+        "codeComponent": "KrdsButton",
+        "documentationUrl": "https://www.krds.go.kr/",
+        "packageName": "com.krdevops.ui"
+      },
+      "layout": {
+        "mode": "HORIZONTAL",
+        "paddingX": "space.4",
+        "paddingY": "space.3",
+        "gap": "space.2",
+        "alignment": "CENTER",
+        "minWidth": "80",
+        "maxWidth": "320",
+        "minHeight": "40",
+        "maxHeight": "56"
+      },
+      "properties": [
+        {"name": "Label", "type": "TEXT", "defaultValue": "버튼"}
+      ],
+      "variants": {
+        "Style": ["Primary", "Secondary"]
+      }
+    }
+  ],
+  "patterns": [
+    {
+      "id": "egov.pattern.list",
+      "name": "목록",
+      "composedOf": ["egov.pageHeader", "egov.searchPanel", "egov.dataTable"]
+    }
+  ],
+  "issues": []
+}

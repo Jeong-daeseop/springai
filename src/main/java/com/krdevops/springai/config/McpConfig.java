@@ -23,6 +23,8 @@ import com.krdevops.springai.tools.ThymeleafLayoutTool;
 import com.krdevops.springai.tools.WorkflowGuideTool;
 import com.krdevops.springai.tools.CaptureWebPageTool;
 import com.krdevops.springai.tools.DesignArtifactTool;
+import com.krdevops.springai.tools.DesignSystemTool;
+import com.krdevops.springai.tools.FigmaExportTool;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -34,7 +36,7 @@ public class McpConfig {
 
     @Bean
     public ObjectMapper objectMapper() {
-        return new ObjectMapper();
+        return new ObjectMapper().findAndRegisterModules();
     }
 
     @Bean
@@ -61,7 +63,9 @@ public class McpConfig {
             OutputPathResolverTool outputPathResolverTool,
             ThymeleafLayoutTool thymeleafLayoutTool,
             CaptureWebPageTool captureWebPageTool,
-            DesignArtifactTool designArtifactTool) {
+            DesignArtifactTool designArtifactTool,
+            FigmaExportTool figmaExportTool,
+            DesignSystemTool designSystemTool) {
         return MethodToolCallbackProvider.builder()
                 .toolObjects(
                         dateTimeTool, designReferenceTool, employeeTool, schemaReaderTool, codeSaverTool,
@@ -69,7 +73,7 @@ public class McpConfig {
                         projectScannerTool, commonCodeTool, workflowGuideTool, crudPromptBuilderTool,
                         projectHealthTool, projectInitializrTool, menuTool, authTool,
                         securityTemplateTool, sqlTool, outputPathResolverTool, thymeleafLayoutTool,
-                        captureWebPageTool, designArtifactTool)
+                        captureWebPageTool, designArtifactTool, figmaExportTool, designSystemTool)
                 .build();
     }
 }

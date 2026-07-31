@@ -1,0 +1,98 @@
+package com.krdevops.springai.service.figma;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.model.designsystem.DesignSystemIssue;
+import com.krdevops.springai.model.designsystem.DesignSystemSpec;
+import com.krdevops.springai.model.figma.FigmaExportIssue;
+import com.krdevops.springai.model.figma.FigmaExportResult;
+import com.krdevops.springai.model.figma.FigmaScreenExportRequest;
+import com.krdevops.springai.service.designsystem.DesignSystemQueryService;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/** 신규 Figma MCP Tool의 인증·서비스 호출·민감정보 제거 응답을 한 곳에서 처리한다. */
+@Service
+public class FigmaMcpFacadeService {
+
+    private final FigmaToolAuthorizationService authorizationService;
+    private final FigmaScreenExportService exportService;
+    private final DesignSystemQueryService designSystemQueryService;
+    private final ObjectMapper objectMapper;
+
+    public FigmaMcpFacadeService(
+            FigmaToolAuthorizationService authorizationService,
+            FigmaScreenExportService exportService,
+            DesignSystemQueryService designSystemQueryService,
+            ObjectMapper objectMapper
+    ) {
+        this.authorizationService = authorizationService;
+        this.exportService = exportService;
+        this.designSystemQueryService = designSystemQueryService;
+        this.objectMapper = objectMapper.copy().findAndRegisterModules();
+    }
+
+    public String generateScreen(String sharedSecret, FigmaScreenExportRequest request) {
+        authorizationService.authorize(sharedSecret);
+        FigmaExportResult result = exportService.export(request);
+        return toJson(result);
+    }
+
+    public String validateScreen(String sharedSecret, String screenId, Integer version) {
+        authorizationService.authorize(sharedSecret);
+        List<FigmaExportIssue> issues = exportService.validateStored(screenId, version);
+        boolean valid = issues.stream().noneMatch(issue ->
+                issue.severity() == FigmaExportIssue.Severity.FATAL
+                        || issue.severity() == FigmaExportIssue.Severity.ERROR);
+        return toJson(new ScreenValidationSummary(screenId, version, valid, issues));
+    }
+
+    public String validateDesignSystem(String sharedSecret, DesignSystemSpec spec) {
+        authorizationService.authorize(sharedSecret);
+        List<DesignSystemIssue> issues = designSystemQueryService.validateSpec(spec);
+        boolean valid = issues.stream().noneMatch(issue ->
+                issue.severity() == DesignSystemIssue.Severity.FATAL
+                        || issue.severity() == DesignSystemIssue.Severity.ERROR);
+        return toJson(new DesignSystemValidationSummary(spec.id(), spec.version(), valid, issues));
+    }
+
+    public String auditRegistry(String sharedSecret, String profileId, String registryVersion) {
+        authorizationService.authorize(sharedSecret);
+        // Registry 원문을 반환하지 않아 Component/Variable 공개 Key가 MCP 응답에 노출되지 않는다.
+        return toJson(designSystemQueryService.auditRegistry(profileId, registryVersion));
+    }
+
+    public String preflightRegistry(
+            String sharedSecret,
+            String profileId,
+            String registryVersion,
+            List<String> requiredLogicalTypes
+    ) {
+        authorizationService.authorize(sharedSecret);
+        // 해석 결과에는 논리 ID만 포함하고 Published Key 원문은 반환하지 않는다.
+        return toJson(designSystemQueryService.preflightRegistry(
+                profileId, registryVersion, requiredLogicalTypes));
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Figma MCP 응답 직렬화에 실패했습니다.", exception);
+        }
+    }
+
+    public record ScreenValidationSummary(
+            String screenId,
+            Integer version,
+            boolean valid,
+            List<FigmaExportIssue> issues
+    ) {}
+
+    public record DesignSystemValidationSummary(
+            String designSystemId,
+            String version,
+            boolean valid,
+            List<DesignSystemIssue> issues
+    ) {}
+}

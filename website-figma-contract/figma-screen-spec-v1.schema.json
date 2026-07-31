@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/figma-screen-spec-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["screenId", "screenVersion", "screenSpecificationId", "screenSpecificationVersion", "screenType", "layoutPattern", "name", "viewport", "status", "designSystem", "content", "issues"],
+  "properties": {
+    "screenId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "screenVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/positiveVersion"},
+    "screenSpecificationId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "screenSpecificationVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/positiveVersion"},
+    "screenType": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/screenType"},
+    "layoutPattern": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/layoutPattern"},
+    "name": {"type": "string", "minLength": 1},
+    "route": {"type": ["string", "null"]},
+    "viewport": {"type": "string", "minLength": 1},
+    "status": {"enum": ["DRAFT", "REVIEW_REQUIRED", "APPROVED", "SUPERSEDED"]},
+    "designSystem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profileId", "profileVersion", "registryVersion"],
+      "properties": {
+        "profileId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+        "profileVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"},
+        "registryVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"}
+      }
+    },
+    "content": {"$ref": "#/$defs/node"},
+    "issues": {
+      "type": "array",
+      "items": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/figmaIssue"}
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logicalNodeId", "nodeType", "type", "properties", "children"],
+      "properties": {
+        "logicalNodeId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/logicalNodeId"},
+        "nodeType": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/nodeType"},
+        "type": {"type": "string", "minLength": 1},
+        "properties": {"type": "object"},
+        "children": {"type": "array", "items": {"$ref": "#/$defs/node"}}
+      }
+    }
+  }
+}

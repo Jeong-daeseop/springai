@@ -11,6 +11,9 @@ import java.util.Locale;
 @Service
 public class RenderedDesignSpecMapper {
 
+    /** 03번 §9.3: 인식 confidence가 이 임계값 미만이면 자동 확정하지 않고 uncertainties에 기록한다. */
+    private static final double CONFIDENCE_THRESHOLD = 0.7;
+
     public UiDesignSpec map(SafeDesignProjection projection, String featureType) {
         String archetype = archetype(projection, featureType);
         List<UiDesignSpec.ComponentSpec> components = projection.components().stream()
@@ -30,7 +33,22 @@ public class RenderedDesignSpecMapper {
                 components.stream().anyMatch(value -> contains(value.type(), "SEARCH_PANEL"))
                         ? "above-table" : "none");
         return new UiDesignSpec(archetype, layout, components, actions, fields,
-                projection.tokens(), List.of(), projection.warnings());
+                projection.tokens(), List.of(), uncertainties(projection));
+    }
+
+    private List<String> uncertainties(SafeDesignProjection projection) {
+        List<String> result = new java.util.ArrayList<>(projection.warnings());
+        for (var component : projection.components()) {
+            if (component.confidence() < CONFIDENCE_THRESHOLD) {
+                result.add("component candidate confidence 낮음: %s(%.2f)".formatted(component.type(), component.confidence()));
+            }
+        }
+        for (var field : projection.fields()) {
+            if (field.confidence() < CONFIDENCE_THRESHOLD) {
+                result.add("field confidence 낮음: %s(%.2f)".formatted(field.id(), field.confidence()));
+            }
+        }
+        return result;
     }
 
     private String archetype(SafeDesignProjection projection, String featureType) {

@@ -61,15 +61,19 @@
     },
     "node": {
       "type": "object", "additionalProperties": false,
-      "required": ["id", "parentId", "type", "tag", "role", "label", "text", "value", "visible", "bounds", "styles", "children"],
+      "required": ["id", "parentId", "type", "tag", "role", "label", "text", "value", "visible", "bounds", "styles", "children", "selectorHint", "sourceOrder", "rotation", "name"],
       "properties": {
         "id": {"type": "string"}, "parentId": {"$ref": "#/$defs/nullableString"},
         "type": {"enum": ["ELEMENT", "TEXT", "BUTTON", "HEADING", "LABEL", "TH", "PSEUDO", "IFRAME", "CANVAS"]},
         "tag": {"$ref": "#/$defs/nullableString"}, "role": {"$ref": "#/$defs/nullableString"},
         "label": {"$ref": "#/$defs/nullableString"}, "text": {"$ref": "#/$defs/nullableString"},
-        "value": {"type": "null"}, "visible": {"type": "boolean"}, "bounds": {"$ref": "#/$defs/bounds"},
+        "value": {"$ref": "#/$defs/nullableString"}, "visible": {"type": "boolean"}, "bounds": {"$ref": "#/$defs/bounds"},
         "styles": {"type": "object", "additionalProperties": {"type": "string"}},
-        "children": {"type": "array", "items": {"type": "string"}}
+        "children": {"type": "array", "items": {"type": "string"}},
+        "selectorHint": {"$ref": "#/$defs/nullableString"},
+        "sourceOrder": {"type": "integer", "minimum": 0},
+        "rotation": {"type": "number"},
+        "name": {"$ref": "#/$defs/nullableString"}
       }
     },
     "asset": {

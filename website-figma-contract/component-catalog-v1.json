@@ -1,0 +1,159 @@
+{
+  "contractVersion": "1.0.0",
+  "requiredComponents": [
+    {
+      "logicalType": "krds.button",
+      "aliases": ["button", "actionButton"],
+      "replacement": null,
+      "figmaProperties": {
+        "label": {"figmaProperty": "Label", "type": "TEXT", "values": {}},
+        "variant": {
+          "figmaProperty": "Style",
+          "type": "VARIANT",
+          "values": {"primary": "Primary", "secondary": "Secondary"}
+        },
+        "disabled": {"figmaProperty": "Disabled", "type": "BOOLEAN", "values": {}}
+      },
+      "codeProperties": {
+        "label": "button.text",
+        "variant": "button.class",
+        "disabled": "button.disabled"
+      }
+    },
+    {
+      "logicalType": "krds.textField",
+      "aliases": ["input", "textInput"],
+      "replacement": null,
+      "figmaProperties": {
+        "label": {"figmaProperty": "Label", "type": "TEXT", "values": {}},
+        "required": {"figmaProperty": "Required", "type": "BOOLEAN", "values": {}}
+      },
+      "codeProperties": {
+        "label": "label.text",
+        "required": "input.required",
+        "value": "input.value"
+      }
+    },
+    {
+      "logicalType": "krds.select",
+      "aliases": ["combo", "dropdown"],
+      "replacement": null,
+      "figmaProperties": {
+        "label": {"figmaProperty": "Label", "type": "TEXT", "values": {}},
+        "value": {"figmaProperty": "Value", "type": "TEXT", "values": {}}
+      },
+      "codeProperties": {
+        "label": "label.text",
+        "value": "option.selected"
+      }
+    },
+    {
+      "logicalType": "krds.checkbox",
+      "aliases": ["check"],
+      "replacement": null,
+      "figmaProperties": {
+        "label": {"figmaProperty": "Label", "type": "TEXT", "values": {}},
+        "checked": {"figmaProperty": "Checked", "type": "BOOLEAN", "values": {}}
+      },
+      "codeProperties": {
+        "label": "label.text",
+        "checked": "input.checked"
+      }
+    },
+    {
+      "logicalType": "krds.pagination",
+      "aliases": ["pager"],
+      "replacement": null,
+      "figmaProperties": {
+        "currentPage": {"figmaProperty": "Current Page", "type": "TEXT", "values": {}}
+      },
+      "codeProperties": {
+        "currentPage": "pagination.currentPage"
+      }
+    },
+    {
+      "logicalType": "egov.pageHeader",
+      "aliases": ["pageTitle"],
+      "replacement": null,
+      "figmaProperties": {
+        "title": {"figmaProperty": "Title", "type": "TEXT", "values": {}}
+      },
+      "codeProperties": {"title": "h1.text"}
+    },
+    {
+      "logicalType": "egov.searchPanel",
+      "aliases": ["searchForm"],
+      "replacement": null,
+      "figmaProperties": {},
+      "codeProperties": {"fields": "form.searchFields"}
+    },
+    {
+      "logicalType": "egov.dataTable",
+      "aliases": ["table", "grid"],
+      "replacement": null,
+      "figmaProperties": {},
+      "codeProperties": {"columns": "table.columns"}
+    },
+    {
+      "logicalType": "egov.formSection",
+      "aliases": ["form"],
+      "replacement": null,
+      "figmaProperties": {},
+      "codeProperties": {"fields": "form.fields"}
+    },
+    {
+      "logicalType": "egov.actionArea",
+      "aliases": ["buttonGroup"],
+      "replacement": null,
+      "figmaProperties": {},
+      "codeProperties": {"actions": "actions"}
+    },
+    {
+      "logicalType": "egov.listPage",
+      "aliases": ["listTemplate"],
+      "replacement": null,
+      "figmaProperties": {},
+      "codeProperties": {"template": "CRUD_LIST"}
+    },
+    {
+      "logicalType": "egov.formPage",
+      "aliases": ["formTemplate"],
+      "replacement": null,
+      "figmaProperties": {},
+      "codeProperties": {"template": "CRUD_FORM"}
+    }
+  ],
+  "optionalComponents": [
+    {
+      "logicalType": "krds.radio",
+      "aliases": ["radioGroup"],
+      "replacement": null,
+      "figmaProperties": {},
+      "codeProperties": {"value": "input.radio.value"}
+    },
+    {
+      "logicalType": "krds.datePicker",
+      "aliases": ["date"],
+      "replacement": "krds.textField",
+      "figmaProperties": {},
+      "codeProperties": {"value": "input.date.value"}
+    }
+  ],
+  "patterns": [
+    {"logicalType": "egov.pattern.list", "aliases": ["LIST"], "replacement": null},
+    {"logicalType": "egov.pattern.form", "aliases": ["FORM"], "replacement": null},
+    {"logicalType": "egov.pattern.detail", "aliases": ["DETAIL"], "replacement": null},
+    {"logicalType": "egov.pattern.masterDetail", "aliases": ["MASTER_DETAIL"], "replacement": null}
+  ],
+  "pageTemplates": [
+    {"logicalType": "egov.listPage", "aliases": ["CRUD_LIST", "BOARD_LIST"], "replacement": null},
+    {"logicalType": "egov.formPage", "aliases": ["CRUD_FORM", "CRUD_REGIST", "BOARD_FORM"], "replacement": null},
+    {"logicalType": "egov.detailPage", "aliases": ["CRUD_DETAIL", "BOARD_DETAIL"], "replacement": null}
+  ],
+  "fallbackPolicy": {
+    "required": "FATAL",
+    "optional": "PREVIEW_ONLY",
+    "unsupportedProperty": "PRESERVE_AS_METADATA",
+    "deprecated": "RESOLVE_REPLACEMENT_OR_FAIL"
+  }
+}

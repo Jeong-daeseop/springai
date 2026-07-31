@@ -7,5 +7,7 @@
   "entries": [
     {"path": "document.json", "byteLength": 100, "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"},
     {"path": "preview.png", "byteLength": 100, "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"}
-  ]
+  ],
+  "nodeCount": 1, "assetCount": 0, "componentCount": 0, "warningCount": 0,
+  "extractorVersion": "0.1.0", "browserVersion": "fixture"
 }

@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/design-system-profile-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "name", "version", "registryVersion", "status", "components", "variables"],
+  "properties": {
+    "id": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "name": {"type": "string", "minLength": 1},
+    "version": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"},
+    "registryVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"},
+    "libraryFileKey": {"type": ["string", "null"]},
+    "status": {"enum": ["DRAFT", "IN_REVIEW", "APPROVED", "REJECTED", "PUBLISHED"]},
+    "components": {"type": "object", "additionalProperties": {"$ref": "#/$defs/componentBinding"}},
+    "variables": {"type": "object", "additionalProperties": {"$ref": "#/$defs/variableBinding"}}
+  },
+  "$defs": {
+    "bindingStatus": {"enum": ["BOUND", "UNBOUND", "DEPRECATED"]},
+    "componentBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "componentSetKey": {"type": ["string", "null"]},
+        "status": {"$ref": "#/$defs/bindingStatus"}
+      }
+    },
+    "variableBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "variableId": {"type": ["string", "null"]},
+        "collectionName": {"type": ["string", "null"]},
+        "status": {"$ref": "#/$defs/bindingStatus"}
+      }
+    }
+  }
+}

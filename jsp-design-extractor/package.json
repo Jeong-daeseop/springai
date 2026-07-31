@@ -3,7 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": {"build": "tsc", "start": "node dist/server.js", "typecheck": "tsc --noEmit", "test": "npm run build && node scripts/e2e.mjs"},
-  "dependencies": {"ajv": "^8.17.1", "ajv-formats": "^3.0.1", "jszip": "^3.10.1", "playwright": "^1.55.0", "website-figma-contract": "file:../website-figma-contract"},
-  "devDependencies": {"@types/node": "^24.0.0", "typescript": "^5.9.0"}
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "npm run build && node scripts/e2e.mjs"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "jszip": "^3.10.1",
+    "playwright": "^1.55.0",
+    "website-figma-contract": "file:../website-figma-contract"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.7.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.65.0"
+  }
 }

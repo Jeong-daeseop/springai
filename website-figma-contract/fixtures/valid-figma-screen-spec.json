@@ -1,0 +1,36 @@
+{
+  "screenId": "user-list",
+  "screenVersion": 1,
+  "screenSpecificationId": "user-management",
+  "screenSpecificationVersion": 3,
+  "screenType": "LIST",
+  "layoutPattern": "STANDARD",
+  "name": "사용자 목록",
+  "route": "/users",
+  "viewport": "DESKTOP",
+  "status": "APPROVED",
+  "designSystem": {
+    "profileId": "ftc-krds",
+    "profileVersion": "1.0.0",
+    "registryVersion": "2026.07.27-1"
+  },
+  "content": {
+    "logicalNodeId": "user-list",
+    "nodeType": "PAGE",
+    "type": "egov.listPage",
+    "properties": {},
+    "children": [
+      {
+        "logicalNodeId": "user-list/action/create",
+        "nodeType": "COMPONENT",
+        "type": "krds.button",
+        "properties": {
+          "actionType": "CREATE",
+          "variant": "primary"
+        },
+        "children": []
+      }
+    ]
+  },
+  "issues": []
+}

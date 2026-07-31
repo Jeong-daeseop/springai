@@ -1,0 +1,32 @@
+{
+  "screenId": "a",
+  "screenVersion": 1,
+  "screenSpecificationId": "b",
+  "screenSpecificationVersion": 1,
+  "screenType": "DETAIL",
+  "layoutPattern": "MASTER_DETAIL",
+  "name": "A",
+  "route": null,
+  "viewport": "MOBILE",
+  "status": "SUPERSEDED",
+  "designSystem": {
+    "profileId": "d",
+    "profileVersion": "0",
+    "registryVersion": "0"
+  },
+  "content": {
+    "logicalNodeId": "a",
+    "nodeType": "PAGE",
+    "type": "egov.detailPage",
+    "properties": {},
+    "children": []
+  },
+  "issues": [
+    {
+      "code": "BOUNDARY",
+      "severity": "WARNING",
+      "message": "경계값 fixture",
+      "logicalNodeId": null
+    }
+  ]
+}

@@ -44,6 +44,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(Map.of("error", message));
     }
 
+    /** Figma/Design System 요청 계약 위반 → 코드가 포함된 400 표준 오류. */
+    @ExceptionHandler(FigmaRequestException.class)
+    public ResponseEntity<FigmaApiError> handleFigmaRequest(
+            FigmaRequestException ex,
+            jakarta.servlet.http.HttpServletRequest request
+    ) {
+        return ResponseEntity.badRequest().body(new FigmaApiError(
+                ex.code(), ex.getMessage(), request.getRequestURI(), java.time.OffsetDateTime.now()));
+    }
+
+    /** Figma/Design System 리소스 없음 → 코드가 포함된 404 표준 오류. */
+    @ExceptionHandler(FigmaResourceNotFoundException.class)
+    public ResponseEntity<FigmaApiError> handleFigmaNotFound(
+            FigmaResourceNotFoundException ex,
+            jakarta.servlet.http.HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new FigmaApiError(
+                ex.code(), ex.getMessage(), request.getRequestURI(), java.time.OffsetDateTime.now()));
+    }
+
     /** 잘못된 인수 → 400 Bad Request */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {

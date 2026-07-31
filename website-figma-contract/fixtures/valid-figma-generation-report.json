@@ -1,0 +1,24 @@
+{
+  "status": "SUCCESS",
+  "figmaScreenSpec": null,
+  "issues": [],
+  "generatedAt": "2026-07-27T00:00:00Z",
+  "screenId": "user-list",
+  "screenVersion": 1,
+  "mode": "MERGE",
+  "startedAt": "2026-07-27T00:00:00Z",
+  "completedAt": "2026-07-27T00:00:01Z",
+  "success": true,
+  "reusedInstanceCount": 10,
+  "createdInstanceCount": 1,
+  "archivedNodeCount": 0,
+  "fallbackCount": 0,
+  "changes": [
+    {
+      "logicalNodeId": "user-list/action/create",
+      "logicalType": "krds.button",
+      "changeType": "REUSE",
+      "detail": "기존 논리 노드 재사용"
+    }
+  ]
+}

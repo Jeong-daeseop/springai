@@ -3,12 +3,18 @@
   "$id": "https://schemas.krdevops.local/figpack-v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["packageVersion", "mimeType", "captureId", "documentKey", "contentHash", "entries"],
+  "required": ["packageVersion", "mimeType", "captureId", "documentKey", "contentHash", "entries", "nodeCount", "assetCount", "componentCount", "warningCount", "extractorVersion", "browserVersion"],
   "properties": {
     "packageVersion": {"const": "figpack-v1"},
     "mimeType": {"const": "application/vnd.springai.figpack+zip"},
     "captureId": {"type": "string", "format": "uuid"},
     "documentKey": {"type": "string"}, "contentHash": {"type": "string"},
-    "entries": {"type": "array", "minItems": 2, "maxItems": 5100, "items": {"type": "object", "additionalProperties": false, "required": ["path", "byteLength", "sha256"], "properties": {"path": {"type": "string", "pattern": "^(document\\.json|preview\\.png|assets/[A-Za-z0-9._/-]+)$"}, "byteLength": {"type": "integer", "minimum": 0}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}}
+    "entries": {"type": "array", "minItems": 2, "maxItems": 5100, "items": {"type": "object", "additionalProperties": false, "required": ["path", "byteLength", "sha256"], "properties": {"path": {"type": "string", "pattern": "^(document\\.json|preview\\.png|assets/[A-Za-z0-9._/-]+)$"}, "byteLength": {"type": "integer", "minimum": 0}, "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}}}},
+    "nodeCount": {"type": "integer", "minimum": 0},
+    "assetCount": {"type": "integer", "minimum": 0},
+    "componentCount": {"type": "integer", "minimum": 0},
+    "warningCount": {"type": "integer", "minimum": 0},
+    "extractorVersion": {"type": "string"},
+    "browserVersion": {"type": "string"}
   }
 }

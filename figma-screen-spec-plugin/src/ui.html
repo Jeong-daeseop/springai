@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<style>
+body{font:12px Inter,sans-serif;margin:0;padding:16px;color:#202124}
+h3{margin:0 0 6px}.hint{color:#666;line-height:1.5}
+input,select,button{width:100%;box-sizing:border-box;margin-top:10px}
+button{padding:9px}.section{margin-top:14px;padding-top:12px;border-top:1px solid #e5e5e5}
+#changes,#issues{max-height:190px;overflow:auto;background:#f7f7f7;padding:8px;margin-top:8px;white-space:pre-wrap}
+.fatal{color:#c92a2a}.warning{color:#e67700}.ok{color:#2b8a3e}
+.row{padding:4px 0;border-bottom:1px solid #e9e9e9}
+.actions{display:flex;gap:8px}.actions button{width:50%}
+</style>
+<h3>eGovFrame FigmaScreenSpec Export</h3>
+<div class="hint">Spring에서 다운로드한 <strong>.figma-export-bundle.json</strong> 파일을 선택하세요.</div>
+<input id="file" type="file" accept=".json,application/json">
+
+<div class="section">
+  <strong>선택 기능: Spring 서버에서 직접 조회</strong>
+  <div class="hint">DEC-10 기본값은 위 파일 입력입니다. REST는 manifest 허용 도메인·CORS·단기 토큰이 설정된 환경에서만 사용하세요.</div>
+  <input id="baseUrl" type="text" placeholder="서버 주소 (예: http://localhost:8080)" value="http://localhost:8080">
+  <input id="screenId" type="text" placeholder="screenId (예: user-list)">
+  <input id="version" type="number" placeholder="version (비우면 최신)" min="1">
+  <input id="restToken" type="text" placeholder="단기 토큰(Authorization: Bearer) — 있으면 우선 사용">
+  <input id="restApiKey" type="password" placeholder="또는 X-API-Key(장기)">
+  <button id="fetchBundle">서버에서 조회</button>
+</div>
+
+<div id="status" class="section">Bundle을 선택하면 변경 Preview를 계산합니다.</div>
+
+<div id="preview" class="section" style="display:none">
+  <strong>변경 Preview</strong>
+  <div id="changes"></div>
+  <div id="issues"></div>
+  <select id="mode">
+    <option value="MERGE">MERGE — 기존 노드 재사용</option>
+    <option value="REPLACE">REPLACE — 기존 화면 Archive 후 재생성</option>
+  </select>
+  <div class="actions">
+    <button id="apply" disabled>적용</button>
+    <button id="close">닫기</button>
+  </div>
+  <button id="previewMigration">선택한 기존 Frame Migration Preview</button>
+  <div id="migration" class="section" style="display:none">
+    <strong>Legacy Frame Migration</strong>
+    <div class="hint">적용 전에 선택한 Root Frame 전체를 숨김 Backup으로 복제합니다.</div>
+    <div id="migrationChanges"></div>
+    <button id="applyMigration" disabled>백업 후 Migration 적용</button>
+  </div>
+</div>
+
+<div id="result" class="section" style="display:none">
+  <strong>생성 결과</strong>
+  <pre id="reportSummary"></pre>
+  <button id="downloadReport">Report JSON 다운로드</button>
+</div>
+
+<script>
+const file = document.getElementById('file');
+const baseUrl = document.getElementById('baseUrl');
+const screenIdInput = document.getElementById('screenId');
+const versionInput = document.getElementById('version');
+const restToken = document.getElementById('restToken');
+const restApiKey = document.getElementById('restApiKey');
+const fetchBundle = document.getElementById('fetchBundle');
+const status = document.getElementById('status');
+const preview = document.getElementById('preview');
+const changes = document.getElementById('changes');
+const issues = document.getElementById('issues');
+const mode = document.getElementById('mode');
+const apply = document.getElementById('apply');
+const close = document.getElementById('close');
+const result = document.getElementById('result');
+const reportSummary = document.getElementById('reportSummary');
+const downloadReport = document.getElementById('downloadReport');
+const previewMigration = document.getElementById('previewMigration');
+const migration = document.getElementById('migration');
+const migrationChanges = document.getElementById('migrationChanges');
+const applyMigration = document.getElementById('applyMigration');
+let lastReport;
+
+file.onchange = async () => {
+  const selected = file.files[0];
+  if (!selected) return;
+  status.textContent = 'Bundle 검증 및 Preview 계산 중…';
+  preview.style.display = 'none';
+  result.style.display = 'none';
+  try {
+    const bundle = JSON.parse(await selected.text());
+    parent.postMessage({ pluginMessage: { type: 'LOAD_BUNDLE', bundle } }, '*');
+  } catch (error) {
+    status.innerHTML = `<span class="fatal">JSON 파싱 실패: ${error.message || error}</span>`;
+  }
+};
+
+fetchBundle.onclick = () => {
+  if (!screenIdInput.value.trim()) {
+    status.innerHTML = '<span class="fatal">screenId를 입력하세요.</span>';
+    return;
+  }
+  status.textContent = '서버에서 Bundle 조회 중…';
+  preview.style.display = 'none';
+  result.style.display = 'none';
+  parent.postMessage({ pluginMessage: {
+    type: 'FETCH_BUNDLE',
+    baseUrl: baseUrl.value.trim(),
+    screenId: screenIdInput.value.trim(),
+    version: versionInput.value ? Number(versionInput.value) : undefined,
+    token: restToken.value.trim() || undefined,
+    apiKey: restApiKey.value.trim() || undefined,
+  } }, '*');
+};
+
+apply.onclick = () => {
+  apply.disabled = true;
+  status.textContent = `${mode.value} 적용 중…`;
+  parent.postMessage({ pluginMessage: { type: 'APPLY', mode: mode.value } }, '*');
+};
+previewMigration.onclick = () => {
+  migration.style.display = 'none';
+  status.textContent = '선택한 Legacy Frame의 Migration Preview 계산 중…';
+  parent.postMessage({ pluginMessage: { type: 'PREVIEW_MIGRATION' } }, '*');
+};
+applyMigration.onclick = () => {
+  applyMigration.disabled = true;
+  status.textContent = 'Backup 생성 후 Migration 적용 중…';
+  parent.postMessage({ pluginMessage: { type: 'APPLY_MIGRATION' } }, '*');
+};
+close.onclick = () => parent.postMessage({ pluginMessage: { type: 'CLOSE' } }, '*');
+downloadReport.onclick = () => {
+  if (!lastReport) return;
+  const blob = new Blob([JSON.stringify(lastReport, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = lastReport.backupNodeId
+    ? `figma-migration-report-${lastReport.screenId}-v${lastReport.screenVersion}.json`
+    : `figma-generation-report-${lastReport.screenId}-v${lastReport.screenVersion}.json`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+};
+
+function renderChanges(values) {
+  changes.replaceChildren();
+  for (const item of values) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.textContent = `[${item.changeType}] ${item.logicalNodeId} · ${item.logicalType} — ${item.detail}`;
+    changes.append(row);
+  }
+}
+function renderIssues(values) {
+  issues.replaceChildren();
+  issues.style.display = values.length ? 'block' : 'none';
+  for (const item of values) {
+    const row = document.createElement('div');
+    row.className = item.severity === 'WARNING' ? 'warning' : 'fatal';
+    row.textContent = `[${item.severity}] ${item.code}: ${item.message}${item.logicalNodeId ? ` (${item.logicalNodeId})` : ''}`;
+    issues.append(row);
+  }
+}
+
+onmessage = ({data}) => {
+  const message = data.pluginMessage;
+  if (!message) return;
+  if (message.type === 'VALIDATION_ERROR') {
+    status.innerHTML = '<span class="fatal">Bundle 검증에 실패했습니다.</span>';
+    renderIssues(message.issues);
+    issues.style.display = 'block';
+    return;
+  }
+  if (message.type === 'PREVIEW_READY') {
+    status.textContent = message.summary;
+    renderChanges(message.changes);
+    renderIssues(message.issues);
+    preview.style.display = 'block';
+    apply.disabled = !message.canApply;
+    return;
+  }
+  if (message.type === 'APPLY_RESULT') {
+    lastReport = message.report;
+    status.innerHTML = message.report.success
+      ? '<span class="ok">화면 동기화가 완료되었습니다.</span>'
+      : '<span class="fatal">화면 동기화 중 오류가 발생했습니다.</span>';
+    reportSummary.textContent =
+      `재사용 ${message.report.reusedInstanceCount}\n신규 ${message.report.createdInstanceCount}\nArchive ${message.report.archivedNodeCount}\nFallback ${message.report.fallbackCount}`;
+    renderIssues(message.report.issues);
+    result.style.display = 'block';
+    apply.disabled = false;
+    return;
+  }
+  if (message.type === 'MIGRATION_PREVIEW_READY') {
+    migrationChanges.replaceChildren();
+    for (const item of message.preview.operations) {
+      const row = document.createElement('div');
+      row.className = item.action === 'MANUAL_REVIEW' ? 'row warning' : 'row';
+      row.textContent = `[${item.action}] ${item.nodeName || '미매핑'} → ${item.logicalNodeId} · ${item.reason}`;
+      migrationChanges.append(row);
+    }
+    renderIssues(message.preview.issues);
+    migration.style.display = 'block';
+    applyMigration.disabled = !message.preview.canApply;
+    status.textContent = message.preview.canApply
+      ? 'Migration Preview가 준비되었습니다. 적용 시 먼저 Backup을 생성합니다.'
+      : '사람 확인이 필요한 매핑이 있어 Migration을 적용할 수 없습니다.';
+    return;
+  }
+  if (message.type === 'MIGRATION_RESULT') {
+    lastReport = message.report;
+    status.innerHTML = message.report.success
+      ? '<span class="ok">Legacy Frame Migration이 완료되었습니다.</span>'
+      : '<span class="fatal">Migration 중 일부 항목이 실패했습니다. Backup을 사용해 되돌릴 수 있습니다.</span>';
+    reportSummary.textContent =
+      `적용 ${message.report.appliedCount}\nPublished 교체 ${message.report.replacedInstanceCount}\n실패 ${message.report.failedCount}\nBackup ${message.report.backupNodeId}`;
+    renderIssues(message.report.issues);
+    result.style.display = 'block';
+    applyMigration.disabled = false;
+    return;
+  }
+  if (message.type === 'ERROR') {
+    status.innerHTML = `<span class="fatal">${message.message}</span>`;
+    apply.disabled = false;
+  }
+};
+</script>
+</html>

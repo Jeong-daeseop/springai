@@ -1,0 +1,13 @@
+{
+  "fixture": "list",
+  "status": "DRAFT_UNAPPROVED",
+  "note": "03번 §13.5: 초기 tolerance는 기준 화면 실측 후 승인해야 한다. 이 파일의 수치는 사람이 Figma Desktop에서 실제 측정하기 전까지 임시값이며, R0-04/R4-03/R5-01 완료 근거로 사용할 수 없다.",
+  "requiredComponents": ["HEADER", "NAVIGATION", "FOOTER", "FORM", "TEXT_INPUT", "BUTTON", "TABLE", "IMAGE", "GENERIC_CONTAINER"],
+  "boundingBoxToleranceViewportPx": null,
+  "colorNormalization": null,
+  "allowedFontFallback": [],
+  "allowedAssetFallback": [],
+  "autoLayoutFalsePositiveRate": null,
+  "approvedBy": null,
+  "approvedAt": null
+}

@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/figma-common-v1",
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9]*(?:[-_.][a-z0-9]+)*$"
+    },
+    "logicalNodeId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*(?:/[A-Za-z0-9][A-Za-z0-9._:-]*)*$"
+    },
+    "positiveVersion": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "versionToken": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "screenType": {
+      "enum": ["LIST", "FORM", "DETAIL"]
+    },
+    "layoutPattern": {
+      "enum": ["STANDARD", "MASTER_DETAIL", "DASHBOARD"]
+    },
+    "nodeType": {
+      "enum": ["PAGE", "SECTION", "COMPONENT", "TEXT", "SLOT", "REPEAT"]
+    },
+    "changePolicy": {
+      "enum": ["CREATE", "MERGE", "REPLACE", "SKIP"]
+    },
+    "figmaIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["FATAL", "ERROR", "WARNING"]},
+        "message": {"type": "string", "minLength": 1},
+        "logicalNodeId": {
+          "anyOf": [
+            {"$ref": "#/$defs/logicalNodeId"},
+            {"type": "null"}
+          ]
+        },
+        "jsonPointer": {
+          "type": ["string", "null"],
+          "pattern": "^(?:/.*)?$"
+        }
+      }
+    },
+    "designSystemIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["FATAL", "ERROR", "WARNING"]},
+        "message": {"type": "string", "minLength": 1},
+        "targetId": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

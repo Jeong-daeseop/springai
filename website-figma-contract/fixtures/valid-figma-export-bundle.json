@@ -1,0 +1,69 @@
+{
+  "figmaScreenSpec": {
+    "screenId": "user-list",
+    "screenVersion": 1,
+    "screenSpecificationId": "user-management",
+    "screenSpecificationVersion": 3,
+    "screenType": "LIST",
+    "layoutPattern": "STANDARD",
+    "name": "사용자 목록",
+    "route": "/users",
+    "viewport": "DESKTOP",
+    "status": "APPROVED",
+    "designSystem": {
+      "profileId": "ftc-krds",
+      "profileVersion": "1.0.0",
+      "registryVersion": "2026.07.27-1"
+    },
+    "content": {
+      "logicalNodeId": "user-list",
+      "nodeType": "PAGE",
+      "type": "egov.listPage",
+      "properties": {},
+      "children": []
+    },
+    "issues": []
+  },
+  "designSystemProfile": {
+    "profile": {
+      "id": "ftc-krds",
+      "name": "FTC 정부 포털 Design System",
+      "version": "1.0.0",
+      "registryVersion": "2026.07.27-1",
+      "libraryFileKey": "mVy5h1UbORVqQoBm8Wr1bT",
+      "status": "PUBLISHED",
+      "components": {},
+      "variables": {}
+    },
+    "snapshotAt": "2026-07-27T00:00:00Z"
+  },
+  "componentRegistry": {
+    "registry": {
+      "profileId": "ftc-krds",
+      "profileVersion": "1.0.0",
+      "registryVersion": "2026.07.27-1",
+      "library": {
+        "fileKey": "mVy5h1UbORVqQoBm8Wr1bT",
+        "name": "FTC 정부 포털 Design System"
+      },
+      "components": {
+        "egov.listPage": {
+          "componentSetKey": "LIST_PAGE_COMPONENT_SET_KEY",
+          "componentName": "List Page",
+          "publishStatus": "CURRENT",
+          "variants": {},
+          "properties": {}
+        }
+      },
+      "variables": {}
+    },
+    "snapshotAt": "2026-07-27T00:00:00Z"
+  },
+  "metadata": {
+    "exportedAt": "2026-07-27T00:00:00Z",
+    "figmaScreenSpecSchemaVersion": "figma-screen-spec-v1",
+    "screenSpecificationVersion": 3,
+    "designSystemProfileVersion": "1.0.0",
+    "registryVersion": "2026.07.27-1"
+  }
+}

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<style>
+body{font:12px Inter,sans-serif;padding:16px;padding-bottom:0;margin:0}
+button,input[type=file],input[type=text],textarea,select{margin-top:8px;width:100%;box-sizing:border-box}
+pre{white-space:pre-wrap;max-height:120px;overflow:auto;background:#f5f5f5;padding:8px}
+h3{margin:0 0 4px}
+.section{margin-top:14px;padding-top:10px;border-top:1px solid #eee}
+.diff{max-height:220px;overflow:auto;margin-top:8px}
+.diff .row{display:flex;gap:6px;padding:4px 0;border-bottom:1px solid #f0f0f0}
+.badge{display:inline-block;min-width:74px;text-align:center;padding:2px 6px;border-radius:4px;color:#fff;font-size:11px}
+.ADD{background:#2f9e44}.UPDATE{background:#1971c2}.NO_CHANGE{background:#868e96}.BREAKING{background:#e03131}.DEPRECATE{background:#f08c00}
+.errors{color:#e03131}
+.error-row{padding:6px;border-bottom:1px solid #ffd8d8}
+.error-row button{width:auto;margin:4px 0 0;padding:3px 8px}
+.path{font-family:monospace;color:#862e9c}
+.comparison{margin:4px 0 4px 80px;padding:4px;background:#f8f9fa;font-family:monospace;white-space:pre-wrap}
+.review-status{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:4px;background:#e9ecef}
+.actions{position:sticky;bottom:0;background:#fff;padding:12px 0 16px;margin-top:8px}
+</style>
+<h3>KRDS Design System Author</h3>
+<div id="status">DesignSystemSpec JSON 파일을 선택하세요.</div>
+<input id="file" type="file" accept="application/json">
+
+<div class="section" id="diffSection" style="display:none">
+  <strong>변경 미리보기(Preview)</strong>
+  <div id="diffList" class="diff"></div>
+  <div class="actions">
+    <button id="apply" disabled>적용(제자리 Update)</button>
+  </div>
+</div>
+
+<div class="section" id="reviewSection" style="display:none">
+  <strong>승인 기록 내보내기</strong><span id="reviewStatus" class="review-status">DRAFT</span>
+  <select id="eventType">
+    <option value="REVIEW">REVIEW(검토)</option>
+    <option value="APPROVAL">APPROVAL(승인)</option>
+    <option value="REJECTION">REJECTION(반려)</option>
+  </select>
+  <input id="actor" type="text" placeholder="검토자 이름">
+  <textarea id="comment" rows="2" placeholder="의견(선택)"></textarea>
+  <button id="exportReview">JSON으로 내보내기</button>
+</div>
+
+<div class="section" id="registrySection" style="display:none">
+  <strong>Publish Registry 내보내기</strong>
+  <div>Figma Library를 Publish한 뒤 실행하세요. CURRENT가 아닌 자산은 Spring 동기화에서 거부됩니다.</div>
+  <input id="libraryFileKey" type="text" value="mVy5h1UbORVqQoBm8Wr1bT" placeholder="Figma Library fileKey">
+  <input id="libraryName" type="text" value="FTC 정부 포털 Design System" placeholder="Library 이름">
+  <input id="registryVersion" type="text" placeholder="Registry version (예: 2026.07.27-1)">
+  <button id="exportRegistry">Published Registry JSON 내보내기</button>
+</div>
+
+<script>
+const file = document.getElementById('file');
+const status = document.getElementById('status');
+const diffSection = document.getElementById('diffSection');
+const diffList = document.getElementById('diffList');
+const apply = document.getElementById('apply');
+const reviewSection = document.getElementById('reviewSection');
+const reviewStatus = document.getElementById('reviewStatus');
+const exportReview = document.getElementById('exportReview');
+const eventType = document.getElementById('eventType');
+const actor = document.getElementById('actor');
+const comment = document.getElementById('comment');
+const registrySection = document.getElementById('registrySection');
+const libraryFileKey = document.getElementById('libraryFileKey');
+const libraryName = document.getElementById('libraryName');
+const registryVersion = document.getElementById('registryVersion');
+const exportRegistry = document.getElementById('exportRegistry');
+
+function renderDiff(diff) {
+  diffList.replaceChildren();
+  for (const entry of diff) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + entry.kind;
+    badge.textContent = entry.kind;
+    const label = document.createElement('span');
+    label.textContent = ` ${entry.name} (${entry.logicalId}) — ${entry.detail}`;
+    row.append(badge, label);
+    diffList.append(row);
+    for (const comparison of entry.comparisons || []) {
+      const detail = document.createElement('div');
+      detail.className = 'comparison';
+      detail.textContent = `${comparison.change} ${comparison.field}\n이전: ${comparison.before}\n이후: ${comparison.after}`;
+      diffList.append(detail);
+    }
+  }
+}
+
+function renderValidationErrors(errors) {
+  status.replaceChildren();
+  const title = document.createElement('div');
+  title.className = 'errors';
+  title.textContent = '검증 실패:';
+  status.append(title);
+  errors.forEach((error, index) => {
+    const row = document.createElement('div');
+    row.className = 'error-row errors';
+    const code = document.createElement('strong');
+    code.textContent = error.code + ' ';
+    const path = document.createElement('span');
+    path.className = 'path';
+    path.textContent = error.path || '/';
+    const message = document.createElement('div');
+    message.textContent = error.message;
+    const focus = document.createElement('button');
+    focus.textContent = '오류 위치 보기';
+    focus.onclick = () => parent.postMessage({
+      pluginMessage: { type: 'FOCUS_ERROR', index }
+    }, '*');
+    row.append(code, path, message, focus);
+    status.append(row);
+  });
+}
+
+function setReviewStatus(value) {
+  reviewStatus.textContent = value || 'DRAFT';
+}
+
+function downloadJson(filename, data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+file.onchange = async () => {
+  const selected = file.files[0];
+  if (!selected) return;
+  status.textContent = '검증 중…';
+  diffSection.style.display = 'none';
+  reviewSection.style.display = 'none';
+  try {
+    const text = await selected.text();
+    const spec = JSON.parse(text);
+    parent.postMessage({ pluginMessage: { type: 'LOAD_SPEC', spec } }, '*');
+  } catch (e) {
+    status.innerHTML = '<span class="errors">JSON 파싱 실패: ' + (e && e.message ? e.message : e) + '</span>';
+  }
+};
+
+apply.onclick = () => {
+  apply.disabled = true;
+  status.textContent = '적용 중…';
+  parent.postMessage({ pluginMessage: { type: 'APPLY' } }, '*');
+};
+
+exportReview.onclick = () => {
+  parent.postMessage({ pluginMessage: {
+    type: 'EXPORT_REVIEW', eventType: eventType.value, actor: actor.value, comment: comment.value
+  } }, '*');
+};
+
+exportRegistry.onclick = () => {
+  exportRegistry.disabled = true;
+  status.textContent = 'Publish 상태와 Component/Variable Key를 확인 중…';
+  parent.postMessage({ pluginMessage: {
+    type: 'EXPORT_REGISTRY',
+    options: {
+      fileKey: libraryFileKey.value,
+      libraryName: libraryName.value,
+      registryVersion: registryVersion.value
+    }
+  } }, '*');
+};
+
+onmessage = ({ data }) => {
+  if (!data.pluginMessage) return;
+  const message = data.pluginMessage;
+
+  if (message.type === 'VALIDATION_ERROR') {
+    renderValidationErrors(message.errors);
+    diffSection.style.display = 'none';
+    reviewSection.style.display = 'none';
+    return;
+  }
+  if (message.type === 'DIFF_READY') {
+    status.textContent = message.summary;
+    renderDiff(message.diff);
+    setReviewStatus(message.reviewStatus);
+    diffSection.style.display = 'block';
+    registrySection.style.display = 'block';
+    apply.disabled = false;
+    return;
+  }
+  if (message.type === 'APPLY_RESULT') {
+    status.textContent = message.message;
+    renderDiff(message.diff);
+    setReviewStatus(message.reviewStatus);
+    reviewSection.style.display = 'block';
+    return;
+  }
+  if (message.type === 'REVIEW_EXPORTED') {
+    downloadJson(`figma-review-${message.review.id}.json`, message.review);
+    status.textContent = '승인 기록을 내보냈습니다: ' + message.review.eventType;
+    setReviewStatus(message.reviewStatus);
+    return;
+  }
+  if (message.type === 'ERROR_FOCUSED') {
+    status.textContent = message.found
+      ? `Figma 노드로 이동했습니다: ${message.path}`
+      : `JSON 위치 ${message.path}: ${message.message} (아직 연결된 Figma 노드가 없습니다)`;
+    return;
+  }
+  if (message.type === 'REGISTRY_EXPORTED') {
+    downloadJson(`component-registry-${message.registry.profileId}-${message.registry.registryVersion}.json`, message.registry);
+    status.innerHTML = message.allCurrent
+      ? 'Published Registry를 내보냈습니다. 모든 자산이 <strong>CURRENT</strong>입니다.'
+      : '<span class="errors">Registry를 내보냈지만 CURRENT가 아닌 자산이 있습니다. Figma Publish 후 다시 내보내세요.</span>';
+    exportRegistry.disabled = false;
+    return;
+  }
+  if (message.type === 'ERROR') {
+    status.innerHTML = '<span class="errors">[' + message.code + '] ' + message.message
+      + (message.retryable ? ' — 잠시 후 다시 시도할 수 있습니다.' : '') + '</span>';
+    apply.disabled = false;
+    exportRegistry.disabled = false;
+  }
+};
+</script>
+</html>

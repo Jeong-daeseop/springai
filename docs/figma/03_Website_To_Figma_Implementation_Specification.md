@@ -1,8 +1,8 @@
 # Website → Figma 단계별 구현명세서
 
 **문서명**: 03_Website_To_Figma_Implementation_Specification.md  
-**버전**: 1.4  
-**작성일**: 2026-07-21  
+**버전**: 1.6  
+**작성일**: 2026-07-22  
 **상태**: 구현 제안  
 **기준 문서**: `02_JSP_Website_Phased_Development_Impact_Assessment.md`  
 **관련 문서**: `05_Overall_Architecture_Diagram.md` (01~04 통합 아키텍처 개요도)
@@ -241,6 +241,8 @@ Release 1에서는 `artifactId`를 `captureId`와 동일한 값으로 사용한�
 | 시맨틱 | `componentType`, `componentConfidence`, `fieldRole` |
 
 `selectorHint`는 재식별을 위한 제한된 힌트이며 비밀번호, 사용자 입력값 또는 동적 토큰을 포함하지 않는다. `text`는 `input[type=password]`와 설정된 민감 selector에서 수집하지 않는다.
+
+`value`는 기본적으로 `null`이며 유일한 예외로 `<select>`의 현재 선택된 `<option>` 텍스트만 채운다(2026-07-22 확장). `<input>`/`<textarea>` 등 사용자가 직접 입력할 수 있는 컨트롤의 값은 계속 `null`로 고정한다 — §11.3 민감정보 원칙(입력값을 문서에 포함하지 않음)이 select의 사전 정의된 선택지 라벨에는 적용되지 않는다고 판단했기 때문이다. select 표시값도 `text`와 마찬가지로 아직 `sensitiveSelectors` 기반 마스킹 대상은 아니다(기존에도 `text` 필드가 JSON 레벨에서 마스킹되지 않는 것과 동일한 기존 한계).
 
 ### 5.6 `layoutInference`
 
@@ -977,6 +979,45 @@ Plugin 생성 작업은 다음 실패 계약을 따른다.
 
 Release 1에는 session 참조를 제공하지 않는다. 인증된 JSP가 1차 업무상 필수로 확인되면 일반 SPA 기능과 묶지 않고 Release 2A를 먼저 구현한다.
 
+#### 12.1.1 extractor Session API (R6 부분 구현)
+
+`jsp-design-extractor`에 다음 계약으로 세션 발급 endpoint를 구현했다:
+
+```http
+POST /v1/sessions
+Content-Type: application/json
+X-Extractor-Key: ********
+```
+
+```json
+{
+  "requestId": "UUID",
+  "loginUrl": "http://localhost:9091/uat/uia/egovLoginUsr.do",
+  "allowedOrigins": ["http://localhost:9091"],
+  "usernameSelector": "#id",
+  "username": "...",
+  "passwordSelector": "#password",
+  "password": "...",
+  "submitSelector": ".btn_login",
+  "successSelector": null,
+  "timeoutMillis": 15000
+}
+```
+
+```json
+{
+  "sessionId": "UUID",
+  "expiresAt": "2026-07-21T22:36:42.441Z"
+}
+```
+
+- `loginUrl`은 Capture API와 동일한 origin/loopback 검증(`validateOrigin`)을 통과해야 하며, `EXTRACTOR_ALLOWED_ORIGINS`에 등록된 origin만 허용한다.
+- 로그인은 extractor가 Playwright로 직접 수행한다(`usernameSelector`/`passwordSelector`에 값 입력 → `submitSelector` 클릭 → `successSelector` 또는 navigation 대기). extractor는 `username`/`password`를 로그·artifact에 남기지 않으며, 발급 로그에는 `sha256(sessionId)`만 기록한다.
+- 로그인 성공 시 `context.storageState()` 결과를 **메모리 내부**(`Map<sessionId, storageState>`)에만 보관한다. 디스크에 파일로 저장하지 않아 §2 "인증정보·쿠키·토큰을 artifact와 로그에 저장하지 않는다" 원칙을 파일 기반 방식보다 더 엄격하게 만족한다.
+- `EXTRACTOR_SESSION_TTL_MINUTES`(기본 30분) 경과 시 세션이 자동 만료·삭제된다(5분 주기 정리).
+- `POST /v1/captures` 요청에 `storageStateRef`(발급받은 `sessionId`)를 추가하면 해당 storage state로 `browser.newContext()`를 생성해 인증 상태로 캡처한다. `storageStateRef`가 없거나 만료된 세션을 가리키면 `SESSION_NOT_FOUND` → `CAPTURE_AUTH_FAILED`(401)로 응답한다. 로그인 자체 실패는 `SESSION_LOGIN_FAILED` → `CAPTURE_AUTH_FAILED`(401)로 응답한다.
+- **미구현(§12.1 원 계약과의 차이)**: owner 단위 격리(현재는 API key 하나로 extractor 전체에 접근하는 P1 로컬 단일 사용자 모델과 동일 신뢰 경계이므로 sessionId를 아는 호출자는 누구나 재사용 가능), `springai` 쪽 MCP Tool(예: `CaptureWebPageTool`의 `storageStateRef` 파라미터·session 발급 Tool)은 아직 없다. 현재는 extractor API를 직접 호출하는 로컬 테스트 경로에서만 검증되었다.
+
 ### 12.2 SPA
 
 - `readySelector`, `hiddenSelector`, URL pattern과 사전 등록 interaction step을 지원한다.
@@ -1176,6 +1217,8 @@ Release 1은 다음 상태 점검을 제공한다.
 
 | 버전 | 작성일 | 변경 내용 |
 |---|---|---|
+| 1.6 | 2026-07-22 | §5.5에 `value` 필드 확장 반영: `<select>` 현재 선택 옵션 텍스트만 예외로 캡처(스키마 `value`를 `null` 전용에서 nullableString으로 완화), `<input>`/`<textarea>`는 계속 차단. 실사용 화면(`selectBoardList.do`) 시각 검수로 발견된 `border-bottom` 전용 구분선 미캡처 문제(단일 면만 있으면 `getComputedStyle().border` 통합 shorthand가 빈 문자열을 반환하는 브라우저 특성) 대응으로 `styles.borderTop/Right/Bottom/Left` 4면 개별 캡처 추가(스키마 변경 없음, 기존 열린 string map 활용) |
+| 1.5 | 2026-07-22 | §12.1.1 신설: `jsp-design-extractor`에 구현된 Session API(`POST /v1/sessions`, `storageStateRef`) 계약과 미구현 범위(owner 격리, `springai` MCP Tool 연동) 명시 — R6(Release 2A) 부분 구현 |
 | 1.4 | 2026-07-21 | `05_Overall_Architecture_Diagram.md` 링크 추가 |
 | 1.3 | 2026-07-21 | §3.1 시스템 경계 다이어그램에 `WebCaptureProjectionPolicy → SafeDesignProjection` 반영, §9.3 데이터 흐름과 정합화 |
 | 1.2 | 2026-07-21 | `DesignSourceMetadata` 선행 전환 결정, 최상위 `contentHash` 단일화, 전용 Figma Plugin 채택 근거, PII allowlist projection 강제 반영 |

@@ -5,15 +5,19 @@
   "scripts": {
     "build": "esbuild src/code.ts --bundle --outfile=dist/code.js",
     "fixture:cleanup": "node scripts/create-cleanup-failure-fixture.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@noble/hashes": "^1.7.1",
     "fflate": "^0.8.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@figma/plugin-typings": "^1.117.0",
     "esbuild": "^0.25.0",
-    "typescript": "^5.9.0"
+    "eslint": "^10.7.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.65.0"
   }
 }

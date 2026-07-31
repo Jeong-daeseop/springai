@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/component-catalog-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contractVersion",
+    "requiredComponents",
+    "optionalComponents",
+    "patterns",
+    "pageTemplates",
+    "fallbackPolicy"
+  ],
+  "properties": {
+    "contractVersion": {
+      "$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"
+    },
+    "requiredComponents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/component"}
+    },
+    "optionalComponents": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/component"}
+    },
+    "patterns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/catalogEntry"}
+    },
+    "pageTemplates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/catalogEntry"}
+    },
+    "fallbackPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "optional", "unsupportedProperty", "deprecated"],
+      "properties": {
+        "required": {"const": "FATAL"},
+        "optional": {"const": "PREVIEW_ONLY"},
+        "unsupportedProperty": {"enum": ["IGNORE_WITH_WARNING", "PRESERVE_AS_METADATA"]},
+        "deprecated": {"const": "RESOLVE_REPLACEMENT_OR_FAIL"}
+      }
+    }
+  },
+  "$defs": {
+    "catalogEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logicalType", "aliases"],
+      "properties": {
+        "logicalType": {"type": "string", "pattern": "^[a-z][A-Za-z0-9]*(?:\\.[a-z][A-Za-z0-9]*)+$"},
+        "aliases": {"type": "array", "items": {"type": "string"}},
+        "replacement": {"type": ["string", "null"]}
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logicalType",
+        "aliases",
+        "replacement",
+        "figmaProperties",
+        "codeProperties"
+      ],
+      "properties": {
+        "logicalType": {"type": "string", "pattern": "^[a-z][A-Za-z0-9]*(?:\\.[a-z][A-Za-z0-9]*)+$"},
+        "aliases": {"type": "array", "items": {"type": "string"}},
+        "replacement": {"type": ["string", "null"]},
+        "figmaProperties": {
+          "type": "object",
+          "additionalProperties": {"$ref": "#/$defs/propertyMapping"}
+        },
+        "codeProperties": {
+          "type": "object",
+          "additionalProperties": {"type": "string"}
+        }
+      }
+    },
+    "propertyMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["figmaProperty", "type"],
+      "properties": {
+        "figmaProperty": {"type": "string", "minLength": 1},
+        "type": {"enum": ["TEXT", "BOOLEAN", "VARIANT", "INSTANCE_SWAP"]},
+        "values": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    }
+  }
+}

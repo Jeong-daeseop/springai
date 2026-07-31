@@ -1,0 +1,58 @@
+{
+  "figmaScreenSpec": {
+    "screenId": "user-list",
+    "screenVersion": 1,
+    "screenSpecificationId": "user-management",
+    "screenSpecificationVersion": 3,
+    "screenType": "LIST",
+    "layoutPattern": "STANDARD",
+    "name": "사용자 목록",
+    "route": null,
+    "viewport": "DESKTOP",
+    "status": "APPROVED",
+    "designSystem": {
+      "profileId": "ftc-krds",
+      "profileVersion": "1.0.0",
+      "registryVersion": "registry-2"
+    },
+    "content": {
+      "logicalNodeId": "user-list",
+      "nodeType": "PAGE",
+      "type": "egov.listPage",
+      "properties": {},
+      "children": []
+    },
+    "issues": []
+  },
+  "designSystemProfile": {
+    "profile": {
+      "id": "ftc-krds",
+      "name": "FTC",
+      "version": "1.0.0",
+      "registryVersion": "registry-1",
+      "libraryFileKey": null,
+      "status": "PUBLISHED",
+      "components": {},
+      "variables": {}
+    },
+    "snapshotAt": "2026-07-27T00:00:00Z"
+  },
+  "componentRegistry": {
+    "registry": {
+      "profileId": "ftc-krds",
+      "profileVersion": "1.0.0",
+      "registryVersion": "registry-1",
+      "library": null,
+      "components": {},
+      "variables": {}
+    },
+    "snapshotAt": "2026-07-27T00:00:00Z"
+  },
+  "metadata": {
+    "exportedAt": "2026-07-27T00:00:00Z",
+    "figmaScreenSpecSchemaVersion": "figma-screen-spec-v1",
+    "screenSpecificationVersion": 3,
+    "designSystemProfileVersion": "1.0.0",
+    "registryVersion": "registry-1"
+  }
+}

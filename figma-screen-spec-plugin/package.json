@@ -1,0 +1,19 @@
+{
+  "name": "figma-screen-spec-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "esbuild src/code.ts --bundle --outfile=dist/code.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "esbuild src/core.ts --bundle --platform=node --format=esm --outfile=dist-test/core.mjs && node --test test/core.test.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@figma/plugin-typings": "^1.117.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^10.7.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.65.0"
+  }
+}

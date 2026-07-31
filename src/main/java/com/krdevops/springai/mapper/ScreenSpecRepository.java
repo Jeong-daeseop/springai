@@ -60,6 +60,14 @@ public class ScreenSpecRepository {
         return json.isEmpty() ? Optional.empty() : Optional.of(fromJson(json.get(0)));
     }
 
+    public Optional<ScreenSpecification> findVersion(String id, int version) {
+        List<String> json = jdbcTemplate.queryForList("""
+            SELECT SPEC_JSON FROM AI_SCREEN_SPECIFICATION
+             WHERE SPEC_ID = ? AND SPEC_VERSION = ?
+            """, String.class, id, version);
+        return json.isEmpty() ? Optional.empty() : Optional.of(fromJson(json.get(0)));
+    }
+
     private String toJson(ScreenSpecification specification) {
         try {
             return objectMapper.writeValueAsString(specification);

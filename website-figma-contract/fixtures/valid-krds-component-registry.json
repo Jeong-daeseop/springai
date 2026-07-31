@@ -1,0 +1,44 @@
+{
+  "profileId": "ftc-krds",
+  "profileVersion": "1.0.0",
+  "registryVersion": "2026.07.27-1",
+  "library": {
+    "fileKey": "mVy5h1UbORVqQoBm8Wr1bT",
+    "name": "FTC 정부 포털 Design System"
+  },
+  "components": {
+    "krds.button": {
+      "componentSetKey": "BUTTON_COMPONENT_SET_KEY",
+      "componentName": "Button",
+      "publishStatus": "CURRENT",
+      "variants": {
+        "Size=Medium, Style=Primary, State=Default": "BUTTON_PRIMARY_DEFAULT_KEY"
+      },
+      "properties": {
+        "Style": {
+          "figmaProperty": "Style",
+          "type": "VARIANT",
+          "values": {
+            "Primary": "Primary",
+            "Secondary": "Secondary"
+          }
+        },
+        "Label": {
+          "figmaProperty": "Label",
+          "type": "TEXT",
+          "values": {}
+        }
+      }
+    }
+  },
+  "variables": {
+    "color.primary": {
+      "variableKey": "COLOR_PRIMARY_VARIABLE_KEY",
+      "variableName": "color.primary",
+      "collectionKey": "FOUNDATION_COLLECTION_KEY",
+      "collectionName": "Foundation",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    }
+  }
+}

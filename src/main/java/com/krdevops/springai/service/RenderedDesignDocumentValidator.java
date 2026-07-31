@@ -11,9 +11,16 @@ import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class RenderedDesignDocumentValidator {
@@ -96,18 +103,49 @@ public class RenderedDesignDocumentValidator {
         visited.add(id);
     }
 
+    private static final Pattern COLOR_PATTERN = Pattern.compile("^rgba?\\(([^)]+)\\)$", Pattern.CASE_INSENSITIVE);
+
+    /**
+     * jsp-design-extractor의 server.ts(normalizeForHash/sortByStableKey)와 반드시 동일한 canonicalization을
+     * 수행해야 한다. 두 구현이 갈라지면 extractor가 계산한 contentHash를 springai가 재검증할 때마다 실패한다.
+     */
     public String calculateContentHash(RenderedDesignDocument document) {
         try {
-            ObjectNode root = objectMapper.valueToTree(document);
+            ObjectNode root = (ObjectNode) objectMapper.valueToTree(document);
             root.remove("contentHash");
             root.remove("captureId");
             JsonNode source = root.get("source");
             if (source instanceof ObjectNode objectSource) objectSource.remove("capturedAt");
+            sortStableArray(root, "componentCandidates", item -> item.path("type").asText("")
+                    + "|" + sortedJoin(item.path("nodeIds")));
+            sortStableArray(root, "assets", item -> {
+                String hash = item.path("contentHash").asText("");
+                return hash.isEmpty() ? item.path("id").asText("") : hash;
+            });
+            sortStableArray(root, "warnings", item -> item.path("code").asText("")
+                    + "|" + item.path("nodeId").asText(""));
             byte[] bytes = objectMapper.writeValueAsString(canonicalNode(root)).getBytes(StandardCharsets.UTF_8);
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
         } catch (Exception e) {
             throw new IllegalStateException("contentHash 계산 실패", e);
         }
+    }
+
+    private static void sortStableArray(ObjectNode root, String field, Function<JsonNode, String> keyOf) {
+        if (!(root.get(field) instanceof ArrayNode array)) return;
+        List<JsonNode> items = new ArrayList<>();
+        array.forEach(items::add);
+        items.sort(Comparator.comparing(keyOf));
+        ArrayNode sorted = JsonNodeFactory.instance.arrayNode();
+        items.forEach(sorted::add);
+        root.set(field, sorted);
+    }
+
+    private static String sortedJoin(JsonNode array) {
+        List<String> values = new ArrayList<>();
+        array.forEach(value -> values.add(value.asText()));
+        values.sort(Comparator.naturalOrder());
+        return String.join(",", values);
     }
 
     private JsonNode canonicalNode(JsonNode node) {
@@ -123,9 +161,26 @@ public class RenderedDesignDocumentValidator {
             node.forEach(item -> result.add(canonicalNode(item)));
             return result;
         }
-        if (node.isFloatingPointNumber() && node.doubleValue() == Math.rint(node.doubleValue())) {
-            return JsonNodeFactory.instance.numberNode(node.longValue());
+        if (node.isNumber()) {
+            double rounded = Math.round(node.asDouble() * 100.0) / 100.0;
+            if (rounded == Math.rint(rounded) && !Double.isInfinite(rounded)) {
+                return JsonNodeFactory.instance.numberNode((long) rounded);
+            }
+            return JsonNodeFactory.instance.numberNode(rounded);
+        }
+        if (node.isTextual()) {
+            String normalized = Normalizer.normalize(node.asText(), Normalizer.Form.NFC);
+            return JsonNodeFactory.instance.textNode(normalizeColor(normalized));
         }
         return node;
+    }
+
+    private static String normalizeColor(String value) {
+        Matcher matcher = COLOR_PATTERN.matcher(value);
+        if (!matcher.matches()) return value;
+        String[] parts = matcher.group(1).split(",");
+        for (int i = 0; i < parts.length; i++) parts[i] = parts[i].trim();
+        String alpha = parts.length > 3 ? parts[3] : "1";
+        return "rgba(%s, %s, %s, %s)".formatted(parts[0], parts[1], parts[2], alpha);
     }
 }

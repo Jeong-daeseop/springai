@@ -100,6 +100,14 @@ chat:
     max-messages: 8       # 20 → 8: 토큰 예산 확보 (num-ctx 8192 기준)
 
 app:
+  figma:
+    # /mcp/** 전역 permitAll과 별도로 신규 Figma/DesignSystem Tool 메서드 내부에서 검증한다.
+    mcp-shared-secret: ${FIGMA_MCP_SHARED_SECRET:}
+    # R6-012: DEC-10=REST에서 Plugin이 장기 X-API-Key 대신 쓸 단기 토큰. 비어 있으면 발급 비활성화.
+    rest-token-secret: ${FIGMA_REST_TOKEN_SECRET:}
+    rest-token-ttl-seconds: ${FIGMA_REST_TOKEN_TTL_SECONDS:900}
+    # 비어 있으면(기본값) CORS를 전혀 허용하지 않는다. Figma Plugin UI origin을 알게 되면 채운다.
+    rest-allowed-origins: ${FIGMA_REST_ALLOWED_ORIGINS:}
   web-capture:
     enabled: ${WEB_CAPTURE_ENABLED:false}
     extractor-base-url: ${WEB_CAPTURE_EXTRACTOR_BASE_URL:http://127.0.0.1:4319}

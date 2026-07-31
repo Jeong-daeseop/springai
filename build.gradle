@@ -71,6 +71,17 @@ tasks.named('test') {
     jvmArgs '-Xmx2g'
 }
 
+tasks.register('figmaContractTest', Exec) {
+    group = 'verification'
+    description = 'Semantic Figma JSON Schema와 계약 fixture를 검증합니다.'
+    workingDir file('website-figma-contract')
+    commandLine 'npm', 'test'
+}
+
+tasks.named('check') {
+    dependsOn tasks.named('figmaContractTest')
+}
+
 tasks.named('bootJar') {
     enabled = true
 }

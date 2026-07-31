@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/component-registry-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profileId", "profileVersion", "registryVersion", "components"],
+  "properties": {
+    "profileId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "profileVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"},
+    "registryVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"},
+    "library": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "fileKey": {"type": ["string", "null"]},
+        "name": {"type": ["string", "null"]}
+      }
+    },
+    "components": {"type": "object", "additionalProperties": {"$ref": "#/$defs/entry"}},
+    "variables": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": {"$ref": "#/$defs/variableEntry"}
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["componentSetKey", "properties"],
+      "properties": {
+        "componentSetKey": {"type": "string", "minLength": 1},
+        "componentName": {"type": ["string", "null"]},
+        "publishStatus": {"enum": ["UNPUBLISHED", "CURRENT", "CHANGED"]},
+        "lifecycleStatus": {"enum": ["ACTIVE", "DEPRECATED"]},
+        "replacementLogicalType": {"type": ["string", "null"]},
+        "aliases": {
+          "type": "array",
+          "default": [],
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "variants": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {"type": "string", "minLength": 1}
+        },
+        "properties": {"type": "object", "additionalProperties": {"$ref": "#/$defs/propertyMapping"}}
+      }
+    },
+    "variableEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variableKey"],
+      "properties": {
+        "variableKey": {"type": "string", "minLength": 1},
+        "variableName": {"type": ["string", "null"]},
+        "collectionKey": {"type": ["string", "null"]},
+        "collectionName": {"type": ["string", "null"]},
+        "resolvedType": {"type": ["string", "null"]},
+        "publishStatus": {"enum": ["UNPUBLISHED", "CURRENT", "CHANGED"]}
+      }
+    },
+    "propertyMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["figmaProperty", "type"],
+      "properties": {
+        "figmaProperty": {"type": "string", "minLength": 1},
+        "type": {"enum": ["TEXT", "BOOLEAN", "VARIANT", "INSTANCE_SWAP"]},
+        "values": {"type": ["object", "null"], "additionalProperties": {"type": "string"}}
+      }
+    }
+  }
+}

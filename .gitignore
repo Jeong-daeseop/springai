@@ -40,6 +40,7 @@ tokenizer.json
 
 ### 환경변수 ###
 .env
+.component-contracts
 
 ### 빌드 산출물 (루트) ###
 /BOOT-INF/
@@ -49,6 +50,9 @@ tokenizer.json
 **/node_modules/
 /jsp-design-extractor/dist/
 /jsp-to-figma-plugin/dist/
+/krds-design-system-author-plugin/dist/
+/figma-screen-spec-plugin/dist/
+/figma-screen-spec-plugin/dist-test/
 
 ### 도구 상태 파일 ###
 .claude/

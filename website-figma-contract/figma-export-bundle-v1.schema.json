@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/figma-export-bundle-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "description": "DEC-10=FILE(파일 우선 입력)일 때 Plugin에 전달하는 단일 입력 파일. FigmaScreenSpec만으로는 Profile/Registry 조회 경로가 없는 문제(R0-018)를 해결한다.",
+  "required": ["figmaScreenSpec", "designSystemProfile", "componentRegistry", "metadata"],
+  "properties": {
+    "figmaScreenSpec": {
+      "$ref": "https://schemas.krdevops.local/figma-screen-spec-v1"
+    },
+    "designSystemProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile", "snapshotAt"],
+      "properties": {
+        "profile": {
+          "$ref": "https://schemas.krdevops.local/design-system-profile-v1"
+        },
+        "snapshotAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "componentRegistry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["registry", "snapshotAt"],
+      "properties": {
+        "registry": {
+          "$ref": "https://schemas.krdevops.local/component-registry-v1"
+        },
+        "snapshotAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exportedAt", "figmaScreenSpecSchemaVersion", "screenSpecificationVersion", "designSystemProfileVersion", "registryVersion"],
+      "properties": {
+        "exportedAt": {"type": "string", "format": "date-time"},
+        "figmaScreenSpecSchemaVersion": {"type": "string", "minLength": 1},
+        "screenSpecificationVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/positiveVersion"},
+        "designSystemProfileVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"},
+        "registryVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"}
+      }
+    }
+  }
+}

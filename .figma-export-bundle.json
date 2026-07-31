@@ -1,0 +1,274 @@
+{
+  "figmaScreenSpec": {
+    "screenId": "user-list",
+    "screenVersion": 1,
+    "screenSpecificationId": "user-management",
+    "screenSpecificationVersion": 3,
+    "screenType": "LIST",
+    "layoutPattern": "STANDARD",
+    "name": "사용자 목록",
+    "route": "/users",
+    "viewport": "DESKTOP",
+    "status": "APPROVED",
+    "designSystem": {
+      "profileId": "ftc-krds",
+      "profileVersion": "1.0.0",
+      "registryVersion": "2026.07.27-1"
+    },
+    "content": {
+      "logicalNodeId": "user-list",
+      "nodeType": "PAGE",
+      "type": "egov.listPage",
+      "properties": {},
+      "children": [
+        {
+          "logicalNodeId": "user-list/header",
+          "nodeType": "SECTION",
+          "type": "egov.pageHeader",
+          "properties": {
+            "title": "사용자 목록"
+          },
+          "children": []
+        },
+        {
+          "logicalNodeId": "user-list/search",
+          "nodeType": "SECTION",
+          "type": "egov.searchPanel",
+          "properties": {},
+          "children": [
+            {
+              "logicalNodeId": "user-list/search/userId",
+              "nodeType": "COMPONENT",
+              "type": "krds.textField",
+              "properties": {
+                "Label": "사용자 ID",
+                "Required": false
+              },
+              "children": []
+            },
+            {
+              "logicalNodeId": "user-list/search/userName",
+              "nodeType": "COMPONENT",
+              "type": "krds.textField",
+              "properties": {
+                "Label": "사용자명",
+                "Required": false
+              },
+              "children": []
+            },
+            {
+              "logicalNodeId": "user-list/search/useYn",
+              "nodeType": "COMPONENT",
+              "type": "krds.select",
+              "properties": {
+                "Label": "사용여부",
+                "Value": "전체"
+              },
+              "children": []
+            },
+            {
+              "logicalNodeId": "user-list/search/searchButton",
+              "nodeType": "COMPONENT",
+              "type": "krds.button",
+              "properties": {
+                "Label": "검색",
+                "Style": "Primary",
+                "Disabled": false
+              },
+              "children": []
+            }
+          ]
+        },
+        {
+          "logicalNodeId": "user-list/table",
+          "nodeType": "SECTION",
+          "type": "egov.dataTable",
+          "properties": {},
+          "children": [
+            {
+              "logicalNodeId": "user-list/table/number",
+              "nodeType": "TEXT",
+              "type": "TEXT",
+              "properties": {
+                "text": "번호"
+              },
+              "children": []
+            },
+            {
+              "logicalNodeId": "user-list/table/userId",
+              "nodeType": "TEXT",
+              "type": "TEXT",
+              "properties": {
+                "text": "사용자 ID"
+              },
+              "children": []
+            },
+            {
+              "logicalNodeId": "user-list/table/userName",
+              "nodeType": "TEXT",
+              "type": "TEXT",
+              "properties": {
+                "text": "사용자명"
+              },
+              "children": []
+            },
+            {
+              "logicalNodeId": "user-list/table/departmentName",
+              "nodeType": "TEXT",
+              "type": "TEXT",
+              "properties": {
+                "text": "부서명"
+              },
+              "children": []
+            },
+            {
+              "logicalNodeId": "user-list/table/useYn",
+              "nodeType": "TEXT",
+              "type": "TEXT",
+              "properties": {
+                "text": "사용여부"
+              },
+              "children": []
+            },
+            {
+              "logicalNodeId": "user-list/table/createdAt",
+              "nodeType": "TEXT",
+              "type": "TEXT",
+              "properties": {
+                "text": "등록일"
+              },
+              "children": []
+            }
+          ]
+        },
+        {
+          "logicalNodeId": "user-list/actions",
+          "nodeType": "SECTION",
+          "type": "egov.actionArea",
+          "properties": {},
+          "children": [
+            {
+              "logicalNodeId": "user-list/actions/create",
+              "nodeType": "COMPONENT",
+              "type": "krds.button",
+              "properties": {
+                "Label": "등록",
+                "Style": "Primary",
+                "Disabled": false
+              },
+              "children": []
+            }
+          ]
+        },
+        {
+          "logicalNodeId": "user-list/pagination",
+          "nodeType": "COMPONENT",
+          "type": "krds.pagination",
+          "properties": {
+            "Current Page": "1"
+          },
+          "children": []
+        }
+      ]
+    },
+    "issues": []
+  },
+  "designSystemProfile": {
+    "profile": {
+      "id": "ftc-krds",
+      "name": "FTC 정부 포털 Design System",
+      "version": "1.0.0",
+      "registryVersion": "2026.07.27-1",
+      "libraryFileKey": "mVy5h1UbORVqQoBm8Wr1bT",
+      "status": "PUBLISHED",
+      "components": {},
+      "variables": {}
+    },
+    "snapshotAt": "2026-07-27T00:00:00Z"
+  },
+  "componentRegistry": {
+    "registry": {
+      "profileId": "ftc-krds",
+      "profileVersion": "1.0.0",
+      "registryVersion": "2026.07.27-1",
+      "library": {
+        "fileKey": "mVy5h1UbORVqQoBm8Wr1bT",
+        "name": "FTC 정부 포털 Design System"
+      },
+      "components": {
+        "egov.listPage": {
+          "componentSetKey": "LIST_PAGE_COMPONENT_SET_KEY",
+          "componentName": "List Page",
+          "publishStatus": "CURRENT",
+          "variants": {},
+          "properties": {}
+        },
+        "egov.pageHeader": {
+          "componentSetKey": "PAGE_HEADER_COMPONENT_SET_KEY",
+          "componentName": "Page Header",
+          "publishStatus": "CURRENT",
+          "variants": {},
+          "properties": {}
+        },
+        "egov.searchPanel": {
+          "componentSetKey": "SEARCH_PANEL_COMPONENT_SET_KEY",
+          "componentName": "Search Panel",
+          "publishStatus": "CURRENT",
+          "variants": {},
+          "properties": {}
+        },
+        "egov.dataTable": {
+          "componentSetKey": "DATA_TABLE_COMPONENT_SET_KEY",
+          "componentName": "Data Table",
+          "publishStatus": "CURRENT",
+          "variants": {},
+          "properties": {}
+        },
+        "egov.actionArea": {
+          "componentSetKey": "ACTION_AREA_COMPONENT_SET_KEY",
+          "componentName": "Action Area",
+          "publishStatus": "CURRENT",
+          "variants": {},
+          "properties": {}
+        },
+        "krds.button": {
+          "componentSetKey": "BUTTON_COMPONENT_SET_KEY",
+          "componentName": "Button",
+          "publishStatus": "CURRENT",
+          "variants": {},
+          "properties": {}
+        },
+        "krds.textField": {
+          "componentSetKey": "TEXT_FIELD_COMPONENT_SET_KEY",
+          "componentName": "Text Field",
+          "publishStatus": "CURRENT",
+          "variants": {},
+          "properties": {}
+        },
+        "krds.select": {
+          "componentSetKey": "SELECT_COMPONENT_SET_KEY",
+          "componentName": "Select",
+          "publishStatus": "CURRENT",
+          "variants": {},
+          "properties": {}
+        },
+        "krds.pagination": {
+          "componentSetKey": "PAGINATION_COMPONENT_SET_KEY",
+          "componentName": "Pagination",
+          "publishStatus": "CURRENT",
+          "variants": {},
+          "properties": {}
+        }
+      },
+      "variables": {}
+    },
+    "snapshotAt": "2026-07-27T00:00:00Z"
+  },
+  "metadata": {
+    "exportedAt": "2026-07-27T00:00:00Z",
+    "figmaScreenSpecSchemaVersion": "figma-screen-spec-v1",
+    "screenSpecificationVersion": 3,
+    "designSystemProfileVersion": "1.0.0",
+    "registryVersion": "2026.07.27-1"
+  }
+}

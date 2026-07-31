@@ -15,6 +15,7 @@ import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.Duration;
 import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -63,6 +64,81 @@ public class DesignArtifactService {
         }
     }
 
+    /** R2-034: 의미 기반 Figma 생성 결과를 화면 버전별 불변 산출물로 저장한다. */
+    public FigmaExportArtifact saveFigmaExport(
+            com.krdevops.springai.model.figma.FigmaScreenSpec spec,
+            com.krdevops.springai.model.figma.FigmaExportResult.Status status,
+            List<com.krdevops.springai.model.figma.FigmaExportIssue> issues,
+            LocalDateTime generatedAt) {
+        if (!spec.screenId().matches("[a-z0-9][a-z0-9._-]{0,63}")) {
+            throw new IllegalArgumentException("Figma artifact screenId 형식이 올바르지 않습니다: " + spec.screenId());
+        }
+        Path artifactRoot = root().resolve("figma-exports").normalize();
+        Path target = artifactRoot.resolve(spec.screenId())
+                .resolve("v" + spec.screenVersion()).normalize();
+        Path temporary = artifactRoot.resolve("." + spec.screenId() + "-v"
+                + spec.screenVersion() + ".tmp-" + UUID.randomUUID()).normalize();
+        if (!target.startsWith(artifactRoot) || !temporary.startsWith(artifactRoot)) {
+            throw new IllegalStateException("Figma artifact 경로 이탈입니다.");
+        }
+
+        try {
+            Files.createDirectories(artifactRoot);
+            if (Files.isSymbolicLink(artifactRoot)) {
+                throw new IllegalStateException("Figma artifact root는 symbolic link일 수 없습니다.");
+            }
+            byte[] specJson = objectMapper.writerWithDefaultPrettyPrinter()
+                    .writeValueAsBytes(spec);
+            if (Files.exists(target)) {
+                byte[] existing = Files.readAllBytes(target.resolve("figma-screen-spec.json"));
+                if (!java.util.Arrays.equals(existing, specJson)) {
+                    throw new IllegalStateException(
+                            "FIGMA_ARTIFACT_VERSION_CONFLICT: 동일 화면 버전에 다른 산출물이 존재합니다: "
+                                    + spec.screenId() + "/" + spec.screenVersion());
+                }
+                return readFigmaExportArtifact(target);
+            }
+
+            Files.createDirectory(temporary);
+            Files.write(temporary.resolve("figma-screen-spec.json"), specJson);
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(
+                    temporary.resolve("figma-generation-report.json").toFile(),
+                    java.util.Map.of(
+                            "status", status,
+                            "issues", issues == null ? List.of() : issues,
+                            "generatedAt", generatedAt));
+            FigmaExportArtifact artifact = new FigmaExportArtifact(
+                    spec.screenId() + "-v" + spec.screenVersion(),
+                    root().relativize(target).toString(),
+                    spec.screenId(), spec.screenVersion(), generatedAt);
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(
+                    temporary.resolve("metadata.json").toFile(), artifact);
+            Files.createDirectories(target.getParent());
+            Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
+            return artifact;
+        } catch (Exception exception) {
+            deleteQuietly(temporary);
+            if (exception instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new IllegalStateException("Figma export artifact 저장 실패", exception);
+        }
+    }
+
+    private FigmaExportArtifact readFigmaExportArtifact(Path target) throws java.io.IOException {
+        return objectMapper.readValue(
+                target.resolve("metadata.json").toFile(), FigmaExportArtifact.class);
+    }
+
+    public record FigmaExportArtifact(
+            String artifactId,
+            String relativePath,
+            String screenId,
+            int screenVersion,
+            LocalDateTime createdAt
+    ) {
+    }
+
     public CaptureArtifactSummary get(String artifactId) {
         try {
             Path directory = resolveArtifact(requireUuid(artifactId));
@@ -89,6 +165,13 @@ public class DesignArtifactService {
         } catch (Exception e) {
             throw new IllegalArgumentException("design document를 읽을 수 없습니다.", e);
         }
+    }
+
+    /** Hybrid Reference Snapshot에서 실제 캡처 이미지 출처 존재 여부를 기록할 때 사용한다. */
+    public boolean hasPreview(String artifactId) {
+        Path preview = resolveArtifact(requireUuid(artifactId)).resolve("preview.png");
+        return Files.isRegularFile(preview, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                && !Files.isSymbolicLink(preview);
     }
 
     public FigmaImportArtifact prepareFigmaImport(String artifactId) {

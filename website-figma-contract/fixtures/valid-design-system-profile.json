@@ -1,0 +1,21 @@
+{
+  "id": "ftc-krds",
+  "name": "FTC 정부 포털 Design System",
+  "version": "1.0.0",
+  "registryVersion": "2026.07.27-1",
+  "libraryFileKey": "mVy5h1UbORVqQoBm8Wr1bT",
+  "status": "PUBLISHED",
+  "components": {
+    "krds.button": {
+      "componentSetKey": "BUTTON_COMPONENT_SET_KEY",
+      "status": "BOUND"
+    }
+  },
+  "variables": {
+    "color.primary": {
+      "variableId": "COLOR_PRIMARY_VARIABLE_KEY",
+      "collectionName": "Foundation",
+      "status": "BOUND"
+    }
+  }
+}
