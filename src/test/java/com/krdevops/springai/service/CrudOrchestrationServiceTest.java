@@ -11,11 +11,11 @@ import com.krdevops.springai.model.crud.ScreenSubsetMode;
 import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.LayoutDensity;
+import com.krdevops.springai.service.generation.crud.CrudPipelineFixture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -60,11 +60,17 @@ class CrudOrchestrationServiceTest {
     @Mock KrdsStylesConfigurer krdsStylesConfigurer;
     @Spy ThymeleafLayoutValidator thymeleafLayoutValidator = new ThymeleafLayoutValidator();
 
-    @InjectMocks
     CrudOrchestrationService sut;
 
     @BeforeEach
-    void stubMetadataInfrastructure() {
+    void buildPipelineAndStubMetadataInfrastructure() {
+        sut = new CrudOrchestrationService(CrudPipelineFixture.applicationService(
+                crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
+                crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector,
+                crudTemplateRenderer, codeService, krdsStylesConfigurer, warEntryPointConfigurer,
+                thymeleafRuntimeConfigurer, myBatisRuntimeConfigurer, codeValidatorService,
+                generatedCodeContractAuditor, generationHistoryService));
+
         lenient().when(crudProgramMetadataService.resolve(any(), any(), any(), any()))
                 .thenReturn(CrudProgramMetadata.fallback("fallback"));
         lenient().when(routeCollisionDetector.findConflicts(any(), any(), any()))

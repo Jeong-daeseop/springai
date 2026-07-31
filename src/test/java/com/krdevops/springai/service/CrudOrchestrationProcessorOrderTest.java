@@ -12,8 +12,8 @@ import com.krdevops.springai.model.design.LayoutDensity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.krdevops.springai.service.generation.crud.CrudPipelineFixture;
 import org.mockito.InOrder;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.Spy;
@@ -38,14 +38,21 @@ import static org.mockito.Mockito.inOrder;
  * {@link CrudOrchestrationService#orchestrate}의 실제 협력 객체 호출 순서를 대조해
  * Mockito {@link InOrder}로 캡처·문서화하는 Characterization 테스트다.
  *
- * <p>이 단계에서는 실제 Processor 추상화를 만들지 않는다(WP-4에서 Pipeline으로 전환할 때
- * 이 테스트가 기준선이 된다) — "지금 실제 순서가 무엇인가"만 검증한다.
+ * <p>WP-4에서 {@code CrudOrchestrationService}가 Compatibility Facade가 되면서 SUT 내부는
+ * 실제 Pipeline({@code CrudGenerationApplicationService})으로 바뀌었지만, 이 테스트가 검증하는
+ * <b>협력 객체 호출 순서는 리팩터링 전과 동일해야 한다</b> — 그것이 이 테스트의 존재 이유다.
  *
- * <p><b>발견된 순서 차이</b>: 명세서는 PRE_VERIFY(Common Contract 감사)가 VERIFY보다 먼저
- * 실행된다고 서술하지만, 실제 구현({@code orchestrate()}의 "4. 코드 검증" 블록)은
- * {@code codeValidatorService.validateDirectory}(VERIFY)를
- * {@code generatedCodeContractAuditor.audit}(Common Contract 감사)보다 먼저 호출한다.
- * WP-4에서 Pipeline을 설계할 때 이 순서를 그대로 유지할지, 명세서 순서로 바로잡을지 결정해야 한다.
+ * <p><b>WP-0이 발견하고 WP-4가 해소한 순서 차이 2건</b>:
+ * <ol>
+ *   <li>명세서 §10.6/§11.1 표는 PRE_VERIFY(Common Contract 감사)가 VERIFY(Directory 검증)보다
+ *       먼저라고 적었지만 실제 구현은 반대다. WP-4는 {@code CodeDirectoryVerifier}를
+ *       {@code PRE_VERIFY}에, {@code CommonGeneratedContractVerifier}를 {@code VERIFY}에 배정해
+ *       실제 순서를 보존했다.</li>
+ *   <li>{@code GenerationStage} enum은 {@code RENDER}를 {@code PRE_WRITE}보다 앞에 두지만 실제
+ *       구현은 CSS 보강(PRE_WRITE)을 템플릿 렌더링보다 먼저 수행한다. WP-4는 PRE_WRITE Processor를
+ *       Renderer 앞에서 실행해 실제 순서를 보존했다.</li>
+ * </ol>
+ * 두 경우 모두 {@code ORT-PRN-005}(기존 동작 보존)가 문서의 표기보다 우선한다.
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -67,11 +74,17 @@ class CrudOrchestrationProcessorOrderTest {
     @Mock KrdsStylesConfigurer krdsStylesConfigurer;
     @Spy ThymeleafLayoutValidator thymeleafLayoutValidator = new ThymeleafLayoutValidator();
 
-    @InjectMocks
     CrudOrchestrationService sut;
 
     @BeforeEach
-    void stubFullSuccessPath() {
+    void buildPipelineAndStubFullSuccessPath() {
+        sut = new CrudOrchestrationService(CrudPipelineFixture.applicationService(
+                crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
+                crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector,
+                crudTemplateRenderer, codeService, krdsStylesConfigurer, warEntryPointConfigurer,
+                thymeleafRuntimeConfigurer, myBatisRuntimeConfigurer, codeValidatorService,
+                generatedCodeContractAuditor, generationHistoryService));
+
         given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
         given(crudProgramMetadataService.resolve(any(), any(), any(), any()))
                 .willReturn(CrudProgramMetadata.fallback("fallback"));

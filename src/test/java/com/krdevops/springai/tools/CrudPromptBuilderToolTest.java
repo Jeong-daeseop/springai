@@ -22,7 +22,6 @@ import com.krdevops.springai.service.BoardTableSetResolver;
 import com.krdevops.springai.service.BoardTemplateRenderer;
 import com.krdevops.springai.service.CrudModelFactory;
 import com.krdevops.springai.service.CrudOrchestrationResult;
-import com.krdevops.springai.service.CrudOrchestrationService;
 import com.krdevops.springai.service.CrudProgramMetadataService;
 import com.krdevops.springai.service.CrudPromptBuilderService;
 import com.krdevops.springai.service.CrudSchemaQueryService;
@@ -40,12 +39,15 @@ import com.krdevops.springai.service.generation.api.GenerateBoardProjectUseCase;
 import com.krdevops.springai.service.generation.api.GenerateCrudProjectUseCase;
 import com.krdevops.springai.service.generation.api.GenerateMasterDetailProjectUseCase;
 import com.krdevops.springai.service.generation.board.BoardProjectGenerationService;
+import com.krdevops.springai.service.generation.crud.CrudGenerationCommand;
 import com.krdevops.springai.service.generation.crud.CrudGenerationDispatchService;
-import com.krdevops.springai.service.generation.crud.CrudProjectGenerationService;
 import com.krdevops.springai.service.generation.crud.CrudPromptGenerationService;
 import com.krdevops.springai.service.generation.masterdetail.MasterDetailGenerationDispatchService;
 import com.krdevops.springai.service.generation.masterdetail.MasterDetailProjectGenerationService;
 import com.krdevops.springai.service.generation.masterdetail.MasterDetailPromptGenerationService;
+import com.krdevops.springai.service.generation.model.DesignContextReference;
+import com.krdevops.springai.service.generation.model.LayoutOptions;
+import com.krdevops.springai.service.generation.model.ProgramMetadataOverrides;
 import com.krdevops.springai.service.generation.mcp.BoardGenerationMcpFacade;
 import com.krdevops.springai.service.generation.mcp.BoardGenerationResultFormatter;
 import com.krdevops.springai.service.generation.mcp.CrudGenerationMcpFacade;
@@ -85,7 +87,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class CrudPromptBuilderToolTest {
 
-    @Mock CrudOrchestrationService crudOrchestrationService;
+    @Mock GenerateCrudProjectUseCase generateCrudProjectUseCase;
     @Mock CrudProgramMetadataService crudProgramMetadataService;
     @Mock CrudPromptBuilderService crudPromptBuilderService;
     @Mock MasterDetailService masterDetailService;
@@ -129,8 +131,6 @@ class CrudPromptBuilderToolTest {
 
         // WP-3: buildFullCrudPrompt/buildMasterDetailPrompt/buildBoardFeature 실제 Facade 배선
         // (하위 Dispatch/UseCase까지 실제 객체, 최하위 협력자만 Mock).
-        GenerateCrudProjectUseCase generateCrudProjectUseCase =
-                new CrudProjectGenerationService(crudOrchestrationService);
         BuildCrudPromptUseCase buildCrudPromptUseCase = new CrudPromptGenerationService(
                 crudProgramMetadataService, generationDesignContextService, crudPromptBuilderService);
         DispatchCrudGenerationUseCase dispatchCrudGenerationUseCase =
@@ -566,7 +566,7 @@ class CrudPromptBuilderToolTest {
                 "egovframework.let.bbs", "/tmp/out", null, null);
 
         // 이 협력자들의 실제 구현체만이 CodeService.saveGeneratedCode/saveGeneratedBinary에 도달한다.
-        verifyNoInteractions(crudOrchestrationService);
+        verifyNoInteractions(generateCrudProjectUseCase);
         verifyNoInteractions(boardOrchestrationService);
         verifyNoInteractions(masterDetailOrchestrationService);
         verifyNoInteractions(crudPromptBuilderService);
@@ -602,9 +602,10 @@ class CrudPromptBuilderToolTest {
     void buildFullCrudPrompt_auto_passesDesignReferenceIdsThroughGenerationOptions() {
         CrudGenerationOptions expectedOptions = new CrudGenerationOptions(
                 null, null, null, null, "analysis-1", "spec-1");
-        when(crudOrchestrationService.orchestrate(
-                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out",
-                "5.0", "jsp", null, null, null, expectedOptions))
+        CrudGenerationCommand expectedCommand = autoCommand(
+                "5.0", "jsp", LayoutOptions.empty(), ProgramMetadataOverrides.empty(),
+                new DesignContextReference("analysis-1", "spec-1"));
+        when(generateCrudProjectUseCase.execute(expectedCommand))
                 .thenReturn(new CrudOrchestrationResult(false, "com", "LETTNEMPLYRINFO", "Employer",
                         "/tmp/out", List.of("EgovEmployerList.html"), List.of(), "OK", "OK"));
 
@@ -614,9 +615,8 @@ class CrudPromptBuilderToolTest {
                 null, null, null, null, "analysis-1", "spec-1");
 
         assertThat(result).contains("=== [auto] eGovFrame 5.x CRUD 소스 생성 완료 ===");
-        verify(crudOrchestrationService).orchestrate(
-                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out",
-                "5.0", "jsp", null, null, null, expectedOptions);
+        verify(generateCrudProjectUseCase).execute(expectedCommand);
+        assertThat(expectedCommand.toGenerationOptions()).isEqualTo(expectedOptions);
         verify(generationDesignContextService, never()).resolve(any(), any(), any(), any(), any(), any());
         verify(crudProgramMetadataService, never()).resolve(any(), any(), any(), any());
     }
@@ -645,17 +645,19 @@ class CrudPromptBuilderToolTest {
                 null, null, null, null, "analysis-1", "spec-1");
 
         assertThat(result).isEqualTo("CLAUDE_PROMPT");
-        verify(crudOrchestrationService, never()).orchestrate(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(CrudGenerationOptions.class));
+        verify(generateCrudProjectUseCase, never()).execute(any());
     }
 
     @Test
     void buildFullCrudPrompt_auto_passesProgramMetadataAndLayoutOptionsThroughGenerationOptions() {
         CrudGenerationOptions expectedOptions = new CrudGenerationOptions(
                 "EgovEmployerList", "/emp/list.do", "직원목록", "/emp/", null, null);
-        when(crudOrchestrationService.orchestrate(
-                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out",
-                "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb", expectedOptions))
+        CrudGenerationCommand expectedCommand = autoCommand(
+                "5.0", "thymeleaf",
+                new LayoutOptions("create", "layout/admin", "layout/admin-breadcrumb"),
+                new ProgramMetadataOverrides("EgovEmployerList", "/emp/list.do", "직원목록", "/emp/"),
+                DesignContextReference.empty());
+        when(generateCrudProjectUseCase.execute(expectedCommand))
                 .thenReturn(new CrudOrchestrationResult(false, "com", "LETTNEMPLYRINFO", "Employer",
                         "/tmp/out", List.of("EgovEmployerList.html"), List.of(), "OK", "OK"));
 
@@ -665,9 +667,8 @@ class CrudPromptBuilderToolTest {
                 "EgovEmployerList", "/emp/list.do", "직원목록", "/emp/", null, null);
 
         assertThat(result).contains("=== [auto] eGovFrame 5.x CRUD 소스 생성 완료 ===");
-        verify(crudOrchestrationService).orchestrate(
-                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out",
-                "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb", expectedOptions);
+        verify(generateCrudProjectUseCase).execute(expectedCommand);
+        assertThat(expectedCommand.toGenerationOptions()).isEqualTo(expectedOptions);
     }
 
     @Test
@@ -850,5 +851,15 @@ class CrudPromptBuilderToolTest {
                 eq("let"), eq("InfoNotice"), eq("egovframework.let.cop.bbs"), eq("/tmp/out"),
                 eq(null), eq(null), eq(null), eq(null), eq(null), eq("5.0"), eq("thymeleaf"),
                 eq("reuse"), eq(null), eq(null), eq(expectedOptions));
+    }
+
+    /** buildFullCrudPrompt(llmProvider="auto")가 Facade에서 조립하는 Command 형태. */
+    private static CrudGenerationCommand autoCommand(
+            String egovVersion, String viewType, LayoutOptions layout,
+            ProgramMetadataOverrides program, DesignContextReference designContext) {
+        return new CrudGenerationCommand(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp",
+                java.nio.file.Path.of("/tmp/out"), "auto", egovVersion, viewType,
+                layout, program, designContext);
     }
 }

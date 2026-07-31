@@ -10,7 +10,7 @@ import java.nio.file.Path;
 /**
  * CRUD 전체 소스 생성/Prompt 빌드 Command. 명세서 §8.2.
  *
- * <p>{@code llmProvider}가 "auto"이면 {@link CrudProjectGenerationService}(결정론적 오케스트레이션),
+ * <p>{@code llmProvider}가 "auto"이면 {@link CrudGenerationApplicationService}(결정론적 오케스트레이션),
  * 그 외(보통 "claude")이면 {@link CrudPromptGenerationService}(Prompt 문자열 빌드)로 분기한다 —
  * 분기 자체는 {@link CrudGenerationDispatchService}만 수행한다.
  */
