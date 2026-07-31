@@ -45,7 +45,7 @@ public class BoardScreenSourceGenerator implements ScreenSourceGenerator {
         BoardTableSet tables = boardTableSetResolver.resolve(
                 command.database(), requested.mainTable(), requested.masterTable(),
                 requested.useTable(), requested.fileTable(), requested.fileDetailTable());
-        String resolvedVersion = resolveEgovVersion(command.egovVersion());
+        String resolvedVersion = ScreenSourceSupport.resolveEgovVersion(command.egovVersion());
         CrudViewType viewType = CrudViewType.from(command.viewType());
 
         Map<String, List<Map<String, Object>>> schemas;
@@ -68,7 +68,7 @@ public class BoardScreenSourceGenerator implements ScreenSourceGenerator {
         BoardTemplateModel model = boardModelFactory.fromSchemas(
                 tables.mainTable(), tables.masterTable(), tables.useTable(), tables.fileDetailTable(),
                 command.domain(), command.packageName(), resolvedVersion, schemas, metadata);
-        String layerKey = layerKey(viewType, command.screenType().label());
+        String layerKey = ScreenSourceSupport.layerKey(viewType, command.screenType().label());
         String code = boardTemplateRenderer.renderByLayerKey(layerKey, model);
         Path recommendedPath = resolveScreenPath(
                 command.outputPath(), command.packageName(), model.domainLc(), command.domain(), viewType, layerKey);
@@ -86,13 +86,5 @@ public class BoardScreenSourceGenerator implements ScreenSourceGenerator {
         String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
         String fileName = BoardLayerDefinition.resolveFileName(layer.layerKey(), domain, layer.fileNameSuffix());
         return Path.of(outputPath + "/" + layer.resolveSubPath(pkgSub, domainLc) + fileName);
-    }
-
-    private String layerKey(CrudViewType viewType, String screenLabel) {
-        return (viewType == CrudViewType.THYMELEAF ? "thymeleaf" : "jsp") + screenLabel;
-    }
-
-    private String resolveEgovVersion(String egovVersion) {
-        return (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
     }
 }

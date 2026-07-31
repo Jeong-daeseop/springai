@@ -42,14 +42,14 @@ public class CrudScreenSourceGenerator implements ScreenSourceGenerator {
             throw new ScreenSourceNotFoundException("테이블을 찾을 수 없습니다: " + database + "." + tableName);
         }
 
-        String resolvedVersion = resolveEgovVersion(command.egovVersion());
+        String resolvedVersion = ScreenSourceSupport.resolveEgovVersion(command.egovVersion());
         CrudViewType viewType = CrudViewType.from(command.viewType());
         ScreenSubsetMode subsetMode = viewType == CrudViewType.THYMELEAF
                 ? ScreenSubsetMode.LIST_AND_DETAIL : ScreenSubsetMode.LIST_ONLY;
         CrudTemplateModel model = crudModelFactory.fromSchema(
                 tableName, command.domain(), command.packageName(), resolvedVersion, columns,
                 CrudProgramMetadata.fallback(null), viewType, subsetMode, null);
-        String layerKey = layerKey(viewType, command.screenType().label());
+        String layerKey = ScreenSourceSupport.layerKey(viewType, command.screenType().label());
         String code = crudTemplateRenderer.renderByLayerKey(layerKey, model);
         Path recommendedPath = resolveScreenPath(
                 command.outputPath(), command.packageName(), model.domainLc(), command.domain(), viewType, layerKey);
@@ -67,13 +67,5 @@ public class CrudScreenSourceGenerator implements ScreenSourceGenerator {
         String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
         String fileName = CrudLayerDefinition.resolveFileName(layerKey, domain, layer.fileNameSuffix());
         return Path.of(outputPath + "/" + layer.resolveSubPath(pkgSub, domainLc) + fileName);
-    }
-
-    private String layerKey(CrudViewType viewType, String screenLabel) {
-        return (viewType == CrudViewType.THYMELEAF ? "thymeleaf" : "jsp") + screenLabel;
-    }
-
-    private String resolveEgovVersion(String egovVersion) {
-        return (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
     }
 }

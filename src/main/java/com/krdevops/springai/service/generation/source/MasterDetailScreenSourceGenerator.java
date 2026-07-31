@@ -54,7 +54,7 @@ public class MasterDetailScreenSourceGenerator implements ScreenSourceGenerator 
             throw new ScreenSourceNotFoundException("디테일 테이블을 찾을 수 없습니다: " + database + "." + detailTable);
         }
 
-        String resolvedVersion = resolveEgovVersion(command.egovVersion());
+        String resolvedVersion = ScreenSourceSupport.resolveEgovVersion(command.egovVersion());
         CrudViewType viewType = CrudViewType.from(command.viewType());
         String detailDomain = deriveDetailDomain(detailTable);
         CrudTemplateModel masterModel = crudModelFactory.fromSchema(
@@ -66,7 +66,7 @@ public class MasterDetailScreenSourceGenerator implements ScreenSourceGenerator 
         String fkColumn = detectFkColumn(masterModel.pk().columnName(), detailColumns);
         MasterDetailTemplateModel model = new MasterDetailTemplateModel(
                 masterModel, detailModel, fkColumn, CrudMappingUtils.toCamelCase(fkColumn));
-        String layerKey = layerKey(viewType, command.screenType().label());
+        String layerKey = ScreenSourceSupport.layerKey(viewType, command.screenType().label());
         String code = masterDetailTemplateRenderer.renderByLayerKey(layerKey, model);
         Path recommendedPath = resolveScreenPath(command.outputPath(), command.packageName(), masterModel.domainLc(),
                 command.domain(), detailDomain, viewType, layerKey);
@@ -85,14 +85,6 @@ public class MasterDetailScreenSourceGenerator implements ScreenSourceGenerator 
         String pkgSub = packageName.replace("egovframework.let.", "").replace(".", "/");
         String fileName = MasterDetailLayerDefinition.resolveFileName(layer, masterDomain, detailDomain);
         return Path.of(outputPath + "/" + layer.resolveSubPath(pkgSub, domainLc) + fileName);
-    }
-
-    private String layerKey(CrudViewType viewType, String screenLabel) {
-        return (viewType == CrudViewType.THYMELEAF ? "thymeleaf" : "jsp") + screenLabel;
-    }
-
-    private String resolveEgovVersion(String egovVersion) {
-        return (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
     }
 
     private String detectFkColumn(String masterPkColumn, List<Map<String, Object>> detailColumns) {
