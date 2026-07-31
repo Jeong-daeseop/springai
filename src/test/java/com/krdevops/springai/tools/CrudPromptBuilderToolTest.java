@@ -582,14 +582,14 @@ class CrudPromptBuilderToolTest {
                         List.of(), List.of(), "OK", "OK"));
 
         tool.buildBoardFeature("let", "InfoNotice", "egovframework.let.cop.bbs", "/tmp/out",
-                null, null, null, null, null, "5.0", "thymeleaf", "reuse", null, null,
+                null, null, null, null, null, "5.0", "thymeleaf", "reuse", "layout/bbs", "layout/bbs-breadcrumb",
                 "EgovInfoNotice", "/cop/bbs/list.do?bbsId=BBS_NOTICE", "공지사항",
                 "/cop/bbs/", "BBS_NOTICE");
 
         verify(boardOrchestrationService).orchestrate(
                 eq("let"), eq("InfoNotice"), eq("egovframework.let.cop.bbs"), eq("/tmp/out"),
                 eq(null), eq(null), eq(null), eq(null), eq(null), eq("5.0"), eq("thymeleaf"),
-                eq("reuse"), eq(null), eq(null),
+                eq("reuse"), eq("layout/bbs"), eq("layout/bbs-breadcrumb"),
                 eq(new BoardGenerationOptions("EgovInfoNotice", "/cop/bbs/list.do?bbsId=BBS_NOTICE",
                         "공지사항", "/cop/bbs/", "BBS_NOTICE")));
     }
@@ -647,6 +647,61 @@ class CrudPromptBuilderToolTest {
         assertThat(result).isEqualTo("CLAUDE_PROMPT");
         verify(crudOrchestrationService, never()).orchestrate(
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(CrudGenerationOptions.class));
+    }
+
+    @Test
+    void buildFullCrudPrompt_auto_passesProgramMetadataAndLayoutOptionsThroughGenerationOptions() {
+        CrudGenerationOptions expectedOptions = new CrudGenerationOptions(
+                "EgovEmployerList", "/emp/list.do", "직원목록", "/emp/", null, null);
+        when(crudOrchestrationService.orchestrate(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out",
+                "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb", expectedOptions))
+                .thenReturn(new CrudOrchestrationResult(false, "com", "LETTNEMPLYRINFO", "Employer",
+                        "/tmp/out", List.of("EgovEmployerList.html"), List.of(), "OK", "OK"));
+
+        String result = tool.buildFullCrudPrompt(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out", "auto",
+                "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb",
+                "EgovEmployerList", "/emp/list.do", "직원목록", "/emp/", null, null);
+
+        assertThat(result).contains("=== [auto] eGovFrame 5.x CRUD 소스 생성 완료 ===");
+        verify(crudOrchestrationService).orchestrate(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out",
+                "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb", expectedOptions);
+    }
+
+    @Test
+    void buildFullCrudPrompt_claude_passesProgramMetadataOverridesAndLayoutOptionsThrough() {
+        CrudGenerationOptions expectedOptions = new CrudGenerationOptions(
+                "EgovEmployerList", "/emp/list.do", "직원목록", "/emp/", null, null);
+        CrudProgramMetadata metadata = new CrudProgramMetadata(
+                "EgovEmployerList", "/emp/", "직원목록", null, Map.of(), null,
+                CrudProgramMetadata.Source.EXPLICIT, CrudProgramMetadata.Status.RESOLVED, null);
+        ScreenSpecification screenSpecification = new ScreenSpecification(
+                "spec-2", 1, ScreenSpecStatus.APPROVED, "직원목록", "crud", "CRUD_LIST",
+                "com", "LETTNEMPLYRINFO", List.of(), List.of(), List.of(), null);
+        when(crudProgramMetadataService.resolve("com", "Employer", "LETTNEMPLYRINFO", expectedOptions))
+                .thenReturn(metadata);
+        when(generationDesignContextService.resolve(
+                "com", "LETTNEMPLYRINFO", "직원목록", "crud", null, null))
+                .thenReturn(screenSpecification);
+        when(crudPromptBuilderService.buildFullCrudPrompt(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out",
+                "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb",
+                metadata, screenSpecification))
+                .thenReturn("CLAUDE_PROMPT_WITH_METADATA");
+
+        String result = tool.buildFullCrudPrompt(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out", "claude",
+                "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb",
+                "EgovEmployerList", "/emp/list.do", "직원목록", "/emp/", null, null);
+
+        assertThat(result).isEqualTo("CLAUDE_PROMPT_WITH_METADATA");
+        verify(crudProgramMetadataService).resolve("com", "Employer", "LETTNEMPLYRINFO", expectedOptions);
+        verify(crudPromptBuilderService).buildFullCrudPrompt(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out",
+                "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb",
+                metadata, screenSpecification);
     }
 
     @Test
@@ -720,6 +775,60 @@ class CrudPromptBuilderToolTest {
         verify(masterDetailOrchestrationService, never()).orchestrate(
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
                 any(ScreenSpecification.class));
+    }
+
+    @Test
+    void buildMasterDetailPrompt_auto_passesLayoutOptionsThrough() {
+        ScreenSpecification screenSpecification = new ScreenSpecification(
+                "spec-3", 1, ScreenSpecStatus.APPROVED, "직원목록", "master-detail", "MASTER_DETAIL_LIST",
+                "com", "LETTNEMPLYRINFO", List.of(), List.of(), List.of(), null);
+        when(generationDesignContextService.resolve(
+                "com", "LETTNEMPLYRINFO", "Employer", "master-detail", null, null))
+                .thenReturn(screenSpecification);
+        when(masterDetailOrchestrationService.orchestrate(
+                "com", "LETTNEMPLYRINFO", "LETTNEMPLYRATTRBINFO", "Employer",
+                "egovframework.let.emp", "/tmp/out", "5.0", "thymeleaf",
+                "create", "layout/admin", "layout/admin-breadcrumb", screenSpecification))
+                .thenReturn(new MasterDetailOrchestrationResult(false, "com", "LETTNEMPLYRINFO",
+                        "LETTNEMPLYRATTRBINFO", "Employer", "/tmp/out",
+                        List.of("EgovEmployerDetail.html"), List.of(), "OK", "OK"));
+
+        String result = tool.buildMasterDetailPrompt(
+                "com", "LETTNEMPLYRINFO", "LETTNEMPLYRATTRBINFO", "Employer",
+                "egovframework.let.emp", "/tmp/out", "thymeleaf", "5.0", "auto",
+                "create", "layout/admin", "layout/admin-breadcrumb", null, null);
+
+        assertThat(result).contains("=== [auto] eGovFrame 마스터-디테일 CRUD 소스 생성 완료 ===");
+        verify(masterDetailOrchestrationService).orchestrate(
+                "com", "LETTNEMPLYRINFO", "LETTNEMPLYRATTRBINFO", "Employer",
+                "egovframework.let.emp", "/tmp/out", "5.0", "thymeleaf",
+                "create", "layout/admin", "layout/admin-breadcrumb", screenSpecification);
+    }
+
+    @Test
+    void buildMasterDetailPrompt_claude_passesLayoutOptionsThrough() {
+        ScreenSpecification screenSpecification = new ScreenSpecification(
+                "spec-4", 1, ScreenSpecStatus.APPROVED, "직원목록", "master-detail", "MASTER_DETAIL_LIST",
+                "com", "LETTNEMPLYRINFO", List.of(), List.of(), List.of(), null);
+        when(generationDesignContextService.resolve(
+                "com", "LETTNEMPLYRINFO", "Employer", "master-detail", null, null))
+                .thenReturn(screenSpecification);
+        when(masterDetailService.buildMasterDetailPrompt(
+                "com", "LETTNEMPLYRINFO", "LETTNEMPLYRATTRBINFO", "Employer",
+                "egovframework.let.emp", "/tmp/out", "thymeleaf",
+                "create", "layout/admin", "layout/admin-breadcrumb", screenSpecification))
+                .thenReturn("MASTER_DETAIL_LAYOUT_PROMPT");
+
+        String result = tool.buildMasterDetailPrompt(
+                "com", "LETTNEMPLYRINFO", "LETTNEMPLYRATTRBINFO", "Employer",
+                "egovframework.let.emp", "/tmp/out", "thymeleaf", null, "claude",
+                "create", "layout/admin", "layout/admin-breadcrumb", null, null);
+
+        assertThat(result).isEqualTo("MASTER_DETAIL_LAYOUT_PROMPT");
+        verify(masterDetailService).buildMasterDetailPrompt(
+                "com", "LETTNEMPLYRINFO", "LETTNEMPLYRATTRBINFO", "Employer",
+                "egovframework.let.emp", "/tmp/out", "thymeleaf",
+                "create", "layout/admin", "layout/admin-breadcrumb", screenSpecification);
     }
 
     @Test
