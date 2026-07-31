@@ -11,13 +11,12 @@ import com.krdevops.springai.model.crud.ScreenSubsetMode;
 import com.krdevops.springai.model.board.BoardLayerDefinition;
 import com.krdevops.springai.model.masterdetail.MasterDetailLayerDefinition;
 import com.krdevops.springai.model.masterdetail.MasterDetailTemplateModel;
-import com.krdevops.springai.tools.ThymeleafLayoutTool;
+import com.krdevops.springai.service.generation.layout.MainPageRenderer;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateExceptionHandler;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -222,21 +221,8 @@ class GenerationBaselineFixtureTest {
         files.put("GnbMenuMapper.java", crudTemplateRenderer.renderGnbMenuComponent(CrudLayerDefinition.LAYOUT_GNB_MENU_MAPPER, PACKAGE_NAME));
         files.put("GnbMenuMapper.xml", crudTemplateRenderer.renderGnbMenuComponent(CrudLayerDefinition.LAYOUT_GNB_MENU_MAPPER_XML, PACKAGE_NAME));
         files.put("EgovGnbMenuInterceptor.java", crudTemplateRenderer.renderGnbMenuComponent(CrudLayerDefinition.LAYOUT_GNB_MENU_INTERCEPTOR, PACKAGE_NAME));
-        files.put("main.html", invokeMainThymeleafHtml("layout/default", "layout/breadcrumb"));
+        files.put("main.html", new MainPageRenderer().render("layout/default", "layout/breadcrumb"));
         verifyOrBootstrap("layout", files);
-    }
-
-    /**
-     * ThymeleafLayoutTool.mainThymeleafHtml(...)은 private static이라 리플렉션으로 호출한다.
-     * 위 layout/GNB 9종은 ThymeleafLayoutTool.generateThymeleafLayout()이 내부적으로 호출하는
-     * 것과 동일한 CrudTemplateRenderer 메서드를 그대로 사용하므로 바이트 단위로 동일한 결과이고,
-     * main.html만 순수 텍스트 블록이라 별도로 리플렉션 호출한다(파일 I/O 없이 실제 로직만 실행).
-     */
-    private String invokeMainThymeleafHtml(String layoutView, String breadcrumbView) throws Exception {
-        Method method = ThymeleafLayoutTool.class.getDeclaredMethod(
-                "mainThymeleafHtml", String.class, String.class);
-        method.setAccessible(true);
-        return (String) method.invoke(null, layoutView, breadcrumbView);
     }
 
     // ─── Golden File 저장/비교 ──────────────────────────────────────────────

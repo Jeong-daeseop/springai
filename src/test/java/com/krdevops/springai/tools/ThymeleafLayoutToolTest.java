@@ -3,9 +3,17 @@ package com.krdevops.springai.tools;
 import com.krdevops.springai.model.crud.CrudLayerDefinition;
 import com.krdevops.springai.service.CodeService;
 import com.krdevops.springai.service.CrudTemplateRenderer;
+import com.krdevops.springai.service.MyBatisRuntimeConfigurer;
 import com.krdevops.springai.service.ThymeleafLayoutValidator;
 import com.krdevops.springai.service.ThymeleafRuntimeConfigurer;
-import com.krdevops.springai.service.MyBatisRuntimeConfigurer;
+import com.krdevops.springai.service.generation.layout.ClasspathAssetCopier;
+import com.krdevops.springai.service.generation.layout.ComponentScanConfigurer;
+import com.krdevops.springai.service.generation.layout.MainPageRenderer;
+import com.krdevops.springai.service.generation.layout.ServletContextConfigurer;
+import com.krdevops.springai.service.generation.layout.ThymeleafLayoutGenerationPlanner;
+import com.krdevops.springai.service.generation.layout.ThymeleafLayoutGenerationService;
+import com.krdevops.springai.service.generation.mcp.ThymeleafLayoutMcpFacade;
+import com.krdevops.springai.service.generation.mcp.ThymeleafLayoutResultFormatter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +33,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+/**
+ * Tool → Facade → Use Case → Planner/Processor 경로 전체를 통해
+ * 리팩터링 전 {@code ThymeleafLayoutTool}의 동작을 그대로 재현하는지 검증한다.
+ */
 @ExtendWith(MockitoExtension.class)
 class ThymeleafLayoutToolTest {
 
@@ -36,12 +48,31 @@ class ThymeleafLayoutToolTest {
 
     @BeforeEach
     void setUp() {
-        tool = new ThymeleafLayoutTool(
+        ThymeleafLayoutValidator thymeleafLayoutValidator = new ThymeleafLayoutValidator();
+        MyBatisRuntimeConfigurer myBatisRuntimeConfigurer = new MyBatisRuntimeConfigurer();
+        ThymeleafLayoutGenerationPlanner planner = new ThymeleafLayoutGenerationPlanner();
+        MainPageRenderer mainPageRenderer = new MainPageRenderer();
+        ClasspathAssetCopier classpathAssetCopier = new ClasspathAssetCopier(codeService);
+        ComponentScanConfigurer componentScanConfigurer = new ComponentScanConfigurer(myBatisRuntimeConfigurer);
+        ServletContextConfigurer servletContextConfigurer = new ServletContextConfigurer(componentScanConfigurer);
+
+        ThymeleafLayoutGenerationService generationService = new ThymeleafLayoutGenerationService(
                 crudTemplateRenderer,
                 codeService,
-                new ThymeleafLayoutValidator(),
+                thymeleafLayoutValidator,
                 thymeleafRuntimeConfigurer,
-                new MyBatisRuntimeConfigurer());
+                myBatisRuntimeConfigurer,
+                planner,
+                mainPageRenderer,
+                classpathAssetCopier,
+                servletContextConfigurer);
+
+        ThymeleafLayoutMcpFacade facade = new ThymeleafLayoutMcpFacade(
+                thymeleafLayoutValidator,
+                generationService,
+                new ThymeleafLayoutResultFormatter());
+
+        tool = new ThymeleafLayoutTool(facade);
     }
 
     @Test
