@@ -1,18 +1,9 @@
 package com.krdevops.springai.tools;
 
-import com.krdevops.springai.model.board.BoardGenerationOptions;
-import com.krdevops.springai.model.crud.CrudGenerationOptions;
-import com.krdevops.springai.model.design.ScreenSpecification;
-import com.krdevops.springai.service.BoardOrchestrationResult;
-import com.krdevops.springai.service.BoardOrchestrationService;
-import com.krdevops.springai.service.CrudOrchestrationResult;
-import com.krdevops.springai.service.CrudOrchestrationService;
-import com.krdevops.springai.service.CrudProgramMetadataService;
-import com.krdevops.springai.service.CrudPromptBuilderService;
-import com.krdevops.springai.service.MasterDetailOrchestrationResult;
-import com.krdevops.springai.service.MasterDetailOrchestrationService;
 import com.krdevops.springai.service.MasterDetailService;
-import com.krdevops.springai.service.GenerationDesignContextService;
+import com.krdevops.springai.service.generation.mcp.BoardGenerationMcpFacade;
+import com.krdevops.springai.service.generation.mcp.CrudGenerationMcpFacade;
+import com.krdevops.springai.service.generation.mcp.MasterDetailGenerationMcpFacade;
 import com.krdevops.springai.service.generation.mcp.ScreenSourceMcpFacade;
 import com.krdevops.springai.service.generation.model.ScreenType;
 import lombok.RequiredArgsConstructor;
@@ -26,13 +17,10 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CrudPromptBuilderTool {
 
-    private final CrudOrchestrationService crudOrchestrationService;
-    private final CrudProgramMetadataService crudProgramMetadataService;
-    private final CrudPromptBuilderService crudPromptBuilderService;
+    private final CrudGenerationMcpFacade crudGenerationMcpFacade;
+    private final BoardGenerationMcpFacade boardGenerationMcpFacade;
+    private final MasterDetailGenerationMcpFacade masterDetailGenerationMcpFacade;
     private final MasterDetailService      masterDetailService;
-    private final MasterDetailOrchestrationService masterDetailOrchestrationService;
-    private final BoardOrchestrationService boardOrchestrationService;
-    private final GenerationDesignContextService generationDesignContextService;
     private final ScreenSourceMcpFacade screenSourceMcpFacade;
 
     @Tool(description = """
@@ -96,30 +84,11 @@ public class CrudPromptBuilderTool {
                                       @Nullable String programStorePath,
                                       @Nullable String designReferenceId,
                                       @Nullable String screenSpecificationId) {
-        String resolved = (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
-        String provider = (llmProvider == null || llmProvider.isBlank()) ? "auto"
-                          : llmProvider.trim().toLowerCase();
-        String resolvedViewType = (viewType == null || viewType.isBlank()) ? "jsp" : viewType;
-
-        CrudGenerationOptions options = new CrudGenerationOptions(
+        return crudGenerationMcpFacade.buildFullCrudPrompt(
+                database, tableName, domain, packageName, outputPath, llmProvider,
+                egovVersion, viewType, layoutMode, layoutView, breadcrumbView,
                 programFileName, programUrl, programKoreanName, programStorePath,
                 designReferenceId, screenSpecificationId);
-        if ("auto".equals(provider)) {
-            CrudOrchestrationResult result = crudOrchestrationService.orchestrate(
-                    database, tableName, domain, packageName, outputPath, resolved, resolvedViewType,
-                    layoutMode, layoutView, breadcrumbView, options);
-            return formatResult(result);
-        }
-        // auto가 아닌 provider(예: claude)도 동일하게 LETTNPROGRMLIST 메타데이터를 조회해
-        // 프롬프트에 반영한다 — provider에 따라 명시 파라미터가 조용히 무시되지 않도록 한다.
-        com.krdevops.springai.model.crud.CrudProgramMetadata metadata =
-                crudProgramMetadataService.resolve(database, domain, tableName, options);
-        ScreenSpecification screenSpecification = generationDesignContextService.resolve(
-                database, tableName, metadata.programKoreanName(), "crud",
-                designReferenceId, screenSpecificationId);
-        return crudPromptBuilderService.buildFullCrudPrompt(
-                database, tableName, domain, packageName, outputPath, resolved, resolvedViewType,
-                layoutMode, layoutView, breadcrumbView, metadata, screenSpecification);
     }
 
     /** 기존 Java 호출자 하위 호환용. */
@@ -203,24 +172,10 @@ public class CrudPromptBuilderTool {
                                           @Nullable String breadcrumbView,
                                           @Nullable String designReferenceId,
                                           @Nullable String screenSpecificationId) {
-        String resolvedViewType = (viewType == null || viewType.isBlank()) ? "jsp" : viewType;
-        String resolvedVersion = (egovVersion == null || egovVersion.isBlank()) ? "5.0" : egovVersion;
-        String provider = (llmProvider == null || llmProvider.isBlank()) ? "auto"
-                          : llmProvider.trim().toLowerCase();
-        ScreenSpecification screenSpecification = generationDesignContextService.resolve(
-                database, masterTable, domain, "master-detail",
+        return masterDetailGenerationMcpFacade.buildMasterDetailPrompt(
+                database, masterTable, detailTable, domain, packageName, outputPath,
+                viewType, egovVersion, llmProvider, layoutMode, layoutView, breadcrumbView,
                 designReferenceId, screenSpecificationId);
-
-        if ("auto".equals(provider)) {
-            MasterDetailOrchestrationResult result = masterDetailOrchestrationService.orchestrate(
-                    database, masterTable, detailTable, domain, packageName,
-                    outputPath, resolvedVersion, resolvedViewType,
-                    layoutMode, layoutView, breadcrumbView, screenSpecification);
-            return formatMasterDetailResult(result);
-        }
-        return masterDetailService.buildMasterDetailPrompt(
-                database, masterTable, detailTable, domain, packageName, outputPath, resolvedViewType,
-                layoutMode, layoutView, breadcrumbView, screenSpecification);
     }
 
     /** 기존 Java 호출자 하위 호환용. */
@@ -309,20 +264,12 @@ public class CrudPromptBuilderTool {
             @Nullable String designReferenceId,
             @Nullable String screenSpecificationId) {
 
-        String resolvedVersion    = (egovVersion == null || egovVersion.isBlank())   ? "5.0"              : egovVersion;
-        String resolvedViewType   = (viewType == null || viewType.isBlank())         ? "jsp"              : viewType;
-        BoardGenerationOptions options = new BoardGenerationOptions(
+        return boardGenerationMcpFacade.buildBoardFeature(
+                database, domain, packageName, outputPath,
+                mainTable, masterTable, useTable, fileTable, fileDetailTable,
+                egovVersion, viewType, layoutMode, layoutView, breadcrumbView,
                 programFileName, programUrl, programKoreanName, programStorePath, defaultBbsId,
                 designReferenceId, screenSpecificationId);
-
-        BoardOrchestrationResult result = boardOrchestrationService.orchestrate(
-            database, domain, packageName, outputPath,
-            mainTable, masterTable, useTable,
-            fileTable, fileDetailTable,
-            resolvedVersion, resolvedViewType,
-            layoutMode, layoutView, breadcrumbView, options);
-
-        return formatBoardResult(result);
     }
 
     /** 기존 Java 호출자 하위 호환용. */
@@ -680,100 +627,4 @@ public class CrudPromptBuilderTool {
                 database, masterTable, detailTable, domain, packageName, outputPath, egovVersion, viewType);
     }
 
-    private String formatBoardResult(BoardOrchestrationResult r) {
-        if (r.tableNotFound()) {
-            return "게시판 테이블을 찾을 수 없습니다: " + r.database() + "." + r.mainTable();
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append(r.successCount() == 0 && r.hasFailure()
-                ? "=== [auto] eGovFrame 게시판(BBS) 소스 생성 실패 ===\n\n"
-                : "=== [auto] eGovFrame 게시판(BBS) 소스 생성 완료 ===\n\n");
-        sb.append("DB: ").append(r.database())
-          .append(" | 메인 테이블: ").append(r.mainTable())
-          .append(" | 도메인: ").append(r.domain()).append("\n");
-        sb.append("출력 경로: ").append(r.outputPath()).append("\n\n");
-        sb.append("GNB/LNB 연동: ").append(valueOrDash(r.menuIntegrationStatus())).append("\n");
-        sb.append("프로그램 표시명: ").append(valueOrDash(r.resolvedProgramName())).append("\n");
-        sb.append("등록 URL: ").append(valueOrDash(r.resolvedProgramUrl())).append("\n");
-        sb.append("Canonical URL: ").append(valueOrDash(r.canonicalUrl())).append("\n");
-        sb.append("기본 bbsId: ").append(valueOrDash(r.resolvedBbsId())).append("\n");
-        sb.append("PK 방어: BBS_ID + NTT_ID 적용\n");
-        sb.append("CSS: ").append(valueOrDash(r.cssStatus())).append("\n\n");
-        sb.append("[생성 파일 목록]\n");
-        r.succeededFiles().forEach(f -> sb.append("  ✅ ").append(f).append("\n"));
-        r.failedFiles().forEach(f    -> sb.append("  ❌ ").append(f).append("\n"));
-        sb.append("\n총 ").append(r.successCount()).append("개 성공");
-        if (r.hasFailure()) sb.append(", ").append(r.failCount()).append("개 실패");
-        sb.append("\n");
-        sb.append("\n[코드 검증 결과]\n").append(r.validationSummary()).append("\n");
-        sb.append("\n[생성 이력]\n").append(r.historySummary()).append("\n");
-        if (!r.warnings().isEmpty()) {
-            sb.append("\n[경고]\n");
-            r.warnings().forEach(w -> sb.append("  ⚠ ").append(w).append("\n"));
-        }
-        return sb.toString();
-    }
-
-    private String valueOrDash(String value) {
-        return value == null || value.isBlank() ? "-" : value;
-    }
-
-    private String formatMasterDetailResult(MasterDetailOrchestrationResult r) {
-        if (r.tableNotFound()) {
-            return "마스터 또는 디테일 테이블을 찾을 수 없습니다: "
-                    + r.database() + "." + r.masterTable() + " / " + r.detailTable();
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append(r.successCount() == 0 && r.hasFailure()
-                ? "=== [auto] eGovFrame 마스터-디테일 CRUD 소스 생성 실패 ===\n\n"
-                : "=== [auto] eGovFrame 마스터-디테일 CRUD 소스 생성 완료 ===\n\n");
-        sb.append("DB: ").append(r.database())
-          .append(" | 마스터: ").append(r.masterTable())
-          .append(" | 디테일: ").append(r.detailTable())
-          .append(" | 도메인: ").append(r.domain()).append("\n");
-        sb.append("출력 경로: ").append(r.outputPath()).append("\n\n");
-        sb.append("[생성 파일 목록]\n");
-        r.succeededFiles().forEach(f -> sb.append("  ✅ ").append(f).append("\n"));
-        r.failedFiles().forEach(f    -> sb.append("  ❌ ").append(f).append("\n"));
-        sb.append("\n총 ").append(r.successCount()).append("개 성공");
-        if (r.hasFailure()) sb.append(", ").append(r.failCount()).append("개 실패");
-        sb.append("\n");
-        sb.append("\n[코드 검증 결과]\n").append(r.validationSummary()).append("\n");
-        sb.append("\n[생성 이력]\n").append(r.historySummary()).append("\n");
-        return sb.toString();
-    }
-
-    // ── 결과 포맷터 ───────────────────────────────────────────────────────────
-    // 기존 orchestrateAuto() 출력 형식과 동일하게 유지하여 MCP 사용자 UX 회귀 방지
-
-    private String formatResult(CrudOrchestrationResult r) {
-        if (r.tableNotFound()) {
-            return "테이블을 찾을 수 없습니다: " + r.database() + "." + r.tableName();
-        }
-        StringBuilder sb = new StringBuilder();
-        sb.append(r.successCount() == 0 && r.hasFailure()
-                ? "=== [auto] eGovFrame 5.x CRUD 소스 생성 실패 ===\n\n"
-                : "=== [auto] eGovFrame 5.x CRUD 소스 생성 완료 ===\n\n");
-        sb.append("DB: ").append(r.database())
-          .append(" | 테이블: ").append(r.tableName())
-          .append(" | 도메인: ").append(r.domain()).append("\n");
-        sb.append("출력 경로: ").append(r.outputPath()).append("\n\n");
-        sb.append("GNB/LNB 연동: ").append(valueOrDash(r.menuIntegrationStatus())).append("\n");
-        sb.append("프로그램 표시명: ").append(valueOrDash(r.resolvedProgramName())).append("\n");
-        sb.append("등록 URL: ").append(valueOrDash(r.resolvedProgramUrl())).append("\n");
-        sb.append("Canonical URL: ").append(valueOrDash(r.canonicalUrl())).append("\n\n");
-        sb.append("[생성 파일 목록]\n");
-        r.succeededFiles().forEach(f -> sb.append("  ✅ ").append(f).append("\n"));
-        r.failedFiles().forEach(f    -> sb.append("  ❌ ").append(f).append("\n"));
-        sb.append("\n총 ").append(r.successCount()).append("개 성공");
-        if (r.hasFailure()) sb.append(", ").append(r.failCount()).append("개 실패");
-        sb.append("\n");
-        sb.append("\n[코드 검증 결과]\n").append(r.validationSummary()).append("\n");
-        sb.append("\n[생성 이력]\n").append(r.historySummary()).append("\n");
-        if (!r.warnings().isEmpty()) {
-            sb.append("\n[경고]\n");
-            r.warnings().forEach(w -> sb.append("  ⚠ ").append(w).append("\n"));
-        }
-        return sb.toString();
-    }
 }

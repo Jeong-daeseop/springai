@@ -32,6 +32,26 @@ import com.krdevops.springai.service.MasterDetailOrchestrationResult;
 import com.krdevops.springai.service.MasterDetailOrchestrationService;
 import com.krdevops.springai.service.MasterDetailService;
 import com.krdevops.springai.service.MasterDetailTemplateRenderer;
+import com.krdevops.springai.service.generation.api.BuildCrudPromptUseCase;
+import com.krdevops.springai.service.generation.api.BuildMasterDetailPromptUseCase;
+import com.krdevops.springai.service.generation.api.DispatchCrudGenerationUseCase;
+import com.krdevops.springai.service.generation.api.DispatchMasterDetailGenerationUseCase;
+import com.krdevops.springai.service.generation.api.GenerateBoardProjectUseCase;
+import com.krdevops.springai.service.generation.api.GenerateCrudProjectUseCase;
+import com.krdevops.springai.service.generation.api.GenerateMasterDetailProjectUseCase;
+import com.krdevops.springai.service.generation.board.BoardProjectGenerationService;
+import com.krdevops.springai.service.generation.crud.CrudGenerationDispatchService;
+import com.krdevops.springai.service.generation.crud.CrudProjectGenerationService;
+import com.krdevops.springai.service.generation.crud.CrudPromptGenerationService;
+import com.krdevops.springai.service.generation.masterdetail.MasterDetailGenerationDispatchService;
+import com.krdevops.springai.service.generation.masterdetail.MasterDetailProjectGenerationService;
+import com.krdevops.springai.service.generation.masterdetail.MasterDetailPromptGenerationService;
+import com.krdevops.springai.service.generation.mcp.BoardGenerationMcpFacade;
+import com.krdevops.springai.service.generation.mcp.BoardGenerationResultFormatter;
+import com.krdevops.springai.service.generation.mcp.CrudGenerationMcpFacade;
+import com.krdevops.springai.service.generation.mcp.CrudGenerationResultFormatter;
+import com.krdevops.springai.service.generation.mcp.MasterDetailGenerationMcpFacade;
+import com.krdevops.springai.service.generation.mcp.MasterDetailGenerationResultFormatter;
 import com.krdevops.springai.service.generation.mcp.ScreenSourceMcpFacade;
 import com.krdevops.springai.service.generation.mcp.ScreenSourceResultFormatter;
 import com.krdevops.springai.service.generation.source.BoardScreenSourceGenerator;
@@ -104,12 +124,38 @@ class CrudPromptBuilderToolTest {
                 crudSchemaQueryService, crudModelFactory, masterDetailTemplateRenderer);
         ScreenSourceGenerationService generationService = new ScreenSourceGenerationService(
                 List.of(crudGenerator, boardGenerator, masterDetailGenerator));
-        ScreenSourceMcpFacade facade = new ScreenSourceMcpFacade(generationService, new ScreenSourceResultFormatter());
+        ScreenSourceMcpFacade screenSourceMcpFacade =
+                new ScreenSourceMcpFacade(generationService, new ScreenSourceResultFormatter());
+
+        // WP-3: buildFullCrudPrompt/buildMasterDetailPrompt/buildBoardFeature 실제 Facade 배선
+        // (하위 Dispatch/UseCase까지 실제 객체, 최하위 협력자만 Mock).
+        GenerateCrudProjectUseCase generateCrudProjectUseCase =
+                new CrudProjectGenerationService(crudOrchestrationService);
+        BuildCrudPromptUseCase buildCrudPromptUseCase = new CrudPromptGenerationService(
+                crudProgramMetadataService, generationDesignContextService, crudPromptBuilderService);
+        DispatchCrudGenerationUseCase dispatchCrudGenerationUseCase =
+                new CrudGenerationDispatchService(generateCrudProjectUseCase, buildCrudPromptUseCase);
+        CrudGenerationMcpFacade crudGenerationMcpFacade =
+                new CrudGenerationMcpFacade(dispatchCrudGenerationUseCase, new CrudGenerationResultFormatter());
+
+        GenerateBoardProjectUseCase generateBoardProjectUseCase =
+                new BoardProjectGenerationService(boardOrchestrationService);
+        BoardGenerationMcpFacade boardGenerationMcpFacade =
+                new BoardGenerationMcpFacade(generateBoardProjectUseCase, new BoardGenerationResultFormatter());
+
+        GenerateMasterDetailProjectUseCase generateMasterDetailProjectUseCase = new MasterDetailProjectGenerationService(
+                generationDesignContextService, masterDetailOrchestrationService);
+        BuildMasterDetailPromptUseCase buildMasterDetailPromptUseCase =
+                new MasterDetailPromptGenerationService(generationDesignContextService, masterDetailService);
+        DispatchMasterDetailGenerationUseCase dispatchMasterDetailGenerationUseCase =
+                new MasterDetailGenerationDispatchService(
+                        generateMasterDetailProjectUseCase, buildMasterDetailPromptUseCase);
+        MasterDetailGenerationMcpFacade masterDetailGenerationMcpFacade = new MasterDetailGenerationMcpFacade(
+                dispatchMasterDetailGenerationUseCase, new MasterDetailGenerationResultFormatter());
 
         tool = new CrudPromptBuilderTool(
-                crudOrchestrationService, crudProgramMetadataService, crudPromptBuilderService,
-                masterDetailService, masterDetailOrchestrationService, boardOrchestrationService,
-                generationDesignContextService, facade);
+                crudGenerationMcpFacade, boardGenerationMcpFacade, masterDetailGenerationMcpFacade,
+                masterDetailService, screenSourceMcpFacade);
     }
 
     private CrudTemplateModel crudModel(String domain, String domainLc, String tableName, PkModel pk) {
