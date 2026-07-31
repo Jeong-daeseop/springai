@@ -19,7 +19,7 @@ class ThymeleafLayoutResultFormatterTest {
     void format_runtimeSkipped_omitsRuntimeConfiguredMessage() {
         LayoutGenerationResult result = baseResultBuilder(true, List.of());
 
-        String output = formatter.format(result);
+        String output = formatter.format(result, false);
 
         assertThat(output)
                 .contains("[Thymeleaf 런타임 설정]")
@@ -31,7 +31,7 @@ class ThymeleafLayoutResultFormatterTest {
     void format_runtimeSuccess_includesCompletionMessage() {
         LayoutGenerationResult result = baseResultBuilder(false, List.of());
 
-        String output = formatter.format(result);
+        String output = formatter.format(result, false);
 
         assertThat(output).contains("완료: eGovFrame 5.0 기준 Thymeleaf ViewResolver/classpath:/templates 런타임 설정을 확인했습니다.");
     }
@@ -40,7 +40,7 @@ class ThymeleafLayoutResultFormatterTest {
     void format_runtimeFailures_listsEachFailureLine() {
         LayoutGenerationResult result = baseResultBuilder(false, List.of("실패 원인 A", "실패 원인 B"));
 
-        String output = formatter.format(result);
+        String output = formatter.format(result, false);
 
         assertThat(output).contains("  실패: 실패 원인 A\n").contains("  실패: 실패 원인 B\n");
     }
@@ -49,15 +49,24 @@ class ThymeleafLayoutResultFormatterTest {
     void format_packageNameMissing_prependsWarningWithResolvedDefault() {
         LayoutGenerationResult result = baseResultBuilder(false, List.of());
         LayoutGenerationResult missingResult = new LayoutGenerationResult(
-                result.outputPath(), result.resolvedBasePath(), "egovframework.let.sample", true,
+                result.outputPath(), result.resolvedBasePath(), "egovframework.let.sample",
                 result.resolvedMenuTableName(), result.resolvedProgramTableName(), result.layoutFileOutcomes(),
                 result.logoResultLine(), result.gnbComponentOutcomes(), result.mainHtmlOutcome(), result.validation(),
-                result.servletContextPatchMessage(), result.servletContextPatchFailed(), result.myBatisResult(),
+                result.servletContextPatchMessage(), result.myBatisResult(),
                 result.egovVersion(), result.runtimeSkipped(), result.runtimeFailures());
 
-        String output = formatter.format(missingResult);
+        String output = formatter.format(missingResult, true);
 
         assertThat(output).contains("⚠ packageName 미지정 — 기본값 'egovframework.let.sample' 사용.");
+    }
+
+    @Test
+    void format_packageNameExplicitlyDefault_omitsWarning() {
+        LayoutGenerationResult result = baseResultBuilder(false, List.of());
+
+        String output = formatter.format(result, false);
+
+        assertThat(output).doesNotContain("packageName 미지정");
     }
 
     private LayoutGenerationResult baseResultBuilder(boolean runtimeSkipped, List<String> runtimeFailures) {
@@ -67,7 +76,6 @@ class ThymeleafLayoutResultFormatterTest {
                 outputPath.toString(),
                 "layout",
                 "egovframework.let.emp",
-                false,
                 "LETTNMENUINFO",
                 "LETTNPROGRMLIST",
                 List.of(FileOutcome.created(layoutFile)),
@@ -78,7 +86,6 @@ class ThymeleafLayoutResultFormatterTest {
                         new ThymeleafLayoutValidator.LayoutReference("layout/default", "layout/breadcrumb", "layout"),
                         List.of()),
                 "  등록: servlet-context.xml 에 EgovGnbMenuInterceptor patch 완료\n",
-                false,
                 new MyBatisRuntimeConfigurer.ConfigurationResult(
                         true, true, false,
                         outputPath.resolve("src/main/resources/egovframework/spring/context-common.xml"),

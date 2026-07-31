@@ -225,6 +225,19 @@ class ThymeleafLayoutToolTest {
     }
 
     @Test
+    void generateThymeleafLayout_packageNameExplicitlyDefault_omitsWarning(@TempDir Path tempDir) throws Exception {
+        stubRenderer();
+        stubCodeServiceWrite();
+
+        String result = tool.generateThymeleafLayout(
+                tempDir.toString(), "layout", false, "egovframework.let.sample");
+
+        assertThat(result).doesNotContain("packageName 미지정");
+        assertThat(tempDir.resolve("src/main/java/egovframework/let/sample/cmm/web/EgovGnbMenuInterceptor.java"))
+                .isRegularFile();
+    }
+
+    @Test
     void generateThymeleafLayout_invokesThymeleafRuntimeConfigurerWithEgov50(@TempDir Path tempDir)
             throws Exception {
         stubRenderer();

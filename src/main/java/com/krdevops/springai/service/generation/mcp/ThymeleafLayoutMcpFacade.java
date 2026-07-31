@@ -33,10 +33,13 @@ public class ThymeleafLayoutMcpFacade {
             @Nullable String packageName,
             @Nullable String menuTableName,
             @Nullable String programTableName) {
+        // packageNameMissing은 원본 packageName 인자가 null/blank였는지를 별도로 보존한다 —
+        // Command의 packageName은 이미 기본값이 적용된 상태이므로, 경고 문구 재현에는 원본 판정 결과가 필요하다.
+        boolean packageNameMissing = packageName == null || packageName.isBlank();
         GenerateThymeleafLayoutCommand command = toCommand(
                 outputPath, layoutBasePath, overwriteLayout, packageName, menuTableName, programTableName);
         LayoutGenerationResult result = generateThymeleafLayoutUseCase.generate(command);
-        return formatter.format(result);
+        return formatter.format(result, packageNameMissing);
     }
 
     private GenerateThymeleafLayoutCommand toCommand(
@@ -49,8 +52,7 @@ public class ThymeleafLayoutMcpFacade {
         String resolvedBasePath = thymeleafLayoutValidator.normalizeLayoutBasePath(layoutBasePath);
         // 기본값은 overwrite=true — 명시적으로 false를 넘긴 경우에만 기존 파일을 보존한다.
         boolean overwrite = !Boolean.FALSE.equals(overwriteLayout);
-        boolean packageNameMissing = packageName == null || packageName.isBlank();
-        String resolvedPackageName = packageNameMissing ? DEFAULT_PACKAGE_NAME : packageName;
+        String resolvedPackageName = (packageName == null || packageName.isBlank()) ? DEFAULT_PACKAGE_NAME : packageName;
         String resolvedMenuTableName = normalizeTableName(menuTableName, DEFAULT_MENU_TABLE_NAME);
         String resolvedProgramTableName = normalizeTableName(programTableName, DEFAULT_PROGRAM_TABLE_NAME);
 
@@ -59,7 +61,6 @@ public class ThymeleafLayoutMcpFacade {
                 resolvedBasePath,
                 overwrite,
                 resolvedPackageName,
-                packageNameMissing,
                 resolvedMenuTableName,
                 resolvedProgramTableName);
     }

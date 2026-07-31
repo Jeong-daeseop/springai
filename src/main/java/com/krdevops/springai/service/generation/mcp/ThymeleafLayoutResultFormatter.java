@@ -13,10 +13,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class ThymeleafLayoutResultFormatter {
 
-    public String format(LayoutGenerationResult result) {
+    public String format(LayoutGenerationResult result, boolean packageNameMissing) {
         StringBuilder sb = new StringBuilder();
         sb.append("=== Thymeleaf layout 생성 결과 ===\n\n");
-        if (result.packageNameMissing()) {
+        if (packageNameMissing) {
             sb.append("⚠ packageName 미지정 — 기본값 '").append(result.resolvedPackageName()).append("' 사용. ")
               .append("실제 프로젝트 packageName과 다르면 GNB 컴포넌트가 컴파일되지 않거나 등록되지 않습니다.\n\n");
         }
