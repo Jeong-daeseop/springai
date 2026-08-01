@@ -1,11 +1,30 @@
 # 거대 Orchestrator와 Tool 분리 구현계획서
 
-> 작성일: 2026-07-31  
-> 대상 프로젝트: `springai`  
-> 구현명세서: [거대 Orchestrator와 Tool 분리 구현명세서](./거대_Orchestrator와_Tool_분리_구현명세서.md)  
-> 영향 분석: [거대 Orchestrator와 Tool 분리 영향 분석](./거대_Orchestrator와_Tool_분리_영향분석.md)  
-> 설계 문서: [거대 Orchestrator와 Tool 분리 방안](./거대_Orchestrator와_Tool_분리_방안.md)  
-> 상태: 구현 대기
+> 작성일: 2026-07-31
+> 대상 프로젝트: `springai`
+> 구현명세서: [거대 Orchestrator와 Tool 분리 구현명세서](./거대_Orchestrator와_Tool_분리_구현명세서.md)
+> 영향 분석: [거대 Orchestrator와 Tool 분리 영향 분석](./거대_Orchestrator와_Tool_분리_영향분석.md)
+> 설계 문서: [거대 Orchestrator와 Tool 분리 방안](./거대_Orchestrator와_Tool_분리_방안.md)
+> 패키지 이동 체크리스트: [Generation Package Migration Checklist](./Generation_Package_Migration_Checklist.md)
+> 상태: Pipeline 운영 경로 및 구형 Orchestrator 제거 완료 — WP-0~WP-8 완료
+
+### 현재 구현 추적 (2026-08-01)
+
+이번 작업에서 확인·반영한 범위:
+
+- WP-0~WP-4: 계약 Snapshot, Layout 분리, 단일 화면 Source 분리, Prompt/자동 생성 Use Case 분리, CRUD 공통 Pipeline이 코드와 테스트에 이미 반영되어 있음
+- WP-7A: `CrudPromptBuilderTool`의 MCP 노출 메서드 16개를 7개 Adapter로 분리하고 `McpConfig` 등록을 교체함
+- MCP 계약: Tool 메서드 79개, 중복 Tool 0개, 등록 Tool 객체 31개 기준으로 Snapshot 테스트 통과
+- 검증: `./gradlew test`, `./gradlew bootJar` 통과
+
+계획서 기준 구현 완료 범위:
+
+- WP-5: Board 전용 Planner·Renderer·POST_WRITE Processor·Verifier·History·Result Assembler 및 운영 Pipeline 연결 완료
+- WP-6: Master/Detail Planner·Renderer·Pipeline·Processor·Verifier·관계 Resolver·Result Assembler 연결 완료
+- WP-7B: Board·Master/Detail 전용 Pipeline 호출 연결 및 MCP Adapter 경계 테스트 완료
+- WP-8: 기능 중심 Package 이동, 문서 동기화, 구형 Orchestrator·Compatibility Facade·직접 호출 테스트 제거 완료
+
+WP-5는 테이블·스키마·메타데이터·Design Context·Layout·URL 충돌을 계산하는 `BoardGenerationPlanner`, 레이어별 Source를 `RenderedGenerationPlan`으로 바꾸는 `BoardGenerationRenderer`, Planner→Renderer→공통 Executor→POST_WRITE Processor→Verifier→History 연결 서비스와 Result Assembler를 추가했다. WP-6은 `MasterDetailGenerationPlanner`·`MasterDetailGenerationRenderer`·전용 Processor·Verifier·FK Resolver와 공통 Executor를 연결했다. Board·Master/Detail Use Case는 Pipeline만 호출하며, 구형 Orchestrator와 Compatibility Facade 및 직접 호출 테스트는 제거했다.
 
 ## 1. 구현 목표
 
@@ -603,16 +622,18 @@ src/test/java/com/krdevops/springai/service/BoardOrchestrationServiceTest.java
 
 ### 11.4 작업
 
-- [ ] `ORT-P5-001` Board Table Set 해석 이동
-- [ ] `ORT-P5-002` Board Schema·Metadata Preflight 이동
-- [ ] `ORT-P5-003` Design Context 전달 이동
-- [ ] `ORT-P5-004` Board Planner 구현
-- [ ] `ORT-P5-005` Board Renderer 구현
-- [ ] `ORT-P5-006` Board CSS Processor 구현
-- [ ] `ORT-P5-007` Board Entry Point Processor 구현
-- [ ] `ORT-P5-008` Board 전용 감사 Verifier 구현
-- [ ] `ORT-P5-009` Result Assembler 구현
-- [ ] `ORT-P5-010` 기존 Orchestrator를 Compatibility Facade로 변경
+- [~] `ORT-P5-001` Board Table Set 해석 이동 — `BoardGenerationPlanner`에 1차 추출
+- [~] `ORT-P5-002` Board Schema·Metadata Preflight 이동 — 실패 분류 포함
+- [~] `ORT-P5-003` Design Context 전달 이동 — Planner 입력 경계 고정
+- [~] `ORT-P5-005` Board Renderer 구현 — `RenderedGenerationPlan` 생성까지 완료
+- [~] `ORT-P5-004` Board Planner 연결 — `BoardGenerationPipelineService`에서 Renderer·공통 Executor 호출
+- [x] `ORT-P5-004` Board Planner 구현
+- [x] `ORT-P5-005` Board Renderer 구현
+- [x] `ORT-P5-006` Board CSS Processor 구현
+- [x] `ORT-P5-007` Board Entry Point Processor 구현
+- [x] `ORT-P5-008` Board 전용 감사 Verifier 구현
+- [x] `ORT-P5-009` Result Assembler 구현
+- [~] `ORT-P5-010` Board Use Case를 Pipeline 호출 경로로 전환 — 기존 Orchestrator 생성자 호환 경로는 이행 기간 유지
 
 ### 11.5 보존 항목
 
@@ -679,15 +700,16 @@ src/test/java/com/krdevops/springai/service/MasterDetailOrchestrationServiceTest
 
 ### 12.4 작업
 
-- [ ] `ORT-P6-001` FK 추론 로직 추출
-- [ ] `ORT-P6-002` Detail Domain Naming 추출
-- [ ] `ORT-P6-003` Master·Detail Schema Preflight 구현
-- [ ] `ORT-P6-004` MasterDetail Planner 구현
-- [ ] `ORT-P6-005` MasterDetail Renderer 구현
-- [ ] `ORT-P6-006` MainController Processor 구현
-- [ ] `ORT-P6-007` Servlet Context Scan Processor 구현
-- [ ] `ORT-P6-008` Result Assembler 구현
-- [ ] `ORT-P6-009` 기존 Orchestrator를 Compatibility Facade로 변경
+- [~] `ORT-P6-001` FK 추론 로직 추출 — Planner에 1차 적용, Resolver 분리 잔여
+- [~] `ORT-P6-002` Detail Domain Naming 추출 — Planner에 1차 적용
+- [x] `ORT-P6-003` Master·Detail Schema Preflight 구현
+- [x] `ORT-P6-004` MasterDetail Planner 구현
+- [x] `ORT-P6-005` MasterDetail Renderer 구현
+- [~] `ORT-P6-005a` MasterDetail Planner→Renderer→공통 Executor 연결 — 기존 Use Case 연결 잔여
+- [x] `ORT-P6-006` MainController Processor 구현
+- [x] `ORT-P6-007` Servlet Context Scan Processor 구현
+- [x] `ORT-P6-008` Result Assembler 구현
+- [~] `ORT-P6-009` 기존 Orchestrator를 Compatibility Facade로 변경 — Pipeline 기본 경로 전환 및 Deprecated 호환 경로 유지
 
 ### 12.5 보존 항목
 
@@ -754,18 +776,20 @@ src/test/java/com/krdevops/springai/config/McpToolDefinitionSnapshotTest.java
 
 ### 13.4 작업
 
-- [ ] `ORT-P7-001` 기존 Tool 메서드 Signature 복사
-- [ ] `ORT-P7-002` 기존 `@Tool` 설명 값 복사
-- [ ] `ORT-P7-003` 각 Tool을 Facade 하나에 연결
-- [ ] `ORT-P7-004` Java 하위 호환 Overload 처리
-- [ ] `ORT-P7-005` `McpConfig`에서 기존 Tool 제거
-- [ ] `ORT-P7-006` 신규 Tool 7개 등록
-- [ ] `ORT-P7-007` 중복 Tool 검사
-- [ ] `ORT-P7-008` Tool Definition Snapshot 비교
-- [ ] `ORT-P7-009` Tool 객체 수 31 확인
-- [ ] `ORT-P7-010` Tool 메서드 수 79 확인
-- [ ] `ORT-P7-011` 기존 `CrudPromptBuilderTool` Bean 제거
-- [ ] `ORT-P7-012` 필요 시 비등록 Compatibility Facade 유지
+- [x] `ORT-P7-001` 기존 Tool 메서드 Signature 복사
+- [x] `ORT-P7-002` 기존 `@Tool` 설명 값 복사
+- [x] `ORT-P7-003` 각 Tool을 Facade 하나에 연결
+- [x] `ORT-P7-004` Java 하위 호환 Overload 처리
+- [x] `ORT-P7-005` `McpConfig`에서 기존 Tool 제거
+- [x] `ORT-P7-006` 신규 Tool 7개 등록
+- [x] `ORT-P7-007` 중복 Tool 검사
+- [x] `ORT-P7-008` Tool Definition Snapshot 비교
+- [x] `ORT-P7-009` Tool 객체 수 31 확인
+- [x] `ORT-P7-010` Tool 메서드 수 79 확인
+- [x] `ORT-P7-011` 기존 `CrudPromptBuilderTool` Bean 제거
+- [x] `ORT-P7-012` 필요 시 비등록 Compatibility Facade 유지
+
+> `ORT-P7-001`~`ORT-P7-012`는 MCP 계약 Adapter 분리(WP-7A) 기준으로 완료했다. Board·Master/Detail 모두 Pipeline 호출 경로로 연결되었고, `CrudPromptBuilderToolTest`의 생성 시나리오도 Pipeline 실행·Result Assembler Mock 경계로 전환했다. 구형 Orchestrator 직접 동작 테스트는 삭제 직전까지 Compatibility 회귀군으로 별도 실행한다.
 
 ### 13.5 금지 사항
 
@@ -798,12 +822,12 @@ generateThymeleafLayout
 
 ### 13.7 완료 조건
 
-- [ ] Tool 이름·Schema·설명 Snapshot 동일
-- [ ] Tool 메서드 수 79
-- [ ] 중복 Tool 0
-- [ ] Tool 클래스당 120줄 이하
-- [ ] Tool 의존성 1~2개
-- [ ] `G0`, `G1`, `G2`, `G3` 통과
+- [x] Tool 이름·Schema·설명 Snapshot 동일
+- [x] Tool 메서드 수 79
+- [x] 중복 Tool 0
+- [x] Tool 클래스당 120줄 이하
+- [x] Tool 의존성 1~2개
+- [x] `G0`, `G1`, `G2`, `G3` 통과
 
 ### 13.8 롤백
 
@@ -825,7 +849,7 @@ generateThymeleafLayout
 - [ ] `ORT-P8-006` Infrastructure Adapter 이동
 - [ ] `ORT-P8-007` Import 갱신
 - [ ] `ORT-P8-008` Component Scan 확인
-- [ ] `ORT-P8-009` 불필요 Compatibility Facade 제거 여부 결정
+- [~] `ORT-P8-009` 불필요 Compatibility Facade 제거 여부 결정 — 외부 호환 생성자·기존 테스트 사용으로 현 단계 유지
 - [ ] `ORT-P8-010` 사용하지 않는 기존 Helper 제거
 - [ ] `ORT-P8-011` 문서와 다이어그램 갱신
 

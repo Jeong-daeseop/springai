@@ -3,7 +3,7 @@ package com.krdevops.springai.service;
 import java.util.List;
 
 /**
- * BoardOrchestrationService.orchestrate() 결과 VO.
+ * Board 생성 Pipeline의 외부 반환 결과 VO.
  *
  * <p>필수 테이블 미존재 케이스도 예외 대신 이 객체로 표현하여
  * MCP Tool 레이어의 문자열 반환 UX를 유지한다.

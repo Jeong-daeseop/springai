@@ -9,7 +9,7 @@ import java.nio.file.Path;
  * 1:N 마스터-디테일 CRUD 소스 생성/Prompt 빌드 Command. 명세서 §8.4.
  *
  * <p>{@code llmProvider}가 "auto"이면 {@link MasterDetailProjectGenerationService}(결정론적
- * 오케스트레이션), 그 외(보통 "claude")이면 {@link MasterDetailPromptGenerationService}(Prompt
+ * Pipeline), 그 외(보통 "claude")이면 {@link MasterDetailPromptGenerationService}(Prompt
  * 문자열 빌드)로 분기한다 — 분기 자체는 {@link MasterDetailGenerationDispatchService}만 수행한다.
  */
 public record MasterDetailGenerationCommand(

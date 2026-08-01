@@ -12,7 +12,7 @@ import java.nio.file.Path;
  *
  * <p>{@code llmProvider} 분기가 없다 — 항상 {@link BoardProjectGenerationService}(결정론적
  * 오케스트레이션)를 통해 생성된다. 기존 {@link com.krdevops.springai.service.BoardTableSetResolver}
- * 기본 테이블 정책은 {@code BoardOrchestrationService} 내부에서 그대로 유지된다.
+ * 기본 테이블 정책은 Board Planner가 기존 정책과 동일하게 해석한다.
  */
 public record BoardGenerationCommand(
         String database,

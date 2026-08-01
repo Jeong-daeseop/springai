@@ -3,7 +3,7 @@ package com.krdevops.springai.service;
 import java.util.List;
 
 /**
- * MasterDetailOrchestrationService.orchestrate() result.
+ * Master/Detail 생성 Pipeline의 외부 반환 결과 VO.
  */
 public record MasterDetailOrchestrationResult(
         boolean tableNotFound,

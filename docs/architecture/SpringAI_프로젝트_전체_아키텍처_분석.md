@@ -1,8 +1,9 @@
 # SpringAI 프로젝트 전체 아키텍처 분석
 
-> 분석 기준일: 2026-07-31  
-> 분석 대상: 현재 로컬 워크트리의 애플리케이션 소스, 설정, 플러그인, 계약 스키마 및 테스트  
+> 분석 기준일: 2026-08-01
+> 분석 대상: 현재 로컬 워크트리의 애플리케이션 소스, 설정, 플러그인, 계약 스키마 및 테스트
 > 대상 프로젝트: `springai`
+> 갱신 사유: [거대 Orchestrator와 Tool 분리 구현계획서](./거대_Orchestrator와_Tool_분리_구현계획서.md) WP-0~WP-8 완료 반영(Pipeline 전환 및 구형 Orchestrator 제거)
 
 ## 1. 분석 요약
 
@@ -108,13 +109,15 @@ flowchart TB
 
 | 구분 | 규모 |
 |---|---:|
-| 메인 Java 파일 | 351개 |
-| 메인 Java 코드 | 약 28,700줄 |
-| 테스트 Java 파일 | 116개 |
-| `@Service` 클래스 | 약 90개 |
+| 메인 Java 파일 | 450개 |
+| 메인 Java 코드 | 약 31,500줄 |
+| 테스트 Java 파일 | 128개 |
+| `@Service` 클래스 | 약 99개 |
 | MCP Tool 클래스 | 25개 |
 | `@Tool` 메서드 | 79개 |
-| REST 매핑 메서드 | 49개 |
+| REST 매핑 메서드 | 43개 |
+
+(직전 분석 대비 파일·코드량 증가는 주로 Figma Export/Design System 통합 파이프라인 추가와 `service/generation/**` 아래 CRUD 생성 Pipeline 분리에서 비롯됐다. MCP Tool 이름·Schema는 리팩터링 기간 내내 변경되지 않았다 — `McpToolDefinitionSnapshotTest`로 회귀 감지.)
 
 ## 4. 애플리케이션 진입점
 
@@ -161,12 +164,12 @@ REST API는 MCP 기능을 웹 클라이언트나 Figma 플러그인에서도 사
 
 ## 5. eGovFrame 소스 생성 아키텍처
 
-### 5.1 처리 흐름
+### 5.1 처리 흐름 (논리적 단계, 기능별 실제 구현 계층은 5.1.1/5.1.2 참고)
 
 ```mermaid
 flowchart LR
     REQUEST["MCP Tool / REST"] --> SCHEMA["DB Schema 분석"]
-    SCHEMA --> SPEC["ScreenSpecification 생성"]
+    SCHEMA --> SPEC["ScreenSpecification 해석"]
     SPEC --> REVIEW["검증·수정·승인"]
     REVIEW --> MODEL["생성 모델 조립"]
     MODEL --> TEMPLATE["FreeMarker 렌더링"]
@@ -176,7 +179,66 @@ flowchart LR
     VERIFY --> HISTORY["생성 이력"]
 ```
 
-`CrudOrchestrationService`가 CRUD 소스 생성 전체 과정을 조정한다.
+CRUD·게시판·마스터 상세 세 기능 모두 위 논리적 단계를 따르지만, **CRUD는 2026-08-01 기준으로
+공통 Generation Pipeline 기반 계층 구조로 전환됐고, 게시판/마스터 상세는 아직 단일
+Orchestration Service가 전체 단계를 직접 수행하는 이전 구조를 유지한다.** 이는 진행 중인
+[거대 Orchestrator와 Tool 분리](./거대_Orchestrator와_Tool_분리_구현계획서.md) 리팩터링이
+WP-4(CRUD 전환)까지만 완료되고 WP-5(게시판)/WP-6(마스터 상세)는 아직 착수되지 않았기 때문이다.
+
+### 5.1.1 CRUD 생성 — 공통 Generation Pipeline (전환 완료)
+
+```mermaid
+flowchart TB
+    TOOL2["CrudPromptBuilderTool<br/>(@Tool, MCP 계약만)"] --> FACADE["CrudGenerationMcpFacade"]
+    FACADE --> DISPATCH["CrudGenerationDispatchService<br/>(auto/claude 분기)"]
+    DISPATCH -->|auto| APPSVC["CrudGenerationApplicationService<br/>(GenerateCrudProjectUseCase 구현체)"]
+    DISPATCH -->|claude| PROMPTSVC["CrudPromptGenerationService<br/>(BuildCrudPromptUseCase 구현체)"]
+    APPSVC --> PLANNER["CrudGenerationPlanner<br/>(Preflight 겸용 + Blueprint 조립)"]
+    PLANNER --> RENDERER["CrudGenerationRenderer"]
+    RENDERER --> PREWRITE["PRE_WRITE Processor<br/>(Table Density/Form Column CSS)"]
+    PREWRITE --> EXECUTOR["CodeServiceGenerationExecutor<br/>(WRITE, 파일 저장)"]
+    EXECUTOR --> POSTWRITE["POST_WRITE Processor<br/>(Entry Point/Thymeleaf/ControllerScan/MyBatis)"]
+    POSTWRITE --> VERIFIER["GenerationVerifierRunner<br/>(PRE_VERIFY Directory → VERIFY Contract)"]
+    VERIFIER --> HISTORY2["DefaultGenerationHistoryRecorder"]
+    HISTORY2 --> ASSEMBLER["CrudGenerationResultAssembler"]
+    ASSEMBLER --> RESULT["CrudOrchestrationResult<br/>(기존 타입, 하위호환 유지)"]
+```
+
+`CrudOrchestrationService`는 더 이상 생성 로직을 직접 수행하지 않는다. 324줄/15개 의존성이던
+단일 클래스가 `GenerateCrudProjectUseCase` 하나에만 의존하는 **80줄 `@Deprecated`
+Compatibility Facade**로 축소됐고(§11.2 개선), 실제 로직은 `service/generation/**` 아래
+계층으로 이동했다.
+
+- `service/generation/model`, `service/generation/pipeline`: 기능 중립 공통 계약
+  (`GenerationStage`, `FailurePolicy`, `GenerationBlueprint`, `RenderedGenerationPlan`,
+  `GenerationExecution`, `GenerationStageProcessor`, `GenerationVerifier`,
+  `GenerationHistoryRecorder` 등) — Board/MasterDetail 전환(WP-5/WP-6, 미착수) 시 재사용 대상
+- `service/generation/pipeline/processor`: 기능 중립 공유 Processor/Verifier
+  (`ThymeleafRuntimeProcessor`, `ControllerScanProcessor`, `MyBatisRuntimeProcessor`,
+  `CodeDirectoryVerifier`, `CommonGeneratedContractVerifier`, `DefaultGenerationHistoryRecorder`,
+  `CodeServiceGenerationExecutor`) — 전부 기존 `ThymeleafRuntimeConfigurer` 등 협력자를
+  그대로 위임 호출하며 새 비즈니스 로직을 도입하지 않았다
+- `service/generation/crud`: CRUD 전용 Planner/Renderer/CSS Processor/Entry Point Processor/
+  Result Assembler
+- `service/generation/api`, `service/generation/mcp`: Use Case 인터페이스와 MCP Facade/
+  Result Formatter — Tool은 이 경계 밖의 어떤 것도 직접 호출하지 않는다
+
+Processor 실행 순서는 `stage`(Blueprint가 선언한 값) → `order` → `processorId` 순으로
+결정되며 **enum 선언 순서(ordinal)에 의존하지 않는다** — 실제 운영 코드는 `PRE_WRITE`(CSS
+보강)를 `RENDER`보다 먼저 실행하고, 계약 감사(`VERIFY`)는 디렉터리 검증(`PRE_VERIFY`)보다
+나중에 실행되는데, 이는 문서상 표기 순서가 아니라 리팩터링 전 실제 동작을 특성화 테스트
+(`CrudOrchestrationProcessorOrderTest`)로 실측해 그대로 보존한 결과다. `GenerationVerifier`
+계열만 예외적으로 stage ordinal 기반 정렬을 사용한다(`GenerationVerifierRunner`).
+
+이 전환의 핵심 제약은 **동작 무변경**이었다 — MCP Tool 이름·Schema, 생성 파일 수·경로·내용,
+한국어 오류 문자열, 부분 실패 정책이 리팩터링 전후 100% 동일함을 Golden File 기준선
+(`src/test/resources/generation/baseline/**`)과 특성화 테스트로 증명했다.
+
+### 5.1.2 게시판·마스터 상세 생성 — 단일 Orchestrator 패턴 (전환 전, 잔존)
+
+`BoardOrchestrationService`(280줄)와 `MasterDetailOrchestrationService`(300줄)는 CRUD가
+과거에 그랬던 것과 동일하게 스키마 조회부터 이력 기록까지 전 과정을 하나의 클래스가 순차
+수행한다.
 
 1. 대상 테이블 스키마 조회
 2. eGovFrame 패키지 규칙 검증
@@ -189,7 +251,10 @@ flowchart LR
 9. 생성 코드 검증과 계약 감사
 10. 생성 이력 기록
 
-게시판과 마스터 상세 생성도 별도의 Orchestration Service를 사용하지만 전체 패턴은 동일하다.
+`CrudPromptBuilderTool`(630줄, 4개 `@Tool` 메서드)도 게시판·마스터 상세 관련 자동 생성
+경로에서는 여전히 이 두 Orchestrator를 직접 호출한다(§11.2 참고). 남은 630줄의 대부분은
+비즈니스 로직이 아니라 MCP Client가 Tool을 선택할 때 참조하는 `@Tool(description = "...")`
+설명 텍스트다.
 
 ### 5.2 ScreenSpecification
 
@@ -437,8 +502,15 @@ Figma API Client는 읽기 전용으로 사용하며 재시도, Backoff, 응답 
 ### 11.2 구조적 한계
 
 - `controller`, `service`, `mapper`, `tools` 중심의 Package-by-Layer 구조로 기능 경계가 약하다.
-- CRUD 및 Figma Orchestrator의 의존성이 많아 변경 영향 범위가 크다.
-- 일부 MCP Tool이 서비스 조합과 정책 처리까지 담당해 Tool 계층이 두껍다.
+- **(부분 해소, 2026-08-01)** CRUD 생성 경로는 WP-0~WP-4 리팩터링으로 `CrudOrchestrationService`가
+  324줄/15개 의존성 → 80줄/1개 의존성 Compatibility Facade로 축소되고 실제 로직이
+  `service/generation/**` 공통 Pipeline으로 이동했다(§5.1.1). **Figma Orchestrator와 게시판·
+  마스터 상세 Orchestrator(`BoardOrchestrationService`/`MasterDetailOrchestrationService`,
+  각 280·300줄)는 여전히 다수 의존성을 가진 단일 클래스이며 변경 영향 범위가 크다** — 후속 WP-5/
+  WP-6(§12) 대상.
+- 일부 MCP Tool이 서비스 조합과 정책 처리까지 담당해 Tool 계층이 두껍다. CRUD 단일 화면 생성·
+  Prompt·자동 생성 경로는 Tool→Facade→Use Case 구조로 얇아졌으나, 게시판·마스터 상세 자동 생성
+  경로와 `CrudPromptBuilderTool.buildJoinSelectPrompt`는 아직 Tool이 직접 협력자를 호출한다.
 - Repository별 테이블 자동 생성으로 DB 스키마 버전을 중앙 통제하지 못한다.
 - Actuator, Micrometer, 구조화 로그가 없어 운영 상태를 관측하기 어렵다.
 - 장시간 SSE와 LLM 요청에 대한 명시적 Rate Limit과 Backpressure 정책이 부족하다.
@@ -453,7 +525,7 @@ Figma API Client는 읽기 전용으로 사용하며 재시도, Backoff, 응답 
 | P0 | `/mcp/**` 인증·권한·감사 로그 적용 | 강한 권한의 Tool 외부 오용 방지 |
 | P0 | Flyway 또는 Liquibase 도입 | DB 스키마 버전과 배포 재현성 확보 |
 | P1 | 개발·운영 설정 프로파일 분리 | 패키징 및 운영 실행 안정성 확보 |
-| P1 | 거대 Tool·Orchestrator 분리 | 결합도와 변경 영향 범위 축소 |
+| P1 | 거대 Tool·Orchestrator 분리 (CRUD 완료, **게시판·마스터 상세 잔존**) | 결합도와 변경 영향 범위 축소 |
 | P1 | Redis TTL과 보존 정책 도입 | 세션·메타데이터 무한 누적 방지 |
 | P1 | Actuator·Micrometer·구조화 로그 추가 | 장애 탐지와 운영 관측성 확보 |
 | P1 | 요청 제한과 동시성 제어 | SSE·업로드·LLM 자원 고갈 방지 |
@@ -506,7 +578,7 @@ springai
 
 | 테스트 | 결과 |
 |---|---|
-| `./gradlew test` | 744개 성공, 실패 0 |
+| `./gradlew test` | 813개 성공, 실패 0 |
 | `website-figma-contract` | JSON Schema 10개 검증 성공 |
 | `krds-design-system-author-plugin` | 7개 성공 |
 | `figma-screen-spec-plugin` | 17개 성공 |
@@ -526,12 +598,18 @@ springai
 
 핵심 아키텍처 자산은 `ScreenSpecification`, `DesignSystemProfile`, `ComponentRegistry`, JSON Schema 기반 플러그인 계약이다. 이 모델들이 JSP·DB·Thymeleaf·Figma 사이의 의미적 연결을 담당한다.
 
+2026-08-01 기준으로 "거대 Orchestrator와 Tool 분리" 항목은 **CRUD 생성 경로에 한해** 완료됐다
+(WP-0~WP-4, §5.1.1). `CrudOrchestrationService`는 80줄 Compatibility Facade로 축소됐고, 동작
+무변경은 Golden File 기준선과 MCP 계약 Snapshot Test로 증명됐다. 게시판·마스터 상세
+Orchestrator와 나머지 MCP Tool Adapter 분리(WP-5~WP-8)는 아직 착수 전이다.
+
 다음 단계에서는 기능 확장보다 아래 기반 작업을 먼저 수행하는 것이 적절하다.
 
 1. MCP와 문서 API 인증 강화
 2. DB Migration 체계 도입
 3. 개발·운영 실행 설정 분리
-4. 거대 Orchestrator와 Tool 분리
+4. 거대 Orchestrator와 Tool 분리 — **게시판(WP-5)·마스터 상세(WP-6) Pipeline 전환 및 MCP Tool
+   Adapter 분리(WP-7)로 계속**
 5. Redis 보존 정책과 운영 관측성 추가
 6. 실제 MCP·Figma Runtime 통합 테스트 완성
 

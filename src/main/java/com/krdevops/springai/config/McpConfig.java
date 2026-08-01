@@ -8,7 +8,13 @@ import com.krdevops.springai.tools.SecurityTemplateTool;
 import com.krdevops.springai.tools.CodeTemplateTool;
 import com.krdevops.springai.tools.CodeValidatorTool;
 import com.krdevops.springai.tools.CommonCodeTool;
-import com.krdevops.springai.tools.CrudPromptBuilderTool;
+import com.krdevops.springai.tools.generation.BoardGenerationTool;
+import com.krdevops.springai.tools.generation.BoardScreenSourceTool;
+import com.krdevops.springai.tools.generation.CrudGenerationTool;
+import com.krdevops.springai.tools.generation.CrudScreenSourceTool;
+import com.krdevops.springai.tools.generation.JoinQueryTool;
+import com.krdevops.springai.tools.generation.MasterDetailGenerationTool;
+import com.krdevops.springai.tools.generation.MasterDetailScreenSourceTool;
 import com.krdevops.springai.tools.DateTimeTool;
 import com.krdevops.springai.tools.DesignReferenceTool;
 import com.krdevops.springai.tools.EmployeeTool;
@@ -53,7 +59,13 @@ public class McpConfig {
             ProjectScannerTool projectScannerTool,
             CommonCodeTool commonCodeTool,
             WorkflowGuideTool workflowGuideTool,
-            CrudPromptBuilderTool crudPromptBuilderTool,
+            CrudGenerationTool crudGenerationTool,
+            BoardGenerationTool boardGenerationTool,
+            MasterDetailGenerationTool masterDetailGenerationTool,
+            JoinQueryTool joinQueryTool,
+            CrudScreenSourceTool crudScreenSourceTool,
+            BoardScreenSourceTool boardScreenSourceTool,
+            MasterDetailScreenSourceTool masterDetailScreenSourceTool,
             ProjectHealthTool projectHealthTool,
             ProjectInitializrTool projectInitializrTool,
             MenuTool menuTool,
@@ -70,7 +82,9 @@ public class McpConfig {
                 .toolObjects(
                         dateTimeTool, designReferenceTool, employeeTool, schemaReaderTool, codeSaverTool,
                         codeTemplateTool, ragTool, generationHistoryTool, codeValidatorTool,
-                        projectScannerTool, commonCodeTool, workflowGuideTool, crudPromptBuilderTool,
+                        projectScannerTool, commonCodeTool, workflowGuideTool,
+                        crudGenerationTool, boardGenerationTool, masterDetailGenerationTool, joinQueryTool,
+                        crudScreenSourceTool, boardScreenSourceTool, masterDetailScreenSourceTool,
                         projectHealthTool, projectInitializrTool, menuTool, authTool,
                         securityTemplateTool, sqlTool, outputPathResolverTool, thymeleafLayoutTool,
                         captureWebPageTool, designArtifactTool, figmaExportTool, designSystemTool)

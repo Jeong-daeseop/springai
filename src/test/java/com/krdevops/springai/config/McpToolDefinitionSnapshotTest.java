@@ -57,7 +57,7 @@ class McpToolDefinitionSnapshotTest {
      * MethodToolCallback이 내부에 보관하는 toolObject의 실제 클래스를 리플렉션으로 읽어
      * distinct class 개수로 검증한다(2026-07-31 기준 실측치).
      */
-    private static final int EXPECTED_TOOL_OBJECT_COUNT = 25;
+    private static final int EXPECTED_TOOL_OBJECT_COUNT = 31;
 
     @Autowired
     private ToolCallbackProvider allToolCallbacks;
@@ -73,7 +73,7 @@ class McpToolDefinitionSnapshotTest {
     }
 
     @Test
-    void toolObjectCount_is25() throws Exception {
+    void toolObjectCount_is31() throws Exception {
         Set<Class<?>> distinctToolObjectClasses = new HashSet<>();
         for (ToolCallback callback : allToolCallbacks.getToolCallbacks()) {
             distinctToolObjectClasses.add(resolveToolObjectClass(callback));

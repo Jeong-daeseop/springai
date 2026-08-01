@@ -200,7 +200,7 @@ class GenerationBaselineFixtureTest {
         CrudTemplateModel masterModel = crudModelFactory.fromSchema(
                 "LETTNBBSMASTER", "BbsMaster", BOARD_PACKAGE_NAME, EGOV_VERSION, masterDetailMasterColumns(),
                 CrudProgramMetadata.fallback(null), viewType, ScreenSubsetMode.NONE, null);
-        // "Bbsuse" == MasterDetailOrchestrationService.deriveDetailDomain("LETTNBBSUSE") 실제 결과와 동일
+        // "Bbsuse" == Master/Detail Planner의 detail domain naming 결과와 동일
         CrudTemplateModel detailModel = crudModelFactory.fromSchema(
                 "LETTNBBSUSE", "Bbsuse", BOARD_PACKAGE_NAME, EGOV_VERSION, masterDetailDetailColumns(),
                 CrudProgramMetadata.fallback(null), viewType, ScreenSubsetMode.NONE, null);

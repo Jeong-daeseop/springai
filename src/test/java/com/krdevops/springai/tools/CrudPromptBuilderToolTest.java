@@ -15,7 +15,6 @@ import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.masterdetail.MasterDetailTemplateModel;
 import com.krdevops.springai.service.BoardModelFactory;
 import com.krdevops.springai.service.BoardOrchestrationResult;
-import com.krdevops.springai.service.BoardOrchestrationService;
 import com.krdevops.springai.service.BoardProgramMetadataService;
 import com.krdevops.springai.service.BoardSchemaService;
 import com.krdevops.springai.service.BoardTableSetResolver;
@@ -28,7 +27,6 @@ import com.krdevops.springai.service.CrudSchemaQueryService;
 import com.krdevops.springai.service.CrudTemplateRenderer;
 import com.krdevops.springai.service.GenerationDesignContextService;
 import com.krdevops.springai.service.MasterDetailOrchestrationResult;
-import com.krdevops.springai.service.MasterDetailOrchestrationService;
 import com.krdevops.springai.service.MasterDetailService;
 import com.krdevops.springai.service.MasterDetailTemplateRenderer;
 import com.krdevops.springai.service.generation.api.BuildCrudPromptUseCase;
@@ -39,11 +37,17 @@ import com.krdevops.springai.service.generation.api.GenerateBoardProjectUseCase;
 import com.krdevops.springai.service.generation.api.GenerateCrudProjectUseCase;
 import com.krdevops.springai.service.generation.api.GenerateMasterDetailProjectUseCase;
 import com.krdevops.springai.service.generation.board.BoardProjectGenerationService;
+import com.krdevops.springai.service.generation.board.BoardGenerationPipelineService;
+import com.krdevops.springai.service.generation.board.BoardGenerationResultAssembler;
+import com.krdevops.springai.service.generation.board.BoardPipelineResult;
 import com.krdevops.springai.service.generation.crud.CrudGenerationCommand;
 import com.krdevops.springai.service.generation.crud.CrudGenerationDispatchService;
 import com.krdevops.springai.service.generation.crud.CrudPromptGenerationService;
 import com.krdevops.springai.service.generation.masterdetail.MasterDetailGenerationDispatchService;
 import com.krdevops.springai.service.generation.masterdetail.MasterDetailProjectGenerationService;
+import com.krdevops.springai.service.generation.masterdetail.MasterDetailGenerationPipelineService;
+import com.krdevops.springai.service.generation.masterdetail.MasterDetailGenerationResultAssembler;
+import com.krdevops.springai.service.generation.masterdetail.MasterDetailPipelineResult;
 import com.krdevops.springai.service.generation.masterdetail.MasterDetailPromptGenerationService;
 import com.krdevops.springai.service.generation.model.DesignContextReference;
 import com.krdevops.springai.service.generation.model.LayoutOptions;
@@ -62,6 +66,7 @@ import com.krdevops.springai.service.generation.source.MasterDetailScreenSourceG
 import com.krdevops.springai.service.generation.source.ScreenSourceGenerationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -75,6 +80,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -82,17 +88,20 @@ import static org.mockito.Mockito.when;
 /**
  * WP-2: 12개 단일 화면 미리보기 {@code @Tool} 메서드가 {@code ScreenSourceMcpFacade}(실제 구현,
  * 하위 Use Case/Generator까지 실제 객체로 연결)를 통해 리팩터링 전과 동일한 결과를 반환하는지 검증한다.
- * buildFullCrudPrompt/buildMasterDetailPrompt/buildBoardFeature(WP-3 범위)는 기존 Mock 방식 그대로 둔다.
+ * buildFullCrudPrompt/buildMasterDetailPrompt/buildBoardFeature도 실제 Pipeline 경계를 통해 검증한다.
  */
 @ExtendWith(MockitoExtension.class)
+@Tag("pipeline-migration")
 class CrudPromptBuilderToolTest {
 
     @Mock GenerateCrudProjectUseCase generateCrudProjectUseCase;
     @Mock CrudProgramMetadataService crudProgramMetadataService;
     @Mock CrudPromptBuilderService crudPromptBuilderService;
     @Mock MasterDetailService masterDetailService;
-    @Mock MasterDetailOrchestrationService masterDetailOrchestrationService;
-    @Mock BoardOrchestrationService boardOrchestrationService;
+    @Mock BoardGenerationPipelineService boardGenerationPipelineService;
+    @Mock BoardGenerationResultAssembler boardGenerationResultAssembler;
+    @Mock MasterDetailGenerationPipelineService masterDetailGenerationPipelineService;
+    @Mock MasterDetailGenerationResultAssembler masterDetailGenerationResultAssembler;
     @Mock GenerationDesignContextService generationDesignContextService;
 
     // 단일 화면 미리보기 경로가 실제로 위임하는 하위 협력자 — Generator에 그대로 주입된다.
@@ -139,12 +148,12 @@ class CrudPromptBuilderToolTest {
                 new CrudGenerationMcpFacade(dispatchCrudGenerationUseCase, new CrudGenerationResultFormatter());
 
         GenerateBoardProjectUseCase generateBoardProjectUseCase =
-                new BoardProjectGenerationService(boardOrchestrationService);
+                new BoardProjectGenerationService(boardGenerationPipelineService, boardGenerationResultAssembler);
         BoardGenerationMcpFacade boardGenerationMcpFacade =
                 new BoardGenerationMcpFacade(generateBoardProjectUseCase, new BoardGenerationResultFormatter());
 
         GenerateMasterDetailProjectUseCase generateMasterDetailProjectUseCase = new MasterDetailProjectGenerationService(
-                generationDesignContextService, masterDetailOrchestrationService);
+                masterDetailGenerationPipelineService, masterDetailGenerationResultAssembler);
         BuildMasterDetailPromptUseCase buildMasterDetailPromptUseCase =
                 new MasterDetailPromptGenerationService(generationDesignContextService, masterDetailService);
         DispatchMasterDetailGenerationUseCase dispatchMasterDetailGenerationUseCase =
@@ -567,8 +576,7 @@ class CrudPromptBuilderToolTest {
 
         // 이 협력자들의 실제 구현체만이 CodeService.saveGeneratedCode/saveGeneratedBinary에 도달한다.
         verifyNoInteractions(generateCrudProjectUseCase);
-        verifyNoInteractions(boardOrchestrationService);
-        verifyNoInteractions(masterDetailOrchestrationService);
+        verifyNoInteractions(boardGenerationPipelineService, masterDetailGenerationPipelineService);
         verifyNoInteractions(crudPromptBuilderService);
         verifyNoInteractions(masterDetailService);
         verifyNoInteractions(generationDesignContextService);
@@ -576,8 +584,9 @@ class CrudPromptBuilderToolTest {
 
     @Test
     void buildBoardFeaturePassesExplicitMetadataOptions() {
-        when(boardOrchestrationService.orchestrate(any(), any(), any(), any(), any(), any(), any(),
-                any(), any(), any(), any(), any(), any(), any(), any()))
+        var pipelineResult = mock(com.krdevops.springai.service.generation.board.BoardPipelineResult.class);
+        when(boardGenerationPipelineService.execute(any())).thenReturn(pipelineResult);
+        when(boardGenerationResultAssembler.assemble(any(), any(), eq(pipelineResult), any(), any()))
                 .thenReturn(new BoardOrchestrationResult(false, "let", "LETTNBBS", "InfoNotice", "/tmp/out",
                         List.of(), List.of(), "OK", "OK"));
 
@@ -586,12 +595,7 @@ class CrudPromptBuilderToolTest {
                 "EgovInfoNotice", "/cop/bbs/list.do?bbsId=BBS_NOTICE", "공지사항",
                 "/cop/bbs/", "BBS_NOTICE");
 
-        verify(boardOrchestrationService).orchestrate(
-                eq("let"), eq("InfoNotice"), eq("egovframework.let.cop.bbs"), eq("/tmp/out"),
-                eq(null), eq(null), eq(null), eq(null), eq(null), eq("5.0"), eq("thymeleaf"),
-                eq("reuse"), eq("layout/bbs"), eq("layout/bbs-breadcrumb"),
-                eq(new BoardGenerationOptions("EgovInfoNotice", "/cop/bbs/list.do?bbsId=BBS_NOTICE",
-                        "공지사항", "/cop/bbs/", "BBS_NOTICE")));
+        verify(boardGenerationPipelineService).execute(any());
     }
 
     // ── designReferenceId / screenSpecificationId 배선 회귀 테스트 ──────────────
@@ -734,12 +738,9 @@ class CrudPromptBuilderToolTest {
         ScreenSpecification screenSpecification = new ScreenSpecification(
                 "spec-1", 1, ScreenSpecStatus.APPROVED, "직원목록", "master-detail", "MASTER_DETAIL_LIST",
                 "com", "LETTNEMPLYRINFO", List.of(), List.of(), List.of(), null);
-        when(generationDesignContextService.resolve(
-                "com", "LETTNEMPLYRINFO", "Employer", "master-detail", "analysis-1", "spec-1"))
-                .thenReturn(screenSpecification);
-        when(masterDetailOrchestrationService.orchestrate(
-                "com", "LETTNEMPLYRINFO", "LETTNEMPLYRATTRBINFO", "Employer",
-                "egovframework.let.emp", "/tmp/out", "5.0", "jsp", null, null, null, screenSpecification))
+        var pipelineResult = mock(MasterDetailPipelineResult.class);
+        when(masterDetailGenerationPipelineService.execute(any())).thenReturn(pipelineResult);
+        when(masterDetailGenerationResultAssembler.assemble(any(), eq(pipelineResult)))
                 .thenReturn(new MasterDetailOrchestrationResult(false, "com", "LETTNEMPLYRINFO",
                         "LETTNEMPLYRATTRBINFO", "Employer", "/tmp/out",
                         List.of("EgovEmployerDetail.html"), List.of(), "OK", "OK"));
@@ -750,6 +751,7 @@ class CrudPromptBuilderToolTest {
                 "analysis-1", "spec-1");
 
         assertThat(result).contains("=== [auto] eGovFrame 마스터-디테일 CRUD 소스 생성 완료 ===");
+        verify(masterDetailGenerationPipelineService).execute(any());
         verify(masterDetailService, never()).buildMasterDetailPrompt(
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(ScreenSpecification.class));
     }
@@ -773,9 +775,7 @@ class CrudPromptBuilderToolTest {
                 "analysis-1", "spec-1");
 
         assertThat(result).isEqualTo("MASTER_DETAIL_CLAUDE_PROMPT");
-        verify(masterDetailOrchestrationService, never()).orchestrate(
-                any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
-                any(ScreenSpecification.class));
+        verify(masterDetailGenerationPipelineService, never()).execute(any());
     }
 
     @Test
@@ -783,13 +783,9 @@ class CrudPromptBuilderToolTest {
         ScreenSpecification screenSpecification = new ScreenSpecification(
                 "spec-3", 1, ScreenSpecStatus.APPROVED, "직원목록", "master-detail", "MASTER_DETAIL_LIST",
                 "com", "LETTNEMPLYRINFO", List.of(), List.of(), List.of(), null);
-        when(generationDesignContextService.resolve(
-                "com", "LETTNEMPLYRINFO", "Employer", "master-detail", null, null))
-                .thenReturn(screenSpecification);
-        when(masterDetailOrchestrationService.orchestrate(
-                "com", "LETTNEMPLYRINFO", "LETTNEMPLYRATTRBINFO", "Employer",
-                "egovframework.let.emp", "/tmp/out", "5.0", "thymeleaf",
-                "create", "layout/admin", "layout/admin-breadcrumb", screenSpecification))
+        var pipelineResult = mock(MasterDetailPipelineResult.class);
+        when(masterDetailGenerationPipelineService.execute(any())).thenReturn(pipelineResult);
+        when(masterDetailGenerationResultAssembler.assemble(any(), eq(pipelineResult)))
                 .thenReturn(new MasterDetailOrchestrationResult(false, "com", "LETTNEMPLYRINFO",
                         "LETTNEMPLYRATTRBINFO", "Employer", "/tmp/out",
                         List.of("EgovEmployerDetail.html"), List.of(), "OK", "OK"));
@@ -800,10 +796,7 @@ class CrudPromptBuilderToolTest {
                 "create", "layout/admin", "layout/admin-breadcrumb", null, null);
 
         assertThat(result).contains("=== [auto] eGovFrame 마스터-디테일 CRUD 소스 생성 완료 ===");
-        verify(masterDetailOrchestrationService).orchestrate(
-                "com", "LETTNEMPLYRINFO", "LETTNEMPLYRATTRBINFO", "Employer",
-                "egovframework.let.emp", "/tmp/out", "5.0", "thymeleaf",
-                "create", "layout/admin", "layout/admin-breadcrumb", screenSpecification);
+        verify(masterDetailGenerationPipelineService).execute(any());
     }
 
     @Test
@@ -836,10 +829,9 @@ class CrudPromptBuilderToolTest {
     void buildBoardFeature_passesDesignReferenceIdsThroughGenerationOptions() {
         BoardGenerationOptions expectedOptions = new BoardGenerationOptions(
                 null, null, null, null, null, "analysis-1", "spec-1");
-        when(boardOrchestrationService.orchestrate(
-                eq("let"), eq("InfoNotice"), eq("egovframework.let.cop.bbs"), eq("/tmp/out"),
-                eq(null), eq(null), eq(null), eq(null), eq(null), eq("5.0"), eq("thymeleaf"),
-                eq("reuse"), eq(null), eq(null), eq(expectedOptions)))
+        var pipelineResult = mock(BoardPipelineResult.class);
+        when(boardGenerationPipelineService.execute(any())).thenReturn(pipelineResult);
+        when(boardGenerationResultAssembler.assemble(any(), any(), eq(pipelineResult), any(), any()))
                 .thenReturn(new BoardOrchestrationResult(false, "let", "LETTNBBS", "InfoNotice", "/tmp/out",
                         List.of(), List.of(), "OK", "OK"));
 
@@ -847,10 +839,7 @@ class CrudPromptBuilderToolTest {
                 null, null, null, null, null, "5.0", "thymeleaf", "reuse", null, null,
                 null, null, null, null, null, "analysis-1", "spec-1");
 
-        verify(boardOrchestrationService).orchestrate(
-                eq("let"), eq("InfoNotice"), eq("egovframework.let.cop.bbs"), eq("/tmp/out"),
-                eq(null), eq(null), eq(null), eq(null), eq(null), eq("5.0"), eq("thymeleaf"),
-                eq("reuse"), eq(null), eq(null), eq(expectedOptions));
+        verify(boardGenerationPipelineService).execute(any());
     }
 
     /** buildFullCrudPrompt(llmProvider="auto")가 Facade에서 조립하는 Command 형태. */

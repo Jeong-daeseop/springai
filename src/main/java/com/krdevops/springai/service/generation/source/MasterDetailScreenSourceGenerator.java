@@ -23,8 +23,8 @@ import java.util.Map;
 /**
  * 마스터-디테일 마스터 화면(List/Detail/Regist/Updt) 1개를 렌더링한다. 파일은 저장하지 않는다.
  *
- * <p>{@code detectFkColumn}/{@code deriveDetailDomain}은 {@code MasterDetailOrchestrationService}에도
- * 동일 로직이 중복되어 있다(WP-6 범위 밖, 의도적으로 남겨둔 중복).
+ * <p>{@code detectFkColumn}/{@code deriveDetailDomain}은 Master/Detail 관계 규칙을
+ * 화면 Source 생성 경계에서 사용한다.
  */
 @Component
 @RequiredArgsConstructor
