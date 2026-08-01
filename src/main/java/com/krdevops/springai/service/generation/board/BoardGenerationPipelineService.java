@@ -13,6 +13,7 @@ import com.krdevops.springai.service.generation.pipeline.GenerationVerifierRunne
 import com.krdevops.springai.service.generation.pipeline.GenerationHistoryRecorder;
 import com.krdevops.springai.service.generation.pipeline.GenerationProcessingContext;
 import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
  * 선언 순서대로 실행한다.
  */
 @Service
+@Slf4j
 public class BoardGenerationPipelineService {
 
     private final BoardGenerationPlanner planner;
@@ -62,13 +64,24 @@ public class BoardGenerationPipelineService {
     }
 
     public BoardPipelineResult execute(BoardGenerationCommand command) {
+        String pipelineId = java.util.UUID.randomUUID().toString();
+        log.info("[pipeline:{}] BOARD Planner 시작: table={}, domain={}", pipelineId,
+                command.mainTable(), command.domain());
         BoardGenerationPlan plan = planner.plan(command);
         if (plan.failed()) {
+            log.warn("[pipeline:{}] BOARD Planner 실패: {}", pipelineId, plan.failure().summary());
             return new BoardPipelineResult(plan, null, java.util.List.of(), plan.failure().summary(), "");
         }
+        log.info("[pipeline:{}] BOARD Planner 완료", pipelineId);
+        log.info("[pipeline:{}] BOARD Renderer 시작", pipelineId);
         RenderedGenerationPlan rendered = renderer.render(plan, command);
+        log.info("[pipeline:{}] BOARD Renderer 완료: files={}", pipelineId, rendered.files().size());
+        log.info("[pipeline:{}] BOARD WRITE Executor 시작", pipelineId);
         GenerationExecution execution = executor.execute(rendered);
+        log.info("[pipeline:{}] BOARD WRITE Executor 완료: success={}, failed={}", pipelineId,
+                execution.succeededNames().size(), execution.failedFiles().size());
         if (processorRunner == null || rendered.context() == null) {
+            log.info("[pipeline:{}] BOARD Pipeline 종료: legacy processor boundary", pipelineId);
             return new BoardPipelineResult(plan, execution);
         }
         GenerationBlueprint blueprint = new GenerationBlueprint(
@@ -78,15 +91,24 @@ public class BoardGenerationPipelineService {
                 rendered.processors(), rendered.warnings());
         GenerationProcessingContext afterWrite = GenerationProcessingContext.beforeRender(blueprint)
                 .withExecution(rendered, execution);
+        log.info("[pipeline:{}] BOARD POST_WRITE Processor 시작", pipelineId);
         var processorResult = processorRunner.run(GenerationStage.POST_WRITE, rendered.processors(), afterWrite);
+        log.info("[pipeline:{}] BOARD POST_WRITE Processor 완료: failures={}", pipelineId,
+                processorResult.failures().size());
         String validation = "";
         java.util.List<GenerationFailure> failures = new java.util.ArrayList<>(processorResult.failures());
         if (verifierRunner != null) {
+            log.info("[pipeline:{}] BOARD Contract Verifier 시작", pipelineId);
             var verification = verifierRunner.run(afterWrite);
             validation = verification.summary();
             failures.addAll(verification.failures());
+            log.info("[pipeline:{}] BOARD Contract Verifier 완료: failures={}", pipelineId,
+                    verification.failures().size());
         }
+        log.info("[pipeline:{}] BOARD History Recorder 시작", pipelineId);
         String history = historyRecorder == null ? "" : historyRecorder.record(afterWrite).summary();
+        log.info("[pipeline:{}] BOARD History Recorder 완료", pipelineId);
+        log.info("[pipeline:{}] BOARD Result Assembler 입력 준비 완료", pipelineId);
         return new BoardPipelineResult(plan, execution, failures, validation, history);
     }
 }
