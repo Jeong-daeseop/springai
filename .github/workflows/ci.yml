@@ -12,6 +12,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -27,4 +28,4 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Test and build
-        run: ./gradlew clean test bootJar
+        run: ./gradlew clean test bootJar -Pci

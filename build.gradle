@@ -71,6 +71,22 @@ tasks.named('test') {
     jvmArgs '-Xmx2g'
 }
 
+// CI의 기본 러너에는 로컬 전용 ONNX 임베딩 모델(약 400MB)이 없다.
+// 전체 테스트는 개발 환경에서 그대로 실행하고, 원격 CI에서는 모델·DB·Redis에
+// 의존하지 않는 빠른 회귀 세트만 선택한다. 통합 테스트는 별도 환경에서 ./gradlew test로 실행한다.
+if (providers.gradleProperty('ci').isPresent()) {
+    tasks.named('test') {
+        exclude '**/SpringaiApplicationTests.class'
+        exclude '**/config/FigmaMcpRegistrationTest.class'
+        exclude '**/config/McpToolDefinitionSnapshotTest.class'
+        exclude '**/mapper/*IntegrationTest.class'
+        exclude '**/service/*IntegrationTest.class'
+        exclude '**/service/BoardTemplateRendererTest.class'
+        exclude '**/service/CrudTemplateRendererTest.class'
+        exclude '**/service/MasterDetailTemplateRendererTest.class'
+    }
+}
+
 tasks.register('figmaContractTest', Exec) {
     group = 'verification'
     description = 'Semantic Figma JSON Schema와 계약 fixture를 검증합니다.'
