@@ -32,6 +32,7 @@ import com.krdevops.springai.tools.DesignArtifactTool;
 import com.krdevops.springai.tools.DesignSystemTool;
 import com.krdevops.springai.tools.FigmaExportTool;
 import com.krdevops.springai.tools.FigmaDesignOrchestrationTool;
+import com.krdevops.springai.tools.FigmaThymeleafBridgeTool;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -79,7 +80,8 @@ public class McpConfig {
             DesignArtifactTool designArtifactTool,
             FigmaExportTool figmaExportTool,
             DesignSystemTool designSystemTool,
-            FigmaDesignOrchestrationTool figmaDesignOrchestrationTool) {
+            FigmaDesignOrchestrationTool figmaDesignOrchestrationTool,
+            FigmaThymeleafBridgeTool figmaThymeleafBridgeTool) {
         return MethodToolCallbackProvider.builder()
                 .toolObjects(
                         dateTimeTool, designReferenceTool, employeeTool, schemaReaderTool, codeSaverTool,
@@ -90,7 +92,7 @@ public class McpConfig {
                         projectHealthTool, projectInitializrTool, menuTool, authTool,
                         securityTemplateTool, sqlTool, outputPathResolverTool, thymeleafLayoutTool,
                         captureWebPageTool, designArtifactTool, figmaExportTool, designSystemTool,
-                        figmaDesignOrchestrationTool)
+                        figmaDesignOrchestrationTool, figmaThymeleafBridgeTool)
                 .build();
     }
 }
