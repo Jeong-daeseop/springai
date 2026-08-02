@@ -1,0 +1,15 @@
+{
+  "screenId": "screen-boundary",
+  "sourceType": "HYBRID",
+  "projectPath": "/opt/projects/test",
+  "filePath": null,
+  "fileSize": 52428800,
+  "sourceHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "projectFingerprint": null,
+  "allowedPaths": ["src/"],
+  "excludedReasons": [],
+  "readAt": "2026-08-02T10:00:00Z",
+  "sourceRevision": null,
+  "backupPath": null,
+  "backupHash": null
+}

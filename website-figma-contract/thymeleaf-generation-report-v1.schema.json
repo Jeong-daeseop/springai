@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/thymeleaf-generation-report-v1",
+  "type": "object",
+  "title": "Thymeleaf Generation Report",
+  "description": "JSP → Thymeleaf 전환 결과 보고서",
+  "additionalProperties": false,
+  "required": ["conversionId", "stage", "results", "parity", "generatedAt"],
+  "properties": {
+    "conversionId": {
+      "type": "string",
+      "pattern": "^thymeleaf-conv-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$",
+      "description": "Thymeleaf 전환 Operation ID (UUID 기반)"
+    },
+    "operationId": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^figma-op-[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "참조된 Figma ScreenSpecification Operation ID (결합 시나리오에서만)"
+    },
+    "stage": {
+      "type": "string",
+      "enum": ["ANALYZED", "CONTRACT_READY", "PREVIEW_READY", "APPROVED", "APPLIED", "VALIDATED"],
+      "description": "현재 진행 단계"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/stageResult"
+      },
+      "minItems": 1,
+      "description": "각 단계별 실행 결과 (ANALYZE → RENDER → BUILD → VALIDATE)"
+    },
+    "parity": {
+      "$ref": "#/$defs/parityCheckResult",
+      "description": "JSP vs Thymeleaf 기능 일치도 검증"
+    },
+    "appliedFiles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/appliedFile"
+      },
+      "description": "프로젝트에 적용된 파일 목록 (APPLIED 이후)"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "보고서 생성 시각 (ISO 8601)"
+    },
+    "duration": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3600000,
+      "description": "전체 처리 시간 (밀리초, 최대 1시간)"
+    }
+  },
+  "$defs": {
+    "stageResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stageName", "status", "duration"],
+      "properties": {
+        "stageName": {
+          "type": "string",
+          "enum": ["ANALYZE", "RENDER", "BUILD", "VALIDATE"],
+          "description": "단계명"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["SUCCESS", "FAILED", "SKIPPED", "PARTIAL"],
+          "description": "실행 결과"
+        },
+        "inputHash": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "입력 데이터의 SHA-256 해시"
+        },
+        "outputHash": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "출력 데이터의 SHA-256 해시"
+        },
+        "duration": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "단계 처리 시간 (밀리초)"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/generationIssue"
+          },
+          "description": "발생한 문제"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "단계별 특화 정보 (render: viewport 목록, build: 로그 등)"
+        }
+      }
+    },
+    "parityCheckResult": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["routeMatched", "fieldBindingMatched", "validationMatched", "csrfMatched", "authorityMatched"],
+      "properties": {
+        "routeMatched": {
+          "type": "boolean",
+          "description": "URI mapping이 JSP와 동일한가"
+        },
+        "fieldBindingMatched": {
+          "type": "boolean",
+          "description": "모든 form field가 VO와 매핑되는가"
+        },
+        "validationMatched": {
+          "type": "boolean",
+          "description": "입력 검증 규칙이 동일한가"
+        },
+        "csrfMatched": {
+          "type": "boolean",
+          "description": "CSRF 토큰 처리가 동일한가"
+        },
+        "authorityMatched": {
+          "type": "boolean",
+          "description": "접근 권한 검증이 동일한가"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/generationIssue"
+          },
+          "description": "parity 불일치 상세"
+        }
+      }
+    },
+    "appliedFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "action", "hash"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "프로젝트 상대 경로 (src/main/webapp/...)"
+        },
+        "action": {
+          "type": "string",
+          "enum": ["CREATED", "REPLACED", "BACKUP", "ROLLBACK"],
+          "description": "파일 처리 방식"
+        },
+        "hash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "적용 후 파일의 SHA-256"
+        },
+        "previousHash": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "교체 전 원본 파일의 SHA-256"
+        },
+        "size": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "적용된 파일 크기 (바이트)"
+        }
+      }
+    }
+  }
+}

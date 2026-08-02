@@ -1,0 +1,76 @@
+{
+  "conversionId": "thymeleaf-conv-87654321-4321-4321-4321-210987654321",
+  "operationId": null,
+  "stage": "APPLIED",
+  "results": [
+    {
+      "stageName": "ANALYZE",
+      "status": "SUCCESS",
+      "inputHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "outputHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "duration": 1000,
+      "issues": [],
+      "details": {}
+    },
+    {
+      "stageName": "RENDER",
+      "status": "FAILED",
+      "inputHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "outputHash": null,
+      "duration": 8000,
+      "issues": [
+        {
+          "code": "RENDER_001",
+          "severity": "ERROR",
+          "stage": "RENDER",
+          "sourceLocation": "src/main/webapp/WEB-INF/templates/user/form.html:42",
+          "message": "Thymeleaf expression syntax error",
+          "remediation": "Check th:field binding to VO property"
+        }
+      ],
+      "details": {
+        "failedViewport": "MOBILE"
+      }
+    },
+    {
+      "stageName": "BUILD",
+      "status": "SUCCESS",
+      "inputHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "outputHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "duration": 12000,
+      "issues": [],
+      "details": {
+        "testsPassed": 98,
+        "testsFailed": 2
+      }
+    }
+  ],
+  "parity": {
+    "routeMatched": true,
+    "fieldBindingMatched": false,
+    "validationMatched": true,
+    "csrfMatched": true,
+    "authorityMatched": true,
+    "issues": [
+      {
+        "code": "PARITY_001",
+        "severity": "ERROR",
+        "stage": "RENDER",
+        "sourceLocation": "src/main/java/com/example/vo/UserForm.java:15",
+        "message": "Field binding mismatch: userType is read-only in VO",
+        "remediation": "Remove th:field binding for read-only VO field"
+      }
+    ]
+  },
+  "appliedFiles": [
+    {
+      "path": "src/main/webapp/WEB-INF/templates/user/userList.html",
+      "action": "CREATED",
+      "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "previousHash": null,
+      "size": 2048
+    }
+  ],
+  "generatedAt": "2026-08-02T11:00:00Z",
+  "duration": 21000
+}

@@ -1,0 +1,19 @@
+{
+  "conversionId": "invalid-uuid",
+  "operationId": "figma-op-invalid",
+  "stage": "INVALID_STAGE",
+  "results": [
+    {
+      "stageName": "ANALYZE",
+      "status": "INVALID_STATUS",
+      "duration": 1000
+    }
+  ],
+  "parity": {
+    "routeMatched": true,
+    "fieldBindingMatched": true,
+    "validationMatched": true,
+    "csrfMatched": true,
+    "authorityMatched": true
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/local-source-design-document-v1",
+  "type": "object",
+  "title": "Local Source Design Document",
+  "description": "JSP 프로젝트의 로컬 소스 파일 메타정보 (요청 시점)",
+  "additionalProperties": false,
+  "required": ["screenId", "sourceType", "projectPath", "fileSize", "sourceHash", "allowedPaths", "readAt"],
+  "properties": {
+    "screenId": {
+      "$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier",
+      "description": "화면 식별자"
+    },
+    "sourceType": {
+      "type": "string",
+      "enum": ["LOCAL_SOURCE", "HYBRID"],
+      "description": "LOCAL_SOURCE: 순수 JSP 분석, HYBRID: .figpack + 로컬 소스 결합"
+    },
+    "projectPath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "프로젝트 루트 절대 경로 (symlink 제거 후)"
+    },
+    "filePath": {
+      "type": ["string", "null"],
+      "description": "분석 대상 파일 경로 (예: src/main/webapp/WEB-INF/jsp/...)"
+    },
+    "fileSize": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 52428800,
+      "description": "파일 크기 (바이트, 최대 50MB)"
+    },
+    "sourceHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "프로젝트 전체 또는 개별 파일의 SHA-256 해시 (16진수, 소문자)"
+    },
+    "projectFingerprint": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "프로젝트 전체 소스 지문 (gradle/maven 캐시, build, node_modules 제외)"
+    },
+    "allowedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "분석 허용 경로 패턴 (glob 또는 regex)"
+    },
+    "excludedReasons": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "contains_env_file",
+          "contains_key",
+          "contains_pem",
+          "contains_certificate",
+          "contains_credential",
+          "is_git_directory",
+          "is_build_output",
+          "is_upload_directory",
+          "is_temp_directory",
+          "is_node_modules",
+          "is_symlink",
+          "exceeds_max_file_size",
+          "exceeds_max_total_size",
+          "unauthorized_path"
+        ]
+      },
+      "description": "제외된 파일/디렉터리의 이유"
+    },
+    "readAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "소스 읽기 시점 (ISO 8601)"
+    },
+    "sourceRevision": {
+      "anyOf": [
+        {
+          "$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/sourceRevisionRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Git commit hash, branch, timestamp 등"
+    },
+    "backupPath": {
+      "type": ["string", "null"],
+      "description": "적용 전 생성된 backup 디렉터리 경로"
+    },
+    "backupHash": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "backup 생성 직전 원본 소스의 SHA-256 (복구 추적용)"
+    }
+  }
+}

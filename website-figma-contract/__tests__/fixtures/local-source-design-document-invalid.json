@@ -1,0 +1,9 @@
+{
+  "sourceType": "LOCAL_SOURCE",
+  "projectPath": "/opt/projects/test",
+  "filePath": "src/main/webapp/test.jsp",
+  "fileSize": 2048,
+  "sourceHash": "invalid-hash-not-sha256",
+  "allowedPaths": ["src/"],
+  "readAt": "2026-08-02T10:00:00Z"
+}

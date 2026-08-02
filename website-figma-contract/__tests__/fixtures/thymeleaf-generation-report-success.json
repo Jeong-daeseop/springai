@@ -1,0 +1,82 @@
+{
+  "conversionId": "thymeleaf-conv-12345678-1234-1234-1234-123456789012",
+  "operationId": "figma-op-87654321-4321-4321-4321-210987654321",
+  "stage": "VALIDATED",
+  "results": [
+    {
+      "stageName": "ANALYZE",
+      "status": "SUCCESS",
+      "inputHash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "outputHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "duration": 1000,
+      "issues": [],
+      "details": {
+        "screensAnalyzed": 1,
+        "bindingContractCreated": true
+      }
+    },
+    {
+      "stageName": "RENDER",
+      "status": "SUCCESS",
+      "inputHash": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "outputHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "duration": 5000,
+      "issues": [],
+      "details": {
+        "viewports": ["DESKTOP", "TABLET", "MOBILE"],
+        "renderSuccessRate": 1.0
+      }
+    },
+    {
+      "stageName": "BUILD",
+      "status": "SUCCESS",
+      "inputHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "outputHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "duration": 15000,
+      "issues": [],
+      "details": {
+        "buildSystem": "GRADLE",
+        "testsPassed": 100,
+        "testsFailed": 0
+      }
+    },
+    {
+      "stageName": "VALIDATE",
+      "status": "SUCCESS",
+      "inputHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "outputHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "duration": 5000,
+      "issues": [],
+      "details": {
+        "thymeleafParseSuccess": true,
+        "bindingValidationSuccess": true
+      }
+    }
+  ],
+  "parity": {
+    "routeMatched": true,
+    "fieldBindingMatched": true,
+    "validationMatched": true,
+    "csrfMatched": true,
+    "authorityMatched": true,
+    "issues": []
+  },
+  "appliedFiles": [
+    {
+      "path": "src/main/webapp/WEB-INF/templates/user/userList.html",
+      "action": "CREATED",
+      "hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "previousHash": null,
+      "size": 2048
+    },
+    {
+      "path": "src/main/java/com/example/controller/UserController.java",
+      "action": "REPLACED",
+      "hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "previousHash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+      "size": 4096
+    }
+  ],
+  "generatedAt": "2026-08-02T10:30:00Z",
+  "duration": 26000
+}
