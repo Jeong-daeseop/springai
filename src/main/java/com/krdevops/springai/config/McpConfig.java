@@ -1,5 +1,9 @@
 package com.krdevops.springai.config;
 
+import com.krdevops.springai.config.mcp.McpAuthorizingToolCallback;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+import com.krdevops.springai.config.mcp.McpToolRiskRegistry;
+import com.krdevops.springai.config.mcp.ToolAuthorizationPolicy;
 import com.krdevops.springai.tools.AuthTool;
 import com.krdevops.springai.tools.OutputPathResolverTool;
 import com.krdevops.springai.tools.SqlTool;
@@ -32,13 +36,22 @@ import com.krdevops.springai.tools.DesignArtifactTool;
 import com.krdevops.springai.tools.DesignSystemTool;
 import com.krdevops.springai.tools.FigmaExportTool;
 import com.krdevops.springai.tools.FigmaDesignOrchestrationTool;
-import com.krdevops.springai.tools.FigmaThymeleafBridgeTool;
+import com.krdevops.springai.tools.FigmaApprovedSpecificationTool;
+import com.krdevops.springai.tools.ThymeleafProjectWorkflowTool;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
+import org.springframework.ai.tool.method.MethodToolCallback;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.lang.reflect.Field;
+
+/**
+ * {@code McpSecurityProperties}는 {@code SpringaiApplication}의 {@code @ConfigurationPropertiesScan}으로
+ * 자동 등록된다(별도 {@code @EnableConfigurationProperties} 불필요).
+ */
 @Configuration
 public class McpConfig {
 
@@ -81,8 +94,11 @@ public class McpConfig {
             FigmaExportTool figmaExportTool,
             DesignSystemTool designSystemTool,
             FigmaDesignOrchestrationTool figmaDesignOrchestrationTool,
-            FigmaThymeleafBridgeTool figmaThymeleafBridgeTool) {
-        return MethodToolCallbackProvider.builder()
+            FigmaApprovedSpecificationTool figmaApprovedSpecificationTool,
+            ThymeleafProjectWorkflowTool thymeleafProjectWorkflowTool,
+            McpToolRiskRegistry riskRegistry,
+            ToolAuthorizationPolicy authorizationPolicy) {
+        ToolCallbackProvider rawProvider = MethodToolCallbackProvider.builder()
                 .toolObjects(
                         dateTimeTool, designReferenceTool, employeeTool, schemaReaderTool, codeSaverTool,
                         codeTemplateTool, ragTool, generationHistoryTool, codeValidatorTool,
@@ -92,7 +108,39 @@ public class McpConfig {
                         projectHealthTool, projectInitializrTool, menuTool, authTool,
                         securityTemplateTool, sqlTool, outputPathResolverTool, thymeleafLayoutTool,
                         captureWebPageTool, designArtifactTool, figmaExportTool, designSystemTool,
-                        figmaDesignOrchestrationTool, figmaThymeleafBridgeTool)
+                        figmaDesignOrchestrationTool,
+                        figmaApprovedSpecificationTool, thymeleafProjectWorkflowTool)
                 .build();
+
+        // ARCH-0108/ARCH-0103: 모든 등록 Tool을 ToolAuthorizationPolicy로 감싸고,
+        // 위험 등급 레지스트리에 없는 Tool 클래스가 섞여 있으면 기동을 즉시 차단한다.
+        ToolCallback[] raw = rawProvider.getToolCallbacks();
+        ToolCallback[] authorized = new ToolCallback[raw.length];
+        for (int i = 0; i < raw.length; i++) {
+            ToolCallback callback = raw[i];
+            Class<?> toolObjectClass = resolveToolObjectClass(callback);
+            McpToolRiskLevel riskLevel = riskRegistry.riskLevelOf(toolObjectClass);
+            authorized[i] = new McpAuthorizingToolCallback(callback, riskLevel, authorizationPolicy);
+        }
+        return ToolCallbackProvider.from(authorized);
+    }
+
+    /**
+     * {@code McpToolDefinitionSnapshotTest}와 동일한 리플렉션 패턴 — {@code MethodToolCallback}이
+     * 실제 Tool 컴포넌트 인스턴스를 담아두는 private {@code toolObject} 필드를 읽는다.
+     */
+    private static Class<?> resolveToolObjectClass(ToolCallback callback) {
+        if (!(callback instanceof MethodToolCallback)) {
+            throw new IllegalStateException(
+                    "예상치 못한 ToolCallback 구현체: " + callback.getClass()
+                    + " — McpConfig가 MethodToolCallbackProvider만 사용한다는 전제가 깨졌습니다.");
+        }
+        try {
+            Field field = MethodToolCallback.class.getDeclaredField("toolObject");
+            field.setAccessible(true);
+            return field.get(callback).getClass();
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("MethodToolCallback의 toolObject 필드를 읽을 수 없습니다.", e);
+        }
     }
 }

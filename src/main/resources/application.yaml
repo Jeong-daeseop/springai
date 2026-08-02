@@ -100,6 +100,12 @@ chat:
     max-messages: 8       # 20 → 8: 토큰 예산 확보 (num-ctx 8192 기준)
 
 app:
+  mcp:
+    # ARCH-WP1: 공통 MCP Tool 인증. 비어 있으면(기본값) AUDIT_ONLY에서도 REQUIRED에서도
+    # 모든 호출이 미인증으로 취급된다. non-loopback 배포에서는 필수(McpNonLoopbackBindGuard).
+    shared-token: ${MCP_SHARED_TOKEN:}
+    # AUDIT_ONLY(기본, 기존 permitAll과 동일하게 동작하며 감사 로그만 남김) | REQUIRED(deny-by-default)
+    auth-mode: ${MCP_AUTH_MODE:AUDIT_ONLY}
   figma:
     # /mcp/** 전역 permitAll과 별도로 신규 Figma/DesignSystem Tool 메서드 내부에서 검증한다.
     mcp-shared-secret: ${FIGMA_MCP_SHARED_SECRET:}

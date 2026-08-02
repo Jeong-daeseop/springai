@@ -1,6 +1,7 @@
 package com.krdevops.springai.config;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.krdevops.springai.config.mcp.McpAuthorizingToolCallback;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -50,16 +51,25 @@ class McpToolDefinitionSnapshotTest {
      * 진실이므로 이 값으로 검증한다. 이 상수가 깨지면 Tool이 의도적으로 추가/삭제된 것인지
      * 확인한 뒤 값을 갱신하라.
      * R6-032~038 업데이트: 79 → 86 (FigmaDesignOrchestrationTool 7개 메서드 추가)
+     * I-6 업데이트: 86 → 91 (FigmaThymeleafBridgeTool 5개 메서드 추가) → ARCH-WP2에서 제거
+     * 승인 화면명세 Bundle 1개 + Thymeleaf Workflow 5개 추가: 91 → 97
+     * ARCH-WP2 (RISK-02 Prototype Bridge 격리) 업데이트: 97 → 92
+     * (FigmaThymeleafBridgeTool 5개 메서드 제거 — 실제 검증 없이 VERIFIED를 반환하거나
+     * 임의 서버 경로를 읽는 등 운영 Tool로 볼 수 없어 MCP 등록에서 완전히 제거했다.
+     * 재구현은 DesignParityValidationUseCase/ApprovedProjectWritePort 계약 확정 후
+     * 별도 MCP 계약 버전에서 진행한다.)
      */
-    private static final int EXPECTED_TOOL_METHOD_COUNT = 86;
+    private static final int EXPECTED_TOOL_METHOD_COUNT = 92;
 
     /**
      * McpConfig.allToolCallbacks(...)의 toolObjects(...) 인자 개수(등록된 *Tool 컴포넌트 클래스 수).
      * MethodToolCallback이 내부에 보관하는 toolObject의 실제 클래스를 리플렉션으로 읽어
      * distinct class 개수로 검증한다(2026-08-02 기준 실측치).
      * R6-039 업데이트: 31 → 32 (FigmaDesignOrchestrationTool 추가)
+     * I-6 업데이트: 32 → 33 (FigmaThymeleafBridgeTool 추가) → ARCH-WP2에서 제거
+     * ARCH-WP2 업데이트: 35 → 34 (FigmaThymeleafBridgeTool 제거)
      */
-    private static final int EXPECTED_TOOL_OBJECT_COUNT = 32;
+    private static final int EXPECTED_TOOL_OBJECT_COUNT = 34;
 
     @Autowired
     private ToolCallbackProvider allToolCallbacks;
@@ -68,14 +78,14 @@ class McpToolDefinitionSnapshotTest {
     private ObjectMapper objectMapper;
 
     @Test
-    void toolMethodCount_is79() {
+    void toolMethodCount_matchesRegisteredContract() {
         // AGENTS.md 등 문서상의 "@Tool(" 언급은 세지 않는다 — 여기서는 실제로 Spring이
         // MethodToolCallbackProvider로 등록한 콜백 개수(런타임 진실)만 센다.
         assertThat(allToolCallbacks.getToolCallbacks()).hasSize(EXPECTED_TOOL_METHOD_COUNT);
     }
 
     @Test
-    void toolObjectCount_is31() throws Exception {
+    void toolObjectCount_matchesRegisteredContract() throws Exception {
         Set<Class<?>> distinctToolObjectClasses = new HashSet<>();
         for (ToolCallback callback : allToolCallbacks.getToolCallbacks()) {
             distinctToolObjectClasses.add(resolveToolObjectClass(callback));
@@ -156,17 +166,21 @@ class McpToolDefinitionSnapshotTest {
 
     /**
      * MethodToolCallback의 private {@code toolObject} 필드를 리플렉션으로 읽어 실제 Tool
-     * 컴포넌트 클래스를 반환한다. McpConfig는 MethodToolCallbackProvider만 사용하므로
-     * 모든 콜백이 MethodToolCallback이어야 한다는 전제를 명시적으로 검증한다.
+     * 컴포넌트 클래스를 반환한다. ARCH-WP1(McpConfig)부터는 모든 콜백이
+     * {@code McpAuthorizingToolCallback}으로 한 겹 감싸져 있으므로 먼저 원본을 꺼낸 뒤
+     * MethodToolCallback이어야 한다는 전제를 검증한다.
      */
     private Class<?> resolveToolObjectClass(ToolCallback callback) throws Exception {
-        if (!(callback instanceof MethodToolCallback)) {
+        ToolCallback unwrapped = callback instanceof McpAuthorizingToolCallback authorizing
+                ? authorizing.delegate()
+                : callback;
+        if (!(unwrapped instanceof MethodToolCallback)) {
             throw new IllegalStateException(
-                    "예상치 못한 ToolCallback 구현체: " + callback.getClass()
+                    "예상치 못한 ToolCallback 구현체: " + unwrapped.getClass()
                     + " — McpConfig가 MethodToolCallbackProvider만 사용한다는 전제가 깨졌습니다.");
         }
         Field field = MethodToolCallback.class.getDeclaredField("toolObject");
         field.setAccessible(true);
-        return field.get(callback).getClass();
+        return field.get(unwrapped).getClass();
     }
 }

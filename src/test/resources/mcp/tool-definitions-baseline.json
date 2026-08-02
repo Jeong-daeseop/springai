@@ -56,6 +56,23 @@
     "type" : "object"
   }
 }, {
+  "name" : "applyThymeleafProject",
+  "description" : "승인된 Thymeleaf Project Operation을 source revision 재검증 후 원자 적용합니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "operationId" : {
+        "type" : "string"
+      },
+      "sharedSecret" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sharedSecret", "operationId" ],
+    "type" : "object"
+  }
+}, {
   "name" : "approveScreenSpecification",
   "description" : "미해결 이슈가 없는 ScreenSpecification을 승인 상태로 확정합니다.",
   "inputSchema" : {
@@ -67,6 +84,26 @@
       }
     },
     "required" : [ "screenSpecificationId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "approveThymeleafProject",
+  "description" : "Preview hash가 일치하는 Thymeleaf Project Operation을 명시적으로 승인합니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "operationId" : {
+        "type" : "string"
+      },
+      "previewHash" : {
+        "type" : "string"
+      },
+      "sharedSecret" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sharedSecret", "operationId", "previewHash" ],
     "type" : "object"
   }
 }, {
@@ -428,6 +465,9 @@
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
       "fileKey" : {
         "type" : "string"
       },
@@ -444,7 +484,7 @@
         "type" : "string"
       }
     },
-    "required" : [ "prompt", "fileKey", "sourceNodeIds", "targetPlatform" ],
+    "required" : [ "figmaMcpSecret", "prompt", "fileKey", "sourceNodeIds", "targetPlatform" ],
     "type" : "object"
   }
 }, {
@@ -454,6 +494,9 @@
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
       "fileKey" : {
         "type" : "string"
       },
@@ -467,16 +510,19 @@
         "type" : "string"
       }
     },
-    "required" : [ "prompt", "fileKey", "imageNodeIds" ],
+    "required" : [ "figmaMcpSecret", "prompt", "fileKey", "imageNodeIds" ],
     "type" : "object"
   }
 }, {
   "name" : "createDesignFromReference",
-  "description" : "기존 Figma 화면을 참조하여 새 화면을 생성합니다.\n참조 화면의 스타일, 레이아웃, 컴포넌트를 분석하여 유사한 새 화면을 생성합니다.\n\n입력:\n- prompt: 새 화면 설명 (예: \"기존 사용자 목록처럼 만들되 더 간단하게\")\n- fileKey: Figma 파일 Key\n- referenceNodeIds: 참조할 노드 ID 목록 (예: [\"node-123\", \"node-456\"])\n\n출력: FigmaDesignOperation\n\n주의: referenceNodeIds가 필수입니다.\n",
+  "description" : "기존 Figma 화면을 참조하여 새 화면을 생성합니다.\n참조 화면의 스타일, 레이아웃, 컴포넌트를 분석하여 유사한 새 화면을 생성합니다.\n\n입력:\n- prompt: 새 화면 설명 (예: \"기존 사용자 목록처럼 만들되 더 간단하게\")\n- fileKey: Figma 파일 Key\n- referenceNodeIds: 참조할 노드 ID 목록 (예: [\"node-123\", \"node-456\"])\n\n출력: FigmaDesignOperation (ANALYZED 승인 후보)\n\n주의: referenceNodeIds가 필수입니다.\n",
   "inputSchema" : {
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
       "fileKey" : {
         "type" : "string"
       },
@@ -490,16 +536,19 @@
         "type" : "array"
       }
     },
-    "required" : [ "prompt", "fileKey", "referenceNodeIds" ],
+    "required" : [ "figmaMcpSecret", "prompt", "fileKey", "referenceNodeIds" ],
     "type" : "object"
   }
 }, {
   "name" : "createDesignFromText",
-  "description" : "텍스트 설명으로 새 Figma 화면을 생성합니다.\n자연어 프롬프트를 분석하여 자동으로 요청 유형을 감지한 후 처리합니다.\n\n입력:\n- prompt: 화면 설명 (예: \"사용자 목록, 검색, 페이지네이션 포함\")\n- fileKey: Figma 파일 Key (예: \"mVy5h1UbORVqQoBm8Wr1bT\")\n\n출력:\n- operationId: 작업 식별자\n- status: PREVIEW_READY (미리보기 준비 완료) 또는 FAILED/REJECTED\n- issues: 문제 목록 (confidence 미달 시 분류 오류)\n- artifacts: 생성된 Bundle 참조\n\n주의: confidence < 0.6이면 자동 분류 실패로 REJECTED 상태 반환합니다.\n",
+  "description" : "텍스트 설명으로 새 Figma 화면을 생성합니다.\n자연어 프롬프트를 분석하여 자동으로 요청 유형을 감지한 후 처리합니다.\n\n입력:\n- prompt: 화면 설명 (예: \"사용자 목록, 검색, 페이지네이션 포함\")\n- fileKey: Figma 파일 Key (예: \"mVy5h1UbORVqQoBm8Wr1bT\")\n\n출력:\n- operationId: 작업 식별자\n- status: ANALYZED (화면명세 승인 대기) 또는 REJECTED\n- issues: 문제 목록 (confidence 미달 시 분류 오류)\n\n주의: 승인된 ScreenSpecification을 별도 Bundle 생성 Tool에 전달해야 PREVIEW_READY로 전이합니다.\n",
   "inputSchema" : {
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
       "fileKey" : {
         "type" : "string"
       },
@@ -507,7 +556,7 @@
         "type" : "string"
       }
     },
-    "required" : [ "prompt", "fileKey" ],
+    "required" : [ "figmaMcpSecret", "prompt", "fileKey" ],
     "type" : "object"
   }
 }, {
@@ -523,6 +572,9 @@
         },
         "type" : "array"
       },
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
       "fileKey" : {
         "type" : "string"
       },
@@ -530,7 +582,7 @@
         "type" : "string"
       }
     },
-    "required" : [ "prompt", "fileKey", "components" ],
+    "required" : [ "figmaMcpSecret", "prompt", "fileKey", "components" ],
     "type" : "object"
   }
 }, {
@@ -563,12 +615,118 @@
     "type" : "object"
   }
 }, {
+  "name" : "createFigmaBundleFromApprovedSpecification",
+  "description" : "APPROVED ScreenSpecification을 Figma Bundle Artifact로 생성하고 PREVIEW_READY Operation을 반환합니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "designRequest" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "components" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "editableNodeIds" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "fileKey" : {
+            "type" : "string"
+          },
+          "imageNodeIds" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "prompt" : {
+            "type" : "string"
+          },
+          "referenceNodeIds" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "screens" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "description" : {
+                  "type" : "string"
+                },
+                "name" : {
+                  "type" : "string"
+                }
+              },
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "targetPlatform" : {
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "TEXT_DESCRIPTION", "REFERENCE_STYLE", "MODIFY_EXISTING", "IMAGE_REFERENCE", "MULTI_SCREEN_FLOW", "COMPONENT_SPECIFIED", "PLATFORM_CONVERT" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "exportRequest" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "designSystemProfileId" : {
+            "type" : "string"
+          },
+          "exportMode" : {
+            "enum" : [ "PREVIEW", "CREATE", "MERGE", "REPLACE", "SKIP", "FINAL" ],
+            "type" : "string"
+          },
+          "pageId" : {
+            "type" : "string"
+          },
+          "screenSpecificationId" : {
+            "type" : "string"
+          },
+          "screenSpecificationVersion" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "syncMode" : {
+            "enum" : [ "PREVIEW", "RECONCILE", "REPLACE", "MERGE" ],
+            "type" : "string"
+          },
+          "viewport" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "designSystemProfileId", "exportMode", "pageId", "screenSpecificationId", "screenSpecificationVersion", "syncMode", "viewport" ],
+        "type" : "object"
+      },
+      "figmaMcpSecret" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "figmaMcpSecret", "designRequest", "exportRequest" ],
+    "type" : "object"
+  }
+}, {
   "name" : "createMultiScreenFlow",
   "description" : "여러 화면을 한번에 생성하고 플로우(Navigation)를 설정합니다.\n각 화면이 성공해야 일괄 적용됩니다. 하나라도 실패하면 전체 거부.\n\n입력:\n- prompt: 플로우 설명 (예: \"로그인 → 홈 → 프로필 → 로그아웃 흐름\")\n- fileKey: Figma 파일 Key\n- screens: 화면 목록 (각 화면의 이름, 역할, 순서)\n\n출력: FigmaDesignOperation (여러 화면 포함)\n\n주의:\n- 모든 화면이 성공할 때만 APPLY_REQUIRED로 진행.\n- Apply 전에 멀티 스크린 검증(모두 성공 또는 모두 실패).\n",
   "inputSchema" : {
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
       "fileKey" : {
         "type" : "string"
       },
@@ -582,7 +740,7 @@
         "type" : "array"
       }
     },
-    "required" : [ "prompt", "fileKey", "screenNames" ],
+    "required" : [ "figmaMcpSecret", "prompt", "fileKey", "screenNames" ],
     "type" : "object"
   }
 }, {
@@ -1592,6 +1750,23 @@
     "type" : "object"
   }
 }, {
+  "name" : "getThymeleafProjectReport",
+  "description" : "Thymeleaf Project Operation의 현재 상태와 Preview hash를 조회합니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "operationId" : {
+        "type" : "string"
+      },
+      "sharedSecret" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sharedSecret", "operationId" ],
+    "type" : "object"
+  }
+}, {
   "name" : "getWebCaptureStatus",
   "description" : "WEB_CAPTURE 기능, extractor와 artifact 저장소 준비 상태를 확인합니다.",
   "inputSchema" : {
@@ -1652,6 +1827,9 @@
         },
         "type" : "array"
       },
+      "figmaMcpSecret" : {
+        "type" : "string"
+      },
       "fileKey" : {
         "type" : "string"
       },
@@ -1659,7 +1837,7 @@
         "type" : "string"
       }
     },
-    "required" : [ "prompt", "fileKey", "editableNodeIds" ],
+    "required" : [ "figmaMcpSecret", "prompt", "fileKey", "editableNodeIds" ],
     "type" : "object"
   }
 }, {
@@ -1700,6 +1878,26 @@
       }
     },
     "required" : [ "artifactId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "previewThymeleafProject",
+  "description" : "Thymeleaf 생성 파일의 Preview와 diff 기준 hash를 만들며 대상 프로젝트는 변경하지 않습니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "generatedFiles" : {
+        "type" : "object"
+      },
+      "projectRoot" : {
+        "type" : "string"
+      },
+      "sharedSecret" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sharedSecret", "projectRoot", "generatedFiles" ],
     "type" : "object"
   }
 }, {
@@ -1802,6 +2000,23 @@
       }
     },
     "required" : [ "projectRootPath", "packageName", "domain" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "revalidateThymeleafProject",
+  "description" : "적용된 Thymeleaf 파일의 검증 Gate를 다시 실행합니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "operationId" : {
+        "type" : "string"
+      },
+      "sharedSecret" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sharedSecret", "operationId" ],
     "type" : "object"
   }
 }, {

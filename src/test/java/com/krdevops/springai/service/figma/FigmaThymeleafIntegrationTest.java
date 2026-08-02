@@ -1,6 +1,5 @@
 package com.krdevops.springai.service.figma;
 
-import com.krdevops.springai.model.figma.FigmaThymeleafMapping;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
 

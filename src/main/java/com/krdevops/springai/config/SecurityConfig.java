@@ -1,5 +1,7 @@
 package com.krdevops.springai.config;
 
+import com.krdevops.springai.config.mcp.McpAuthenticationInterceptor;
+import com.krdevops.springai.config.mcp.McpSecurityProperties;
 import com.krdevops.springai.service.figma.FigmaRestTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -32,6 +34,7 @@ public class SecurityConfig {
 
     private final AppProperties appProperties;
     private final FigmaRestTokenService figmaRestTokenService;
+    private final McpSecurityProperties mcpSecurityProperties;
 
     /** DEC-10=REST 경로에서 Plugin이 fetch()할 때 브라우저가 보내는 CORS preflight를 허용할 origin(콤마 구분). */
     @org.springframework.beans.factory.annotation.Value("${app.figma.rest-allowed-origins:}")
@@ -61,9 +64,17 @@ public class SecurityConfig {
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().denyAll()
             )
-            .addFilterBefore(apiKeyFilter(), UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(apiKeyFilter(), UsernamePasswordAuthenticationFilter.class)
+            // ARCH-0106: /mcp/**, /sse/**는 여전히 permitAll이지만, 이 필터가 요청마다
+            // McpActorContext를 채워 ToolAuthorizationPolicy가 Tool 호출 시점에 판단할 수 있게 한다.
+            .addFilterBefore(mcpAuthenticationInterceptor(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public McpAuthenticationInterceptor mcpAuthenticationInterceptor() {
+        return new McpAuthenticationInterceptor(mcpSecurityProperties);
     }
 
     /**
