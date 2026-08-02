@@ -152,9 +152,9 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R0-024 · P1** 컴포넌트 대체·폐기·별칭 규칙 정의
 - [x] **R0-025 · P0** 초기 필수 Component·Pattern·Page Template 카탈로그 승인 — 기술 기준선과 Schema 검증 완료, 조직 Library 담당자 최종 승인(DEC-09) 반영 완료
 - [x] **R0-026 · P0** 7가지 요청 공통 `FigmaDesignRequest`·`FigmaDesignOperation` 계약과 RequestType enum 정의 — `figma-design-request-v1.schema.json`/`figma-design-operation-v1.schema.json` + Java `FigmaDesignRequestType`/`FigmaDesignRequest`/`FigmaDesignOperation`(요청 라우팅·유형별 필수값 검증은 I-3 범위로 남김)
-- [ ] **R0-027 · P0** `designSystemProfileId`가 Token/Variable·Component Registry·Default Layout Policy 버전을 원자적으로 결합하는 계약 정의
-- [ ] **R0-028 · P1** FORM/LIST/DETAIL/DASHBOARD 기본 Layout과 Desktop/Tablet/Mobile 변환·Component Swap 정책 Schema 작성
-- [ ] **R0-029 · P1** 원본 명세서의 KRDS 색·타이포그래피·간격·radius 및 11개 예시 컴포넌트를 샘플 fixture로 변환하되 운영 fileKey/Node ID와 분리
+- [~] **R0-027 · P0** `designSystemProfileId`가 Token/Variable·Component Registry·Default Layout Policy 버전을 원자적으로 결합하는 계약 정의 — `DesignSystemProfile`과 `DesignSystemProfileSnapshot`에 `layoutPolicyVersion`과 `layoutPolicy` 필드로 구현되어 있으나 Default Layout Policy 정식 모델(`DefaultLayoutPolicy`) 미구현(I-1 후속)
+- [~] **R0-028 · P1** FORM/LIST/DETAIL/DASHBOARD 기본 Layout과 Desktop/Tablet/Mobile 변환·Component Swap 정책 Schema 작성 — `figma-screen-spec-v1.schema.json`의 viewport/layout/navigation 필드로 Layout 정보는 저장되나 Platform 변환 정책 Schema와 Component Swap 정책은 I-1/2-A6 범위로 남김
+- [~] **R0-029 · P1** 원본 명세서의 KRDS 색·타이포그래피·간격·radius 및 11개 예시 컴포넌트를 샘플 fixture로 변환하되 운영 fileKey/Node ID와 분리 — `component-catalog-v1.json`의 requiredComponents 5종·patterns 5종·pageTemplates 2종이 기술 기준선으로 존재하고 DEC-02/DEC-09 조직 승인 완료. 추가 11개 예시 컴포넌트와 색·타이포 완전 카탈로그는 Design System Library 정식 Publish 이후 자동 동기화로 진행(현재는 샘플 5종+5종 기준)
 
 초기 매핑 후보는 `screenType`과 `layoutPattern`을 서로 다른 필드로 독립 판정한다.
 하나의 archetype 문자열이 두 표에 동시에 걸려도(예: `MASTER_DETAIL`) 서로 다른 필드에
@@ -195,7 +195,7 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R0-T05** `screenType` 접미사 판정에 실패한 archetype이 조용히 임의 값으로 변환되지 않는다.
 - [x] **R0-T06** `MASTER_DETAIL`처럼 `screenType`과 `layoutPattern` 매핑에 동시에 걸리는 archetype도 두 필드가 충돌 없이 각각 유일하게 결정된다.
 - [x] **R0-T07** 7가지 RequestType별 정상·경계·오류 fixture가 공통 요청 Schema를 통과한다. — `website-figma-contract/fixtures/*-figma-design-request-*.json` 7종 valid + 2종 invalid, `contract-test.mjs`에서 검증
-- [ ] **R0-T08** Profile·Registry·Default Layout Policy 중 하나라도 버전이 다르면 교체/변환 Preflight가 실패한다.
+- [~] **R0-T08** Profile·Registry·Default Layout Policy 중 하나라도 버전이 다르면 교체/변환 Preflight가 실패한다. — `ComponentRegistryResolver`와 `FigmaScreenExportService.preflightComponentRegistry()`가 Registry 버전 검증을 구현했으나 layoutPolicyVersion 검증은 I-1 `DefaultLayoutPolicy` 모델 후속
 
 ---
 
@@ -476,8 +476,21 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R6-T06** DEC-10=FILE 기본 경로의 REST Bundle 다운로드와 R5 Plugin 파일 입력 테스트 통과. 선택 기능인 REST 직접 조회도 단기 토큰·CORS·재시도·파일 fallback 테스트로 검증
 - [x] **R6-T07** 잘못된/누락 공유 비밀키를 Repository 접근 전에 거부하고 Registry 공개 Key가 MCP 응답에 포함되지 않는지 검증
 
-### 11.4 7가지 디자인 요청 오케스트레이션
+### 11.4 7가지 디자인 요청 오케스트레이션 (2-A 범위: 2-A1~6)
 
+**2-A1: FigmaApiClient 확장 (3시간)**
+- [~] **R6-040 · P0** 기존 `FigmaApiClient` 확장: 현재 단일 Node 조회·timeout·retry/backoff를 재사용하고 files/images/styles/components·pagination·오류 정규화 추가 — `FigmaApiQuery`, `FigmaStylesResponse`, `FigmaComponentsResponse`, `queryStyles()`, `queryComponents()`, 제네릭 `callApi<T>()` 추가. `queryNodesPaginated()` 실제 구현·retry/backoff 통합 테스트·응답 크기 제한 검증 필요
+
+**2-A2: Allowlist 검증 (2시간)**
+- [ ] **R6-041 · P0** Figma access token·LLM key·image URL·node/file 식별자의 로그/응답/산출물 redaction 및 allowlist 검증
+
+**2-A3: FigmaContextAnalyzer (3시간)**
+- [ ] **R6-042 · P0** `FigmaContextAnalyzer` 구현: Spring AI 구조화 출력으로 domain, screenType, layoutPattern, required logical types, uncertainty 반환
+
+**2-A4: FigmaStyleExtractor (2시간)**
+- [~] **R6-043 · P1** `FigmaStyleExtractor` 구현: 기존 `FigmaDesignSpecMapper`의 layout/token 추출을 재사용해 공통 color/typography/spacing/layout을 Profile 변경이 아닌 Token 후보로 확장
+
+**2-A5: 요청 흐름 연결 (3시간)**
 - [ ] **R6-030 · P0** `FigmaDesignRequestRouter` 구현: 명시 Tool 유형 우선, 자유 텍스트 분류 confidence 미달 시 추측 실행 거부
 - [ ] **R6-031 · P0** `FigmaDesignOrchestrationService` 구현: 분석→검증→ScreenSpecification 후보→FigmaScreenSpec→Bundle/Operation 생성
 - [~] **R6-032 · P0** `create_design_from_text(prompt, platform)` MCP callback 구현 — DB Schema→ScreenSpecification→FigmaScreenSpec 기반 흐름은 존재하며 자연어 구조화 분석과 Operation 조립 필요
@@ -487,15 +500,13 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [ ] **R6-036 · P2** `create_multi_screen_flow(prompt, screens[])` MCP callback 구현
 - [~] **R6-037 · P1** `create_design_with_components(prompt, componentLogicalTypes[])` MCP callback 구현 — 기존 `ComponentRegistryResolver`를 재사용하고 요청 logical type allowlist 제약 추가
 - [~] **R6-038 · P2** `convert_platform(sourceNodeIds, targetPlatform)` MCP callback 구현 — viewport 저장과 Layout annotation은 존재하며 Layout 재계산·Navigation/Component Swap 추가
-- [ ] **R6-039 · P0** `FigmaDesignOrchestrationTool` 7개 callback을 `McpConfig.allToolCallbacks`에 등록하고 기존 `FIGMA_MCP_SHARED_SECRET` 인가 적용
-- [~] **R6-040 · P0** 기존 `FigmaApiClient` 확장: 현재 단일 Node 조회·timeout·retry/backoff를 재사용하고 files/images/styles/components·pagination·오류 정규화 추가
-- [ ] **R6-041 · P0** Figma access token·LLM key·image URL·node/file 식별자의 로그/응답/산출물 redaction 및 allowlist 검증
-- [ ] **R6-042 · P0** `FigmaContextAnalyzer` 구현: Spring AI 구조화 출력으로 domain, screenType, layoutPattern, required logical types, uncertainty 반환
-- [~] **R6-043 · P1** `FigmaStyleExtractor` 구현: 기존 `FigmaDesignSpecMapper`의 layout/token 추출을 재사용해 공통 color/typography/spacing/layout을 Profile 변경이 아닌 Token 후보로 확장
+
+**2-A6: Redaction 정책 (1.5시간)**
 - [~] **R6-044 · P1** 기존 `ComponentRegistryResolver` 확장: Registry·승인 Catalog·Default Layout Policy 교집합과 요청 allowlist·필수/선택 정책 적용
 - [~] **R6-045 · P2** 기존 `DesignReferenceAnalysisService`·`VisionAnalysisClient` 확장: Vision capability 사전 점검, Figma 이미지 export 분석, 불확실성·접근성 Issue 반환
 - [ ] **R6-046 · P2** `FigmaPlatformConversionService` 구현: Desktop 1440/12열, Tablet 768/8열, Mobile 390/4열 초기 정책과 Profile 기반 swap 적용
 - [ ] **R6-047 · P1** 모든 Tool 응답에 `operationId`, `artifactId`, preview summary, issues, `PREVIEW_READY`/`APPLY_REQUIRED` 상태를 포함하고 캔버스 적용 전 `APPLIED` 반환 금지
+- [ ] **R6-039 · P0** `FigmaDesignOrchestrationTool` 7개 callback을 `McpConfig.allToolCallbacks`에 등록하고 기존 `FIGMA_MCP_SHARED_SECRET` 인가 적용
 - [ ] **R6-048 · P1** 웹 UI·CLI·Webhook 클라이언트가 동일 MCP/REST 계약을 사용하도록 transport-neutral facade 유지. 별도 React/Slack/Teams 클라이언트 구현은 후속 범위
 - [ ] **R6-T08** 7개 callback 정상·필수 입력 누락·잘못된 file/node 소속·미지원 capability 계약 테스트
 - [ ] **R6-T09** Spring AI 구조화 출력 오류·timeout·rate limit·Vision 미지원 모델 fallback 테스트

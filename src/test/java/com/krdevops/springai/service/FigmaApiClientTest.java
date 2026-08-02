@@ -3,6 +3,9 @@ package com.krdevops.springai.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.config.DesignVisionProperties;
 import com.krdevops.springai.model.design.FigmaReference;
+import com.krdevops.springai.service.figma.FigmaApiQuery;
+import com.krdevops.springai.service.figma.FigmaStylesResponse;
+import com.krdevops.springai.service.figma.FigmaComponentsResponse;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -197,6 +200,90 @@ class FigmaApiClientTest {
                 .fetchNode(new FigmaReference("abcdef", "1:2")))
                 .isInstanceOfSatisfying(FigmaApiException.class,
                         error -> assertThat(error.code()).isEqualTo("FIGMA_RESPONSE_TOO_LARGE"));
+    }
+
+    @Test
+    void queryStylesReturnsStyleMetadata() throws Exception {
+        HttpServer server = server(exchange -> {
+            assertThat(exchange.getRequestURI().getPath()).endsWith("/styles");
+            respond(exchange, 200, """
+                    {
+                      "meta": {
+                        "styles": [
+                          {"key":"color1","file_key":"abcdef","node_id":"1:2","style_type":"FILL","name":"Primary","description":"Main color"}
+                        ]
+                      },
+                      "error": false,
+                      "status": 200
+                    }
+                    """);
+        });
+
+        var result = client(server, properties()).queryStyles("abcdef");
+
+        assertThat(result.meta().styles()).hasSize(1);
+        assertThat(result.meta().styles().get(0).name()).isEqualTo("Primary");
+        assertThat(result.meta().styles().get(0).styleType()).isEqualTo("FILL");
+    }
+
+    @Test
+    void queryComponentsReturnsComponentMetadata() throws Exception {
+        HttpServer server = server(exchange -> {
+            assertThat(exchange.getRequestURI().getPath()).endsWith("/components");
+            respond(exchange, 200, """
+                    {
+                      "meta": {
+                        "components": [
+                          {
+                            "key":"button1",
+                            "file_key":"abcdef",
+                            "node_id":"1:3",
+                            "name":"Button",
+                            "description":"Primary button",
+                            "containing_frame":{"node_id":"1:1","name":"Components"}
+                          }
+                        ]
+                      },
+                      "error": false,
+                      "status": 200
+                    }
+                    """);
+        });
+
+        var result = client(server, properties()).queryComponents("abcdef");
+
+        assertThat(result.meta().components()).hasSize(1);
+        assertThat(result.meta().components().get(0).name()).isEqualTo("Button");
+        assertThat(result.meta().components().get(0).containingFrame().name()).isEqualTo("Components");
+    }
+
+    @Test
+    void queryNodesPaginatedRequiresNodeId() throws Exception {
+        HttpServer server = server(exchange -> respond(exchange, 200, "{}"));
+        FigmaApiClient client = client(server, properties());
+        FigmaApiQuery invalidQuery = new FigmaApiQuery("abcdef", null, 0, 50, false, 1);
+
+        assertThatThrownBy(() -> client.queryNodesPaginated(invalidQuery))
+                .isInstanceOfSatisfying(IllegalArgumentException.class,
+                        error -> assertThat(error.getMessage()).contains("nodeId"));
+    }
+
+    @Test
+    void queryStylesHandlesApiErrors() throws Exception {
+        HttpServer server = server(exchange -> respond(exchange, 401, "{}"));
+
+        assertThatThrownBy(() -> client(server, properties()).queryStyles("abcdef"))
+                .isInstanceOfSatisfying(FigmaApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("FIGMA_AUTH_FAILED"));
+    }
+
+    @Test
+    void queryComponentsHandlesApiErrors() throws Exception {
+        HttpServer server = server(exchange -> respond(exchange, 404, "{}"));
+
+        assertThatThrownBy(() -> client(server, properties()).queryComponents("abcdef"))
+                .isInstanceOfSatisfying(FigmaApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("FIGMA_REFERENCE_NOT_FOUND"));
     }
 
     private DesignVisionProperties properties() {

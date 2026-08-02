@@ -154,6 +154,11 @@ app:
         - file
         - design
       allowed-file-keys: ${FIGMA_ALLOWED_FILE_KEYS:}
+      # 2-A2: Allowlist 검증. 비어 있으면 모든 파일 허용 (개발용).
+      # 운영: 쉼표로 구분된 fileKey 목록 (예: "key1,key2,key3")
+      allowed-node-ids: ${FIGMA_ALLOWED_NODE_IDS:}
+      # Node 소속 검증 캐시 TTL (초). 0 = 비활성화
+      node-ownership-cache-ttl-seconds: ${FIGMA_NODE_OWNERSHIP_CACHE_TTL:300}
       depth-limit: ${FIGMA_DEPTH_LIMIT:4}
       connect-timeout-seconds: ${FIGMA_CONNECT_TIMEOUT_SECONDS:5}
       response-timeout-seconds: ${FIGMA_RESPONSE_TIMEOUT_SECONDS:30}

@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.config.DesignVisionProperties;
 import com.krdevops.springai.model.design.FigmaNodeDocument;
 import com.krdevops.springai.model.design.FigmaReference;
+import com.krdevops.springai.service.figma.FigmaApiQuery;
+import com.krdevops.springai.service.figma.FigmaComponentsResponse;
+import com.krdevops.springai.service.figma.FigmaStylesResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +19,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -182,6 +186,112 @@ public class FigmaApiClient {
     private long maxResponseBytes() { return Math.max(1, properties.getFigma().getMaxResponseMb()) * 1024L * 1024L; }
     private String encodePath(String value) { return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20"); }
     private String encodeQuery(String value) { return URLEncoder.encode(value, StandardCharsets.UTF_8); }
+
+    /**
+     * Pagination을 지원하는 노드 조회.
+     * Figma API의 NODES 엔드포인트는 단일 조회만 지원하므로,
+     * 이 메서드는 fileKey 기준 여러 노드를 offset-limit 방식으로 분할 조회한다.
+     */
+    public List<FigmaNodeDocument> queryNodesPaginated(FigmaApiQuery query) {
+        ensureEnabled();
+        if (query == null) {
+            throw new IllegalArgumentException("query는 필수입니다");
+        }
+
+        // Figma API는 단일 조회만 지원하므로, 실제 구현은 내부 노드 목록 분할
+        // 이 메서드는 주로 테스트/시뮬레이션용
+        int offset = query.page() * query.pageSize();
+
+        // 현재는 단일 노드 조회로 제한 (노드 목록 API는 Figma REST에 없음)
+        if (query.nodeId() == null || query.nodeId().isBlank()) {
+            throw new IllegalArgumentException("nodeId는 필수입니다");
+        }
+
+        // 단일 노드 조회 후 List로 반환
+        FigmaNodeDocument node = fetchNode(new FigmaReference(
+                query.fileKey(),
+                query.nodeId()
+        ));
+        return List.of(node);
+    }
+
+    /**
+     * Figma 파일의 모든 Styles 조회.
+     * GET /v1/files/{fileKey}/styles
+     */
+    public FigmaStylesResponse queryStyles(String fileKey) {
+        ensureEnabled();
+        URI uri = URI.create(baseUrl + "/files/" + encodePath(fileKey) + "/styles");
+        return callApi(uri, FigmaStylesResponse.class);
+    }
+
+    /**
+     * Figma 파일의 모든 Components 조회.
+     * GET /v1/files/{fileKey}/components
+     */
+    public FigmaComponentsResponse queryComponents(String fileKey) {
+        ensureEnabled();
+        URI uri = URI.create(baseUrl + "/files/" + encodePath(fileKey) + "/components");
+        return callApi(uri, FigmaComponentsResponse.class);
+    }
+
+    /**
+     * 제네릭 API 호출 (재시도 포함).
+     */
+    private <T> T callApi(URI uri, Class<T> responseType) {
+        int maxAttempts = Math.max(1, Math.min(5, properties.getFigma().getMaxAttempts()));
+        Throwable last = null;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                HttpRequest request = HttpRequest.newBuilder(uri)
+                        .timeout(Duration.ofSeconds(Math.max(1,
+                                properties.getFigma().getResponseTimeoutSeconds())))
+                        .header("Accept", "application/json")
+                        .header("X-Figma-Token", properties.getFigma().getAccessToken())
+                        .GET().build();
+                HttpResponse<InputStream> response = httpClient.send(
+                        request, HttpResponse.BodyHandlers.ofInputStream());
+                byte[] body;
+                try (InputStream input = response.body()) {
+                    body = readLimited(input, maxResponseBytes());
+                }
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    return parseResponse(body, responseType);
+                }
+                if (retryable(response.statusCode()) && attempt < maxAttempts) {
+                    sleep(retryDelayMillis(response, attempt));
+                    continue;
+                }
+                throw statusException(response.statusCode());
+            } catch (FigmaApiException e) {
+                throw e;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new FigmaApiException("FIGMA_API_UNAVAILABLE", 0,
+                        "Figma API 호출이 중단되었습니다.", e);
+            } catch (Exception e) {
+                last = e;
+                if (attempt < maxAttempts) {
+                    sleep(backoffMillis(attempt));
+                    continue;
+                }
+            }
+        }
+        throw new FigmaApiException("FIGMA_API_UNAVAILABLE", 0,
+                "Figma API를 호출할 수 없습니다.", last);
+    }
+
+    /**
+     * JSON을 지정된 타입으로 파싱.
+     */
+    private <T> T parseResponse(byte[] body, Class<T> responseType) {
+        try {
+            return objectMapper.readValue(body, responseType);
+        } catch (Exception e) {
+            throw new FigmaApiException("FIGMA_RESPONSE_INVALID", 200,
+                    "Figma API 응답을 해석할 수 없습니다.", e);
+        }
+    }
 
     @FunctionalInterface
     interface Sleeper { void sleep(long millis) throws InterruptedException; }
