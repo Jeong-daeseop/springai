@@ -44,20 +44,22 @@ class McpToolDefinitionSnapshotTest {
             Path.of("src/test/resources/mcp/tool-definitions-baseline.json");
 
     /**
-     * 2026-07-31 기준 실측치 — src/main/java/.../tools/** 아래 실제 {@code @Tool} 어노테이션
+     * 2026-08-02 기준 실측치 — src/main/java/.../tools/** 아래 실제 {@code @Tool} 어노테이션
      * 메서드 수. {@code tools/AGENTS.md} 등 소스가 아닌 파일에 나오는 "@Tool(" 언급 2건은 세지
      * 않는다. Spring 컨텍스트에 등록된 {@code ToolCallback[]}의 길이가 가장 신뢰도 높은 런타임
      * 진실이므로 이 값으로 검증한다. 이 상수가 깨지면 Tool이 의도적으로 추가/삭제된 것인지
      * 확인한 뒤 값을 갱신하라.
+     * R6-032~038 업데이트: 79 → 86 (FigmaDesignOrchestrationTool 7개 메서드 추가)
      */
-    private static final int EXPECTED_TOOL_METHOD_COUNT = 79;
+    private static final int EXPECTED_TOOL_METHOD_COUNT = 86;
 
     /**
      * McpConfig.allToolCallbacks(...)의 toolObjects(...) 인자 개수(등록된 *Tool 컴포넌트 클래스 수).
      * MethodToolCallback이 내부에 보관하는 toolObject의 실제 클래스를 리플렉션으로 읽어
-     * distinct class 개수로 검증한다(2026-07-31 기준 실측치).
+     * distinct class 개수로 검증한다(2026-08-02 기준 실측치).
+     * R6-039 업데이트: 31 → 32 (FigmaDesignOrchestrationTool 추가)
      */
-    private static final int EXPECTED_TOOL_OBJECT_COUNT = 31;
+    private static final int EXPECTED_TOOL_OBJECT_COUNT = 32;
 
     @Autowired
     private ToolCallbackProvider allToolCallbacks;

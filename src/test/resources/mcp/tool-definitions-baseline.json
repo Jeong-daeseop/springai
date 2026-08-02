@@ -422,6 +422,118 @@
     "type" : "object"
   }
 }, {
+  "name" : "convertPlatform",
+  "description" : "Figma 화면을 다른 플랫폼으로 변환합니다 (Desktop ↔ Tablet ↔ Mobile).\n레이아웃, Grid, Navigation, Component 선택(Swap)을 자동 적용합니다.\n\n입력:\n- prompt: 변환 지시사항 (예: \"모바일 우선 디자인, Navigation은 하단 탭으로\")\n- fileKey: Figma 파일 Key\n- sourceNodeIds: 원본 화면 노드 ID (예: Desktop 화면)\n- targetPlatform: 목표 플랫폼 (DESKTOP / TABLET / MOBILE)\n\n출력: FigmaDesignOperation\n\n주의:\n- targetPlatform 필수 (대소문자 구분)\n- 지원 정책: Desktop 1440px/12열, Tablet 768px/8열, Mobile 390px/4열\n- Component Swap은 Profile에서 지정된 정책만 적용됨.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "fileKey" : {
+        "type" : "string"
+      },
+      "prompt" : {
+        "type" : "string"
+      },
+      "sourceNodeIds" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "targetPlatform" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "prompt", "fileKey", "sourceNodeIds", "targetPlatform" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "createDesignFromImage",
+  "description" : "이미지 또는 스크린샷을 참조하여 Figma 화면을 생성합니다.\n이미지의 UI/UX 패턴을 분석하여 FigmaScreenSpec으로 변환합니다.\n\n입력:\n- prompt: 추가 지시사항 (예: \"이미지처럼 정확하게, 하지만 색상은 KRDS 기준으로\")\n- fileKey: Figma 파일 Key\n- imageNodeIds: Figma 이미지 노드 ID 목록 (export 경로)\n\n출력: FigmaDesignOperation\n\n주의:\n- imageNodeIds가 필수입니다.\n- Figma 이미지 export 분석은 Vision capability 지원 필수.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "fileKey" : {
+        "type" : "string"
+      },
+      "imageNodeIds" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "prompt" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "prompt", "fileKey", "imageNodeIds" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "createDesignFromReference",
+  "description" : "기존 Figma 화면을 참조하여 새 화면을 생성합니다.\n참조 화면의 스타일, 레이아웃, 컴포넌트를 분석하여 유사한 새 화면을 생성합니다.\n\n입력:\n- prompt: 새 화면 설명 (예: \"기존 사용자 목록처럼 만들되 더 간단하게\")\n- fileKey: Figma 파일 Key\n- referenceNodeIds: 참조할 노드 ID 목록 (예: [\"node-123\", \"node-456\"])\n\n출력: FigmaDesignOperation\n\n주의: referenceNodeIds가 필수입니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "fileKey" : {
+        "type" : "string"
+      },
+      "prompt" : {
+        "type" : "string"
+      },
+      "referenceNodeIds" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      }
+    },
+    "required" : [ "prompt", "fileKey", "referenceNodeIds" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "createDesignFromText",
+  "description" : "텍스트 설명으로 새 Figma 화면을 생성합니다.\n자연어 프롬프트를 분석하여 자동으로 요청 유형을 감지한 후 처리합니다.\n\n입력:\n- prompt: 화면 설명 (예: \"사용자 목록, 검색, 페이지네이션 포함\")\n- fileKey: Figma 파일 Key (예: \"mVy5h1UbORVqQoBm8Wr1bT\")\n\n출력:\n- operationId: 작업 식별자\n- status: PREVIEW_READY (미리보기 준비 완료) 또는 FAILED/REJECTED\n- issues: 문제 목록 (confidence 미달 시 분류 오류)\n- artifacts: 생성된 Bundle 참조\n\n주의: confidence < 0.6이면 자동 분류 실패로 REJECTED 상태 반환합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "fileKey" : {
+        "type" : "string"
+      },
+      "prompt" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "prompt", "fileKey" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "createDesignWithComponents",
+  "description" : "특정 컴포넌트(button, form, table 등)를 지정하여 화면을 생성합니다.\n요청 컴포넌트는 승인된 ComponentRegistry에만 존재해야 합니다.\n\n입력:\n- prompt: 화면 설명 (예: \"버튼, 입력필드, 테이블을 포함한 관리 화면\")\n- fileKey: Figma 파일 Key\n- components: 요청 컴포넌트 Logical Type (예: [\"krds.button\", \"krds.textField\", \"krds.table\"])\n\n출력: FigmaDesignOperation\n\n주의:\n- 요청 컴포넌트는 Registry에서 CURRENT 상태여야 합니다.\n- 미승인 또는 폐기된 컴포넌트는 차단됩니다.\n- 선택 컴포넌트는 Placeholder로 폴백.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "components" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "fileKey" : {
+        "type" : "string"
+      },
+      "prompt" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "prompt", "fileKey", "components" ],
+    "type" : "object"
+  }
+}, {
   "name" : "createEmployee",
   "description" : "eGovFrame 직원을 신규 등록합니다.\nemplyrId(ID), userNm(이름), emailAdres(이메일), ofcpsNm(직위), mbtlnum(휴대폰), esntlId(고유ID)를 입력하세요.\nesntlId는 20자리 고유 식별자입니다.\n",
   "inputSchema" : {
@@ -448,6 +560,29 @@
       }
     },
     "required" : [ "emplyrId", "userNm", "emailAdres", "ofcpsNm", "mbtlnum", "esntlId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "createMultiScreenFlow",
+  "description" : "여러 화면을 한번에 생성하고 플로우(Navigation)를 설정합니다.\n각 화면이 성공해야 일괄 적용됩니다. 하나라도 실패하면 전체 거부.\n\n입력:\n- prompt: 플로우 설명 (예: \"로그인 → 홈 → 프로필 → 로그아웃 흐름\")\n- fileKey: Figma 파일 Key\n- screens: 화면 목록 (각 화면의 이름, 역할, 순서)\n\n출력: FigmaDesignOperation (여러 화면 포함)\n\n주의:\n- 모든 화면이 성공할 때만 APPLY_REQUIRED로 진행.\n- Apply 전에 멀티 스크린 검증(모두 성공 또는 모두 실패).\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "fileKey" : {
+        "type" : "string"
+      },
+      "prompt" : {
+        "type" : "string"
+      },
+      "screenNames" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      }
+    },
+    "required" : [ "prompt", "fileKey", "screenNames" ],
     "type" : "object"
   }
 }, {
@@ -1502,6 +1637,29 @@
       }
     },
     "required" : [ "projectName", "groupId", "artifactId", "packageName", "buildTool", "projectType", "egovVersion", "outputPath" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "modifyExistingDesign",
+  "description" : "기존 Figma 화면을 수정합니다.\n지정한 노드 ID 범위 내에서만 수정을 허용하며, 승인되지 않은 컴포넌트는 차단합니다.\n\n입력:\n- prompt: 수정 요청 (예: \"버튼 색상을 파란색으로, 텍스트는 더 크게\")\n- fileKey: Figma 파일 Key\n- editableNodeIds: 수정 가능 노드 ID 목록 (예: [\"node-789\", \"node-101\"])\n\n출력: FigmaDesignOperation\n\n주의:\n- editableNodeIds가 필수입니다.\n- Apply 전에 editableNodeIds 범위가 현재 file/page와 일치하는지 재검증합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "editableNodeIds" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "fileKey" : {
+        "type" : "string"
+      },
+      "prompt" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "prompt", "fileKey", "editableNodeIds" ],
     "type" : "object"
   }
 }, {

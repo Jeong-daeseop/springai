@@ -61,7 +61,7 @@ public class FigmaScreenExportController {
     /**
      * R6-002: 특정 버전 조회
      */
-    @GetMapping("/{screenId}/versions/{version}")
+    @GetMapping("/{screenId}/v/{version}")
     public ResponseEntity<FigmaScreenSpec> getScreenVersion(
             @PathVariable String screenId,
             @PathVariable int version) {

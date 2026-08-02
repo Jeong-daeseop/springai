@@ -88,9 +88,9 @@ public class FigmaOperationsController {
      * R5-040: Operation의 operationId, request type, source revision 조회.
      * Plugin이 Preview 시 Operation 정보를 표시할 때 사용.
      *
-     * GET /api/figma/operations/{operationId}
+     * GET /api/figma/operations/{operationId}/info
      */
-    @GetMapping("/{operationId}")
+    @GetMapping("/{operationId}/info")
     public ResponseEntity<FigmaDesignOperation> getOperation(@PathVariable String operationId) {
         return designOperationService.findOperation(operationId)
                 .map(ResponseEntity::ok)
