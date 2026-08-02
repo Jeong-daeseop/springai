@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/legacy-screen-analysis-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["screenId", "screenRole", "jsp", "controller", "vo", "issues", "analyzedAt"],
+  "properties": {
+    "screenId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "screenRole": {"enum": ["LIST", "FORM", "DETAIL"]},
+    "jsp": {"$ref": "#/$defs/jspEvidence"},
+    "controller": {"$ref": "#/$defs/controllerEvidence"},
+    "vo": {"$ref": "#/$defs/voEvidence"},
+    "sourceRevision": {
+      "anyOf": [
+        {"$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/sourceRevisionRef"},
+        {"type": "null"}
+      ]
+    },
+    "issues": {
+      "type": "array",
+      "items": {"$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/generationIssue"}
+    },
+    "analyzedAt": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "jspFormFieldEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fieldName", "tagName", "hidden", "errorDisplay"],
+      "properties": {
+        "fieldName": {"type": "string", "minLength": 1},
+        "tagName": {"type": "string", "minLength": 1},
+        "hidden": {"type": "boolean"},
+        "errorDisplay": {"type": "boolean"},
+        "sourceLocation": {"type": ["string", "null"]}
+      }
+    },
+    "jspFormEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["httpMethod", "fields"],
+      "properties": {
+        "formName": {"type": ["string", "null"]},
+        "modelAttribute": {"type": ["string", "null"]},
+        "rawAction": {"type": ["string", "null"]},
+        "resolvedRoute": {"type": ["string", "null"]},
+        "httpMethod": {"type": "string", "minLength": 1},
+        "fields": {"type": "array", "items": {"$ref": "#/$defs/jspFormFieldEvidence"}},
+        "sourceLocation": {"type": ["string", "null"]}
+      }
+    },
+    "jspModelReferenceEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attributeName", "usageKind"],
+      "properties": {
+        "attributeName": {"type": "string", "minLength": 1},
+        "usageKind": {"type": "string", "minLength": 1},
+        "sourceLocation": {"type": ["string", "null"]}
+      }
+    },
+    "jspForEachBindingEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["loopVariable", "itemsAttributeName"],
+      "properties": {
+        "loopVariable": {"type": "string", "minLength": 1},
+        "itemsAttributeName": {"type": "string", "minLength": 1},
+        "sourceLocation": {"type": ["string", "null"]}
+      }
+    },
+    "jspDisplayFieldEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rootAttributeName", "fieldName"],
+      "properties": {
+        "rootAttributeName": {"type": "string", "minLength": 1},
+        "fieldName": {"type": "string", "minLength": 1},
+        "sourceLocation": {"type": ["string", "null"]}
+      }
+    },
+    "jspEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jspPath", "taglibPrefixes", "includes", "forms", "modelReferences",
+        "forEachBindings", "displayFields", "routeReferences"],
+      "properties": {
+        "jspPath": {"type": "string", "minLength": 1},
+        "taglibPrefixes": {"type": "object", "additionalProperties": {"type": "string"}},
+        "includes": {"type": "array", "items": {"type": "string"}},
+        "forms": {"type": "array", "items": {"$ref": "#/$defs/jspFormEvidence"}},
+        "modelReferences": {"type": "array", "items": {"$ref": "#/$defs/jspModelReferenceEvidence"}},
+        "forEachBindings": {"type": "array", "items": {"$ref": "#/$defs/jspForEachBindingEvidence"}},
+        "displayFields": {"type": "array", "items": {"$ref": "#/$defs/jspDisplayFieldEvidence"}},
+        "routeReferences": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "controllerMethodEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["methodName", "httpMethod", "route", "validated", "modelAttributesAdded",
+        "redirect", "securityEvidence"],
+      "properties": {
+        "methodName": {"type": "string", "minLength": 1},
+        "httpMethod": {"type": "string", "minLength": 1},
+        "route": {"type": "string", "minLength": 1},
+        "modelAttributeParamName": {"type": ["string", "null"]},
+        "modelAttributeType": {"type": ["string", "null"]},
+        "validated": {"type": "boolean"},
+        "modelAttributesAdded": {"type": "array", "items": {"type": "string"}},
+        "returnViewOrRedirect": {"type": ["string", "null"]},
+        "redirect": {"type": "boolean"},
+        "securityEvidence": {"type": "array", "items": {"type": "string"}},
+        "sourceLocation": {"type": ["string", "null"]}
+      }
+    },
+    "controllerEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["controllerPath", "className", "methods"],
+      "properties": {
+        "controllerPath": {"type": "string", "minLength": 1},
+        "className": {"type": "string", "minLength": 1},
+        "classLevelRequestMapping": {"type": ["string", "null"]},
+        "methods": {"type": "array", "items": {"$ref": "#/$defs/controllerMethodEvidence"}}
+      }
+    },
+    "voFieldEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fieldName", "javaType", "readable", "writable", "validationAnnotations"],
+      "properties": {
+        "fieldName": {"type": "string", "minLength": 1},
+        "javaType": {"type": "string", "minLength": 1},
+        "readable": {"type": "boolean"},
+        "writable": {"type": "boolean"},
+        "validationAnnotations": {"type": "array", "items": {"type": "string"}},
+        "sourceLocation": {"type": ["string", "null"]}
+      }
+    },
+    "voEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["voPath", "className", "fields"],
+      "properties": {
+        "voPath": {"type": "string", "minLength": 1},
+        "className": {"type": "string", "minLength": 1},
+        "fields": {"type": "array", "items": {"$ref": "#/$defs/voFieldEvidence"}}
+      }
+    }
+  }
+}

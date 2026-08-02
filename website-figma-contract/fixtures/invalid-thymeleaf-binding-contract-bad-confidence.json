@@ -1,0 +1,28 @@
+{
+  "screenId": "emp-list",
+  "screenRole": "LIST",
+  "route": {
+    "route": "/emp/employerList.do",
+    "httpMethod": "GET",
+    "validated": false,
+    "redirect": false,
+    "securityEvidence": []
+  },
+  "fields": [
+    {
+      "fieldName": "emplyrId",
+      "javaType": "String",
+      "writable": true,
+      "required": false,
+      "validationAnnotations": [],
+      "provenance": "CONTROLLER_VO",
+      "confidence": 1.5
+    }
+  ],
+  "displayFieldNames": [],
+  "modelAttributesResolved": [],
+  "modelAttributesUnresolved": [],
+  "status": "RESOLVED",
+  "issues": [],
+  "createdAt": "2026-08-02T09:00:01Z"
+}

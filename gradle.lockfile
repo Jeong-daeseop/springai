@@ -17,6 +17,7 @@ com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.21.2=compileClasspath,p
 com.fasterxml.jackson.module:jackson-module-kotlin:2.21.2=productionRuntimeClasspath,runtimeClasspath,testRuntimeClasspath
 com.fasterxml.jackson:jackson-bom:2.21.2=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.fasterxml:classmate:1.7.3=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
+com.github.javaparser:javaparser-core:3.26.4=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.github.victools:jsonschema-generator:5.0.0=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.github.victools:jsonschema-module-jackson:5.0.0=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
 com.github.victools:jsonschema-module-swagger-2:5.0.0=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath

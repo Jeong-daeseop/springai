@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/figma-design-operation-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operationId", "revision", "request", "requestHash", "status",
+    "issues", "artifacts", "createdAt", "updatedAt"
+  ],
+  "properties": {
+    "operationId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "revision": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/positiveVersion"},
+    "request": {"$ref": "https://schemas.krdevops.local/figma-design-request-v1"},
+    "requestHash": {"$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/contentHash"},
+    "status": {"$ref": "#/$defs/status"},
+    "sourceRevision": {
+      "anyOf": [
+        {"$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/sourceRevisionRef"},
+        {"type": "null"}
+      ]
+    },
+    "issues": {
+      "type": "array",
+      "items": {"$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/generationIssue"}
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {"$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/artifactRef"}
+    },
+    "createdAt": {"type": "string", "format": "date-time"},
+    "updatedAt": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "status": {
+      "enum": [
+        "ANALYZED",
+        "PREVIEW_READY",
+        "APPLY_REQUIRED",
+        "APPLIED",
+        "FAILED",
+        "CONFLICT",
+        "REJECTED"
+      ]
+    }
+  }
+}

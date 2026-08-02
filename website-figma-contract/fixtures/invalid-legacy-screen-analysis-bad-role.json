@@ -1,0 +1,26 @@
+{
+  "screenId": "emp-list",
+  "screenRole": "GRID",
+  "jsp": {
+    "jspPath": "EgovEmployerList.jsp",
+    "taglibPrefixes": {},
+    "includes": [],
+    "forms": [],
+    "modelReferences": [],
+    "forEachBindings": [],
+    "displayFields": [],
+    "routeReferences": []
+  },
+  "controller": {
+    "controllerPath": "EgovEmployerController.java",
+    "className": "EgovEmployerController",
+    "methods": []
+  },
+  "vo": {
+    "voPath": "EmployerVO.java",
+    "className": "EmployerVO",
+    "fields": []
+  },
+  "issues": [],
+  "analyzedAt": "2026-08-02T09:00:01Z"
+}

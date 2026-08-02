@@ -1,0 +1,25 @@
+{
+  "requestId": "req-components-001",
+  "requestType": "CREATE_DESIGN_WITH_COMPONENTS",
+  "fileKey": null,
+  "screens": [
+    {
+      "pageId": "emp-form",
+      "screenName": "직원 등록",
+      "textPrompt": null,
+      "referenceFileKey": null,
+      "referenceNodeId": null,
+      "imageAssetRef": null,
+      "requiredComponentLogicalTypes": ["krds.button", "krds.textField", "krds.select"],
+      "targetPlatform": null,
+      "existingScreenId": null
+    }
+  ],
+  "snapshotRef": {
+    "profileId": "krds",
+    "profileVersion": "1.0",
+    "registryVersion": "2026.07",
+    "layoutPolicyVersion": null
+  },
+  "requestedAt": "2026-08-02T09:00:00Z"
+}

@@ -10,7 +10,7 @@
 - [08_Semantic_Figma_Export_Integrated_Architecture.md](./08_Semantic_Figma_Export_Integrated_Architecture.md)
 - [09_Agent_Design_System_FigmaScreenSpec_Reference_Architecture.md](./09_Agent_Design_System_FigmaScreenSpec_Reference_Architecture.md)
 - [10_Semantic_Figma_Design_System_Impact_Analysis.md](./10_Semantic_Figma_Design_System_Impact_Analysis.md)
-- [디자인_시스템_기반_Figma_MCP_업무화면_자동_생성_아키텍처_및_구현_명세서.md](./디자인_시스템_기반_Figma_MCP_업무화면_자동_생성_아키텍처_및_구현_명세서.md)
+- [Figma_MCP_디자인_오케스트레이션_아키텍처_및_구현_명세서.md](./Figma_MCP_디자인_오케스트레이션_아키텍처_및_구현_명세서.md)
 
 **실행 체크리스트**:
 
@@ -47,7 +47,7 @@
 8. Published Library 변경과 화면 구조 변경을 구분한다.
 9. 기존 `.figpack` Reference 경로를 유지한다.
 10. 초기 Release는 파일 Import 중심으로 구현한다.
-11. `디자인_시스템_기반_Figma_MCP_업무화면_자동_생성_아키텍처_및_구현_명세서.md`의 Node.js/TypeScript 구조는 기능 참조 모델로 사용하고, 실행 서버는 기존 Spring Boot MCP 서버로 통합한다.
+11. `Figma_MCP_디자인_오케스트레이션_아키텍처_및_구현_명세서.md`의 Node.js/TypeScript 구조는 기능 참조 모델로 사용하고, 실행 서버는 기존 Spring Boot MCP 서버로 통합한다.
 12. 명세서의 Claude API 직접 호출은 Spring AI `ChatModel` 기반 모델 선택 정책으로 추상화하여 Anthropic 단일 공급자에 결합하지 않는다.
 13. Figma REST API는 파일·노드·스타일·이미지 조회에 사용하고, 캔버스 쓰기는 Figma Plugin에서 사용자가 Preview를 확인하고 명시적으로 Apply할 때만 수행한다.
 14. 디자인 시스템 교체는 고정 `assetId`를 코드에 넣는 방식이 아니라 `DesignSystemProfile`·`ComponentRegistry`·기본 Layout 정책의 버전 스냅샷 교체로 처리한다.
@@ -691,7 +691,7 @@ REST는 단기 토큰, CORS, 서버 접근성, 재시도와 파일 fallback이 �
 
 ### 목표
 
-`디자인_시스템_기반_Figma_MCP_업무화면_자동_생성_아키텍처_및_구현_명세서.md`의 7가지 요청 방식을 기존
+`Figma_MCP_디자인_오케스트레이션_아키텍처_및_구현_명세서.md`의 7가지 요청 방식을 기존
 `ScreenSpecification → FigmaScreenSpec → FigmaExportBundle → Plugin Apply` 흐름에
 통합한다. MCP 서버는 요청을 분석하고 결정론적인 디자인 작업 계획과 Bundle을 만들며,
 Figma 캔버스 변경은 Plugin에서 Preview 후 실행한다.
@@ -869,7 +869,7 @@ Registry에 없거나 대체 대상이 미게시 상태면 변환을 완료하�
 ## 10.2 R6B — Design-aware Thymeleaf Generator
 
 상세 실행 명세는
-[JSP_eGovFrame_화면을_Spring_Boot·Thymeleaf로_전환하는_작업.md](./JSP_eGovFrame_화면을_Spring_Boot·Thymeleaf로_전환하는_작업.md)를
+[eGovFrame_JSP_to_Spring_Boot_Thymeleaf_전환_작업_명세서.md](./eGovFrame_JSP_to_Spring_Boot_Thymeleaf_전환_작업_명세서.md)를
 기준으로 한다.
 
 ### 목표
@@ -1243,7 +1243,7 @@ npm test
 |---|---|---|
 | 1.8 | 2026-07-30 | Design-aware Thymeleaf Generator R6B 추가: JSP·Controller·VO 분석부터 Binding Contract, 화면 유형, Component Inventory, DESIGN.md, 회사 Token, HTML Skeleton, Model Binding, 반응형 변환, 빌드·렌더 검증까지 10단계 계약과 기존 자산 재사용·규칙 우선순위·완료 게이트 정의 |
 | 1.7 | 2026-07-30 | 7가지 요청과 현재 코드 대조 결과 반영: 동일 Tool은 없지만 참조·이미지 분석, ScreenSpecification 수정, Registry 해석, Figma Export, Plugin MERGE/REPLACE 기반이 존재함을 명시하고 기존 서비스 확장 우선 원칙 추가 |
-| 1.6 | 2026-07-30 | `디자인_시스템_기반_Figma_MCP_업무화면_자동_생성_아키텍처_및_구현_명세서.md` 반영: 7가지 디자인 요청 오케스트레이션(R6A), Spring MCP/Spring AI 통합 원칙, Figma REST 조회·Plugin 쓰기 경계, 교체 가능한 Profile·Registry·Layout 정책, 플랫폼 변환·보안·테스트 게이트 추가 |
+| 1.6 | 2026-07-30 | `Figma_MCP_디자인_오케스트레이션_아키텍처_및_구현_명세서.md` 반영: 7가지 디자인 요청 오케스트레이션(R6A), Spring MCP/Spring AI 통합 원칙, Figma REST 조회·Plugin 쓰기 경계, 교체 가능한 Profile·Registry·Layout 정책, 플랫폼 변환·보안·테스트 게이트 추가 |
 | 1.5 | 2026-07-28 | DEC-10 최종 결정(FILE 우선·REST 선택 기능)을 초기 전송 정책에 반영하고 15번 최종 결정 문서 연결 |
 | 1.4 | 2026-07-28 | §4 작업 목록에 12번 문서 §4 DEC 표를 최신 상태 기준으로 안내하는 note 추가(중복 유지보수 방지) |
 | 1.3 | 2026-07-27 | 12번 체크리스트(v1.4)와 동기화: `screenType`/`layoutPattern` 분리로 archetype 매핑 충돌 제거, `FigmaExportBundle` 계약과 클래스 추가, 신규 MCP Tool 전용 인증 방침 추가(항목 13, 보안 절), Repository 4종으로 확장, 필수/선택 Component fallback 정책 분리 |

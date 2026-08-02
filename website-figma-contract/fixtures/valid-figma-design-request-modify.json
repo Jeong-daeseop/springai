@@ -1,0 +1,25 @@
+{
+  "requestId": "req-modify-001",
+  "requestType": "MODIFY_EXISTING_DESIGN",
+  "fileKey": "abc123defREF",
+  "screens": [
+    {
+      "pageId": "emp-list",
+      "screenName": null,
+      "textPrompt": "검색 영역에 부서 선택 필드를 추가해줘",
+      "referenceFileKey": null,
+      "referenceNodeId": null,
+      "imageAssetRef": null,
+      "requiredComponentLogicalTypes": [],
+      "targetPlatform": null,
+      "existingScreenId": "emp-list"
+    }
+  ],
+  "snapshotRef": {
+    "profileId": "krds",
+    "profileVersion": "1.0",
+    "registryVersion": "2026.07",
+    "layoutPolicyVersion": null
+  },
+  "requestedAt": "2026-08-02T09:00:00Z"
+}

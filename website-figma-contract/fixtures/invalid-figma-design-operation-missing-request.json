@@ -1,0 +1,11 @@
+{
+  "operationId": "figop-0000000000000000000000000000000004",
+  "revision": 1,
+  "requestHash": "157862a756ceb505701bb32dd8e754202c0477c27d4b028d98022852f230af1b",
+  "status": "ANALYZED",
+  "sourceRevision": null,
+  "issues": [],
+  "artifacts": [],
+  "createdAt": "2026-08-02T09:00:01Z",
+  "updatedAt": "2026-08-02T09:00:01Z"
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/figma-design-request-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["requestType", "screens", "snapshotRef"],
+  "properties": {
+    "requestId": {"type": ["string", "null"], "minLength": 1, "maxLength": 128},
+    "requestType": {"$ref": "#/$defs/requestType"},
+    "fileKey": {"type": ["string", "null"], "minLength": 1, "maxLength": 128},
+    "screens": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/screenRequest"}
+    },
+    "snapshotRef": {"$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/designSystemSnapshotRef"},
+    "requestedAt": {"type": ["string", "null"], "format": "date-time"}
+  },
+  "$defs": {
+    "requestType": {
+      "enum": [
+        "CREATE_DESIGN_FROM_TEXT",
+        "CREATE_DESIGN_FROM_REFERENCE",
+        "MODIFY_EXISTING_DESIGN",
+        "CREATE_DESIGN_FROM_IMAGE",
+        "CREATE_MULTI_SCREEN_FLOW",
+        "CREATE_DESIGN_WITH_COMPONENTS",
+        "CONVERT_PLATFORM"
+      ]
+    },
+    "screenRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pageId"],
+      "properties": {
+        "pageId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+        "screenName": {"type": ["string", "null"]},
+        "textPrompt": {"type": ["string", "null"]},
+        "referenceFileKey": {"type": ["string", "null"]},
+        "referenceNodeId": {"type": ["string", "null"]},
+        "imageAssetRef": {"type": ["string", "null"]},
+        "requiredComponentLogicalTypes": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1}
+        },
+        "targetPlatform": {"type": ["string", "null"]},
+        "existingScreenId": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

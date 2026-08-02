@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/common-contract-v1",
+  "$defs": {
+    "contentHash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "designSystemSnapshotRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profileId", "profileVersion", "registryVersion"],
+      "properties": {
+        "profileId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+        "profileVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"},
+        "registryVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"},
+        "layoutPolicyVersion": {
+          "anyOf": [
+            {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"},
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "generationIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "stage", "message"],
+      "properties": {
+        "code": {"type": "string", "minLength": 1},
+        "severity": {"enum": ["FATAL", "ERROR", "WARNING"]},
+        "stage": {"type": "string", "minLength": 1},
+        "sourceLocation": {"type": ["string", "null"]},
+        "message": {"type": "string", "minLength": 1},
+        "remediation": {"type": ["string", "null"]}
+      }
+    },
+    "artifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "artifactType", "uri", "contentHash", "createdAt"],
+      "properties": {
+        "artifactId": {"type": "string", "minLength": 1},
+        "artifactType": {"type": "string", "minLength": 1},
+        "uri": {"type": "string", "minLength": 1},
+        "contentHash": {"$ref": "#/$defs/contentHash"},
+        "createdAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "sourceRevisionRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceId", "revisionToken", "capturedAt"],
+      "properties": {
+        "sourceId": {"type": "string", "minLength": 1},
+        "revisionToken": {"type": "string", "minLength": 1},
+        "capturedAt": {"type": "string", "format": "date-time"}
+      }
+    }
+  }
+}

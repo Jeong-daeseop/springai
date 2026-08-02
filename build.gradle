@@ -43,6 +43,7 @@ dependencies {
     implementation 'org.freemarker:freemarker:2.3.33'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'com.networknt:json-schema-validator:3.0.1'
+    implementation 'com.github.javaparser:javaparser-core:3.26.4'
     runtimeOnly 'com.mysql:mysql-connector-j'
     if (isMacOs) {
         runtimeOnly "io.netty:netty-resolver-dns-native-macos::${nettyMacClassifier}"

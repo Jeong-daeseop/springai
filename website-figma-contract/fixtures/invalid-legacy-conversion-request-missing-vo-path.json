@@ -1,0 +1,9 @@
+{
+  "conversionId": "conv-emp-list-002",
+  "projectRootPath": "/Users/dev/egov-generated/emp",
+  "screenId": "emp-list",
+  "screenRole": "LIST",
+  "jspRelativePath": "src/main/webapp/WEB-INF/jsp/employer/EgovEmployerList.jsp",
+  "controllerRelativePath": "src/main/java/egovframework/let/emp/web/EgovEmployerController.java",
+  "requestedAt": "2026-08-02T09:00:00Z"
+}

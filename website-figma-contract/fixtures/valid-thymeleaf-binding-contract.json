@@ -1,0 +1,48 @@
+{
+  "screenId": "emp-list",
+  "screenRole": "LIST",
+  "route": {
+    "route": "/emp/employerList.do",
+    "httpMethod": "GET",
+    "controllerMethodName": "selectEmployerList",
+    "modelAttributeName": "searchVO",
+    "modelAttributeType": "EmployerVO",
+    "validated": false,
+    "redirect": false,
+    "securityEvidence": []
+  },
+  "fields": [
+    {
+      "fieldName": "emplyrId",
+      "javaType": "String",
+      "writable": true,
+      "required": false,
+      "validationAnnotations": ["@Size(max = 20)"],
+      "boundJspTag": "input",
+      "provenance": "CONTROLLER_VO",
+      "confidence": 1.0
+    },
+    {
+      "fieldName": "pageIndex",
+      "javaType": "int",
+      "writable": true,
+      "required": false,
+      "validationAnnotations": [],
+      "boundJspTag": "input",
+      "provenance": "CONTROLLER_VO",
+      "confidence": 1.0
+    }
+  ],
+  "displayFieldNames": ["emplyrId", "emplyrNm"],
+  "primaryDisplayAttributeName": "resultList",
+  "modelAttributesResolved": ["searchVO", "resultList"],
+  "modelAttributesUnresolved": [],
+  "status": "RESOLVED",
+  "issues": [],
+  "sourceRevision": {
+    "sourceId": "emp-project",
+    "revisionToken": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a0",
+    "capturedAt": "2026-08-02T09:00:00Z"
+  },
+  "createdAt": "2026-08-02T09:00:01Z"
+}

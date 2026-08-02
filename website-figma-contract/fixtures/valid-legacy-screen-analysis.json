@@ -1,0 +1,75 @@
+{
+  "screenId": "emp-list",
+  "screenRole": "LIST",
+  "jsp": {
+    "jspPath": "EgovEmployerList.jsp",
+    "taglibPrefixes": {"c": "http://java.sun.com/jsp/jstl/core", "ui": "http://egovframework.gov/ctl/ui"},
+    "includes": [],
+    "forms": [
+      {
+        "formName": "searchForm",
+        "modelAttribute": null,
+        "rawAction": "<c:url value='/emp/employerList.do'/>",
+        "resolvedRoute": "/emp/employerList.do",
+        "httpMethod": "GET",
+        "fields": [
+          {"fieldName": "pageIndex", "tagName": "input", "hidden": true, "errorDisplay": false,
+            "sourceLocation": "EgovEmployerList.jsp"},
+          {"fieldName": "searchCondition", "tagName": "input", "hidden": false, "errorDisplay": false,
+            "sourceLocation": "EgovEmployerList.jsp"},
+          {"fieldName": "searchKeyword", "tagName": "input", "hidden": false, "errorDisplay": false,
+            "sourceLocation": "EgovEmployerList.jsp"}
+        ],
+        "sourceLocation": "EgovEmployerList.jsp#800"
+      }
+    ],
+    "modelReferences": [
+      {"attributeName": "searchVO", "usageKind": "EL_EXPRESSION", "sourceLocation": "EgovEmployerList.jsp:19"},
+      {"attributeName": "resultList", "usageKind": "EL_EXPRESSION", "sourceLocation": "EgovEmployerList.jsp:83"}
+    ],
+    "forEachBindings": [
+      {"loopVariable": "item", "itemsAttributeName": "resultList", "sourceLocation": "EgovEmployerList.jsp:83"}
+    ],
+    "displayFields": [
+      {"rootAttributeName": "item", "fieldName": "emplyrId", "sourceLocation": "EgovEmployerList.jsp:86"}
+    ],
+    "routeReferences": ["/emp/employerList.do", "/emp/employerRegistView.do", "/emp/employerDetail.do"]
+  },
+  "controller": {
+    "controllerPath": "EgovEmployerController.java",
+    "className": "EgovEmployerController",
+    "classLevelRequestMapping": null,
+    "methods": [
+      {
+        "methodName": "selectEmployerList",
+        "httpMethod": "GET",
+        "route": "/emp/employerList.do",
+        "modelAttributeParamName": "searchVO",
+        "modelAttributeType": "EmployerVO",
+        "validated": false,
+        "modelAttributesAdded": ["resultList", "paginationInfo"],
+        "returnViewOrRedirect": "employer/EgovEmployerList",
+        "redirect": false,
+        "securityEvidence": [],
+        "sourceLocation": "EgovEmployerController.java#selectEmployerList"
+      }
+    ]
+  },
+  "vo": {
+    "voPath": "EmployerVO.java",
+    "className": "EmployerVO",
+    "fields": [
+      {"fieldName": "emplyrId", "javaType": "String", "readable": true, "writable": true,
+        "validationAnnotations": ["@Size(max = 20)"], "sourceLocation": "EmployerVO.java#emplyrId"},
+      {"fieldName": "pageIndex", "javaType": "int", "readable": true, "writable": true,
+        "validationAnnotations": [], "sourceLocation": "EmployerVO.java#pageIndex"}
+    ]
+  },
+  "sourceRevision": {
+    "sourceId": "emp-project",
+    "revisionToken": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a0",
+    "capturedAt": "2026-08-02T09:00:00Z"
+  },
+  "issues": [],
+  "analyzedAt": "2026-08-02T09:00:01Z"
+}

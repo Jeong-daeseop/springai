@@ -1,0 +1,57 @@
+{
+  "operationId": "figop-0000000000000000000000000000000002",
+  "revision": 4,
+  "request": {
+    "requestId": "req-reference-001",
+    "requestType": "CREATE_DESIGN_FROM_REFERENCE",
+    "fileKey": "abc123defREF",
+    "screens": [
+      {
+        "pageId": "emp-list",
+        "screenName": null,
+        "textPrompt": null,
+        "referenceFileKey": "abc123defREF",
+        "referenceNodeId": "12:34",
+        "imageAssetRef": null,
+        "requiredComponentLogicalTypes": [],
+        "targetPlatform": null,
+        "existingScreenId": null
+      }
+    ],
+    "snapshotRef": {
+      "profileId": "krds",
+      "profileVersion": "1.0",
+      "registryVersion": "2026.07",
+      "layoutPolicyVersion": null
+    },
+    "requestedAt": "2026-08-02T09:00:00Z"
+  },
+  "requestHash": "1a82db99d879ca176c35bdc72189e6efa534b3bcfa1321ed80cc4ac093b9bf75",
+  "status": "APPLIED",
+  "sourceRevision": {
+    "sourceId": "abc123defREF",
+    "revisionToken": "rev-42",
+    "capturedAt": "2026-08-02T09:05:00Z"
+  },
+  "issues": [
+    {
+      "code": "OPTIONAL_COMPONENT_NOT_IN_REGISTRY",
+      "severity": "WARNING",
+      "stage": "PLUGIN_APPLY",
+      "sourceLocation": "emp-list/table/actions",
+      "message": "선택 컴포넌트가 Registry에 없어 fallback으로 대체했습니다.",
+      "remediation": "Registry를 최신 Publish로 동기화하세요."
+    }
+  ],
+  "artifacts": [
+    {
+      "artifactId": "artifact-0001",
+      "artifactType": "FIGMA_GENERATION_REPORT",
+      "uri": "figma-generation-report/emp-list/4",
+      "contentHash": "fef393cca2055f043b228a2ee7719db4ca9199a9d9bc28f7affadc684011db94",
+      "createdAt": "2026-08-02T09:05:01Z"
+    }
+  ],
+  "createdAt": "2026-08-02T09:00:01Z",
+  "updatedAt": "2026-08-02T09:05:01Z"
+}

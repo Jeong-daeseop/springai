@@ -1,4 +1,4 @@
-# JSP/eGovFrame 화면을 Spring Boot·Thymeleaf로 전환하는 작업
+# eGovFrame JSP를 Spring Boot·Thymeleaf로 전환하는 작업 명세서
 
 **문서 버전**: 1.2  
 **작성일**: 2026-07-30  
@@ -7,7 +7,7 @@
 
 - [11_Semantic_Figma_Design_System_Implementation_Plan.md](./11_Semantic_Figma_Design_System_Implementation_Plan.md)
 - [12_Semantic_Figma_Design_System_Implementation_List.md](./12_Semantic_Figma_Design_System_Implementation_List.md)
-- [디자인_시스템_기반_Figma_MCP_업무화면_자동_생성_아키텍처_및_구현_명세서.md](./디자인_시스템_기반_Figma_MCP_업무화면_자동_생성_아키텍처_및_구현_명세서.md)
+- [Figma_MCP_디자인_오케스트레이션_아키텍처_및_구현_명세서.md](./Figma_MCP_디자인_오케스트레이션_아키텍처_및_구현_명세서.md)
 
 ---
 
@@ -147,7 +147,7 @@ Project Root
 
 ### Figma MCP 명세와의 경계
 
-[디자인_시스템_기반_Figma_MCP_업무화면_자동_생성_아키텍처_및_구현_명세서.md](./디자인_시스템_기반_Figma_MCP_업무화면_자동_생성_아키텍처_및_구현_명세서.md)의
+[Figma_MCP_디자인_오케스트레이션_아키텍처_및_구현_명세서.md](./Figma_MCP_디자인_오케스트레이션_아키텍처_및_구현_명세서.md)의
 Figma REST API 조회는 로컬 JSP 서버 크롤링과 다른 기능이다.
 
 ```text

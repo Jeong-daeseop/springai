@@ -1,0 +1,25 @@
+{
+  "requestId": "req-convert-001",
+  "requestType": "CONVERT_PLATFORM",
+  "fileKey": "abc123defREF",
+  "screens": [
+    {
+      "pageId": "emp-list",
+      "screenName": null,
+      "textPrompt": null,
+      "referenceFileKey": null,
+      "referenceNodeId": null,
+      "imageAssetRef": null,
+      "requiredComponentLogicalTypes": [],
+      "targetPlatform": "MOBILE",
+      "existingScreenId": "emp-list"
+    }
+  ],
+  "snapshotRef": {
+    "profileId": "krds",
+    "profileVersion": "1.0",
+    "registryVersion": "2026.07",
+    "layoutPolicyVersion": "2026.07"
+  },
+  "requestedAt": "2026-08-02T09:00:00Z"
+}

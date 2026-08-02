@@ -8,6 +8,7 @@ const here = new URL("../", import.meta.url);
 const read = path => JSON.parse(fs.readFileSync(new URL(path, here), "utf8"));
 const schemaNames = [
   "figma-common-v1.schema.json",
+  "common-contract-v1.schema.json",
   "rendered-design-document-v1.schema.json",
   "figpack-v1.schema.json",
   "figma-screen-spec-v1.schema.json",
@@ -17,6 +18,11 @@ const schemaNames = [
   "component-catalog-v1.schema.json",
   "figma-generation-report-v1.schema.json",
   "figma-export-bundle-v1.schema.json",
+  "figma-design-request-v1.schema.json",
+  "figma-design-operation-v1.schema.json",
+  "legacy-conversion-request-v1.schema.json",
+  "legacy-screen-analysis-v1.schema.json",
+  "thymeleaf-binding-contract-v1.schema.json",
 ];
 const schemas = schemaNames.map(read);
 const ajv = new Ajv2020({allErrors:true, strict:true});
@@ -35,6 +41,11 @@ const validateRegistry = validator("component-registry-v1.schema.json");
 const validateCatalog = validator("component-catalog-v1.schema.json");
 const validateGenerationReport = validator("figma-generation-report-v1.schema.json");
 const validateBundle = validator("figma-export-bundle-v1.schema.json");
+const validateDesignRequest = validator("figma-design-request-v1.schema.json");
+const validateDesignOperation = validator("figma-design-operation-v1.schema.json");
+const validateLegacyConversionRequest = validator("legacy-conversion-request-v1.schema.json");
+const validateLegacyScreenAnalysis = validator("legacy-screen-analysis-v1.schema.json");
+const validateBindingContract = validator("thymeleaf-binding-contract-v1.schema.json");
 
 function expectValid(validate, fixture) {
   assert.equal(validate(read(`fixtures/${fixture}`)), true,
@@ -73,6 +84,42 @@ expectValid(validateProfile, "valid-design-system-profile.json");
 expectValid(validateRegistry, "valid-krds-component-registry.json");
 expectValid(validateGenerationReport, "valid-figma-generation-report.json");
 expectValid(validateBundle, "valid-figma-export-bundle.json");
+
+for (const name of [
+  "valid-figma-design-request-text.json",
+  "valid-figma-design-request-reference.json",
+  "valid-figma-design-request-modify.json",
+  "valid-figma-design-request-image.json",
+  "valid-figma-design-request-multi-screen.json",
+  "valid-figma-design-request-with-components.json",
+  "valid-figma-design-request-convert-platform.json",
+]) {
+  expectValid(validateDesignRequest, name);
+}
+for (const name of [
+  "invalid-figma-design-request-empty-screens.json",
+  "invalid-figma-design-request-missing-snapshot.json",
+]) {
+  expectInvalid(validateDesignRequest, name);
+}
+
+expectValid(validateDesignOperation, "valid-figma-design-operation-analyzed.json");
+expectValid(validateDesignOperation, "valid-figma-design-operation-applied.json");
+for (const name of [
+  "invalid-figma-design-operation-bad-status.json",
+  "invalid-figma-design-operation-missing-request.json",
+]) {
+  expectInvalid(validateDesignOperation, name);
+}
+
+expectValid(validateLegacyConversionRequest, "valid-legacy-conversion-request.json");
+expectInvalid(validateLegacyConversionRequest, "invalid-legacy-conversion-request-missing-vo-path.json");
+
+expectValid(validateLegacyScreenAnalysis, "valid-legacy-screen-analysis.json");
+expectInvalid(validateLegacyScreenAnalysis, "invalid-legacy-screen-analysis-bad-role.json");
+
+expectValid(validateBindingContract, "valid-thymeleaf-binding-contract.json");
+expectInvalid(validateBindingContract, "invalid-thymeleaf-binding-contract-bad-confidence.json");
 expectValid(validateCatalog, "../component-catalog-v1.json");
 
 const validBundle = read("fixtures/valid-figma-export-bundle.json");

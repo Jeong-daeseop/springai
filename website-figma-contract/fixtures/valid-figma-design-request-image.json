@@ -1,0 +1,25 @@
+{
+  "requestId": "req-image-001",
+  "requestType": "CREATE_DESIGN_FROM_IMAGE",
+  "fileKey": null,
+  "screens": [
+    {
+      "pageId": "emp-list",
+      "screenName": null,
+      "textPrompt": null,
+      "referenceFileKey": null,
+      "referenceNodeId": null,
+      "imageAssetRef": "asset-upload-0001",
+      "requiredComponentLogicalTypes": [],
+      "targetPlatform": null,
+      "existingScreenId": null
+    }
+  ],
+  "snapshotRef": {
+    "profileId": "krds",
+    "profileVersion": "1.0",
+    "registryVersion": "2026.07",
+    "layoutPolicyVersion": null
+  },
+  "requestedAt": "2026-08-02T09:00:00Z"
+}

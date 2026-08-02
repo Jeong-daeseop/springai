@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/thymeleaf-binding-contract-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["screenId", "screenRole", "route", "fields", "displayFieldNames",
+    "modelAttributesResolved", "modelAttributesUnresolved", "status", "issues", "createdAt"],
+  "properties": {
+    "screenId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "screenRole": {"enum": ["LIST", "FORM", "DETAIL"]},
+    "route": {"$ref": "#/$defs/routeBinding"},
+    "fields": {"type": "array", "items": {"$ref": "#/$defs/fieldBinding"}},
+    "displayFieldNames": {"type": "array", "items": {"type": "string"}},
+    "primaryDisplayAttributeName": {"type": ["string", "null"]},
+    "modelAttributesResolved": {"type": "array", "items": {"type": "string"}},
+    "modelAttributesUnresolved": {"type": "array", "items": {"type": "string"}},
+    "status": {"enum": ["RESOLVED", "REVIEW_REQUIRED"]},
+    "issues": {
+      "type": "array",
+      "items": {"$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/generationIssue"}
+    },
+    "sourceRevision": {
+      "anyOf": [
+        {"$ref": "https://schemas.krdevops.local/common-contract-v1#/$defs/sourceRevisionRef"},
+        {"type": "null"}
+      ]
+    },
+    "createdAt": {"type": "string", "format": "date-time"}
+  },
+  "$defs": {
+    "routeBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["route", "httpMethod", "validated", "redirect", "securityEvidence"],
+      "properties": {
+        "route": {"type": "string", "minLength": 1},
+        "httpMethod": {"type": "string", "minLength": 1},
+        "controllerMethodName": {"type": ["string", "null"]},
+        "modelAttributeName": {"type": ["string", "null"]},
+        "modelAttributeType": {"type": ["string", "null"]},
+        "validated": {"type": "boolean"},
+        "redirect": {"type": "boolean"},
+        "securityEvidence": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "fieldBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fieldName", "javaType", "writable", "required", "validationAnnotations",
+        "provenance", "confidence"],
+      "properties": {
+        "fieldName": {"type": "string", "minLength": 1},
+        "javaType": {"type": "string", "minLength": 1},
+        "writable": {"type": "boolean"},
+        "required": {"type": "boolean"},
+        "validationAnnotations": {"type": "array", "items": {"type": "string"}},
+        "boundJspTag": {"type": ["string", "null"]},
+        "provenance": {"type": "string", "minLength": 1},
+        "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+      }
+    }
+  }
+}

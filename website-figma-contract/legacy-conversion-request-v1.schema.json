@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/legacy-conversion-request-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "projectRootPath", "screenId", "screenRole",
+    "jspRelativePath", "controllerRelativePath", "voRelativePath"
+  ],
+  "properties": {
+    "conversionId": {"type": ["string", "null"], "minLength": 1, "maxLength": 128},
+    "projectRootPath": {"type": "string", "minLength": 1},
+    "screenId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "screenRole": {"enum": ["LIST", "FORM", "DETAIL"]},
+    "jspRelativePath": {"type": "string", "minLength": 1},
+    "controllerRelativePath": {"type": "string", "minLength": 1},
+    "voRelativePath": {"type": "string", "minLength": 1},
+    "requestedAt": {"type": ["string", "null"], "format": "date-time"}
+  }
+}

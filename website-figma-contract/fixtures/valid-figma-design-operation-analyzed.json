@@ -1,0 +1,36 @@
+{
+  "operationId": "figop-0000000000000000000000000000000001",
+  "revision": 1,
+  "request": {
+    "requestId": "req-text-001",
+    "requestType": "CREATE_DESIGN_FROM_TEXT",
+    "fileKey": null,
+    "screens": [
+      {
+        "pageId": "emp-list",
+        "screenName": "직원 목록",
+        "textPrompt": "직원 목록 화면을 KRDS 스타일로 만들어줘",
+        "referenceFileKey": null,
+        "referenceNodeId": null,
+        "imageAssetRef": null,
+        "requiredComponentLogicalTypes": [],
+        "targetPlatform": null,
+        "existingScreenId": null
+      }
+    ],
+    "snapshotRef": {
+      "profileId": "krds",
+      "profileVersion": "1.0",
+      "registryVersion": "2026.07",
+      "layoutPolicyVersion": null
+    },
+    "requestedAt": "2026-08-02T09:00:00Z"
+  },
+  "requestHash": "32b3b48132301c7f441d014b40255be5594a98c0d8a784ad8060e76679825768",
+  "status": "ANALYZED",
+  "sourceRevision": null,
+  "issues": [],
+  "artifacts": [],
+  "createdAt": "2026-08-02T09:00:01Z",
+  "updatedAt": "2026-08-02T09:00:01Z"
+}

@@ -1,0 +1,13 @@
+{
+  "requestId": "req-invalid-001",
+  "requestType": "CREATE_DESIGN_FROM_TEXT",
+  "fileKey": null,
+  "screens": [],
+  "snapshotRef": {
+    "profileId": "krds",
+    "profileVersion": "1.0",
+    "registryVersion": "2026.07",
+    "layoutPolicyVersion": null
+  },
+  "requestedAt": "2026-08-02T09:00:00Z"
+}

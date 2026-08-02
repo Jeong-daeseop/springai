@@ -1,0 +1,19 @@
+{
+  "requestId": "req-invalid-002",
+  "requestType": "CREATE_DESIGN_FROM_TEXT",
+  "fileKey": null,
+  "screens": [
+    {
+      "pageId": "emp-list",
+      "screenName": null,
+      "textPrompt": "직원 목록",
+      "referenceFileKey": null,
+      "referenceNodeId": null,
+      "imageAssetRef": null,
+      "requiredComponentLogicalTypes": [],
+      "targetPlatform": null,
+      "existingScreenId": null
+    }
+  ],
+  "requestedAt": "2026-08-02T09:00:00Z"
+}

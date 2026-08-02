@@ -1,0 +1,36 @@
+{
+  "operationId": "figop-0000000000000000000000000000000003",
+  "revision": 1,
+  "request": {
+    "requestId": "req-text-001",
+    "requestType": "CREATE_DESIGN_FROM_TEXT",
+    "fileKey": null,
+    "screens": [
+      {
+        "pageId": "emp-list",
+        "screenName": null,
+        "textPrompt": "직원 목록",
+        "referenceFileKey": null,
+        "referenceNodeId": null,
+        "imageAssetRef": null,
+        "requiredComponentLogicalTypes": [],
+        "targetPlatform": null,
+        "existingScreenId": null
+      }
+    ],
+    "snapshotRef": {
+      "profileId": "krds",
+      "profileVersion": "1.0",
+      "registryVersion": "2026.07",
+      "layoutPolicyVersion": null
+    },
+    "requestedAt": "2026-08-02T09:00:00Z"
+  },
+  "requestHash": "157862a756ceb505701bb32dd8e754202c0477c27d4b028d98022852f230af1b",
+  "status": "IN_PROGRESS",
+  "sourceRevision": null,
+  "issues": [],
+  "artifacts": [],
+  "createdAt": "2026-08-02T09:00:01Z",
+  "updatedAt": "2026-08-02T09:00:01Z"
+}

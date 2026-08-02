@@ -1,0 +1,36 @@
+{
+  "requestId": "req-multi-001",
+  "requestType": "CREATE_MULTI_SCREEN_FLOW",
+  "fileKey": null,
+  "screens": [
+    {
+      "pageId": "emp-list",
+      "screenName": "직원 목록",
+      "textPrompt": "직원 목록 화면",
+      "referenceFileKey": null,
+      "referenceNodeId": null,
+      "imageAssetRef": null,
+      "requiredComponentLogicalTypes": [],
+      "targetPlatform": null,
+      "existingScreenId": null
+    },
+    {
+      "pageId": "emp-detail",
+      "screenName": "직원 상세",
+      "textPrompt": "직원 상세 화면",
+      "referenceFileKey": null,
+      "referenceNodeId": null,
+      "imageAssetRef": null,
+      "requiredComponentLogicalTypes": [],
+      "targetPlatform": null,
+      "existingScreenId": null
+    }
+  ],
+  "snapshotRef": {
+    "profileId": "krds",
+    "profileVersion": "1.0",
+    "registryVersion": "2026.07",
+    "layoutPolicyVersion": null
+  },
+  "requestedAt": "2026-08-02T09:00:00Z"
+}
