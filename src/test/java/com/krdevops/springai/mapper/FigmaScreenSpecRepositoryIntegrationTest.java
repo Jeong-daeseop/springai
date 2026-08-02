@@ -90,6 +90,6 @@ class FigmaScreenSpecRepositoryIntegrationTest {
                 FigmaScreenType.LIST, LayoutPattern.STANDARD,
                 name, null, "DESKTOP", ScreenSpecStatus.APPROVED,
                 new FigmaScreenSpec.DesignSystemRef("krds", "1.0", "2026.07"),
-                root, List.of(new FigmaExportIssue("X", FigmaExportIssue.Severity.WARNING, "msg", null)));
+                root, List.of(new FigmaExportIssue("X", FigmaExportIssue.Severity.WARNING, "msg", null, null, null)));
     }
 }

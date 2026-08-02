@@ -1,25 +1,30 @@
 package com.krdevops.springai.model.figma;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 import java.util.Map;
 
-/** 화면과 컴포넌트의 공통 계층 모델. Figma Plugin이 Instance/Frame을 조립하는 논리 트리다. */
+/**
+ * R1: Figma 논리 노드 (화면을 구성하는 컴포넌트/레이아웃 요소).
+ * logicalNodeId로 추적, Published Instance와 매핑.
+ * 계획서 12번 R5-020 기반.
+ */
 public record FigmaNodeSpec(
-        @jakarta.validation.constraints.NotBlank String logicalNodeId,
-        @jakarta.validation.constraints.NotNull NodeType nodeType,
-        @jakarta.validation.constraints.NotBlank String type,
-        @jakarta.validation.constraints.NotNull Map<String, Object> properties,
-        @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<FigmaNodeSpec> children
-) {
-    public FigmaNodeSpec {
-        if (logicalNodeId == null || logicalNodeId.isBlank()) {
-            throw new IllegalArgumentException("logicalNodeId는 필수입니다.");
-        }
-        properties = properties == null ? Map.of() : Map.copyOf(properties);
-        children = children == null ? List.of() : List.copyOf(children);
-    }
+        @JsonProperty("logicalNodeId")
+        String logicalNodeId,
 
-    /** R0-004: 화면 트리에서 이 노드가 맡는 구조적 역할. */
+        @JsonProperty("nodeType")
+        NodeType nodeType,
+
+        @JsonProperty("logicalType")
+        String logicalType,
+
+        @JsonProperty("properties")
+        Map<String, Object> properties,
+
+        @JsonProperty("children")
+        List<FigmaNodeSpec> children
+) {
     public enum NodeType {
         PAGE,
         SECTION,
@@ -27,5 +32,18 @@ public record FigmaNodeSpec(
         TEXT,
         SLOT,
         REPEAT
+    }
+
+    public FigmaNodeSpec {
+        if (logicalNodeId == null || logicalNodeId.isBlank()) {
+            throw new IllegalArgumentException("logicalNodeId는 필수입니다");
+        }
+        if (nodeType == null) {
+            throw new IllegalArgumentException("nodeType은 필수입니다");
+        }
+    }
+
+    public String type() {
+        return logicalType;
     }
 }

@@ -50,10 +50,10 @@ class FigmaOperationsServiceTest {
                 report("r2", false, 10, 10, 5, List.of(
                         new FigmaExportIssue(
                                 "REGISTRY_VERSION_MISMATCH", Severity.ERROR,
-                                "Registry 불일치", null),
+                                "Registry 불일치", null, null, null),
                         new FigmaExportIssue(
                                 "USER_OVERRIDE_PRESERVATION_FAILED", Severity.ERROR,
-                                "사용자 수정 보존 실패", "node")))));
+                                "사용자 수정 보존 실패", "node", null, null)))));
         when(reviewRepository.countByEventType(FigmaReviewEvent.EventType.REVIEW)).thenReturn(7L);
         when(reviewRepository.countByEventType(FigmaReviewEvent.EventType.REJECTION)).thenReturn(2L);
 

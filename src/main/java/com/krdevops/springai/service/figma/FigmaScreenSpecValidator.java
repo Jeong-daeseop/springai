@@ -39,7 +39,7 @@ public class FigmaScreenSpecValidator {
         schemaValidator.validate(spec).stream()
                 .map(issue -> new FigmaExportIssue(
                         issue.code(), FigmaExportIssue.Severity.FATAL,
-                        issue.message(), issue.logicalNodeId(), issue.jsonPointer()))
+                        issue.message(), issue.logicalNodeId(), issue.jsonPointer(), null))
                 .forEach(issues::add);
 
         if (spec.content() == null) {
@@ -77,18 +77,18 @@ public class FigmaScreenSpecValidator {
     private FigmaExportIssue fatal(
             String code, String message, String logicalNodeId, String jsonPointer) {
         return new FigmaExportIssue(
-                code, FigmaExportIssue.Severity.FATAL, message, logicalNodeId, jsonPointer);
+                code, FigmaExportIssue.Severity.FATAL, message, logicalNodeId, jsonPointer, null);
     }
 
     private FigmaExportIssue error(
             String code, String message, String logicalNodeId, String jsonPointer) {
         return new FigmaExportIssue(
-                code, FigmaExportIssue.Severity.ERROR, message, logicalNodeId, jsonPointer);
+                code, FigmaExportIssue.Severity.ERROR, message, logicalNodeId, jsonPointer, null);
     }
 
     private FigmaExportIssue warning(
             String code, String message, String logicalNodeId, String jsonPointer) {
         return new FigmaExportIssue(
-                code, FigmaExportIssue.Severity.WARNING, message, logicalNodeId, jsonPointer);
+                code, FigmaExportIssue.Severity.WARNING, message, logicalNodeId, jsonPointer, null);
     }
 }

@@ -1,6 +1,6 @@
 package com.krdevops.springai.service.figma;
 
-import com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus;
+import com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.EnumMap;
@@ -8,13 +8,13 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.ANALYZED;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.APPLIED;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.APPLY_REQUIRED;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.CONFLICT;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.FAILED;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.PREVIEW_READY;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.REJECTED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.ANALYZED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.APPLIED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.APPLY_REQUIRED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.CONFLICT;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.FAILED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.PREVIEW_READY;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.REJECTED;
 
 /**
  * I-1 완료 게이트: "Plugin 보고서 전 APPLIED 전이 불가", "source revision 불일치 시 CONFLICT".

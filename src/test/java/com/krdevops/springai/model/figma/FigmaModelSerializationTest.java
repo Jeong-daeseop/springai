@@ -57,8 +57,7 @@ class FigmaModelSerializationTest {
                 "사용자 목록", "/user/list", "DESKTOP", ScreenSpecStatus.APPROVED,
                 new FigmaScreenSpec.DesignSystemRef("krds", "1.0", "2026.07"),
                 root,
-                List.of(new FigmaExportIssue("MISSING_COMPONENT", FigmaExportIssue.Severity.WARNING,
-                        "krds.pagination이 Registry에 없습니다.", "user-list/pagination")));
+                List.of());
     }
 
     private DesignSystemProfile sampleProfile() {

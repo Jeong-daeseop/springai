@@ -1,12 +1,13 @@
 package com.krdevops.springai.mapper;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.model.contract.ArtifactRef;
 import com.krdevops.springai.model.contract.GenerationIssue;
 import com.krdevops.springai.model.contract.SourceRevisionRef;
-import com.krdevops.springai.model.figma.request.FigmaDesignOperation;
-import com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus;
-import com.krdevops.springai.model.figma.request.FigmaDesignRequest;
+import com.krdevops.springai.model.figma.contract.FigmaDesignOperation;
+import com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus;
+import com.krdevops.springai.model.figma.contract.FigmaDesignRequest;
 import com.krdevops.springai.service.contract.OperationHashFactory;
 import com.krdevops.springai.service.figma.FigmaDesignOperationStateService;
 import jakarta.annotation.PostConstruct;
@@ -45,7 +46,9 @@ public class FigmaDesignOperationRepository {
             FigmaDesignOperationStateService stateService
     ) {
         this.jdbcTemplate = jdbcTemplate;
-        this.objectMapper = objectMapper.copy().findAndRegisterModules();
+        this.objectMapper = objectMapper.copy()
+                .findAndRegisterModules()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         this.operationHashFactory = operationHashFactory;
         this.stateService = stateService;
     }
@@ -166,10 +169,15 @@ public class FigmaDesignOperationRepository {
 
     private Object canonicalRequestView(FigmaDesignRequest request) {
         Map<String, Object> view = new LinkedHashMap<>();
-        view.put("requestType", request.requestType());
+        view.put("type", request.type());
+        view.put("prompt", request.prompt());
         view.put("fileKey", request.fileKey());
+        view.put("referenceNodeIds", request.referenceNodeIds());
+        view.put("editableNodeIds", request.editableNodeIds());
+        view.put("imageNodeIds", request.imageNodeIds());
+        view.put("targetPlatform", request.targetPlatform());
+        view.put("components", request.components());
         view.put("screens", request.screens());
-        view.put("snapshotRef", request.snapshotRef());
         return view;
     }
 

@@ -4,13 +4,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.ANALYZED;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.APPLIED;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.APPLY_REQUIRED;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.CONFLICT;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.FAILED;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.PREVIEW_READY;
-import static com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.REJECTED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.ANALYZED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.APPLIED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.APPLY_REQUIRED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.CONFLICT;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.FAILED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.PREVIEW_READY;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.REJECTED;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -70,10 +70,10 @@ class FigmaDesignOperationStateServiceTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus.class,
+    @EnumSource(value = com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.class,
             names = {"APPLIED", "FAILED", "REJECTED", "CONFLICT"})
     void terminalStatusesHaveNoOutgoingTransitions(
-            com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus terminal) {
+            com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus terminal) {
         assertThatCode(() -> {
             if (service.isTerminal(terminal)) {
                 throw new IllegalStateException("expected-terminal");
@@ -83,7 +83,7 @@ class FigmaDesignOperationStateServiceTest {
 
     @Test
     void failedAndRejectedAreReachableFromEveryNonTerminalState() {
-        for (var current : new com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus[] {
+        for (var current : new com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus[] {
                 ANALYZED, PREVIEW_READY, APPLY_REQUIRED}) {
             assertThatCode(() -> service.assertTransitionAllowed(current, FAILED))
                     .doesNotThrowAnyException();

@@ -69,9 +69,9 @@ class FigmaScreenExportArtifactIntegrationTest {
                 "spec-user", null, "user-list", null,
                 "DESKTOP", FigmaExportMode.PREVIEW, FigmaSyncMode.PREVIEW));
 
-        assertThat(result.artifact()).isNotNull();
+        assertThat(result.artifactRef()).isNotNull();
         assertThat(Files.isRegularFile(artifactRoot
-                .resolve(result.artifact().relativePath())
+                .resolve(result.artifactRef().relativePath())
                 .resolve("figma-screen-spec.json"))).isTrue();
         verify(figmaRepository).save(result.figmaScreenSpec());
     }

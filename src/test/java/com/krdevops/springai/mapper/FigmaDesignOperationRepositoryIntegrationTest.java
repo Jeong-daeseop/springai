@@ -2,13 +2,12 @@ package com.krdevops.springai.mapper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.model.contract.ArtifactRef;
-import com.krdevops.springai.model.contract.DesignSystemSnapshotRef;
 import com.krdevops.springai.model.contract.SourceRevisionRef;
-import com.krdevops.springai.model.figma.request.FigmaDesignOperation;
-import com.krdevops.springai.model.figma.request.FigmaDesignOperationStatus;
-import com.krdevops.springai.model.figma.request.FigmaDesignRequest;
-import com.krdevops.springai.model.figma.request.FigmaDesignRequestType;
-import com.krdevops.springai.model.figma.request.FigmaDesignScreenRequest;
+import com.krdevops.springai.model.figma.contract.FigmaDesignOperation;
+import com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus;
+import com.krdevops.springai.model.figma.contract.FigmaDesignRequest;
+import com.krdevops.springai.model.figma.contract.FigmaDesignRequestType;
+import com.krdevops.springai.model.figma.contract.FigmaScreenRequest;
 import com.krdevops.springai.service.contract.OperationHashFactory;
 import com.krdevops.springai.service.figma.FigmaDesignOperationStateService;
 import org.junit.jupiter.api.Test;
@@ -146,13 +145,16 @@ class FigmaDesignOperationRepositoryIntegrationTest {
 
     private FigmaDesignRequest request(String pageId) {
         return new FigmaDesignRequest(
-                "req-" + UUID.randomUUID(),
-                FigmaDesignRequestType.CREATE_DESIGN_FROM_TEXT,
+                FigmaDesignRequestType.TEXT_DESCRIPTION,
+                "테스트 화면 생성 요청",
+                "test-file-key",
                 null,
-                List.of(new FigmaDesignScreenRequest(
-                        pageId, "테스트 화면", "직원 목록 화면", null, null, null, List.of(), null, null)),
-                new DesignSystemSnapshotRef("krds", "1.0", "2026.07", null),
-                Instant.now());
+                null,
+                null,
+                null,
+                null,
+                List.of(new FigmaScreenRequest(pageId, "테스트 화면 생성"))
+        );
     }
 
     private SourceRevisionRef sourceRevision(FigmaDesignRequest request, String token) {

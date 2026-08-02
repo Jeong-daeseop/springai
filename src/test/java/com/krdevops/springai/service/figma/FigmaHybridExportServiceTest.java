@@ -119,7 +119,7 @@ class FigmaHybridExportServiceTest {
         when(semanticSpec.screenVersion()).thenReturn(4);
         when(semanticSpec.viewport()).thenReturn("DESKTOP");
         FigmaExportResult semantic =
-                new FigmaExportResult(FigmaExportResult.Status.SUCCESS, semanticSpec, List.of(), null);
+                new FigmaExportResult(FigmaExportResult.Status.SUCCESS, semanticSpec, List.of(), LocalDateTime.now(), null);
         FigmaImportArtifact reference =
                 new FigmaImportArtifact(artifactId, artifactId + ".figpack", "/tmp/reference.figpack", 10);
 

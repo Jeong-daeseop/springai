@@ -251,7 +251,8 @@ public class FigmaScreenExportService {
         return profileRepository.findLatest(profileId).orElseGet(() -> {
             issues.add(new FigmaExportIssue("PROFILE_NOT_FOUND",
                     FigmaExportIssue.Severity.WARNING,
-                    "DesignSystemProfile을 찾을 수 없어 기본값을 사용합니다: " + profileId, null));
+                    "DesignSystemProfile을 찾을 수 없어 기본값을 사용합니다: " + profileId,
+                    null, null, null));
             return defaultProfile(profileId);
         });
     }
@@ -277,11 +278,12 @@ public class FigmaScreenExportService {
                 issues.add(new FigmaExportIssue("COMPONENT_NOT_IN_REGISTRY",
                         FigmaExportIssue.Severity.WARNING,
                         "Registry에서 해석할 수 없는 컴포넌트 타입입니다(Plugin이 fallback 노드로 생성해야 함): " + type,
-                        null));
+                        null, null, null));
             } else if (resolution.kind() != ComponentRegistryResolver.ResolutionKind.DIRECT) {
                 issues.add(new FigmaExportIssue("COMPONENT_REGISTRY_REDIRECT",
                         FigmaExportIssue.Severity.WARNING,
-                        type + "가 " + resolution.resolvedLogicalType() + "로 대체 해석되었습니다.", null));
+                        type + "가 " + resolution.resolvedLogicalType() + "로 대체 해석되었습니다.",
+                        null, null, null));
             }
         }
     }

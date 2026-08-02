@@ -1,16 +1,46 @@
 package com.krdevops.springai.model.figma;
 
-/** Export 과정에서 발생한 문제. severity에 따라 전체 중단·기본값 대체·계속 진행이 갈린다(08번 §8). */
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+/**
+ * R1: Figma 화면 생성 중 발생한 이슈.
+ * 계획서 12번 문서 R5-034 기반.
+ */
 public record FigmaExportIssue(
-        @jakarta.validation.constraints.NotBlank String code,
-        @jakarta.validation.constraints.NotNull Severity severity,
-        @jakarta.validation.constraints.NotBlank String message,
+        @JsonProperty("code")
+        String code,
+
+        @JsonProperty("severity")
+        Severity severity,
+
+        @JsonProperty("message")
+        String message,
+
+        @JsonProperty("logicalNodeId")
         String logicalNodeId,
-        String jsonPointer
+
+        @JsonProperty("jsonPointer")
+        String jsonPointer,
+
+        @JsonProperty("metadata")
+        Object metadata
 ) {
-    public FigmaExportIssue(String code, Severity severity, String message, String logicalNodeId) {
-        this(code, severity, message, logicalNodeId, null);
+    public enum Severity {
+        FATAL,
+        ERROR,
+        WARNING,
+        INFO
     }
 
-    public enum Severity { FATAL, ERROR, WARNING }
+    public FigmaExportIssue {
+        if (code == null || code.isBlank()) {
+            throw new IllegalArgumentException("code는 필수입니다");
+        }
+        if (severity == null) {
+            throw new IllegalArgumentException("severity는 필수입니다");
+        }
+        if (message == null || message.isBlank()) {
+            throw new IllegalArgumentException("message는 필수입니다");
+        }
+    }
 }
