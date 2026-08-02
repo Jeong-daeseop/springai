@@ -31,6 +31,7 @@ import com.krdevops.springai.tools.CaptureWebPageTool;
 import com.krdevops.springai.tools.DesignArtifactTool;
 import com.krdevops.springai.tools.DesignSystemTool;
 import com.krdevops.springai.tools.FigmaExportTool;
+import com.krdevops.springai.tools.FigmaDesignOrchestrationTool;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -77,7 +78,8 @@ public class McpConfig {
             CaptureWebPageTool captureWebPageTool,
             DesignArtifactTool designArtifactTool,
             FigmaExportTool figmaExportTool,
-            DesignSystemTool designSystemTool) {
+            DesignSystemTool designSystemTool,
+            FigmaDesignOrchestrationTool figmaDesignOrchestrationTool) {
         return MethodToolCallbackProvider.builder()
                 .toolObjects(
                         dateTimeTool, designReferenceTool, employeeTool, schemaReaderTool, codeSaverTool,
@@ -87,7 +89,8 @@ public class McpConfig {
                         crudScreenSourceTool, boardScreenSourceTool, masterDetailScreenSourceTool,
                         projectHealthTool, projectInitializrTool, menuTool, authTool,
                         securityTemplateTool, sqlTool, outputPathResolverTool, thymeleafLayoutTool,
-                        captureWebPageTool, designArtifactTool, figmaExportTool, designSystemTool)
+                        captureWebPageTool, designArtifactTool, figmaExportTool, designSystemTool,
+                        figmaDesignOrchestrationTool)
                 .build();
     }
 }
