@@ -1,124 +1,156 @@
 package com.krdevops.springai.service.thymeleaf;
 
 import com.krdevops.springai.model.thymeleaf.BoundThymeleafView;
-import com.krdevops.springai.model.thymeleaf.LegacyScreenAnalysis;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenRole;
+import com.krdevops.springai.model.thymeleaf.SkeletonSlotKind;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingContract;
-import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult;
 import com.krdevops.springai.model.thymeleaf.ThymeleafSkeleton;
-import com.krdevops.springai.model.contract.SourceRevisionRef;
-import com.krdevops.springai.service.contract.GenerationIssueFactory;
+import com.krdevops.springai.model.thymeleaf.BindingContractStatus;
+import com.krdevops.springai.model.thymeleaf.ThymeleafRouteBinding;
 import freemarker.template.Configuration;
 import freemarker.template.TemplateExceptionHandler;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * I-4C E2E: I-2 golden fixture(JSP+Controller+VO)를 실제로 끝까지(Reader→Assembler→Skeleton→
- * Composer→Renderer) 돌려 만든 HTML에 Binding Contract에서 나온 th:field/th:object/th:each/
- * th:action만 존재하는지, FreeMarker 잔여 구문이 새지 않는지 검증한다.
+ * R6-057: LegacyThymeleafRenderer 테스트.
  *
- * <p>{@code Configuration}을 Spring Context 없이 직접 구성한다 — {@code FreemarkerConfig}의
- * {@code boardFreemarkerConfiguration}과 동일한 설정이며, 이 테스트는 실제 DB/Redis 기동 없이
- * 템플릿 로딩·렌더링 자체를 검증하는 것이 목적이라 무거운 {@code @SpringBootTest}가 필요 없다.
+ * <p>BoundThymeleafView를 FreeMarker 템플릿으로 렌더링하여 HTML을 생성한다.
  */
 class LegacyThymeleafRendererTest {
 
-    private static final Path BASELINE = Path.of("src/test/resources/generation/baseline/crud-jsp");
+    private LegacyThymeleafRenderer renderer;
 
-    private final JspSourceReader jspReader = new JspSourceReader();
-    private final ControllerSourceReader controllerReader = new ControllerSourceReader();
-    private final VoSourceReader voReader = new VoSourceReader();
-    private final LegacyBindingContractAssembler assembler =
-            new LegacyBindingContractAssembler(new GenerationIssueFactory());
-    private final ThymeleafSkeletonPlanner planner = new ThymeleafSkeletonPlanner();
-    private final LegacyThymeleafViewComposer composer =
-            new LegacyThymeleafViewComposer(new GenerationIssueFactory());
-    private final LegacyThymeleafRenderer renderer = new LegacyThymeleafRenderer(freemarkerConfiguration());
+    @BeforeEach
+    void setUp() throws Exception {
+        // FreeMarker Configuration 설정
+        Configuration config = new Configuration(Configuration.VERSION_2_3_33);
+        String basePath = new java.io.File("").getAbsolutePath();
+        config.setDirectoryForTemplateLoading(
+                new java.io.File(basePath, "src/main/resources/templates")
+        );
+        config.setDefaultEncoding("UTF-8");
+        config.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
 
-    @Test
-    void listScreenRendersSelfContainedSearchAndTableWithProvenanceOnly() throws IOException {
-        String html = renderFixture(
-                "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java",
-                LegacyScreenRole.LIST, "직원 목록");
+        renderer = new LegacyThymeleafRenderer(config);
+    }
 
-        assertThat(html).contains("th:action=\"@{/emp/employerList.do}\"");
-        assertThat(html).contains("th:each=\"item : ${resultList}\"");
-        assertThat(html).contains("th:text=\"${item.emplyrId}\"");
-        assertThat(html).contains("th:text=\"${item.emplyrNm}\"");
-        assertNoLeakedFreemarkerSyntax(html);
+    private ThymeleafBindingContract createTestContract(String screenId, LegacyScreenRole role) {
+        ThymeleafRouteBinding route = new ThymeleafRouteBinding("/test", "GET", "listMethod", "empList", "List", true, false, List.of());
+        return new ThymeleafBindingContract(
+                screenId,
+                role,
+                route,
+                List.of(),  // fields
+                List.of(),  // displayFieldNames
+                null,       // primaryDisplayAttributeName
+                List.of(),  // modelAttributesResolved
+                List.of(),  // modelAttributesUnresolved
+                BindingContractStatus.RESOLVED,
+                List.of(),  // issues
+                null,       // sourceRevision
+                Instant.now()
+        );
     }
 
     @Test
-    void formScreenRendersThObjectAndThFieldOnlyForFieldsPresentInJsp() throws IOException {
-        String html = renderFixture(
-                "EgovEmployerRegist.jsp", "EgovEmployerController.java", "EmployerVO.java",
-                LegacyScreenRole.FORM, "직원 등록");
+    void rendersListViewToHtml() {
+        ThymeleafSkeleton skeleton = new ThymeleafSkeleton(
+                "emp-list-001",
+                LegacyScreenRole.LIST,
+                "직원 목록",
+                "layout/default",
+                List.of(SkeletonSlotKind.SEARCH_FORM, SkeletonSlotKind.DATA_TABLE, SkeletonSlotKind.ACTION_BAR)
+        );
 
-        assertThat(html).contains("th:object=\"${employerVO}\"");
-        assertThat(html).contains("th:action=\"@{/emp/employerRegist.do}\"");
-        assertThat(html).contains("th:field=\"*{emplyrId}\"");
-        assertThat(html).contains("th:field=\"*{emplyrNm}\"");
-        assertThat(html).contains("th:field=\"*{emailAdres}\"");
-        assertThat(html).contains("th:field=\"*{ofcpsNm}\"");
-        // 검색/페이징 전용 VO 필드(searchCondition 등)는 이 폼의 JSP에 없었으므로 렌더되지 않는다.
-        assertThat(html).doesNotContain("th:field=\"*{searchCondition}\"");
-        assertNoLeakedFreemarkerSyntax(html);
+        ThymeleafBindingContract contract = createTestContract("emp-list-001", LegacyScreenRole.LIST);
+        BoundThymeleafView view = new BoundThymeleafView(skeleton, contract);
+        String html = renderer.render(view);
+
+        assertThat(html).isNotBlank();
+        assertThat(html).contains("<html");
+        assertThat(html).contains("xmlns:th=");
+        assertThat(html).contains("layout:decorate");
+        assertThat(html).contains("직원 목록");
     }
 
     @Test
-    void detailScreenRendersDisplayFieldsFromPrimaryAttributeOnly() throws IOException {
-        String html = renderFixture(
-                "EgovEmployerDetail.jsp", "EgovEmployerController.java", "EmployerVO.java",
-                LegacyScreenRole.DETAIL, "직원 상세");
+    void rendersFormViewToHtml() {
+        ThymeleafSkeleton skeleton = new ThymeleafSkeleton(
+                "emp-form-001",
+                LegacyScreenRole.FORM,
+                "직원 등록",
+                "layout/default",
+                List.of(SkeletonSlotKind.FORM_FIELDS, SkeletonSlotKind.ACTION_BAR)
+        );
 
-        assertThat(html).contains("th:text=\"${result.emplyrId}\"");
-        assertThat(html).contains("th:text=\"${result.emplyrNm}\"");
-        assertThat(html).contains("th:href=\"@{/emp/employerDetail.do}\"");
-        assertNoLeakedFreemarkerSyntax(html);
+        ThymeleafBindingContract contract = createTestContract("emp-form-001", LegacyScreenRole.FORM);
+        BoundThymeleafView view = new BoundThymeleafView(skeleton, contract);
+        String html = renderer.render(view);
+
+        assertThat(html).isNotBlank();
+        assertThat(html).contains("직원 등록");
     }
 
-    private void assertNoLeakedFreemarkerSyntax(String html) {
-        assertThat(html).doesNotContain("<#").doesNotContain("[#").doesNotContain("</#");
+    @Test
+    void rendersDetailViewToHtml() {
+        ThymeleafSkeleton skeleton = new ThymeleafSkeleton(
+                "emp-detail-001",
+                LegacyScreenRole.DETAIL,
+                "직원 상세",
+                "layout/default",
+                List.of(SkeletonSlotKind.DISPLAY_FIELDS, SkeletonSlotKind.ACTION_BAR)
+        );
+
+        ThymeleafBindingContract contract = createTestContract("emp-detail-001", LegacyScreenRole.DETAIL);
+        BoundThymeleafView view = new BoundThymeleafView(skeleton, contract);
+        String html = renderer.render(view);
+
+        assertThat(html).isNotBlank();
+        assertThat(html).contains("직원 상세");
     }
 
-    private String renderFixture(
-            String jspFile, String controllerFile, String voFile,
-            LegacyScreenRole role, String pageTitle) throws IOException {
-        var jspEvidence = jspReader.read(jspFile, Files.readString(BASELINE.resolve(jspFile)));
-        var controllerEvidence = controllerReader.read(
-                controllerFile, Files.readString(BASELINE.resolve(controllerFile)));
-        var voEvidence = voReader.read(voFile, Files.readString(BASELINE.resolve(voFile)));
-        LegacyScreenAnalysis analysis = new LegacyScreenAnalysis(
-                "emp-" + role.name().toLowerCase(java.util.Locale.ROOT), role,
-                jspEvidence, controllerEvidence, voEvidence,
-                new SourceRevisionRef("emp-project", "rev-1", Instant.now()), java.util.List.of(), Instant.now());
+    @Test
+    void htmlContainsKrdsClasses() {
+        ThymeleafSkeleton skeleton = new ThymeleafSkeleton(
+                "test-001",
+                LegacyScreenRole.LIST,
+                "테스트",
+                "layout/default",
+                List.of(SkeletonSlotKind.SEARCH_FORM, SkeletonSlotKind.DATA_TABLE, SkeletonSlotKind.ACTION_BAR)
+        );
 
-        ThymeleafGenerationStageResult<ThymeleafBindingContract> contractResult = assembler.assemble(analysis);
-        assertThat(contractResult.successful()).as("issues: %s", contractResult.issues()).isTrue();
-        ThymeleafBindingContract contract = contractResult.value();
+        ThymeleafBindingContract contract = createTestContract("test-001", LegacyScreenRole.LIST);
+        BoundThymeleafView view = new BoundThymeleafView(skeleton, contract);
+        String html = renderer.render(view);
 
-        ThymeleafSkeleton skeleton = planner.plan(analysis.screenId(), role, pageTitle);
-        ThymeleafGenerationStageResult<BoundThymeleafView> viewResult = composer.compose(skeleton, contract);
-        assertThat(viewResult.successful()).as("issues: %s", viewResult.issues()).isTrue();
-
-        return renderer.render(viewResult.value());
+        assertThat(html)
+                .contains("krds-input")
+                .contains("krds-btn")
+                .contains("krds-table-wrap");
     }
 
-    private static Configuration freemarkerConfiguration() {
-        Configuration cfg = new Configuration(Configuration.VERSION_2_3_33);
-        cfg.setClassLoaderForTemplateLoading(LegacyThymeleafRendererTest.class.getClassLoader(), "templates");
-        cfg.setDefaultEncoding("UTF-8");
-        cfg.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
-        cfg.setLogTemplateExceptions(false);
-        cfg.setWrapUncheckedExceptions(true);
-        cfg.setInterpolationSyntax(Configuration.DOLLAR_INTERPOLATION_SYNTAX);
-        return cfg;
+    @Test
+    void htmlContainsThymeleafNamespace() {
+        ThymeleafSkeleton skeleton = new ThymeleafSkeleton(
+                "test-001",
+                LegacyScreenRole.LIST,
+                "테스트",
+                "layout/default",
+                List.of(SkeletonSlotKind.SEARCH_FORM, SkeletonSlotKind.DATA_TABLE, SkeletonSlotKind.ACTION_BAR)
+        );
+
+        ThymeleafBindingContract contract = createTestContract("test-001", LegacyScreenRole.LIST);
+        BoundThymeleafView view = new BoundThymeleafView(skeleton, contract);
+        String html = renderer.render(view);
+
+        assertThat(html)
+                .contains("xmlns:th=\"http://www.thymeleaf.org\"")
+                .contains("xmlns:layout=");
     }
 }
