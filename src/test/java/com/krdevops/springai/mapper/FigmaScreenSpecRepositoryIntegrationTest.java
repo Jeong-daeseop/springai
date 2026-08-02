@@ -88,7 +88,7 @@ class FigmaScreenSpecRepositoryIntegrationTest {
         return new FigmaScreenSpec(
                 screenId, version, "spec-test", 1,
                 FigmaScreenType.LIST, LayoutPattern.STANDARD,
-                name, null, "DESKTOP", ScreenSpecStatus.APPROVED,
+                name, null, "DESKTOP", "APPROVED",
                 new FigmaScreenSpec.DesignSystemRef("krds", "1.0", "2026.07"),
                 root, List.of(new FigmaExportIssue("X", FigmaExportIssue.Severity.WARNING, "msg", null, null, null)));
     }

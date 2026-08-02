@@ -43,7 +43,7 @@ class FigmaContractSchemaValidatorTest {
         return new FigmaScreenSpec(
                 screenId, 1, "5d424e0b-5b86-4ccb-a75b-f8d4a6a76164", 1,
                 FigmaScreenType.LIST, LayoutPattern.STANDARD, "사용자 목록", null,
-                "DESKTOP", ScreenSpecStatus.APPROVED,
+                "DESKTOP", "APPROVED",
                 new FigmaScreenSpec.DesignSystemRef("ftc-krds", "1.0.0", "registry-1"),
                 new FigmaNodeSpec(logicalNodeId, FigmaNodeSpec.NodeType.PAGE,
                         "egov.listPage", Map.of(), List.of()),

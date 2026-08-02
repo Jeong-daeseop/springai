@@ -75,7 +75,7 @@ class FigmaOperationsServiceTest {
         FigmaScreenSpec spec = new FigmaScreenSpec(
                 "users-list", 3, "users", 2,
                 FigmaScreenType.LIST, LayoutPattern.STANDARD, "사용자 목록",
-                null, "DESKTOP", ScreenSpecStatus.APPROVED,
+                null, "DESKTOP", "APPROVED",
                 new FigmaScreenSpec.DesignSystemRef("krds", "1.0", "registry-2"),
                 null, List.of());
         when(screenSpecRepository.findLatestByDesignSystem(

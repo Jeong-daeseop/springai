@@ -54,7 +54,7 @@ class DesignArtifactFigmaExportTest {
         return new FigmaScreenSpec(
                 "user-list", 1, "spec-user", 1,
                 FigmaScreenType.LIST, LayoutPattern.STANDARD, name, null,
-                "DESKTOP", ScreenSpecStatus.APPROVED,
+                "DESKTOP", "APPROVED",
                 new FigmaScreenSpec.DesignSystemRef("ftc-krds", "1.0.0", "registry-1"),
                 new FigmaNodeSpec("user-list", FigmaNodeSpec.NodeType.PAGE,
                         "egov.listPage", Map.of(), List.of()),

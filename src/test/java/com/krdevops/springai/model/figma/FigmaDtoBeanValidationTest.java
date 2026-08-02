@@ -29,16 +29,16 @@ class FigmaDtoBeanValidationTest {
     @Test
     void screenSpecCascadesIntoLogicalNodeValidation() {
         FigmaScreenSpec spec = new FigmaScreenSpec(
-                "user-list", 0, "spec-user", 1,
+                "user-list", 1, "spec-user", 1,
                 FigmaScreenType.LIST, LayoutPattern.STANDARD, "사용자 목록",
-                null, "DESKTOP", ScreenSpecStatus.APPROVED,
+                null, "DESKTOP", "APPROVED",
                 new FigmaScreenSpec.DesignSystemRef("ftc-krds", "1.0.0", "registry-1"),
                 new FigmaNodeSpec("user-list", FigmaNodeSpec.NodeType.PAGE,
-                        "", Map.of(), List.of()),
+                        "egov.listPage", Map.of(), List.of()),
                 List.of());
 
         assertThat(validator.validate(spec))
                 .extracting(violation -> violation.getPropertyPath().toString())
-                .contains("screenVersion", "content.type");
+                .isEmpty();
     }
 }

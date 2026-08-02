@@ -16,8 +16,8 @@ public record FigmaNodeSpec(
         @JsonProperty("nodeType")
         NodeType nodeType,
 
-        @JsonProperty("logicalType")
-        String logicalType,
+        @JsonProperty("type")
+        String type,
 
         @JsonProperty("properties")
         Map<String, Object> properties,
@@ -41,9 +41,5 @@ public record FigmaNodeSpec(
         if (nodeType == null) {
             throw new IllegalArgumentException("nodeType은 필수입니다");
         }
-    }
-
-    public String type() {
-        return logicalType;
     }
 }

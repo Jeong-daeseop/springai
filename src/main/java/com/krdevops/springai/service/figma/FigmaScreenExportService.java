@@ -118,7 +118,7 @@ public class FigmaScreenExportService {
         FigmaScreenSpec spec = new FigmaScreenSpec(
                 screenId, screenVersion, screenSpecification.id(), screenSpecification.version(),
                 screenType, layoutPattern, screenSpecification.screenName(), null, viewport,
-                screenSpecification.status(),
+                screenSpecification.status().name(),
                 new FigmaScreenSpec.DesignSystemRef(profile.id(), profile.version(), profile.registryVersion()),
                 content, List.of());
 

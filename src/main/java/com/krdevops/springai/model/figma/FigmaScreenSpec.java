@@ -36,7 +36,7 @@ public record FigmaScreenSpec(
         String viewport,
 
         @JsonProperty("status")
-        Object status,
+        String status,
 
         @JsonProperty("designSystem")
         DesignSystemRef designSystem,

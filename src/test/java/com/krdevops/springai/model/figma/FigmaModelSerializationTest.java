@@ -54,7 +54,7 @@ class FigmaModelSerializationTest {
         return new FigmaScreenSpec(
                 "user-list", 1, "spec-user-management", 3,
                 FigmaScreenType.LIST, LayoutPattern.STANDARD,
-                "사용자 목록", "/user/list", "DESKTOP", ScreenSpecStatus.APPROVED,
+                "사용자 목록", "/user/list", "DESKTOP", "APPROVED",
                 new FigmaScreenSpec.DesignSystemRef("krds", "1.0", "2026.07"),
                 root,
                 List.of());

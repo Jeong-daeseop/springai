@@ -954,7 +954,7 @@
             "type" : "string"
           },
           "exportMode" : {
-            "enum" : [ "PREVIEW", "FINAL" ],
+            "enum" : [ "PREVIEW", "CREATE", "MERGE", "REPLACE", "SKIP", "FINAL" ],
             "type" : "string"
           },
           "pageId" : {
@@ -968,7 +968,7 @@
             "type" : "integer"
           },
           "syncMode" : {
-            "enum" : [ "PREVIEW", "MERGE", "REPLACE" ],
+            "enum" : [ "PREVIEW", "RECONCILE", "REPLACE", "MERGE" ],
             "type" : "string"
           },
           "viewport" : {

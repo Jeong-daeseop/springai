@@ -66,7 +66,7 @@ class FigmaScreenSpecValidatorTest {
         return new FigmaScreenSpec(
                 "list", 1, "spec-user-management", 1,
                 FigmaScreenType.LIST, LayoutPattern.STANDARD, "사용자 목록", null, "DESKTOP",
-                ScreenSpecStatus.APPROVED, new FigmaScreenSpec.DesignSystemRef("krds", "1.0", "2026.07"),
+                "APPROVED", new FigmaScreenSpec.DesignSystemRef("krds", "1.0", "2026.07"),
                 content, List.of());
     }
 }
