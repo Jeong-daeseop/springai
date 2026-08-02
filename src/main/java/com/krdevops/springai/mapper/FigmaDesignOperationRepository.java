@@ -78,7 +78,15 @@ public class FigmaDesignOperationRepository {
 
     /** 동일 requestHash로 재시도해도 새 Operation을 만들지 않고 기존 Operation을 반환한다. */
     public FigmaDesignOperation createOrReuse(FigmaDesignRequest request) {
-        String hash = operationHashFactory.canonicalHash(canonicalRequestView(request));
+        return createOrReuse(request, null);
+    }
+
+    /** 화면명세/Profile/Viewport 같은 실행 문맥까지 멱등 hash에 포함한다. */
+    public FigmaDesignOperation createOrReuse(FigmaDesignRequest request, Object idempotencyContext) {
+        Map<String, Object> hashView = new LinkedHashMap<>();
+        hashView.put("request", canonicalRequestView(request));
+        hashView.put("context", idempotencyContext);
+        String hash = operationHashFactory.canonicalHash(hashView);
 
         Optional<String> existingOperationId = findOperationIdByHash(hash);
         if (existingOperationId.isPresent()) {

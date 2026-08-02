@@ -67,10 +67,10 @@ public class ResponsiveThymeleafTransformer {
         if (html.contains("<table")) {
             return html.replace(
                 "<table class=\"table\">",
-                "<div class=\"card-list\" th:each=\"item : ${items}\">" +
-                    "<div class=\"card-item\" th:object=\"${item}\"><!-- slot: card-fields --></div>" +
+                "<div class=\"card-list\">" +
+                    "<div class=\"card-item\"><!-- slot: card-fields --></div>" +
                 "</div>"
-            );
+            ).replace("</table>", "");
         }
 
         return html;
@@ -106,21 +106,27 @@ public class ResponsiveThymeleafTransformer {
 
     private String swapNavigationComponent(String html, ViewportConstraint viewport) {
         var navClass = viewport.navigation().cssClass;
-        return html.replace(
-            "<!-- slot: navigation -->",
-            "<nav class=\"" + navClass + "\"><!-- slot: navigation --></nav>"
-        );
+        String navigation = "<nav class=\"" + navClass + "\"><!-- slot: navigation --></nav>";
+        if (html.contains("<!-- slot: navigation -->")) {
+            return html.replace("<!-- slot: navigation -->", navigation);
+        }
+        return navigation + "\n" + html;
     }
 
     private String injectResponsiveCssVariables(String html, ViewportConstraint viewport) {
         var cssVars = new StringBuilder();
         cssVars.append("<style>\n");
-        cssVars.append(viewport.breakpointRule()).append(" {\n");
-        cssVars.append("  :root {\n");
+        boolean mediaQuery = viewport.breakpointRule() != null && !viewport.breakpointRule().isBlank();
+        if (mediaQuery) {
+            cssVars.append(viewport.breakpointRule()).append(" {\n");
+        }
+        cssVars.append(mediaQuery ? "  :root {\n" : ":root {\n");
         cssVars.append("    --grid-columns: ").append(viewport.gridColumns()).append(";\n");
         cssVars.append("    --viewport-width: ").append(viewport.width()).append("px;\n");
         cssVars.append("  }\n");
-        cssVars.append("}\n");
+        if (mediaQuery) {
+            cssVars.append("}\n");
+        }
         cssVars.append("</style>\n");
 
         return cssVars.toString() + html;

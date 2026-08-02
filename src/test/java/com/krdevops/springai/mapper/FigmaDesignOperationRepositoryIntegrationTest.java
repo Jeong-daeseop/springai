@@ -66,6 +66,23 @@ class FigmaDesignOperationRepositoryIntegrationTest {
     }
 
     @Test
+    void executionContextParticipatesInIdempotencyHash() {
+        repository.createTableIfNotExists();
+        FigmaDesignRequest request = request("context-" + UUID.randomUUID());
+        FigmaDesignOperation desktopV1 = repository.createOrReuse(request, "spec-v1|profile-v1|DESKTOP");
+        FigmaDesignOperation retry = repository.createOrReuse(request, "spec-v1|profile-v1|DESKTOP");
+        FigmaDesignOperation mobileV2 = repository.createOrReuse(request, "spec-v2|profile-v1|MOBILE");
+        try {
+            assertThat(retry.operationId()).isEqualTo(desktopV1.operationId());
+            assertThat(mobileV2.operationId()).isNotEqualTo(desktopV1.operationId());
+            assertThat(mobileV2.requestHash()).isNotEqualTo(desktopV1.requestHash());
+        } finally {
+            cleanup(desktopV1);
+            cleanup(mobileV2);
+        }
+    }
+
+    @Test
     void statusProgressesThroughPreviewAndApplyRequired() {
         repository.createTableIfNotExists();
         FigmaDesignRequest request = request("emp-list-" + UUID.randomUUID());

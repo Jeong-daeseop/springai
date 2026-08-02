@@ -1,7 +1,8 @@
 # Semantic Figma Design System 구현 목록
 
-> 문서 버전: 3.8  
+> 문서 버전: 3.9
 > 작성일: 2026-07-30  
+> 상태 재판정일: 2026-08-03
 > 구현 기준 문서:
 > - [07_Design_System_Component_Mapping_Review.md](./07_Design_System_Component_Mapping_Review.md)
 > - [08_Semantic_Figma_Export_Integrated_Architecture.md](./08_Semantic_Figma_Export_Integrated_Architecture.md)
@@ -35,10 +36,14 @@
 
 | 표기 | 의미 |
 |---|---|
-| `[x]` | 현재 코드에 기반 기능이 존재하거나 작업이 완료됨 |
+| `[x]` | 항목의 구현과 명시된 완료 Gate가 테스트·증적으로 검증됨 |
 | `[ ]` | 미구현 |
 | `[~]` | 일부 구현되었으나 목표 구조에 맞춘 보완 필요 |
 | `[!]` | 선행 결정 또는 외부 조건 때문에 착수 불가 |
+
+코드, callback 또는 기반 클래스가 존재한다는 사실만으로 `[x]`를 부여하지 않는다. 기존 세부 항목의
+`[x]`는 해당 항목에 적힌 좁은 완료 기준의 증적이며 상위 통합 작업 완료를 의미하지 않는다.
+재시작 복구, 공통 인증, provenance, 실제 환경 E2E처럼 상위 Gate가 남아 있으면 통합 작업은 `[~]`다.
 
 ### 2.2 우선순위
 
@@ -47,6 +52,17 @@
 | P0 | 전체 구조 또는 안전성에 직접 영향을 주는 필수 항목 |
 | P1 | 1차 운영 가능한 기능 완성에 필요한 항목 |
 | P2 | 운영 효율, 확장성, 편의성 개선 항목 |
+
+### 2.3 I-4~I-6 통합 상태 재판정
+
+| 통합 작업 | 상태 | 현재 판정 |
+|---|---:|---|
+| I-4 디자인 기반 Thymeleaf HTML | `[~]` | Skeleton·디자인 규칙 기반은 있으나 Binding Composer와 전체 `th:*`·CSRF·route provenance Gate 미완료 |
+| I-5 Responsive·Preview·Apply·검증 | `[~]` | Preview/Apply 프로토타입은 있으나 DB 재시작 복구, 영속 Report, render/build/a11y Gate 미완료 |
+| I-6 Figma MCP Tool·Plugin Apply | `[~]` | callback과 일부 인증은 있으나 공통 deny-by-default 인증, 실제 Artifact parity, revision/editable scope E2E 미완료 |
+
+따라서 I-4~I-6 전체는 기능 프로토타입으로 관리하며, 하위 항목 일부가 `[x]`여도 각 통합 작업의
+완료 Gate가 모두 닫히기 전에는 상위 상태를 `[x]`로 올리지 않는다.
 
 ---
 
@@ -491,13 +507,13 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [~] **R6-043 · P1** `FigmaStyleExtractor` 구현: 기존 `FigmaDesignSpecMapper`의 layout/token 추출을 재사용해 공통 color/typography/spacing/layout을 Profile 변경이 아닌 Token 후보로 확장
 
 **2-A5: 요청 흐름 연결 (3시간)**
-- [ ] **R6-030 · P0** `FigmaDesignRequestRouter` 구현: 명시 Tool 유형 우선, 자유 텍스트 분류 confidence 미달 시 추측 실행 거부
-- [ ] **R6-031 · P0** `FigmaDesignOrchestrationService` 구현: 분석→검증→ScreenSpecification 후보→FigmaScreenSpec→Bundle/Operation 생성
+- [~] **R6-030 · P0** `FigmaDesignRequestRouter`의 명시/컨텍스트 판정은 구현. 7개 전용 Tool이 명시 타입을 조립하므로 저장소에는 유효 타입만 들어가지만 자유 텍스트 router와 구조화 분류의 단일 경로 통합은 미완료
+- [~] **R6-031 · P0** `FigmaDesignOrchestrationService` 구현 — 7개 요청은 canonical hash 기반 영속 `ANALYZED` 승인 후보로 저장되고, APPROVED ScreenSpecification은 FigmaScreenSpec→Bundle→불변 Artifact→영속 `PREVIEW_READY`로 연결된다. 자연어 후보 ScreenSpecification 자동 생성은 미완료
 - [~] **R6-032 · P0** `create_design_from_text(prompt, platform)` MCP callback 구현 — DB Schema→ScreenSpecification→FigmaScreenSpec 기반 흐름은 존재하며 자연어 구조화 분석과 Operation 조립 필요
 - [~] **R6-033 · P1** `create_design_from_reference(prompt, referenceNodeIds)` MCP callback 구현 — 기존 `analyzeFigmaReference`/`DesignReferenceAnalysisService.analyzeFigma`/`FigmaApiClient`를 재사용하고 prompt 반영과 새 Bundle 생성 연결
 - [~] **R6-034 · P1** `modify_existing_design(prompt, editableNodeIds)` MCP callback 구현 — 기존 `reviseScreenSpecification`과 Plugin MERGE/REPLACE를 재사용하고 자연어 diff·대상 Node·source revision 검증 추가
 - [~] **R6-035 · P2** `create_design_from_image(prompt, imageNodeIds)` MCP callback 구현 — 기존 PNG/JPEG/PDF Vision 분석을 재사용하고 Figma 이미지 Node export 입력과 Operation 연결 추가
-- [ ] **R6-036 · P2** `create_multi_screen_flow(prompt, screens[])` MCP callback 구현
+- [~] **R6-036 · P2** `create_multi_screen_flow(prompt, screens[])` MCP callback 구현 — `screenNames`의 결정적 `FigmaScreenRequest` 조립과 null type TODO 제거 완료. 화면별 Bundle 일괄 Preview·부분 실패 rollback은 미완료
 - [~] **R6-037 · P1** `create_design_with_components(prompt, componentLogicalTypes[])` MCP callback 구현 — 기존 `ComponentRegistryResolver`를 재사용하고 요청 logical type allowlist 제약 추가
 - [~] **R6-038 · P2** `convert_platform(sourceNodeIds, targetPlatform)` MCP callback 구현 — viewport 저장과 Layout annotation은 존재하며 Layout 재계산·Navigation/Component Swap 추가
 
@@ -506,12 +522,12 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [~] **R6-045 · P2** 기존 `DesignReferenceAnalysisService`·`VisionAnalysisClient` 확장: Vision capability 사전 점검, Figma 이미지 export 분석, 불확실성·접근성 Issue 반환
 - [ ] **R6-046 · P2** `FigmaPlatformConversionService` 구현: Desktop 1440/12열, Tablet 768/8열, Mobile 390/4열 초기 정책과 Profile 기반 swap 적용
 - [ ] **R6-047 · P1** 모든 Tool 응답에 `operationId`, `artifactId`, preview summary, issues, `PREVIEW_READY`/`APPLY_REQUIRED` 상태를 포함하고 캔버스 적용 전 `APPLIED` 반환 금지
-- [ ] **R6-039 · P0** `FigmaDesignOrchestrationTool` 7개 callback을 `McpConfig.allToolCallbacks`에 등록하고 기존 `FIGMA_MCP_SHARED_SECRET` 인가 적용
+- [x] **R6-039 · P0** 7개 callback과 승인 ScreenSpecification Bundle callback 등록 완료. 8개 모두 `figmaMcpSecret`을 Repository/오케스트레이션 접근 전에 상수시간 비교로 검증하며 MCP snapshot(97 methods/35 objects) 갱신 완료
 - [ ] **R6-048 · P1** 웹 UI·CLI·Webhook 클라이언트가 동일 MCP/REST 계약을 사용하도록 transport-neutral facade 유지. 별도 React/Slack/Teams 클라이언트 구현은 후속 범위
-- [ ] **R6-T08** 7개 callback 정상·필수 입력 누락·잘못된 file/node 소속·미지원 capability 계약 테스트
+- [~] **R6-T08** 7개 callback 입력 Schema snapshot, 인증 선행, 고급 요청 필수 목록·미지원 platform의 Repository 접근 전 거부 테스트 완료. 실제 file/page node 소속과 Vision capability 오류 계약은 미완료
 - [ ] **R6-T09** Spring AI 구조화 출력 오류·timeout·rate limit·Vision 미지원 모델 fallback 테스트
 - [ ] **R6-T10** Figma REST pagination·429 retry/backoff·권한 오류·만료 이미지 URL 테스트
-- [ ] **R6-T11** MCP가 분석만 완료된 Operation을 `APPLIED`로 보고하지 않고 Plugin 보고서 수신 후에만 상태 전이하는지 검증
+- [x] **R6-T11** 분석 요청은 `ANALYZED`, 승인 Bundle은 `PREVIEW_READY`까지만 반환하며 Repository 상태 테스트에서 `APPLY_REQUIRED`와 유효 Plugin 보고 없이는 `APPLIED` 전이가 거부됨을 검증
 - [ ] **R6-T12** 지정 컴포넌트 요청이 승인되지 않은 logical type과 로컬 Node ID 직접 지정을 거부하는지 검증
 - [ ] **R6-T13** 플랫폼 변환 golden fixture에서 폭·Grid·Navigation·componentSwaps가 Profile 정책과 일치하는지 검증
 
@@ -523,24 +539,24 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 
 - [ ] **R6-050 · P0** 10단계 Generator 입출력 계약과 단계별 FATAL/WARNING·중단·재시도·입력 Hash 정책 정의
 - [x] **R6-051 · P0** JSP·Controller·VO 화면 단위 분석 구현 — `LegacySourceInventoryService`(안전한 경로·예산) + `JspSourceReader`(taglib/form/EL/forEach/표시필드, 정규식 기반) + `ControllerSourceReader`(매핑/모델/반환뷰/redirect/보안, JavaParser AST) + `VoSourceReader`(필드/Lombok 접근자/Bean Validation, JavaParser AST)로 신규 구현. CSS/JS Frontend Source Graph(I-2D, `jsp-design-extractor` 모듈화)는 범위 밖으로 남김
-- [x] **R6-052 · P0** `ThymeleafBindingContract` 생성 — `LegacyBindingContractAssembler`가 route/model attribute/form field/validation binding을 충돌 정책(§I-2E)에 따라 조립. `ScreenFieldBinding`·`GenerationQueryContractFactory` 재사용은 I-4 HTML Skeleton 단계로 이연
+- [~] **R6-052 · P0** `ThymeleafBindingContract` 모델과 JSP·Controller·VO reader는 유지. 기존 `LegacyBindingContractAssembler` 구현/테스트가 현재 작업 트리에서 제거되어 새 Workflow와의 재연결 필요
 - [~] **R6-053 · P0** 화면 유형 판단 — `FigmaScreenTypeResolver`·`ScreenSpecAssembler`·CRUD/Board/MasterDetail 판정을 재사용하고 근거·confidence 포함
 - [~] **R6-054 · P0** Component Inventory 선택 — `ComponentCandidate`·`ComponentRegistryResolver`를 재사용하고 field role별 선택 근거·fallback·Published 상태 검증 추가
-- [ ] **R6-055 · P0** 프로젝트 루트 `DESIGN.md` 탐색·파싱·버전·규칙 우선순위·위반 위치를 제공하는 `DesignMdRuleLoader` 구현
+- [x] **R6-055 · P0** 프로젝트 루트 `DESIGN.md` 탐색·파싱·버전·규칙 우선순위·위반 위치를 제공하는 `DesignMdRuleLoader` 구현 및 정상/경계/오류 fixture 테스트 완료
 - [~] **R6-056 · P0** 회사 표준 Design Token 로드·매핑 — `DesignSystemProfile`·`DesignSystemSpec`·`VariableBinding`을 CSS Variable/Thymeleaf class/Component Property로 해석
-- [~] **R6-057 · P0** HTML Skeleton 생성 — `ThymeleafSkeletonPlanner`(screenRole→`SkeletonSlotKind` 목록, 값 바인딩 없음)로 구조/Binding 분리를 구현. 기존 `CrudTemplateRenderer`(DB 스키마 기반)는 재사용하지 않고 별도 FreeMarker `Configuration`(`boardFreemarkerConfiguration` 재사용)과 `templates/legacy-thymeleaf/*.ftl` 3종을 신설 — DESIGN.md/회사 Token 로더(R6-055/056)는 미착수라 KRDS 클래스는 기존 관례를 하드코딩 재사용
-- [~] **R6-058 · P0** Controller Model Binding 적용 — `LegacyThymeleafViewComposer`+`LegacyThymeleafRenderer`가 `ThymeleafBindingContract` 기반으로 `th:object`/`th:field`/`th:text`/`th:each`/`#fields.hasErrors`/CSRF/route를 생성(값은 전부 Binding Contract에서만 옴). 기존 `CrudModelFactory`는 이 흐름에서 사용하지 않음
-- [ ] **R6-059 · P1** Desktop·Tablet·Mobile 변환 — breakpoint/grid/navigation/table/form/card 정책과 Component Swap을 적용하는 `ResponsiveThymeleafTransformer` 구현
-- [~] **R6-060 · P0** 빌드·렌더링 검증 — 기존 `ThymeleafRenderValidator`·`GeneratedProjectBuildValidator`를 자동 Gate로 연결하고 viewport screenshot·접근성·visual regression 추가
-- [ ] **R6-061 · P0** `ThymeleafGenerationOrchestrationService` 구현: 1~10단계를 고정 순서로 실행하고 단계별 산출물·버전·Issue·경로를 `ThymeleafGenerationReport`로 저장
-- [ ] **R6-062 · P0** 규칙 우선순위 강제: 업무 Binding/보안 → ScreenSpecification/BindingContract → 회사 Profile/Token → DESIGN.md → 화면 Override → Generator 기본값
-- [ ] **R6-063 · P0** `DESIGN.md`가 route·field source·validation·권한·CSRF를 변경하거나 승인 Token 밖 값을 하드코딩하지 못하도록 차단
-- [ ] **R6-064 · P1** Generator REST/MCP 진입점 구현: Preview, 명시적 Apply, 보고서 조회, 재검증을 분리하고 기존 X-API-Key/MCP 공유 비밀키 적용
-- [x] **R6-T14** JSP form/EL, Controller route/model, VO field/validation fixture가 동일 Binding Contract로 조립되는지 검증 — `LegacyBindingContractAssemblerTest`가 골든 LIST/FORM/DETAIL fixture(RESOLVED) + FATAL 3종(FORM_FIELD_WITHOUT_VO_FIELD/WRITE_BINDING_TO_READONLY_FIELD/JSP_FORM_ACTION_NOT_BOUND) + REVIEW_REQUIRED(VO_HAS_NO_FIELDS) 검증
+- [~] **R6-057 · P0** `ScreenHtmlSkeletonGenerator`로 LIST/FORM/DETAIL 구조와 Binding 없는 slot을 생성. 제거된 구형 `ThymeleafSkeletonPlanner`/FreeMarker legacy renderer 대신 새 Workflow에 Component Registry/Token을 주입하는 단계는 미완료
+- [ ] **R6-058 · P0** 제거된 `LegacyThymeleafViewComposer`/`LegacyThymeleafRenderer`를 대체해 `ThymeleafBindingContract`를 새 Skeleton에 결합하는 구현 필요
+- [x] **R6-059 · P1** Desktop·Tablet·Mobile 변환 — 1440/768/390 grid, navigation swap, table→card, form/detail 재배치와 Binding 수 동일성 검증 테스트 완료
+- [~] **R6-060 · P0** Preview/재검증에 Thymeleaf 정적 parse와 1440px overflow Gate 연결. 실제 TemplateEngine render, 고정 offline build, Playwright 접근성·visual regression은 미완료
+- [~] **R6-061 · P0** `ThymeleafProjectWorkflowService`로 Preview→DESIGN.md 포함 canonical hash 승인→source/design revision 재검증→staging/backup→Apply/전체 rollback→재검증 상태 흐름과 실제 중간 실패 rollback 테스트 완료. 10단계 전체 `ThymeleafGenerationReport` 영속 저장은 미완료
+- [~] **R6-062 · P0** 업무 계약을 침범하는 DESIGN.md 규칙은 FATAL, DESIGN.md revision은 Preview hash/source drift보다 함께 강제. Profile/Token→DESIGN.md→화면 Override의 생성 단계 전체 병합은 미완료
+- [~] **R6-063 · P0** `route`·`field`·`validation`·`authority`·`csrf` 등 DESIGN.md 업무 계약 변경은 Preview 전에 차단하고 승인 후 DESIGN.md 변경은 CONFLICT/쓰기 0건으로 검증. 승인 Token 밖 값 하드코딩 검사는 미완료
+- [x] **R6-064 · P1** Generator REST/MCP 진입점 구현 — `/api/thymeleaf/operations` Preview/Approve/Apply/Report/Revalidate 분리, REST X-API-Key와 MCP 공유 비밀키 선검증, Preview 전 파일 변경 0건·hash 불일치·source drift CONFLICT E2E 완료
+- [ ] **R6-T14** 기존 `LegacyBindingContractAssemblerTest`가 현재 작업 트리에서 제거되어 새 Binding assembler 기준 골든 LIST/FORM/DETAIL 테스트 재구현 필요
 - [ ] **R6-T15** LIST/FORM/DETAIL 화면 유형과 Component Inventory 선택이 근거·confidence·Registry 상태를 포함하는지 검증
-- [ ] **R6-T16** `DESIGN.md` 정상/알 수 없는 규칙/업무 Binding 변경 시도와 회사 Token 누락·금지 하드코딩 테스트
-- [x] **R6-T17** 생성 HTML의 `th:*`, CSRF, validation error, route, iteration이 Binding Contract와 일치하는지 정적·렌더 테스트 — `LegacyThymeleafRendererTest`가 골든 LIST/FORM/DETAIL fixture로 실제 FreeMarker 렌더링까지 수행해 `th:action`/`th:each`/`th:object`/`th:field`/`th:text`와 FreeMarker 구문 미노출을 검증(Desktop/Tablet/Mobile viewport 렌더는 I-5 범위로 남김)
-- [ ] **R6-T18** Desktop 1440·Tablet 768·Mobile 390에서 overflow·navigation·form/table/card 변환과 동일 Binding 유지 검증
+- [~] **R6-T16** DESIGN.md 정상/미존재/알 수 없는 규칙/버전/구문/업무 Binding 변경 시도와 승인 후 drift 테스트 완료. 회사 Token 누락·금지 하드코딩 테스트는 미완료
+- [ ] **R6-T17** 제거된 legacy renderer 테스트를 대체해 새 Binding composer의 `th:*`, CSRF, validation, route, iteration 정적·렌더 테스트 필요
+- [~] **R6-T18** Desktop 1440/12·Tablet 768/8·Mobile 390/4 grid, navigation swap, table→card, mobile form 단일열, 세 viewport Binding 수 동일성과 정적 overflow Gate 검증 완료. 실제 브라우저 viewport overflow는 미완료
 - [ ] **R6-T19** `EGOV_ALLOW_BUILD_EXECUTION`·허용 경로 정책, Maven/Gradle 성공·실패·timeout과 Thymeleaf parse/render Gate 검증
 - [ ] **R6-T20** 동일 입력 재실행 결정성, 중간 FATAL 이후 단계 미실행, 단계별 산출물·버전·Issue 추적 검증
 

@@ -99,13 +99,17 @@ public class ProjectOperationStateService {
      * Apply 완료 처리.
      *
      * @param operation Apply된 Operation
-     * @return VALIDATED 상태의 Operation
+     * @return APPLIED 상태의 Operation
      */
     public ThymeleafProjectOperation markAsApplied(ThymeleafProjectOperation operation) {
+        if (!validateBeforeApply(operation)) {
+            throw new IllegalStateException(
+                    "THYMELEAF_OPERATION_NOT_READY_FOR_APPLY: " + operation.operationId());
+        }
         return new ThymeleafProjectOperation(
             operation.operationId(),
             operation.projectPath(),
-            ProjectOperationStatus.VALIDATED,
+            ProjectOperationStatus.APPLIED,
             operation.previewArtifacts(),
             operation.targetFiles(),
             operation.backupPath(),
@@ -115,5 +119,18 @@ public class ProjectOperationStateService {
             operation.createdAt(),
             LocalDateTime.now()
         );
+    }
+
+    /** Apply 후 모든 검증 Gate를 통과한 Operation만 최종 VALIDATED로 전이한다. */
+    public ThymeleafProjectOperation markAsValidated(ThymeleafProjectOperation operation) {
+        if (operation.status() != ProjectOperationStatus.APPLIED) {
+            throw new IllegalStateException(
+                    "THYMELEAF_OPERATION_VALIDATION_REQUIRES_APPLIED: " + operation.operationId());
+        }
+        if (!operation.validationErrors().isEmpty()) {
+            throw new IllegalStateException(
+                    "THYMELEAF_OPERATION_VALIDATION_FAILED: " + operation.validationErrors());
+        }
+        return transitionState(operation, ProjectOperationStatus.VALIDATED);
     }
 }

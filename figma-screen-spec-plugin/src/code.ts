@@ -219,10 +219,10 @@ async function applyLegacyMigration(
   backup.setPluginData(DATA_SCREEN_ID, preview.screenId);
 
   const registry = registryFor(bundle);
-  const imported = await preloadComponents(bundle.figmaScreenSpec.content, registry, validated.issues);
+  const issues: ExportIssue[] = [];
+  const imported = await preloadComponents(bundle.figmaScreenSpec.content, registry, issues);
   const specs = new Map(flattenSpec(bundle.figmaScreenSpec.content)
     .map(({node}) => [node.logicalNodeId, node]));
-  const issues: ExportIssue[] = [];
   let appliedCount = 0;
   let replacedInstanceCount = 0;
   let failedCount = 0;

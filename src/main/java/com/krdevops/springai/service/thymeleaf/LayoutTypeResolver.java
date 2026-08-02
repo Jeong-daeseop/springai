@@ -25,7 +25,7 @@ public class LayoutTypeResolver {
      * @return LayoutDensityDecision
      */
     public LayoutDensityDecision resolveLayoutDensity(ScreenSpecification spec) {
-        if (spec == null) {
+        if (spec == null || spec.pages() == null || spec.pages().isEmpty()) {
             return new LayoutDensityDecision(
                 LayoutDensity.STANDARD,
                 0.8,

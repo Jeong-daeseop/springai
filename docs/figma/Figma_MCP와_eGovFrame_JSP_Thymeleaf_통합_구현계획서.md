@@ -1,10 +1,11 @@
-  # Figma MCP와 eGovFrame JSP→Thymeleaf 통합 구현계획서
+# Figma MCP와 eGovFrame JSP→Thymeleaf 통합 구현계획서
 
 - 기준 문서 1: `Figma_MCP_디자인_오케스트레이션_구현계획서.md` v1.0.0
 - 기준 문서 2: `eGovFrame_JSP_to_Spring_Boot_Thymeleaf_전환_구현계획서.md` v1.0.0
 - 대상 저장소: `springai`
-- 계획서 버전: 1.0.0
+- 계획서 버전: 1.1.0
 - 작성일: 2026-08-02
+- 최종 반영일: 2026-08-02
 - 구현 원칙: Figma 공통 기반 우선, 업무 Binding 조기 검증, 생성·적용 단계 순차 통합
 
 ## 1. 목적
@@ -33,9 +34,10 @@ Figma Canvas Operation과 Thymeleaf Project Conversion은 독립 Use Case와 상
 사용자 디자인 요청
 → FigmaDesignRequest
 → Context·Reference·Style 분석
-→ ScreenSpecification 후보
+→ 영속 ANALYZED 승인 후보
+→ ScreenSpecification 후보·사람 승인
 → FigmaScreenSpec
-→ FigmaDesignOperation
+→ Bundle·불변 Artifact·영속 PREVIEW_READY Operation
 → Plugin Preview
 → 사용자 승인
 → Plugin Apply
@@ -110,7 +112,7 @@ validation, 권한과 CSRF를 변경할 수 없다.
 | Figma 도메인 | Thymeleaf 전환 도메인 | 분리 이유 |
 |---|---|---|
 | `FigmaDesignRequest` | `LegacyConversionRequest` | 디자인 요청과 소스 전환 요청의 입력이 다름 |
-| `FigmaDesignOperation` | `ThymeleafConversionOperation` | Canvas 적용과 파일 적용의 트랜잭션 경계가 다름 |
+| `FigmaDesignOperation` | `ThymeleafProjectOperation` | Canvas 적용과 파일 적용의 트랜잭션 경계가 다름 |
 | `FigmaScreenSpec` | `ThymeleafBindingContract` | 디자인 노드 계약과 업무 Binding 계약이 다름 |
 | Plugin Preview/Apply | Project Preview/Apply | Figma revision과 파일 source revision 검증 방식이 다름 |
 | Figma Apply Report | `ThymeleafGenerationReport` | 캔버스 결과와 빌드·렌더 결과가 다름 |
@@ -136,8 +138,8 @@ Figma 디자인과 `DESIGN.md`는 route, HTTP method, field source, validation, 
 FigmaDesignOrchestrationService
 └─ Figma 요청의 분석·Bundle·Plugin 상태만 조율
 
-ThymeleafGenerationOrchestrationService
-└─ Source 분석·Binding·생성·파일 적용·검증만 조율
+ThymeleafProjectWorkflowService
+└─ Preview·승인·source/design revision·원자 파일 적용·rollback·재검증 조율
 
 공통 정책 서비스
 ├─ DesignSystemSnapshotResolver
@@ -191,31 +193,36 @@ ThymeleafGenerationOrchestrationService
 - URL·origin·resource·response size 보안 정책
 - LIST·DETAIL·REGIST·UPDT E2E fixture
 
-### 4.4 핵심 미구현
+### 4.4 2026-08-02 현재 구현 스냅샷
 
-Figma:
+완료된 연결:
 
-- 공통 `FigmaDesignRequest`·`FigmaDesignOperation`
-- Operation 불변 저장과 source revision 충돌
-- Router·Context Analyzer·Style Extractor
-- 7개 요청 공통 Orchestration
-- 7개 MCP callback
-- Plugin Operation 적용 보고
-- Image·Multi-screen·Platform 고급 요청
+- `FigmaDesignRequest`·`FigmaDesignOperation` 공통 계약과 불변 revision 저장
+- canonical SHA-256 멱등 처리와 source revision `CONFLICT`
+- 승인 ScreenSpecification → `FigmaScreenExportService.exportBundle()` →
+  `DesignArtifactService.saveFigmaExportBundle()` → 영속 `PREVIEW_READY`
+- 승인 Bundle REST/MCP 진입점과 기존 7개 Figma MCP callback의 선행 공유키 인증
+- Plugin 보고 전 `APPLIED` 전이 금지
+- 안전한 Thymeleaf Project Preview → hash 승인 → source/`DESIGN.md` revision 재검증 →
+  staging/backup → Apply/전체 rollback → 재검증
+- Desktop 1440/12·Tablet 768/8·Mobile 390/4 변환과 Binding 수 동일성 검사
+- Thymeleaf REST Preview와 MCP Approve/Apply/Revalidate 교차 E2E
 
-Thymeleaf:
+부분 완료 또는 잔여 작업:
 
-- `LOCAL_SOURCE`·`HYBRID` 분석 모드
-- 안전한 Project Source Inventory
-- JSP·Controller·VO 화면 단위 연결
-- `LegacyScreenAnalysis`
-- `ThymeleafBindingContract`
-- `DESIGN.md` Loader·Validator
-- Skeleton과 Binding 적용 분리
-- Responsive Transformer
-- Project Preview·Approve·Apply
-- Render·Build·Parity 자동 Gate
-- REST·MCP 진입점
+- 일반 Figma 7개 요청은 영속 `ANALYZED` 승인 후보까지만 공통화됨. 자연어 분석 결과로
+  ScreenSpecification을 자동 생성하는 단계는 미연결
+- Image Vision export, 멀티 화면 Canvas 원자 rollback, Figma Platform 실제 노드 변환은 미완료
+- `DESIGN.md` 업무 계약 침범과 승인 후 drift는 차단하지만 회사 Token·Component Inventory를
+  최종 HTML 생성에 병합하는 전체 우선순위는 미완료
+- 현재 작업 트리에서 제거된 legacy Binding assembler/renderer를 대체할 새
+  `ThymeleafBindingContract` → Bound View composer가 필요
+- 정적 Thymeleaf parse·overflow Gate는 연결됐으나 실제 TemplateEngine render, 고정 offline build,
+  Playwright 접근성·visual regression과 보고서 영속 저장은 미완료
+- 실제 Figma Desktop과 대표 Maven/Gradle eGovFrame 프로젝트의 사람 승인 증적은 별도 실환경 Gate
+
+세부 체크 상태의 단일 추적 원본은
+[`12_Semantic_Figma_Design_System_Implementation_List.md`](./12_Semantic_Figma_Design_System_Implementation_List.md)다.
 
 ## 5. 통합 작업 순서
 
@@ -419,6 +426,10 @@ JSP + Controller + VO + 선택적 DB Schema
 
 선행 작업: I-1
 
+현재 판정: **부분 완료**. 승인된 ScreenSpecification 경로는 실제 Bundle·Artifact·Operation까지
+연결됐고 일반 요청은 영속 `ANALYZED`로 저장된다. 핵심 4개 요청의 후보 ScreenSpecification 자동
+생성과 서로 다른 Bundle 생성 E2E는 남아 있다.
+
 ### I-4. 디자인 기반 Thymeleaf HTML 생성
 
 원본 매핑: Thymeleaf WP-5~WP-6, R6-055~058, R6-062~063
@@ -468,6 +479,10 @@ ThymeleafSkeleton + ThymeleafBindingContract
 - 기존 CRUD·Board·MasterDetail Renderer 회귀 없음
 
 선행 작업: I-2, I-1의 Platform·Component 정책
+
+현재 판정: **`[~]` 기능 프로토타입**. `DESIGN.md` 로드·버전·금지 업무 규칙 Gate와 Skeleton/Responsive 기반은
+존재한다. 제거된 legacy Binding composer/renderer를 대체하는 새 Bound View 생성 경로와
+Profile/Token/Registry 전체 병합은 남아 있다.
 
 ### I-5. Thymeleaf Responsive·Preview·Apply·검증
 
@@ -532,6 +547,10 @@ ANALYZED
 
 선행 작업: I-4
 
+현재 판정: **`[~]` 기능 프로토타입**. 승인 전 쓰기 0건, Preview hash, source/`DESIGN.md` drift 충돌,
+경로 탈출·중간 symlink 차단, staging/backup, 실제 중간 실패 전체 rollback, 재검증 및 REST/MCP
+교차 흐름까지 구현됐다. 실제 render/offline build/a11y/visual Gate와 Report 영속화는 남아 있다.
+
 ### I-6. Figma MCP Tool과 Plugin Apply
 
 원본 매핑: Figma WP-6~WP-7, R6-039·047, R5-040~045, R6-T08·11
@@ -572,6 +591,10 @@ Tool:
 - MERGE 사용자 Override 보존
 
 선행 작업: I-3, I-1
+
+현재 판정: **`[~]` 기능 프로토타입**. 7개 callback과 승인 Bundle callback은 모두 등록됐고 8개 Tool이
+`figmaMcpSecret`을 서비스/Repository 접근 전에 검증한다. MCP 계약 기준선은 97 methods/35 objects다.
+실제 Figma API revision·editable node 재검증과 Desktop Canvas 원자 Apply 증적은 남아 있다.
 
 ### I-7. 교차 통합과 E2E
 
@@ -639,6 +662,10 @@ Thymeleaf 생성
 
 선행 작업: I-5, I-6
 
+현재 판정: **부분 완료**. 동일 `ThymeleafProjectWorkflowService` 상태 원장을 사용해 REST Preview 후
+MCP 승인·Apply·Revalidate를 수행하는 교차 E2E는 통과한다. 승인 Figma Artifact 결합과 `.figpack`
+HYBRID를 포함한 네 시나리오 전체 E2E 및 `correlationId` 감사 연결은 남아 있다.
+
 ### I-8. 고급 기능과 운영 안정화
 
 Figma:
@@ -667,6 +694,17 @@ Thymeleaf:
 선행 작업: I-7
 
 ## 7. 릴리스 계획
+
+현재 판정:
+
+| Release | 상태 | 현재 근거/잔여 Gate |
+|---|---|---|
+| 1 공통 기반 | 완료 | 공통 계약, canonical hash, 불변 Operation, 멱등·충돌 테스트 완료 |
+| 2 업무 Binding 기반 | 부분 완료 | Source Reader와 계약 모델은 존재하나 새 Binding assembler 재연결 필요 |
+| 3 두 MVP 생성기 | 부분 완료 | 승인 Figma Bundle 경로 완료, 자동 ScreenSpecification·새 Bound View 생성 미완료 |
+| 4 안전한 적용 | 부분 완료 | Thymeleaf 원자 Apply/rollback과 MCP 인증 완료, 실제 build 및 Figma Canvas Gate 미완료 |
+| 5 교차 통합 | 부분 완료 | REST→MCP Project E2E 완료, 승인 Figma/`.figpack` 결합 E2E 미완료 |
+| 6 고급·운영 | 미완료 | 실제 Desktop, Image/Multi-screen/Platform, a11y/visual, 운영 증적 필요 |
 
 ### Release 1 — 공통 기반
 
@@ -728,6 +766,19 @@ Thymeleaf:
 - 실제 Figma·대상 프로젝트 운영 검증
 
 ## 8. 테스트 전략
+
+### 8.0 최신 자동 검증 증적
+
+2026-08-02 현재 다음 검증이 통과했다.
+
+- Backend: `./gradlew test bootJar` — 926 tests, failures 0, errors 0
+- Contract: 16 schemas, SHA-256 `83ea58779e416889ef95805781880a0a1e3cf692a1f7dfd7de00e14fcdc3a5da`
+- Extractor: typecheck·lint·4 fixture E2E·결정적 hash 통과
+- Plugin: typecheck·lint·17 tests·build 통과
+- MCP Tool snapshot: 97 methods, 35 tool objects, callback 이름 중복 없음
+- `git diff --check` 통과
+
+이 결과는 자동 검증 증적이며 §8.5의 실제 Figma Desktop·대표 프로젝트 사람 승인을 대체하지 않는다.
 
 ### 8.1 공통 계약
 
@@ -861,17 +912,26 @@ npm run build
 - API Key, `.env`, Published Key 원문과 민감한 Source 데이터가 산출물에 없다.
 - 전체 Backend·Contract·Extractor·Plugin CI가 성공한다.
 
-## 13. 바로 착수할 첫 작업
+## 13. 다음 착수 작업
 
-첫 구현은 다음 순서로 제한한다.
+공통 계약과 Operation 기반은 완료됐으므로 다음 순서로 잔여 Gate를 닫는다.
 
-1. I-0 공통 계약 목록과 패키지 소유권 확정
-2. `figma-design-request-v1.schema.json`
-3. `figma-design-operation-v1.schema.json`
-4. `DesignSystemSnapshotRef`, `GenerationIssue`, `ArtifactRef`
-5. `FigmaDesignOperation`과 상태 전이 테스트
-6. Operation Repository 멱등·충돌 테스트
-7. Release 1 전체 계약 검증
+1. Text·Reference·Modify·Component 요청에서 후보 ScreenSpecification을 생성하고 사람 승인 후
+   현재 Bundle/Artifact 오케스트레이션으로 연결한다.
+2. 새 `ThymeleafBindingContract` assembler와 Bound View composer를 구현해 JSP·Controller·VO
+   provenance를 Skeleton의 모든 `th:*`·route·CSRF·validation에 연결한다.
+3. Profile/Registry/Token → `DESIGN.md` → 승인 Override 우선순위를 최종 HTML에 적용하고 승인 Token
+   밖 하드코딩을 FATAL로 차단한다.
+4. 실제 TemplateEngine render, 고정 offline Maven/Gradle build, Playwright 1440/768/390·접근성 Gate와
+   `ThymeleafGenerationReport` 영속 저장을 연결한다.
+5. 승인 Figma Artifact와 `.figpack` HYBRID 결합 Validator, 독립 실패 격리, `correlationId` 기반
+   네 시나리오 교차 E2E를 완성한다.
+6. Figma Desktop에서 revision/editable 범위 재검증, Plugin 보고, 멀티 화면 rollback을 실제 검증하고
+   대표 Maven/Gradle eGovFrame 프로젝트 승인 증적을 Runbook에 기록한다.
 
-이 단계가 통과한 후 I-2의 `LegacyConversionRequest`와 `ThymeleafBindingContract` 구현에
-착수한다. Tool callback이나 통합 Orchestrator를 먼저 만들지 않는다.
+## 14. 변경 이력
+
+| 버전 | 날짜 | 변경 내용 |
+|---|---|---|
+| 1.1.0 | 2026-08-02 | 승인 ScreenSpecification→Bundle→Artifact 영속 연결, 8개 Figma MCP 인증, Design-aware Thymeleaf 원자 Apply/rollback, REST→MCP E2E, 자동 검증 증적과 잔여 실환경 Gate 반영 |
+| 1.0.0 | 2026-08-02 | Figma MCP와 JSP→Thymeleaf 초기 통합 실행 순서 정의 |

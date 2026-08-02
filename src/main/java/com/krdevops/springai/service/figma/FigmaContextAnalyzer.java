@@ -3,11 +3,11 @@ package com.krdevops.springai.service.figma;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 /**
  * Figma 디자인 컨텍스트를 LLM으로 분석.
@@ -19,11 +19,13 @@ import java.util.function.Supplier;
 @Service
 public class FigmaContextAnalyzer {
 
-    private final Supplier<ChatClient> chatClientSupplier;
+    private final ChatClient chatClient;
     private final ObjectMapper objectMapper;
 
-    public FigmaContextAnalyzer(Supplier<ChatClient> chatClientSupplier, ObjectMapper objectMapper) {
-        this.chatClientSupplier = chatClientSupplier;
+    public FigmaContextAnalyzer(
+            @Qualifier("openAiChatClient") ChatClient chatClient,
+            ObjectMapper objectMapper) {
+        this.chatClient = chatClient;
         this.objectMapper = objectMapper;
     }
 
@@ -40,7 +42,6 @@ public class FigmaContextAnalyzer {
             String analysisPrompt = buildAnalysisPrompt(prompt, figmaNodeData);
 
             // Spring AI ChatClient로 구조화된 출력 요청
-            ChatClient chatClient = chatClientSupplier.get();
             String response = chatClient.prompt()
                     .user(analysisPrompt)
                     .call()

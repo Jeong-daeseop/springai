@@ -2,7 +2,9 @@ package com.krdevops.springai.tools;
 
 import com.krdevops.springai.model.figma.contract.FigmaDesignOperation;
 import com.krdevops.springai.model.figma.contract.FigmaDesignRequest;
+import com.krdevops.springai.model.figma.contract.FigmaScreenRequest;
 import com.krdevops.springai.service.figma.FigmaDesignOrchestrationService;
+import com.krdevops.springai.service.figma.FigmaToolAuthorizationService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +24,7 @@ import java.util.List;
 public class FigmaDesignOrchestrationTool {
 
     private final FigmaDesignOrchestrationService orchestrationService;
+    private final FigmaToolAuthorizationService authorization;
     private final ObjectMapper objectMapper;
 
     /**
@@ -41,13 +44,13 @@ public class FigmaDesignOrchestrationTool {
 
             출력:
             - operationId: 작업 식별자
-            - status: PREVIEW_READY (미리보기 준비 완료) 또는 FAILED/REJECTED
+            - status: ANALYZED (화면명세 승인 대기) 또는 REJECTED
             - issues: 문제 목록 (confidence 미달 시 분류 오류)
-            - artifacts: 생성된 Bundle 참조
 
-            주의: confidence < 0.6이면 자동 분류 실패로 REJECTED 상태 반환합니다.
+            주의: 승인된 ScreenSpecification을 별도 Bundle 생성 Tool에 전달해야 PREVIEW_READY로 전이합니다.
             """)
-    public String createDesignFromText(String prompt, String fileKey) {
+    public String createDesignFromText(String figmaMcpSecret, String prompt, String fileKey) {
+        authorization.authorize(figmaMcpSecret);
         log.info("Processing TEXT_DESCRIPTION: prompt length={}, fileKey={}", prompt.length(), fileKey);
         FigmaDesignOperation operation = orchestrationService.processTextRequest(prompt, fileKey);
         return serializeOperation(operation);
@@ -66,11 +69,13 @@ public class FigmaDesignOrchestrationTool {
             - fileKey: Figma 파일 Key
             - referenceNodeIds: 참조할 노드 ID 목록 (예: ["node-123", "node-456"])
 
-            출력: FigmaDesignOperation
+            출력: FigmaDesignOperation (ANALYZED 승인 후보)
 
             주의: referenceNodeIds가 필수입니다.
             """)
-    public String createDesignFromReference(String prompt, String fileKey, List<String> referenceNodeIds) {
+    public String createDesignFromReference(
+            String figmaMcpSecret, String prompt, String fileKey, List<String> referenceNodeIds) {
+        authorization.authorize(figmaMcpSecret);
         log.info("Processing REFERENCE_STYLE: referenceNodeIds count={}", referenceNodeIds.size());
         FigmaDesignRequest request = FigmaDesignRequest.referenceStyle(prompt, fileKey, referenceNodeIds);
         FigmaDesignOperation operation = orchestrationService.processExplicitRequest(request);
@@ -96,7 +101,9 @@ public class FigmaDesignOrchestrationTool {
             - editableNodeIds가 필수입니다.
             - Apply 전에 editableNodeIds 범위가 현재 file/page와 일치하는지 재검증합니다.
             """)
-    public String modifyExistingDesign(String prompt, String fileKey, List<String> editableNodeIds) {
+    public String modifyExistingDesign(
+            String figmaMcpSecret, String prompt, String fileKey, List<String> editableNodeIds) {
+        authorization.authorize(figmaMcpSecret);
         log.info("Processing MODIFY_EXISTING: editableNodeIds count={}", editableNodeIds.size());
         FigmaDesignRequest request = FigmaDesignRequest.modifyExisting(prompt, fileKey, editableNodeIds);
         FigmaDesignOperation operation = orchestrationService.processExplicitRequest(request);
@@ -122,7 +129,9 @@ public class FigmaDesignOrchestrationTool {
             - imageNodeIds가 필수입니다.
             - Figma 이미지 export 분석은 Vision capability 지원 필수.
             """)
-    public String createDesignFromImage(String prompt, String fileKey, List<String> imageNodeIds) {
+    public String createDesignFromImage(
+            String figmaMcpSecret, String prompt, String fileKey, List<String> imageNodeIds) {
+        authorization.authorize(figmaMcpSecret);
         log.info("Processing IMAGE_REFERENCE: imageNodeIds count={}", imageNodeIds.size());
         FigmaDesignRequest request = FigmaDesignRequest.imageReference(prompt, fileKey, imageNodeIds);
         FigmaDesignOperation operation = orchestrationService.processExplicitRequest(request);
@@ -148,12 +157,17 @@ public class FigmaDesignOrchestrationTool {
             - 모든 화면이 성공할 때만 APPLY_REQUIRED로 진행.
             - Apply 전에 멀티 스크린 검증(모두 성공 또는 모두 실패).
             """)
-    public String createMultiScreenFlow(String prompt, String fileKey, List<String> screenNames) {
+    public String createMultiScreenFlow(
+            String figmaMcpSecret, String prompt, String fileKey, List<String> screenNames) {
+        authorization.authorize(figmaMcpSecret);
         log.info("Processing MULTI_SCREEN_FLOW: screens count={}", screenNames.size());
-        // TODO: screenNames → FigmaScreenRequest 리스트로 변환
-        FigmaDesignRequest request = new FigmaDesignRequest(
-                null, prompt, fileKey, null, null, null, null, null, null
-        );
+        if (screenNames == null || screenNames.isEmpty()) {
+            throw new IllegalArgumentException("screenNames는 최소 1개 이상이어야 합니다");
+        }
+        List<FigmaScreenRequest> screens = screenNames.stream()
+                .map(name -> new FigmaScreenRequest(name, prompt + " - " + name))
+                .toList();
+        FigmaDesignRequest request = FigmaDesignRequest.multiScreenFlow(prompt, fileKey, screens);
         FigmaDesignOperation operation = orchestrationService.processExplicitRequest(request);
         return serializeOperation(operation);
     }
@@ -178,7 +192,9 @@ public class FigmaDesignOrchestrationTool {
             - 미승인 또는 폐기된 컴포넌트는 차단됩니다.
             - 선택 컴포넌트는 Placeholder로 폴백.
             """)
-    public String createDesignWithComponents(String prompt, String fileKey, List<String> components) {
+    public String createDesignWithComponents(
+            String figmaMcpSecret, String prompt, String fileKey, List<String> components) {
+        authorization.authorize(figmaMcpSecret);
         log.info("Processing COMPONENT_SPECIFIED: components count={}", components.size());
         FigmaDesignRequest request = FigmaDesignRequest.componentSpecified(prompt, fileKey, components);
         FigmaDesignOperation operation = orchestrationService.processExplicitRequest(request);
@@ -206,7 +222,10 @@ public class FigmaDesignOrchestrationTool {
             - 지원 정책: Desktop 1440px/12열, Tablet 768px/8열, Mobile 390px/4열
             - Component Swap은 Profile에서 지정된 정책만 적용됨.
             """)
-    public String convertPlatform(String prompt, String fileKey, List<String> sourceNodeIds, String targetPlatform) {
+    public String convertPlatform(
+            String figmaMcpSecret, String prompt, String fileKey,
+            List<String> sourceNodeIds, String targetPlatform) {
+        authorization.authorize(figmaMcpSecret);
         log.info("Processing PLATFORM_CONVERT: sourceNodeIds count={}, targetPlatform={}",
                 sourceNodeIds.size(), targetPlatform);
         FigmaDesignRequest request = FigmaDesignRequest.platformConvert(prompt, fileKey, sourceNodeIds, targetPlatform);

@@ -125,6 +125,68 @@ public class DesignArtifactService {
         }
     }
 
+    /** 승인된 ScreenSpecification에서 생성된 Plugin 입력 Bundle을 불변 Artifact로 원자 저장한다. */
+    public FigmaBundleArtifact saveFigmaExportBundle(
+            com.krdevops.springai.model.figma.FigmaExportBundle bundle) {
+        if (bundle == null) {
+            throw new IllegalArgumentException("FigmaExportBundle은 필수입니다.");
+        }
+        com.krdevops.springai.model.figma.FigmaScreenSpec spec = bundle.figmaScreenSpec();
+        if (!spec.screenId().matches("[a-z0-9][a-z0-9._-]{0,63}")) {
+            throw new IllegalArgumentException(
+                    "Figma bundle artifact screenId 형식이 올바르지 않습니다: " + spec.screenId());
+        }
+
+        Path artifactRoot = root().resolve("figma-bundles").normalize();
+        Path target = artifactRoot.resolve(spec.screenId()).resolve("v" + spec.screenVersion()).normalize();
+        Path temporary = artifactRoot.resolve("." + spec.screenId() + "-v" + spec.screenVersion()
+                + ".tmp-" + UUID.randomUUID()).normalize();
+        if (!target.startsWith(artifactRoot) || !temporary.startsWith(artifactRoot)) {
+            throw new IllegalStateException("Figma bundle artifact 경로 이탈입니다.");
+        }
+
+        try {
+            Files.createDirectories(artifactRoot);
+            if (Files.isSymbolicLink(artifactRoot)) {
+                throw new IllegalStateException("Figma bundle artifact root는 symbolic link일 수 없습니다.");
+            }
+            byte[] bundleJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(bundle);
+            String contentHash = java.util.HexFormat.of().formatHex(
+                    java.security.MessageDigest.getInstance("SHA-256").digest(bundleJson));
+
+            if (Files.exists(target)) {
+                byte[] existing = Files.readAllBytes(target.resolve("figma-export-bundle.json"));
+                if (!java.util.Arrays.equals(existing, bundleJson)) {
+                    throw new IllegalStateException(
+                            "FIGMA_BUNDLE_ARTIFACT_VERSION_CONFLICT: 동일 화면 버전에 다른 Bundle이 존재합니다: "
+                                    + spec.screenId() + "/" + spec.screenVersion());
+                }
+                return objectMapper.readValue(
+                        target.resolve("metadata.json").toFile(), FigmaBundleArtifact.class);
+            }
+
+            Files.createDirectory(temporary);
+            Files.write(temporary.resolve("figma-export-bundle.json"), bundleJson);
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(
+                    temporary.resolve("figma-screen-spec.json").toFile(), spec);
+            FigmaBundleArtifact artifact = new FigmaBundleArtifact(
+                    spec.screenId() + "-v" + spec.screenVersion() + "-bundle",
+                    root().relativize(target).toString(),
+                    spec.screenId(), spec.screenVersion(), contentHash, LocalDateTime.now());
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(
+                    temporary.resolve("metadata.json").toFile(), artifact);
+            Files.createDirectories(target.getParent());
+            Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
+            return artifact;
+        } catch (Exception exception) {
+            deleteQuietly(temporary);
+            if (exception instanceof RuntimeException runtime) {
+                throw runtime;
+            }
+            throw new IllegalStateException("Figma export bundle artifact 저장 실패", exception);
+        }
+    }
+
     private FigmaExportArtifact readFigmaExportArtifact(Path target) throws java.io.IOException {
         return objectMapper.readValue(
                 target.resolve("metadata.json").toFile(), FigmaExportArtifact.class);
@@ -135,6 +197,16 @@ public class DesignArtifactService {
             String relativePath,
             String screenId,
             int screenVersion,
+            LocalDateTime createdAt
+    ) {
+    }
+
+    public record FigmaBundleArtifact(
+            String artifactId,
+            String relativePath,
+            String screenId,
+            int screenVersion,
+            String contentHash,
             LocalDateTime createdAt
     ) {
     }

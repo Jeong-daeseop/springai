@@ -40,9 +40,14 @@ public record ThymeleafProjectOperation(
         return switch (status) {
             case ANALYZED -> nextStatus == ProjectOperationStatus.CONTRACT_READY;
             case CONTRACT_READY -> nextStatus == ProjectOperationStatus.PREVIEW_READY;
-            case PREVIEW_READY -> nextStatus == ProjectOperationStatus.APPROVED || nextStatus == ProjectOperationStatus.REJECTED;
-            case APPROVED -> nextStatus == ProjectOperationStatus.APPLIED;
-            case APPLIED -> nextStatus == ProjectOperationStatus.VALIDATED;
+            case PREVIEW_READY -> nextStatus == ProjectOperationStatus.APPROVED
+                    || nextStatus == ProjectOperationStatus.REJECTED
+                    || nextStatus == ProjectOperationStatus.CONFLICT;
+            case APPROVED -> nextStatus == ProjectOperationStatus.APPLIED
+                    || nextStatus == ProjectOperationStatus.CONFLICT
+                    || nextStatus == ProjectOperationStatus.FAILED;
+            case APPLIED -> nextStatus == ProjectOperationStatus.VALIDATED
+                    || nextStatus == ProjectOperationStatus.FAILED;
             case VALIDATED, FAILED, CONFLICT, REJECTED -> false;
         };
     }

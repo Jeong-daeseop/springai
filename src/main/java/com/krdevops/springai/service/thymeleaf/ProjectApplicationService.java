@@ -21,7 +21,11 @@ public class ProjectApplicationService {
     private static final String WAR_TEMPLATE_PATH = "src/main/webapp/WEB-INF/templates";
     private static final String BOOT_TEMPLATE_PATH = "src/main/resources/templates";
 
-    public ProjectApplicationResult applyToProject(
+    /**
+     * 승인 Workflow 내부 호환용 저수준 적용기. 외부 패키지는
+     * {@link ThymeleafProjectWorkflowService}의 preview/approve/apply를 사용해야 한다.
+     */
+    ProjectApplicationResult applyToProject(
             Path projectRoot,
             String generatedThymeleafBasePath,
             List<String> screenDeployRequests) {
