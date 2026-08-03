@@ -153,6 +153,16 @@ app:
     allowed-resource-origins: []
     sensitive-selectors:
       - input[type=password]
+  artifact-store:
+    root-path: ${ARTIFACT_STORE_ROOT_PATH:${java.io.tmpdir}/springai-artifact-store}
+    max-artifact-size-bytes: ${ARTIFACT_STORE_MAX_SIZE_BYTES:104857600}
+    allowed-media-types:
+      - application/json
+      - text/html
+      - text/plain
+      - application/zip
+      - image/png
+      - image/jpeg
   design-vision:
     # 공공기관 망분리·외부 전송 정책 승인 전에는 비활성 상태를 유지합니다.
     provider: ${DESIGN_VISION_PROVIDER:openai} # disabled | openai | ollama
