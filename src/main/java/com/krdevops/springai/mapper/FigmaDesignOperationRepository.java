@@ -2,6 +2,7 @@ package com.krdevops.springai.mapper;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
 import com.krdevops.springai.model.contract.ArtifactRef;
 import com.krdevops.springai.model.contract.GenerationIssue;
 import com.krdevops.springai.model.contract.SourceRevisionRef;
@@ -38,12 +39,14 @@ public class FigmaDesignOperationRepository {
     private final ObjectMapper objectMapper;
     private final OperationHashFactory operationHashFactory;
     private final FigmaDesignOperationStateService stateService;
+    private final LegacyRepositoryDdlProperties ddlProperties;
 
     public FigmaDesignOperationRepository(
             JdbcTemplate jdbcTemplate,
             ObjectMapper objectMapper,
             OperationHashFactory operationHashFactory,
-            FigmaDesignOperationStateService stateService
+            FigmaDesignOperationStateService stateService,
+            LegacyRepositoryDdlProperties ddlProperties
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper.copy()
@@ -51,10 +54,14 @@ public class FigmaDesignOperationRepository {
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
         this.operationHashFactory = operationHashFactory;
         this.stateService = stateService;
+        this.ddlProperties = ddlProperties;
     }
 
     @PostConstruct
     public void createTableIfNotExists() {
+        if (!ddlProperties.isLegacyRepositoryDdlEnabled()) {
+            return;
+        }
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS AI_FIGMA_DESIGN_OPERATION (
                 OPERATION_ID     VARCHAR(64) NOT NULL,

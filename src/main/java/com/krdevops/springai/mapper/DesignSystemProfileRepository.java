@@ -1,5 +1,7 @@
 package com.krdevops.springai.mapper;
 
+import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.model.designsystem.DesignSystemProfile;
 import jakarta.annotation.PostConstruct;
@@ -17,14 +19,20 @@ public class DesignSystemProfileRepository {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final LegacyRepositoryDdlProperties ddlProperties;
 
-    public DesignSystemProfileRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    public DesignSystemProfileRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper,
+            LegacyRepositoryDdlProperties ddlProperties) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper.copy().findAndRegisterModules();
+        this.ddlProperties = ddlProperties;
     }
 
     @PostConstruct
     public void createTableIfNotExists() {
+        if (!ddlProperties.isLegacyRepositoryDdlEnabled()) {
+            return;
+        }
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS AI_DESIGN_SYSTEM_PROFILE (
                 PROFILE_ID       VARCHAR(64) NOT NULL,

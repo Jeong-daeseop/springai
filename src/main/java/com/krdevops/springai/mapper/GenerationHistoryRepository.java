@@ -1,5 +1,6 @@
 package com.krdevops.springai.mapper;
 
+import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class GenerationHistoryRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final LegacyRepositoryDdlProperties ddlProperties;
 
     private final RowMapper<Map<String, Object>> rowMapper = (rs, rowNum) -> Map.of(
         "id",            rs.getLong("ID"),
@@ -30,6 +32,9 @@ public class GenerationHistoryRepository {
 
     @PostConstruct
     public void createTableIfNotExists() {
+        if (!ddlProperties.isLegacyRepositoryDdlEnabled()) {
+            return;
+        }
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS AI_GENERATION_HISTORY (
                 ID             BIGINT AUTO_INCREMENT PRIMARY KEY,

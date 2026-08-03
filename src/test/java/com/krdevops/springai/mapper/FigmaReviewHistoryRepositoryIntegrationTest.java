@@ -1,5 +1,6 @@
 package com.krdevops.springai.mapper;
 
+import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
 import com.krdevops.springai.model.designsystem.FigmaReviewEvent;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,7 +21,8 @@ class FigmaReviewHistoryRepositoryIntegrationTest {
             System.getenv().getOrDefault("DB_USERNAME", "ebt"),
             System.getenv().getOrDefault("DB_PASSWORD", "ebt01"));
     private final JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
-    private final FigmaReviewHistoryRepository repository = new FigmaReviewHistoryRepository(jdbcTemplate);
+    private final FigmaReviewHistoryRepository repository =
+            new FigmaReviewHistoryRepository(jdbcTemplate, new LegacyRepositoryDdlProperties());
 
     @Test
     void createTableIfNotExistsIsIdempotent() {

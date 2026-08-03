@@ -1,6 +1,7 @@
 package com.krdevops.springai.mapper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
 import com.krdevops.springai.model.contract.ArtifactRef;
 import com.krdevops.springai.model.contract.SourceRevisionRef;
 import com.krdevops.springai.model.figma.contract.FigmaDesignOperation;
@@ -36,8 +37,9 @@ class FigmaDesignOperationRepositoryIntegrationTest {
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private final FigmaDesignOperationStateService stateService = new FigmaDesignOperationStateService();
     private final OperationHashFactory operationHashFactory = new OperationHashFactory(objectMapper);
+    private final LegacyRepositoryDdlProperties ddlProperties = new LegacyRepositoryDdlProperties();
     private final FigmaDesignOperationRepository repository = new FigmaDesignOperationRepository(
-            jdbcTemplate, objectMapper, operationHashFactory, stateService);
+            jdbcTemplate, objectMapper, operationHashFactory, stateService, ddlProperties);
 
     @Test
     void createTableIfNotExistsIsIdempotent() {

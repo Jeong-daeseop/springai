@@ -1,5 +1,6 @@
 package com.krdevops.springai.mapper;
 
+import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
 import com.krdevops.springai.model.designsystem.FigmaReviewEvent;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -14,13 +15,18 @@ import java.util.List;
 public class FigmaReviewHistoryRepository {
 
     private final JdbcTemplate jdbcTemplate;
+    private final LegacyRepositoryDdlProperties ddlProperties;
 
-    public FigmaReviewHistoryRepository(JdbcTemplate jdbcTemplate) {
+    public FigmaReviewHistoryRepository(JdbcTemplate jdbcTemplate, LegacyRepositoryDdlProperties ddlProperties) {
         this.jdbcTemplate = jdbcTemplate;
+        this.ddlProperties = ddlProperties;
     }
 
     @PostConstruct
     public void createTableIfNotExists() {
+        if (!ddlProperties.isLegacyRepositoryDdlEnabled()) {
+            return;
+        }
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS AI_FIGMA_REVIEW_HISTORY (
                 EVENT_ID       VARCHAR(64) PRIMARY KEY,

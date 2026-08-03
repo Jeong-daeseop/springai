@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
 import com.krdevops.springai.model.figma.FigmaSyncMode;
 import com.krdevops.springai.model.figma.ops.FigmaGenerationReport;
 import java.time.Instant;
@@ -23,7 +24,7 @@ class FigmaGenerationReportRepositoryIntegrationTest {
     private final JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
     private final FigmaGenerationReportRepository repository =
             new FigmaGenerationReportRepository(
-                    jdbcTemplate, new ObjectMapper().findAndRegisterModules());
+                    jdbcTemplate, new ObjectMapper().findAndRegisterModules(), new LegacyRepositoryDdlProperties());
 
     @BeforeEach
     void setUp() {

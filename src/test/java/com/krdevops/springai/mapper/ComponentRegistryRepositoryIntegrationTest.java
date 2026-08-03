@@ -1,5 +1,7 @@
 package com.krdevops.springai.mapper;
 
+import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.model.designsystem.ComponentRegistry;
 import com.krdevops.springai.model.designsystem.ComponentRegistryEntry;
@@ -22,7 +24,7 @@ class ComponentRegistryRepositoryIntegrationTest {
             System.getenv().getOrDefault("DB_PASSWORD", "ebt01"));
     private final JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
     private final ComponentRegistryRepository repository = new ComponentRegistryRepository(
-            jdbcTemplate, new ObjectMapper().findAndRegisterModules());
+            jdbcTemplate, new ObjectMapper().findAndRegisterModules(), new LegacyRepositoryDdlProperties());
 
     @Test
     void createTableIfNotExistsIsIdempotent() {

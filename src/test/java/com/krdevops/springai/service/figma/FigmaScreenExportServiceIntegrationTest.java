@@ -1,6 +1,7 @@
 package com.krdevops.springai.service.figma;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
 import com.krdevops.springai.mapper.ComponentRegistryRepository;
 import com.krdevops.springai.mapper.DesignSystemProfileRepository;
 import com.krdevops.springai.mapper.FigmaScreenSpecRepository;
@@ -36,10 +37,15 @@ class FigmaScreenExportServiceIntegrationTest {
     private final JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
-    private final ScreenSpecRepository screenSpecRepository = new ScreenSpecRepository(jdbcTemplate, objectMapper);
-    private final FigmaScreenSpecRepository figmaScreenSpecRepository = new FigmaScreenSpecRepository(jdbcTemplate, objectMapper);
-    private final DesignSystemProfileRepository profileRepository = new DesignSystemProfileRepository(jdbcTemplate, objectMapper);
-    private final ComponentRegistryRepository registryRepository = new ComponentRegistryRepository(jdbcTemplate, objectMapper);
+    private final LegacyRepositoryDdlProperties ddlProperties = new LegacyRepositoryDdlProperties();
+    private final ScreenSpecRepository screenSpecRepository =
+            new ScreenSpecRepository(jdbcTemplate, objectMapper, ddlProperties);
+    private final FigmaScreenSpecRepository figmaScreenSpecRepository =
+            new FigmaScreenSpecRepository(jdbcTemplate, objectMapper, ddlProperties);
+    private final DesignSystemProfileRepository profileRepository =
+            new DesignSystemProfileRepository(jdbcTemplate, objectMapper, ddlProperties);
+    private final ComponentRegistryRepository registryRepository =
+            new ComponentRegistryRepository(jdbcTemplate, objectMapper, ddlProperties);
 
     private final FigmaScreenExportService exportService = new FigmaScreenExportService(
             screenSpecRepository,

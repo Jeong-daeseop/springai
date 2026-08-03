@@ -1,6 +1,7 @@
 package com.krdevops.springai.mapper;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
 import com.krdevops.springai.model.design.DesignAnalysisResult;
 import com.krdevops.springai.model.design.DesignAnalysisSaveOutcome;
 import com.krdevops.springai.model.design.DesignSourceType;
@@ -28,7 +29,8 @@ class DesignAnalysisRepositoryIntegrationTest {
                 System.getenv().getOrDefault("DB_PASSWORD", "ebt01"));
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
-        DesignAnalysisRepository repository = new DesignAnalysisRepository(jdbc, objectMapper);
+        DesignAnalysisRepository repository =
+                new DesignAnalysisRepository(jdbc, objectMapper, new LegacyRepositoryDdlProperties());
         repository.createTableIfNotExists();
         String sourceHash = UUID.randomUUID().toString().replace("-", "")
                 + UUID.randomUUID().toString().replace("-", "");

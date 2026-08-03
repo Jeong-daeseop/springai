@@ -1,5 +1,7 @@
 package com.krdevops.springai.mapper;
 
+import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.model.figma.ops.FigmaGenerationReport;
 import jakarta.annotation.PostConstruct;
@@ -16,14 +18,20 @@ public class FigmaGenerationReportRepository {
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
+    private final LegacyRepositoryDdlProperties ddlProperties;
 
-    public FigmaGenerationReportRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    public FigmaGenerationReportRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper,
+            LegacyRepositoryDdlProperties ddlProperties) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper.copy().findAndRegisterModules();
+        this.ddlProperties = ddlProperties;
     }
 
     @PostConstruct
     public void createTableIfNotExists() {
+        if (!ddlProperties.isLegacyRepositoryDdlEnabled()) {
+            return;
+        }
         jdbcTemplate.execute("""
             CREATE TABLE IF NOT EXISTS AI_FIGMA_GENERATION_REPORT (
                 REPORT_ID       VARCHAR(64) NOT NULL,
