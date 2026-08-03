@@ -6,6 +6,8 @@ package com.krdevops.springai.config.mcp;
 public enum McpAuthMode {
     /** 1단계: 미인증 호출을 허용하되 감사 로그만 남긴다(기존 permitAll과 동일한 실제 동작). */
     AUDIT_ONLY,
+    /** 2단계: 공통 transport token 또는 기존 Tool별 secret 중 하나를 허용한다. */
+    COMPATIBILITY,
     /** 3단계: deny-by-default. 인증되지 않은 호출은 Tool 메서드 실행 전에 차단한다. */
     REQUIRED
 }

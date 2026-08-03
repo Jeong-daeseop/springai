@@ -11,7 +11,7 @@ Spring 설정 클래스 패키지. MCP Tool 등록, 보안, Vector Store, 애플
 | File | Description |
 |------|-------------|
 | `McpConfig.java` | 모든 MCP Tool을 `MethodToolCallbackProvider`로 한 곳에 등록 — 19개 Tool 빈 주입 |
-| `SecurityConfig.java` | Spring Security 설정 — X-API-Key 필터, `/mcp/**`·`/api/chat/**` 인증 없이 허용 |
+| `SecurityConfig.java` | Spring Security 설정 — X-API-Key 필터와 `/mcp/**` 전용 공통 token 인증 경계 |
 | `VectorStoreConfig.java` | Redis Vector Store 수동 설정 — `RedisClient`, `RedisVectorStore` 빈 생성 (Auto Config 제외됨) |
 | `AppProperties.java` | `app.*` 설정 바인딩 — `apiKey`, `openaiModels`, `documentPaths` |
 | `EgovProperties.java` | `egov.*` 설정 바인딩 — `output.basePath` (생성 코드 저장 경로) |

@@ -1,7 +1,8 @@
 package com.krdevops.springai.config;
 
 import com.krdevops.springai.config.mcp.McpAuthenticationInterceptor;
-import com.krdevops.springai.config.mcp.McpSecurityProperties;
+import com.krdevops.springai.config.mcp.McpCredentialValidator;
+import com.krdevops.springai.config.mcp.McpSecurityAuditLogger;
 import com.krdevops.springai.service.figma.FigmaRestTokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -34,7 +35,8 @@ public class SecurityConfig {
 
     private final AppProperties appProperties;
     private final FigmaRestTokenService figmaRestTokenService;
-    private final McpSecurityProperties mcpSecurityProperties;
+    private final McpCredentialValidator mcpCredentialValidator;
+    private final McpSecurityAuditLogger mcpSecurityAuditLogger;
 
     /** DEC-10=REST 경로에서 Plugin이 fetch()할 때 브라우저가 보내는 CORS preflight를 허용할 origin(콤마 구분). */
     @org.springframework.beans.factory.annotation.Value("${app.figma.rest-allowed-origins:}")
@@ -74,7 +76,7 @@ public class SecurityConfig {
 
     @Bean
     public McpAuthenticationInterceptor mcpAuthenticationInterceptor() {
-        return new McpAuthenticationInterceptor(mcpSecurityProperties);
+        return new McpAuthenticationInterceptor(mcpCredentialValidator, mcpSecurityAuditLogger);
     }
 
     /**

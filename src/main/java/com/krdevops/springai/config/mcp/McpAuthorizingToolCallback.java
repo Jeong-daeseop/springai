@@ -15,11 +15,18 @@ public class McpAuthorizingToolCallback implements ToolCallback {
     private final ToolCallback delegate;
     private final McpToolRiskLevel riskLevel;
     private final ToolAuthorizationPolicy policy;
+    private final McpSensitiveDataRedactor redactor;
 
     public McpAuthorizingToolCallback(ToolCallback delegate, McpToolRiskLevel riskLevel, ToolAuthorizationPolicy policy) {
+        this(delegate, riskLevel, policy, McpSensitiveDataRedactor.noop());
+    }
+
+    public McpAuthorizingToolCallback(ToolCallback delegate, McpToolRiskLevel riskLevel,
+                                      ToolAuthorizationPolicy policy, McpSensitiveDataRedactor redactor) {
         this.delegate = delegate;
         this.riskLevel = riskLevel;
         this.policy = policy;
+        this.redactor = redactor;
     }
 
     @Override
@@ -34,14 +41,29 @@ public class McpAuthorizingToolCallback implements ToolCallback {
 
     @Override
     public String call(String toolInput) {
-        policy.authorize(delegate.getToolDefinition().name(), riskLevel);
-        return delegate.call(toolInput);
+        policy.authorize(delegate.getToolDefinition().name(), riskLevel, toolInput);
+        return callRedacted(() -> delegate.call(toolInput));
     }
 
     @Override
     public String call(String toolInput, ToolContext toolContext) {
-        policy.authorize(delegate.getToolDefinition().name(), riskLevel);
-        return delegate.call(toolInput, toolContext);
+        policy.authorize(delegate.getToolDefinition().name(), riskLevel, toolInput);
+        return callRedacted(() -> delegate.call(toolInput, toolContext));
+    }
+
+    private String callRedacted(java.util.function.Supplier<String> invocation) {
+        try {
+            return redactor.redact(invocation.get());
+        } catch (McpAuthorizationException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            String message = exception.getMessage();
+            String safeMessage = redactor.redact(message);
+            if (message != null && !message.equals(safeMessage)) {
+                throw new IllegalStateException(safeMessage);
+            }
+            throw exception;
+        }
     }
 
     /** 원본 {@code MethodToolCallback} 접근용 — 리플렉션 기반 계약 테스트(예: MCP snapshot)에서 사용. */

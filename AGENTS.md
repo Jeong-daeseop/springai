@@ -47,7 +47,7 @@ Streamable HTTP 트랜스포트로 클라이언트와 JSON-RPC 통신하며, 웹
 - MCP Tool: `@Tool(description = "한국어 상세 설명")` + `McpConfig`에 `MethodToolCallbackProvider` 등록
 - DB 접근: `JdbcTemplate` (MyBatis 미사용)
 - 레이어드 아키텍처: Controller → Service → Repository/Tool
-- 보안: X-API-Key 헤더 인증 (`/api/**`), `/mcp/**` · `/ai/**` · `/api/chat/**`는 인증 없이 허용
+- 보안: `/api/**`는 X-API-Key, `/mcp/**`·`/sse/**`는 `X-MCP-Token` transport 인증과 Tool 위험 등급 인가 적용
 
 ## Dependencies
 

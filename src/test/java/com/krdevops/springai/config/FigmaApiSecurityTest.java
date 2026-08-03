@@ -1,6 +1,8 @@
 package com.krdevops.springai.config;
 
 import com.krdevops.springai.config.mcp.McpSecurityProperties;
+import com.krdevops.springai.config.mcp.McpCredentialValidator;
+import com.krdevops.springai.config.mcp.McpSecurityAuditLogger;
 import com.krdevops.springai.service.figma.FigmaRestTokenService;
 import jakarta.servlet.Filter;
 import org.junit.jupiter.api.Test;
@@ -15,7 +17,9 @@ class FigmaApiSecurityTest {
     private SecurityConfig config(FigmaRestTokenService tokenService) {
         AppProperties properties = new AppProperties();
         properties.setApiKey("rest-secret");
-        return new SecurityConfig(properties, tokenService, new McpSecurityProperties());
+        McpSecurityProperties mcpProperties = new McpSecurityProperties();
+        return new SecurityConfig(properties, tokenService,
+                new McpCredentialValidator(mcpProperties), new McpSecurityAuditLogger());
     }
 
     private FigmaRestTokenService disabledTokenService() {

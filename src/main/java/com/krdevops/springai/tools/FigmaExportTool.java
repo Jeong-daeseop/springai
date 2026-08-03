@@ -5,6 +5,7 @@ import com.krdevops.springai.config.mcp.McpToolRiskLevel;
 
 import com.krdevops.springai.model.figma.FigmaScreenExportRequest;
 import com.krdevops.springai.service.figma.FigmaMcpFacadeService;
+import com.krdevops.springai.service.figma.FigmaToolAuthorizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class FigmaExportTool {
 
     private final FigmaMcpFacadeService facadeService;
+    private final FigmaToolAuthorizationService authorization;
 
     @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
@@ -27,7 +29,8 @@ public class FigmaExportTool {
             String figmaMcpSecret,
             FigmaScreenExportRequest request
     ) {
-        return facadeService.generateScreen(figmaMcpSecret, request);
+        authorization.authorize(figmaMcpSecret);
+        return facadeService.generateScreen(request);
     }
 
     @McpToolRisk(McpToolRiskLevel.EXTERNAL)
@@ -40,6 +43,7 @@ public class FigmaExportTool {
             String screenId,
             Integer version
     ) {
-        return facadeService.validateScreen(figmaMcpSecret, screenId, version);
+        authorization.authorize(figmaMcpSecret);
+        return facadeService.validateScreen(screenId, version);
     }
 }

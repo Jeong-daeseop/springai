@@ -19,7 +19,8 @@ class McpAuthenticationInterceptorTest {
     private McpAuthenticationInterceptor interceptor(String sharedToken) {
         McpSecurityProperties properties = new McpSecurityProperties();
         properties.setSharedToken(sharedToken);
-        return new McpAuthenticationInterceptor(properties);
+        return new McpAuthenticationInterceptor(
+                new McpCredentialValidator(properties), new McpSecurityAuditLogger());
     }
 
     @Test
@@ -31,6 +32,7 @@ class McpAuthenticationInterceptorTest {
         filter.doFilter(request, new MockHttpServletResponse(), (req, res) -> observed[0] = McpActorContext.current());
 
         assertThat(observed[0].authenticated()).isFalse();
+        assertThat(observed[0].failureCode()).isEqualTo(McpAuthenticationFailureCode.MCP_TOKEN_MISSING);
         // Filter 종료 후에는 반드시 정리되어야 한다(스레드풀 재사용 시 컨텍스트 누수 방지).
         assertThat(McpActorContext.current()).isEqualTo(McpActorContext.ANONYMOUS);
     }
@@ -45,6 +47,7 @@ class McpAuthenticationInterceptorTest {
         filter.doFilter(request, new MockHttpServletResponse(), (req, res) -> observed[0] = McpActorContext.current());
 
         assertThat(observed[0].authenticated()).isFalse();
+        assertThat(observed[0].failureCode()).isEqualTo(McpAuthenticationFailureCode.MCP_TOKEN_INVALID);
     }
 
     @Test
@@ -80,5 +83,18 @@ class McpAuthenticationInterceptorTest {
         filter.doFilter(request, new MockHttpServletResponse(), chain);
 
         assertThat(chain.getRequest()).isNotNull();
+    }
+
+    @Test
+    void exactStreamableHttpEndpoint_isIntercepted() throws Exception {
+        McpAuthenticationInterceptor filter = interceptor("expected-token");
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/mcp");
+        request.addHeader("X-MCP-Token", "expected-token");
+        McpActorContext[] observed = new McpActorContext[1];
+
+        filter.doFilter(request, new MockHttpServletResponse(),
+                (req, res) -> observed[0] = McpActorContext.current());
+
+        assertThat(observed[0].authenticated()).isTrue();
     }
 }

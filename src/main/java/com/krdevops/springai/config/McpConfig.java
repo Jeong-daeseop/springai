@@ -4,6 +4,7 @@ import com.krdevops.springai.config.mcp.McpAuthorizingToolCallback;
 import com.krdevops.springai.config.mcp.McpToolRiskAnnotationResolver;
 import com.krdevops.springai.config.mcp.McpToolRiskLevel;
 import com.krdevops.springai.config.mcp.ToolAuthorizationPolicy;
+import com.krdevops.springai.config.mcp.McpSensitiveDataRedactor;
 import com.krdevops.springai.tools.AuthTool;
 import com.krdevops.springai.tools.OutputPathResolverTool;
 import com.krdevops.springai.tools.SqlTool;
@@ -98,7 +99,8 @@ public class McpConfig {
             FigmaApprovedSpecificationTool figmaApprovedSpecificationTool,
             ThymeleafProjectWorkflowTool thymeleafProjectWorkflowTool,
             McpToolRiskAnnotationResolver riskResolver,
-            ToolAuthorizationPolicy authorizationPolicy) {
+            ToolAuthorizationPolicy authorizationPolicy,
+            McpSensitiveDataRedactor redactor) {
         ToolCallbackProvider rawProvider = MethodToolCallbackProvider.builder()
                 .toolObjects(
                         dateTimeTool, designReferenceTool, employeeTool, schemaReaderTool, codeSaverTool,
@@ -121,7 +123,7 @@ public class McpConfig {
             ToolCallback callback = raw[i];
             Method toolMethod = resolveToolMethod(callback);
             McpToolRiskLevel riskLevel = riskResolver.resolve(toolMethod);
-            authorized[i] = new McpAuthorizingToolCallback(callback, riskLevel, authorizationPolicy);
+            authorized[i] = new McpAuthorizingToolCallback(callback, riskLevel, authorizationPolicy, redactor);
         }
         return ToolCallbackProvider.from(authorized);
     }

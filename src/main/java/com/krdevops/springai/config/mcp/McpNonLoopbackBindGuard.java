@@ -18,11 +18,12 @@ public class McpNonLoopbackBindGuard {
     public McpNonLoopbackBindGuard(
             @Value("${server.address:127.0.0.1}") String serverAddress,
             McpSecurityProperties properties) {
-        if (!isLoopback(serverAddress) && !properties.hasSharedToken()) {
+        if (!isLoopback(serverAddress)
+                && (!properties.hasSharedToken() || properties.getAuthMode() != McpAuthMode.REQUIRED)) {
             throw new IllegalStateException(
                     "MCP 서버가 non-loopback 주소(" + serverAddress + ")에 바인딩되는데 "
-                    + "app.mcp.shared-token(MCP_SHARED_TOKEN)이 설정되지 않았습니다. "
-                    + "비-loopback 배포에서는 공유 토큰을 반드시 설정하세요.");
+                    + "공통 인증이 REQUIRED 상태로 설정되지 않았습니다. "
+                    + "비-loopback 배포에서는 MCP_SHARED_TOKEN과 MCP_AUTH_MODE=REQUIRED가 필수입니다.");
         }
     }
 

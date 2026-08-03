@@ -1,5 +1,6 @@
 package com.krdevops.springai.service.figma;
 
+import com.krdevops.springai.config.mcp.McpActorContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,9 @@ public class FigmaToolAuthorizationService {
     }
 
     public void authorize(String providedSecret) {
+        if (McpActorContext.current().authenticated()) {
+            return;
+        }
         if (sharedSecret.isBlank()) {
             throw new SecurityException("Figma MCP Tool 인증이 설정되지 않았습니다.");
         }

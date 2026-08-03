@@ -2,6 +2,7 @@ package com.krdevops.springai.tools;
 
 import com.krdevops.springai.model.figma.FigmaScreenExportRequest;
 import com.krdevops.springai.service.figma.FigmaMcpFacadeService;
+import com.krdevops.springai.service.figma.FigmaToolAuthorizationService;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,14 +15,16 @@ class FigmaExportToolTest {
     @Test
     void delegatesToAuthenticatedFacadeWithoutBusinessLogic() {
         FigmaMcpFacadeService facade = mock(FigmaMcpFacadeService.class);
-        FigmaExportTool tool = new FigmaExportTool(facade);
+        FigmaToolAuthorizationService authorization = mock(FigmaToolAuthorizationService.class);
+        FigmaExportTool tool = new FigmaExportTool(facade, authorization);
         FigmaScreenExportRequest request = new FigmaScreenExportRequest(
                 "users", 3, "user-list", "ftc-krds", "DESKTOP", null, null);
-        when(facade.generateScreen("secret", request)).thenReturn("{\"status\":\"SUCCESS\"}");
+        when(facade.generateScreen(request)).thenReturn("{\"status\":\"SUCCESS\"}");
 
         String result = tool.generateFigmaScreenSpec("secret", request);
 
         assertThat(result).isEqualTo("{\"status\":\"SUCCESS\"}");
-        verify(facade).generateScreen("secret", request);
+        verify(authorization).authorize("secret");
+        verify(facade).generateScreen(request);
     }
 }

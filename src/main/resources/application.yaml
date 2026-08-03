@@ -101,11 +101,15 @@ chat:
 
 app:
   mcp:
-    # ARCH-WP1: 공통 MCP Tool 인증. 비어 있으면(기본값) AUDIT_ONLY에서도 REQUIRED에서도
-    # 모든 호출이 미인증으로 취급된다. non-loopback 배포에서는 필수(McpNonLoopbackBindGuard).
+    # ARCH-WP1: 공통 MCP Tool 인증. 비어 있으면 모든 Tool 호출이 fail-closed 된다.
     shared-token: ${MCP_SHARED_TOKEN:}
-    # AUDIT_ONLY(기본, 기존 permitAll과 동일하게 동작하며 감사 로그만 남김) | REQUIRED(deny-by-default)
-    auth-mode: ${MCP_AUTH_MODE:AUDIT_ONLY}
+    # 회전 직후 짧은 유예기간에만 이전 token을 허용한다. valid-until은 UTC ISO-8601 형식이다.
+    previous-shared-token: ${MCP_PREVIOUS_SHARED_TOKEN:}
+    previous-token-valid-until: ${MCP_PREVIOUS_TOKEN_VALID_UNTIL:}
+    # AUDIT_ONLY | COMPATIBILITY(공통 또는 기존 Tool secret) | REQUIRED(기본, deny-by-default)
+    auth-mode: ${MCP_AUTH_MODE:REQUIRED}
+    # COMPATIBILITY 모드는 이 UTC 시각 전까지만 레거시 Tool 인자 secret을 허용한다.
+    legacy-credential-valid-until: ${MCP_LEGACY_CREDENTIAL_VALID_UNTIL:}
   figma:
     # /mcp/** 전역 permitAll과 별도로 신규 Figma/DesignSystem Tool 메서드 내부에서 검증한다.
     mcp-shared-secret: ${FIGMA_MCP_SHARED_SECRET:}

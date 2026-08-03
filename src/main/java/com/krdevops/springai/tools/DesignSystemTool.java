@@ -5,6 +5,7 @@ import com.krdevops.springai.config.mcp.McpToolRiskLevel;
 
 import com.krdevops.springai.model.designsystem.DesignSystemSpec;
 import com.krdevops.springai.service.figma.FigmaMcpFacadeService;
+import com.krdevops.springai.service.figma.FigmaToolAuthorizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Component;
@@ -17,6 +18,7 @@ import java.util.List;
 public class DesignSystemTool {
 
     private final FigmaMcpFacadeService facadeService;
+    private final FigmaToolAuthorizationService authorization;
 
     @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
@@ -28,7 +30,8 @@ public class DesignSystemTool {
             String figmaMcpSecret,
             DesignSystemSpec spec
     ) {
-        return facadeService.validateDesignSystem(figmaMcpSecret, spec);
+        authorization.authorize(figmaMcpSecret);
+        return facadeService.validateDesignSystem(spec);
     }
 
     @McpToolRisk(McpToolRiskLevel.EXTERNAL)
@@ -42,7 +45,8 @@ public class DesignSystemTool {
             String profileId,
             String registryVersion
     ) {
-        return facadeService.auditRegistry(figmaMcpSecret, profileId, registryVersion);
+        authorization.authorize(figmaMcpSecret);
+        return facadeService.auditRegistry(profileId, registryVersion);
     }
 
     @McpToolRisk(McpToolRiskLevel.EXTERNAL)
@@ -56,7 +60,7 @@ public class DesignSystemTool {
             String registryVersion,
             List<String> requiredLogicalTypes
     ) {
-        return facadeService.preflightRegistry(
-                figmaMcpSecret, profileId, registryVersion, requiredLogicalTypes);
+        authorization.authorize(figmaMcpSecret);
+        return facadeService.preflightRegistry(profileId, registryVersion, requiredLogicalTypes);
     }
 }

@@ -1,8 +1,6 @@
 package com.krdevops.springai.config.mcp;
 
-import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -11,29 +9,58 @@ import org.springframework.stereotype.Component;
  * AUDIT_ONLY(허용+감사 로그) 또는 REQUIRED(차단)로 처리한다.
  */
 @Component
-@RequiredArgsConstructor
 public class ToolAuthorizationPolicy {
 
-    private static final Logger log = LoggerFactory.getLogger(ToolAuthorizationPolicy.class);
-
     private final McpSecurityProperties properties;
+    private final McpSecurityAuditLogger auditLogger;
+    private final LegacyMcpCredentialValidator legacyCredentialValidator;
+
+    @Autowired
+    public ToolAuthorizationPolicy(McpSecurityProperties properties,
+                                   McpSecurityAuditLogger auditLogger,
+                                   LegacyMcpCredentialValidator legacyCredentialValidator) {
+        this.properties = properties;
+        this.auditLogger = auditLogger;
+        this.legacyCredentialValidator = legacyCredentialValidator;
+    }
+
+    ToolAuthorizationPolicy(McpSecurityProperties properties) {
+        this(properties, new McpSecurityAuditLogger(), LegacyMcpCredentialValidator.disabled());
+    }
 
     /**
      * @throws McpAuthorizationException REQUIRED 모드에서 미인증 호출일 때
      */
     public void authorize(String toolName, McpToolRiskLevel riskLevel) {
+        authorize(toolName, riskLevel, null);
+    }
+
+    public void authorize(String toolName, McpToolRiskLevel riskLevel, String toolInput) {
         McpActorContext actor = McpActorContext.current();
 
         if (actor.authenticated()) {
+            if (!actor.authorities().contains("MCP_" + riskLevel.name()) && !actor.authorities().isEmpty()) {
+                auditLogger.authorization(actor.correlationId(), toolName, riskLevel, "DENY_AUTHORITY", actor.credentialVersion());
+                throw new McpAuthorizationException(McpAuthenticationFailureCode.MCP_AUTH_REQUIRED, toolName);
+            }
+            auditLogger.authorization(actor.correlationId(), toolName, riskLevel, "ALLOW", actor.credentialVersion());
             return;
         }
 
         if (properties.getAuthMode() == McpAuthMode.AUDIT_ONLY) {
-            log.warn("mcp_tool_auth_audit tool={} riskLevel={} authenticated=false mode=AUDIT_ONLY", toolName, riskLevel);
+            auditLogger.authorization(actor.correlationId(), toolName, riskLevel, "AUDIT_ALLOW", null);
             return;
         }
 
-        log.warn("mcp_tool_auth_denied tool={} riskLevel={} authenticated=false mode=REQUIRED", toolName, riskLevel);
-        throw new McpAuthorizationException("MCP Tool 인증에 실패했습니다: " + toolName);
+        if (properties.getAuthMode() == McpAuthMode.COMPATIBILITY
+                && legacyCredentialValidator.isValid(toolInput)) {
+            auditLogger.authorization(actor.correlationId(), toolName, riskLevel, "ALLOW_LEGACY", "legacy");
+            return;
+        }
+
+        auditLogger.authorization(actor.correlationId(), toolName, riskLevel, "DENY", null);
+        McpAuthenticationFailureCode failureCode = actor.failureCode() == null
+                ? McpAuthenticationFailureCode.MCP_AUTH_REQUIRED : actor.failureCode();
+        throw new McpAuthorizationException(failureCode, toolName);
     }
 }

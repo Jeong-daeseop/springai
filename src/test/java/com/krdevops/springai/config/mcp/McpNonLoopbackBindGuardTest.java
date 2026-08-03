@@ -20,7 +20,7 @@ class McpNonLoopbackBindGuardTest {
         McpSecurityProperties properties = new McpSecurityProperties();
         assertThatThrownBy(() -> new McpNonLoopbackBindGuard("0.0.0.0", properties))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("shared-token");
+                .hasMessageContaining("MCP_SHARED_TOKEN");
     }
 
     @Test
@@ -29,5 +29,16 @@ class McpNonLoopbackBindGuardTest {
         properties.setSharedToken("configured-token");
         assertThatCode(() -> new McpNonLoopbackBindGuard("0.0.0.0", properties))
                 .doesNotThrowAnyException();
+    }
+
+    @Test
+    void nonLoopbackAddress_inAuditMode_blocksEvenWithToken() {
+        McpSecurityProperties properties = new McpSecurityProperties();
+        properties.setSharedToken("configured-token");
+        properties.setAuthMode(McpAuthMode.AUDIT_ONLY);
+
+        assertThatThrownBy(() -> new McpNonLoopbackBindGuard("0.0.0.0", properties))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("REQUIRED");
     }
 }
