@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.RagService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -11,6 +14,7 @@ public class RagTool {
 
     private final RagService ragService;
 
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
             텍스트 문서를 Vector Store에 임베딩하여 RAG 검색 대상으로 등록합니다.
             docId: 문서 식별자 (예: egov-login-guide, history-20260518)
@@ -22,6 +26,7 @@ public class RagTool {
         return ragService.ingestText(docId, content, type);
     }
 
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
             디렉터리 내 .java 파일을 전부 Vector Store에 임베딩합니다.
             directoryPath: 스캔할 디렉터리 절대 경로 (예: /Users/user/project/src/main/java)
@@ -31,6 +36,7 @@ public class RagTool {
         return ragService.ingestJavaDirectory(directoryPath);
     }
 
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
             단일 URL의 HTML 페이지를 크롤링하여 텍스트를 추출하고 Vector Store에 임베딩합니다.
             url  : 크롤링할 URL (예: https://www.egovframe.go.kr/docs/5.0/getting-started/)
@@ -41,6 +47,7 @@ public class RagTool {
         return ragService.ingestUrl(url, docId);
     }
 
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
             여러 URL을 한 번에 크롤링하여 Vector Store에 일괄 임베딩합니다.
             urls: 쉼표(,)로 구분된 URL 목록
@@ -52,6 +59,7 @@ public class RagTool {
         return ragService.ingestUrls(urls);
     }
 
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
             Vector Store에서 쿼리와 유사한 문서를 검색합니다.
             query: 검색 쿼리 (자연어)

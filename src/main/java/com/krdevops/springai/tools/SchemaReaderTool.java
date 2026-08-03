@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.SchemaService;
 import com.krdevops.springai.service.TableRelationService;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +16,7 @@ public class SchemaReaderTool {
     private final SchemaService schemaService;
     private final TableRelationService tableRelationService;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             MySQL 데이터베이스 내 테이블 목록을 조회합니다.
             database 파라미터에 조회할 데이터베이스명을 입력하세요. 예: com, egovfrm
@@ -22,6 +26,7 @@ public class SchemaReaderTool {
         return schemaService.getTableList(database);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             MySQL 테이블의 컬럼 상세 정보를 조회합니다.
             database: 데이터베이스명 (예: com)
@@ -33,6 +38,7 @@ public class SchemaReaderTool {
         return schemaService.getTableSchema(database, tableName);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             테이블의 연관관계를 분석합니다.
             FK(물리적 외래키) 및 컬럼명 매칭 기반 암묵적 JOIN 후보를 함께 반환합니다.

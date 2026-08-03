@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.OutputPathResolverService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -11,6 +14,7 @@ public class OutputPathResolverTool {
 
     private final OutputPathResolverService outputPathResolverService;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             CRUD 소스를 저장할 기본 경로를 반환합니다.
             사용자가 저장 경로를 모르거나 별도 프로젝트가 없을 때 사용하세요.
@@ -26,6 +30,7 @@ public class OutputPathResolverTool {
         return outputPathResolverService.resolveDefault(domain);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             기존 eGovFrame 프로젝트를 스캔하여 CRUD 소스를 저장할 실제 경로를 분석합니다.
             사용자가 기존 프로젝트에 직접 소스를 추가하려 할 때 사용하세요.

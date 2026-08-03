@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools.generation;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.generation.mcp.ScreenSourceMcpFacade;
 import com.krdevops.springai.service.generation.model.ScreenType;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Component;
 public class CrudScreenSourceTool {
     private final ScreenSourceMcpFacade facade;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             단일 테이블 CRUD 목록 화면 1개만 렌더링하여 반환합니다.
             Java/Mapper 전체 세트를 만들지 않고 List 화면 소스만 확인하거나 미세 조정할 때 사용하세요.
@@ -31,6 +35,7 @@ public class CrudScreenSourceTool {
                 outputPath, egovVersion, viewType);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             단일 테이블 CRUD 상세 화면 1개만 렌더링하여 반환합니다.
             파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
@@ -48,6 +53,7 @@ public class CrudScreenSourceTool {
                 outputPath, egovVersion, viewType);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             단일 테이블 CRUD 등록 화면 1개만 렌더링하여 반환합니다.
             파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
@@ -65,6 +71,7 @@ public class CrudScreenSourceTool {
                 outputPath, egovVersion, viewType);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             단일 테이블 CRUD 수정 화면 1개만 렌더링하여 반환합니다.
             파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.

@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.model.figma.contract.FigmaDesignOperation;
 import com.krdevops.springai.model.figma.contract.FigmaDesignRequest;
 import com.krdevops.springai.model.figma.contract.FigmaScreenRequest;
@@ -34,6 +37,7 @@ public class FigmaDesignOrchestrationTool {
      * 입력: 자유 텍스트 프롬프트 (예: "사용자 목록을 표시하는 목록 화면 만들어줘")
      * 출력: FigmaDesignOperation (operationId, status=PREVIEW_READY, issues)
      */
+    @McpToolRisk(McpToolRiskLevel.APPLY)
     @Tool(description = """
             텍스트 설명으로 새 Figma 화면을 생성합니다.
             자연어 프롬프트를 분석하여 자동으로 요청 유형을 감지한 후 처리합니다.
@@ -60,6 +64,7 @@ public class FigmaDesignOrchestrationTool {
      * R6-033: 기존 Figma 화면 참조하여 새 화면 생성.
      * 참조 화면(Node) → 스타일/레이아웃 분석 → 새 ScreenSpecification → FigmaScreenSpec.
      */
+    @McpToolRisk(McpToolRiskLevel.APPLY)
     @Tool(description = """
             기존 Figma 화면을 참조하여 새 화면을 생성합니다.
             참조 화면의 스타일, 레이아웃, 컴포넌트를 분석하여 유사한 새 화면을 생성합니다.
@@ -86,6 +91,7 @@ public class FigmaDesignOrchestrationTool {
      * R6-034: 기존 화면 수정.
      * 기존 화면 Node → 자연어 수정 요청 분석 → ScreenSpecification 수정 → FigmaScreenSpec 갱신.
      */
+    @McpToolRisk(McpToolRiskLevel.APPLY)
     @Tool(description = """
             기존 Figma 화면을 수정합니다.
             지정한 노드 ID 범위 내에서만 수정을 허용하며, 승인되지 않은 컴포넌트는 차단합니다.
@@ -114,6 +120,7 @@ public class FigmaDesignOrchestrationTool {
      * R6-035: 이미지/스크린샷 참조하여 화면 생성.
      * 이미지 Node (export) → Vision 분석 → ScreenSpecification → FigmaScreenSpec.
      */
+    @McpToolRisk(McpToolRiskLevel.APPLY)
     @Tool(description = """
             이미지 또는 스크린샷을 참조하여 Figma 화면을 생성합니다.
             이미지의 UI/UX 패턴을 분석하여 FigmaScreenSpec으로 변환합니다.
@@ -142,6 +149,7 @@ public class FigmaDesignOrchestrationTool {
      * R6-036: 다중 화면 플로우 생성.
      * 화면 목록 → 각각 ScreenSpecification 생성 → 화면 간 flow 관계 설정 → FigmaScreenSpec 번들.
      */
+    @McpToolRisk(McpToolRiskLevel.APPLY)
     @Tool(description = """
             여러 화면을 한번에 생성하고 플로우(Navigation)를 설정합니다.
             각 화면이 성공해야 일괄 적용됩니다. 하나라도 실패하면 전체 거부.
@@ -176,6 +184,7 @@ public class FigmaDesignOrchestrationTool {
      * R6-037: 특정 컴포넌트 지정하여 화면 생성.
      * 컴포넌트 Logical Type 목록 → Registry 존재 검증 → 컴포넌트 조합 기반 ScreenSpecification.
      */
+    @McpToolRisk(McpToolRiskLevel.APPLY)
     @Tool(description = """
             특정 컴포넌트(button, form, table 등)를 지정하여 화면을 생성합니다.
             요청 컴포넌트는 승인된 ComponentRegistry에만 존재해야 합니다.
@@ -205,6 +214,7 @@ public class FigmaDesignOrchestrationTool {
      * R6-038: 플랫폼/반응형 변환.
      * Desktop 화면 → Tablet/Mobile 레이아웃 변환 (Grid, Navigation, Component Swap).
      */
+    @McpToolRisk(McpToolRiskLevel.APPLY)
     @Tool(description = """
             Figma 화면을 다른 플랫폼으로 변환합니다 (Desktop ↔ Tablet ↔ Mobile).
             레이아웃, Grid, Navigation, Component 선택(Swap)을 자동 적용합니다.

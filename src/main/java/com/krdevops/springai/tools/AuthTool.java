@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -11,6 +14,7 @@ public class AuthTool {
 
     private final AuthService authService;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             프로그램 테이블(LETTNPROGRMLIST)에서 프로그램 목록을 키워드로 검색합니다.
             한국어명 / URL / PROGRM_FILE_NM 기준 LIKE 검색을 수행합니다.
@@ -22,6 +26,7 @@ public class AuthTool {
         return authService.getProgramList(keyword);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             신규 도메인 URL 접근 제어에 필요한 SQL을 반환합니다.
             SQL 1: LETTNROLEINFO INSERT (롤 등록 — ROLE_CODE 자동 계산, URL 패턴 자동 생성)

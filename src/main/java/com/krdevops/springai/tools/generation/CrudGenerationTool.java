@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools.generation;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.generation.mcp.CrudGenerationMcpFacade;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -12,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class CrudGenerationTool {
     private final CrudGenerationMcpFacade facade;
 
+    @McpToolRisk(McpToolRiskLevel.FILE_WRITE)
     @Tool(description = """
             eGovFrame 5.x CRUD 전체 소스 생성에 필요한 통합 프롬프트를 반환합니다.
             이 Tool 하나로 getTableSchema + 공통코드 조회 + 플레이스홀더 매핑을 한 번에 처리합니다.

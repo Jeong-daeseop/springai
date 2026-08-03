@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.model.capture.CaptureArtifactSummary;
 import com.krdevops.springai.model.capture.CaptureWebPageRequest;
 import com.krdevops.springai.service.WebCaptureOrchestrationService;
@@ -14,6 +17,7 @@ public class CaptureWebPageTool {
         this.service = service;
     }
 
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
             허용된 로컬 또는 개발 JSP 화면 URL을 Chromium으로 분석하여 Figma import와
             화면명세 생성에 사용할 Design Artifact를 만듭니다. Release 1은 LOCAL_JSP,

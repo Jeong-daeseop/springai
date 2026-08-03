@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.GenerationHistoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -11,6 +14,7 @@ public class GenerationHistoryTool {
 
     private final GenerationHistoryService generationHistoryService;
 
+    @McpToolRisk(McpToolRiskLevel.DB_WRITE)
     @Tool(description = """
             eGovFrame CRUD 소스 생성 이력을 DB에 저장합니다.
             소스 생성 완료 후 반드시 호출하여 이력을 기록하세요.
@@ -26,6 +30,7 @@ public class GenerationHistoryTool {
         return generationHistoryService.saveHistory(tableName, domain, packageName, outputPath, generatedFiles);
     }
 
+    @McpToolRisk(McpToolRiskLevel.DB_WRITE)
     @Tool(description = """
             eGovFrame CRUD 소스 생성 이력을 조회합니다.
             keyword: 검색어 (테이블명, 도메인명, 패키지명 대상) — 비어 있으면 최근 20건 반환

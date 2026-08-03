@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.model.designsystem.DesignSystemSpec;
 import com.krdevops.springai.service.figma.FigmaMcpFacadeService;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +18,7 @@ public class DesignSystemTool {
 
     private final FigmaMcpFacadeService facadeService;
 
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
             에이전트가 만든 DesignSystemSpec의 논리 Component·Property·Pattern 참조를 검증합니다.
             figmaMcpSecret 인증값이 반드시 필요합니다.
@@ -27,6 +31,7 @@ public class DesignSystemTool {
         return facadeService.validateDesignSystem(figmaMcpSecret, spec);
     }
 
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
             저장된 ComponentRegistry와 DesignSystemProfile의 Publish 상태·버전 드리프트를 점검합니다.
             figmaMcpSecret 인증값이 반드시 필요합니다.
@@ -40,6 +45,7 @@ public class DesignSystemTool {
         return facadeService.auditRegistry(figmaMcpSecret, profileId, registryVersion);
     }
 
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
             화면 생성 전에 Registry/Profile 드리프트와 필수 논리 컴포넌트의 alias·replacement 해석 가능 여부를 점검합니다.
             figmaMcpSecret 인증값이 반드시 필요하며 Published Component Key 원문은 응답하지 않습니다.

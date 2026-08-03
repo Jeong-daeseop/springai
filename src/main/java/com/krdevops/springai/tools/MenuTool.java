@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.MenuService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -11,6 +14,7 @@ public class MenuTool {
 
     private final MenuService menuService;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             eGovFrame 메뉴 테이블(LETTNMENUINFO) 기준 메뉴 트리 구조를 조회합니다.
             menuNo = "0" 이면 전체 트리를 반환합니다.
@@ -24,6 +28,7 @@ public class MenuTool {
         return menuService.getMenuStructure(menuNo);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             신규 메뉴 등록에 필요한 SQL 2개를 반환합니다.
             SQL 1: 프로그램 테이블(LETTNPROGRMLIST) INSERT (프로그램 등록)

@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.ProjectScannerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -11,6 +14,7 @@ public class ProjectScannerTool {
 
     private final ProjectScannerService projectScannerService;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             기존 eGovFrame 프로젝트의 구조를 스캔하여 소스 생성에 필요한 정보를 반환합니다.
             projectRootPath: 스캔할 eGovFrame 프로젝트의 루트 절대경로

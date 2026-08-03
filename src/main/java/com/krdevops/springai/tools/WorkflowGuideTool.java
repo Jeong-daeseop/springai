@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.WorkflowGuideService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -11,6 +14,7 @@ public class WorkflowGuideTool {
 
     private final WorkflowGuideService workflowGuideService;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             eGovFrame CRUD 소스 생성 워크플로우 안내 도구.
             currentContext에 지금까지 완료한 작업 내용을 입력하면 다음 단계를 안내합니다.
@@ -24,6 +28,7 @@ public class WorkflowGuideTool {
         return workflowGuideService.suggestNextStep(currentContext);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             ProjectInitializrTool.initializeProject() 실행 후 다음 작업을 안내하는 workflow 도구.
             initializeProject 결과의 PROJECT_CONTEXT 블록과 현재 완료한 작업 내용을 currentContext에 넣으면
@@ -34,6 +39,7 @@ public class WorkflowGuideTool {
         return workflowGuideService.suggestProjectSetupCrudWorkflow(currentContext);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             eGovFrame Security / 메뉴 등록 / URL 권한 등록 워크플로우 안내 도구.
             SecurityTemplateTool → MenuTool → AuthTool 의 올바른 적용 순서를 안내합니다.

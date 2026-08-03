@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.CommonCodeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -11,6 +14,7 @@ public class CommonCodeTool {
 
     private final CommonCodeService commonCodeService;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             eGovFrame 공통 코드 상세 목록을 조회합니다. (LETTCCMMNDETAILCODE)
             codeId: 조회할 코드ID (예: COM034, COM001)
@@ -23,6 +27,7 @@ public class CommonCodeTool {
         return commonCodeService.getCommonCode(codeId);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             eGovFrame 공통 코드 그룹을 키워드로 검색합니다. (LETTCCMMNCODE)
             keyword: 검색어 (코드ID명, 설명 대상) — 비어 있으면 전체 50건 반환

@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.EmployeeService;
 import com.krdevops.springai.vo.EmployeeVO;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +17,7 @@ public class EmployeeTool {
 
     private final EmployeeService employeeService;
 
+    @McpToolRisk(McpToolRiskLevel.DB_WRITE)
     @Tool(description = """
             eGovFrame 직원 목록을 조회합니다.
             keyword로 이름, 이메일, 직위를 검색할 수 있습니다. 전체 조회 시 keyword를 빈 문자열로 입력하세요.
@@ -31,6 +35,7 @@ public class EmployeeTool {
         return sb.toString();
     }
 
+    @McpToolRisk(McpToolRiskLevel.DB_WRITE)
     @Tool(description = """
             eGovFrame 직원 단건을 조회합니다.
             emplyrId에 직원 ID를 입력하세요.
@@ -44,6 +49,7 @@ public class EmployeeTool {
                 nvl(e.getMbtlnum()), nvl(e.getEmplyrySttuscode()));
     }
 
+    @McpToolRisk(McpToolRiskLevel.DB_WRITE)
     @Tool(description = """
             eGovFrame 직원을 신규 등록합니다.
             emplyrId(ID), userNm(이름), emailAdres(이메일), ofcpsNm(직위), mbtlnum(휴대폰), esntlId(고유ID)를 입력하세요.
@@ -64,6 +70,7 @@ public class EmployeeTool {
                           : "직원 등록 실패";
     }
 
+    @McpToolRisk(McpToolRiskLevel.DB_WRITE)
     @Tool(description = """
             eGovFrame 직원 정보를 수정합니다.
             emplyrId(ID)는 필수이며, 수정할 항목만 입력하세요. 수정하지 않을 항목은 빈 문자열로 입력하세요.
@@ -82,6 +89,7 @@ public class EmployeeTool {
         return result > 0 ? "직원 수정 완료: " + emplyrId : "직원 수정 실패 (ID 없음)";
     }
 
+    @McpToolRisk(McpToolRiskLevel.DB_WRITE)
     @Tool(description = """
             eGovFrame 직원을 삭제합니다.
             emplyrId에 삭제할 직원 ID를 입력하세요.

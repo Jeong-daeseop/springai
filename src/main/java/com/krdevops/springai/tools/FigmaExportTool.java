@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.model.figma.FigmaScreenExportRequest;
 import com.krdevops.springai.service.figma.FigmaMcpFacadeService;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +16,7 @@ public class FigmaExportTool {
 
     private final FigmaMcpFacadeService facadeService;
 
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
             승인된 ScreenSpecification에서 FigmaScreenSpec을 생성합니다.
             figmaMcpSecret 인증값이 반드시 필요합니다.
@@ -26,6 +30,7 @@ public class FigmaExportTool {
         return facadeService.generateScreen(figmaMcpSecret, request);
     }
 
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
     @Tool(description = """
             저장된 FigmaScreenSpec의 필수값·logicalNodeId·지원 Component 문제를 검증합니다.
             figmaMcpSecret 인증값이 반드시 필요하며 Registry 공개 Key는 응답에 포함하지 않습니다.

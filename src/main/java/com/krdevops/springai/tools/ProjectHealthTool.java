@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.ProjectHealthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -11,6 +14,7 @@ public class ProjectHealthTool {
 
     private final ProjectHealthService projectHealthService;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             eGovFrame 프로젝트의 특정 도메인 소스 생성 완성도를 점검합니다.
             projectRootPath: 프로젝트 루트 절대경로 (예: /Users/user/project) 또는 소스 출력 경로

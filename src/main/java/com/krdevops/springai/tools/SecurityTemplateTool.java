@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.SecurityTemplateService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -12,6 +15,7 @@ public class SecurityTemplateTool {
 
     private final SecurityTemplateService securityTemplateService;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             eGovFrame 표준 Spring Security 설정 파일 템플릿을 반환합니다.
             eGovFrame 4.3(Spring Security 5.x)과 5.0(Spring Security 6.x) 모두 지원합니다.

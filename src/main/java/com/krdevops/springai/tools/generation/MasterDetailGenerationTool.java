@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools.generation;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.generation.mcp.MasterDetailGenerationMcpFacade;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -12,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class MasterDetailGenerationTool {
     private final MasterDetailGenerationMcpFacade facade;
 
+    @McpToolRisk(McpToolRiskLevel.FILE_WRITE)
     @Tool(description = """
             1:N 마스터-디테일 구조의 eGovFrame CRUD 소스 생성 지시를 반환합니다.
             마스터 테이블 상세화면에 디테일 테이블 목록 그리드 탭이 포함됩니다.

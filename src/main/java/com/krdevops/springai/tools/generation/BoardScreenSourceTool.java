@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools.generation;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.generation.mcp.ScreenSourceMcpFacade;
 import com.krdevops.springai.service.generation.model.ScreenType;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ public class BoardScreenSourceTool {
                 programUrl, programKoreanName, programStorePath, defaultBbsId);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             게시판(BBS) 목록 화면 1개만 렌더링하여 반환합니다.
             `generateBoardList`는 기존 README의 화면별 MCP Tool 패턴과 호환하기 위해 추가된 세분 Tool입니다.
@@ -52,6 +56,7 @@ public class BoardScreenSourceTool {
                 programStorePath, defaultBbsId);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             게시판(BBS) 상세 화면 1개만 렌더링하여 반환합니다.
             파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
@@ -69,6 +74,7 @@ public class BoardScreenSourceTool {
                 programStorePath, defaultBbsId);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             게시판(BBS) 등록 화면 1개만 렌더링하여 반환합니다.
             파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
@@ -86,6 +92,7 @@ public class BoardScreenSourceTool {
                 programStorePath, defaultBbsId);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             게시판(BBS) 수정 화면 1개만 렌더링하여 반환합니다.
             파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.

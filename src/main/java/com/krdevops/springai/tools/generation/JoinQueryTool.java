@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools.generation;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.MasterDetailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -11,6 +14,7 @@ import org.springframework.stereotype.Component;
 public class JoinQueryTool {
     private final MasterDetailService service;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             단일 테이블에 JOIN이 필요한 경우 SELECT 쿼리·resultMap·VO 추가 필드를 자동 생성합니다.
             getTableRelations()에서 공통코드·부서 등 JOIN 후보 컬럼이 탐지된 경우 사용하세요.

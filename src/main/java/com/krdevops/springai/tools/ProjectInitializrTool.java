@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.ProjectInitializrService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -12,6 +15,7 @@ public class ProjectInitializrTool {
 
     private final ProjectInitializrService projectInitializrService;
 
+    @McpToolRisk(McpToolRiskLevel.FILE_WRITE)
     @Tool(description = """
             ⚠️ 이 Tool이 outputPath 경로에 프로젝트 파일을 직접 생성합니다.
             Desktop Commander, Bash, 기타 파일 생성 도구를 사용하지 마세요.
@@ -79,6 +83,7 @@ public class ProjectInitializrTool {
             projectType, egovVersion, outputPath, viewType);
     }
 
+    @McpToolRisk(McpToolRiskLevel.FILE_WRITE)
     @Tool(description = """
             eGovFrame 설정 파일 템플릿을 반환합니다. (추가_권장_항목 12번)
             신규 프로젝트 구성 또는 기존 프로젝트 설정 누락 항목 보완 시 사용합니다.

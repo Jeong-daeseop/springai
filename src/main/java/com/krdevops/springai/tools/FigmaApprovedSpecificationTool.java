@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.model.figma.FigmaScreenExportRequest;
 import com.krdevops.springai.model.figma.contract.FigmaDesignRequest;
@@ -17,6 +20,7 @@ public class FigmaApprovedSpecificationTool {
     private final FigmaDesignOrchestrationService orchestrationService;
     private final ObjectMapper objectMapper;
 
+    @McpToolRisk(McpToolRiskLevel.APPLY)
     @Tool(description = "APPROVED ScreenSpecification을 Figma Bundle Artifact로 생성하고 PREVIEW_READY Operation을 반환합니다.")
     public String createFigmaBundleFromApprovedSpecification(
             String figmaMcpSecret,

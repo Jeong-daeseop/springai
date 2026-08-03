@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.generation.mcp.ThymeleafLayoutMcpFacade;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -26,6 +29,7 @@ public class ThymeleafLayoutTool {
                 null);
     }
 
+    @McpToolRisk(McpToolRiskLevel.FILE_WRITE)
     @Tool(description = """
             Thymeleaf 공통 layout 파일 5종(default.html, gnb.html, lnb.html, breadcrumb.html, footer.html)과
             GNB 동적 메뉴 컴포넌트 4종(GnbMenuVO.java, GnbMenuMapper.java/xml, EgovGnbMenuInterceptor.java)을 생성하고,

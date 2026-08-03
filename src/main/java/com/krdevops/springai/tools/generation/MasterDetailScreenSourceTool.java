@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools.generation;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.generation.mcp.ScreenSourceMcpFacade;
 import com.krdevops.springai.service.generation.model.ScreenType;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,7 @@ public class MasterDetailScreenSourceTool {
                 outputPath, egovVersion, viewType);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             마스터-디테일 구조의 마스터 목록 화면 1개만 렌더링하여 반환합니다.
             파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
@@ -38,6 +42,7 @@ public class MasterDetailScreenSourceTool {
                 egovVersion, viewType);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             마스터-디테일 구조의 마스터 상세 화면 1개만 렌더링하여 반환합니다.
             파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
@@ -49,6 +54,7 @@ public class MasterDetailScreenSourceTool {
                 egovVersion, viewType);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             마스터-디테일 구조의 마스터 등록 화면 1개만 렌더링하여 반환합니다.
             파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.
@@ -60,6 +66,7 @@ public class MasterDetailScreenSourceTool {
                 egovVersion, viewType);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             마스터-디테일 구조의 마스터 수정 화면 1개만 렌더링하여 반환합니다.
             파일 저장은 하지 않으며, 권장 저장 경로와 화면 코드만 반환합니다.

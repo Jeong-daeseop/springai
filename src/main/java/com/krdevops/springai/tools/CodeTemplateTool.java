@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
@@ -45,6 +48,7 @@ public class CodeTemplateTool {
         Map.entry("thymeleafupdt",    "thymeleaf-updt.html.ftl")
     );
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             eGovFrame 5.x CRUD FreeMarker 템플릿(.ftl) 원문을 반환합니다.
             디버깅·확인 용도로 사용하며, 실제 소스 생성은 buildFullCrudPrompt(llmProvider="auto")를 사용하세요.

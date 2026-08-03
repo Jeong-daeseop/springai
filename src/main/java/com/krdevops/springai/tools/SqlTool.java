@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.SqlService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.ai.tool.annotation.Tool;
@@ -11,6 +14,7 @@ public class SqlTool {
 
     private final SqlService sqlService;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             SELECT 쿼리를 직접 실행하고 결과를 테이블 형식으로 반환합니다.
             SELECT / SHOW / EXPLAIN / DESC 만 실행 가능합니다. INSERT·UPDATE·DELETE·DDL은 차단됩니다.
@@ -25,6 +29,7 @@ public class SqlTool {
         return sqlService.executeQuery(sql);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             테이블의 샘플 데이터를 조회합니다.
             database : 데이터베이스명 (예: com)
@@ -36,6 +41,7 @@ public class SqlTool {
         return sqlService.getSampleData(database, tableName, limit);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             EXPLAIN으로 쿼리 실행 계획을 분석합니다.
             인덱스 사용 여부, 풀스캔 여부, 조인 순서 등을 확인할 수 있습니다.

@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools.generation;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.generation.mcp.BoardGenerationMcpFacade;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
@@ -12,6 +15,7 @@ import org.springframework.stereotype.Component;
 public class BoardGenerationTool {
     private final BoardGenerationMcpFacade facade;
 
+    @McpToolRisk(McpToolRiskLevel.FILE_WRITE)
     @Tool(description = """
             eGovFrame 게시판(BBS) 소스를 업무 단위로 생성합니다.
             이 Tool은 프로젝트 초기화용이 아닙니다. initializeProject()와는 별도 단계입니다.

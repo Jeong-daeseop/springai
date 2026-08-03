@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.krdevops.springai.service.CodeValidatorService;
 import com.krdevops.springai.service.GeneratedCodeContractAuditor;
 import com.krdevops.springai.service.GeneratedProjectBuildValidator;
@@ -17,6 +20,7 @@ public class CodeValidatorTool {
     private final ThymeleafRenderValidator thymeleafRenderValidator;
     private final GeneratedProjectBuildValidator generatedProjectBuildValidator;
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             생성된 eGovFrame 5.x 소스 파일 단건을 검증합니다.
             filePath: 검증할 파일의 절대경로
@@ -35,6 +39,7 @@ public class CodeValidatorTool {
         return codeValidatorService.validateFile(filePath);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             디렉터리 내 eGovFrame 5.x 소스 파일 전체를 일괄 검증합니다.
             directoryPath: 검증할 디렉터리 절대경로 (하위 디렉터리 포함)
@@ -45,6 +50,7 @@ public class CodeValidatorTool {
         return codeValidatorService.validateDirectory(directoryPath);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             생성 결과 디렉터리의 HTML을 실제 Thymeleaf 엔진과 기본 fixture 모델로 렌더링합니다.
             템플릿 식 구문 오류와 렌더링 시점 오류를 파일별로 반환합니다.
@@ -54,6 +60,7 @@ public class CodeValidatorTool {
         return thymeleafRenderValidator.validateDirectory(directoryPath);
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             생성 결과의 공통 계약과 기본 접근성 계약을 함께 검사합니다.
             FreeMarker/Claude Design 잔존 태그, Mapper ${} 치환, 외부 URL과
@@ -65,6 +72,7 @@ public class CodeValidatorTool {
                 generatedCodeContractAuditor.auditAccessibility(directoryPath));
     }
 
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             생성된 eGovFrame 프로젝트를 별도 Maven/Gradle 프로세스로 컴파일 검증합니다.
             보안을 위해 기본 비활성이며, 운영자가 EGOV_ALLOW_BUILD_EXECUTION=true를 설정하고

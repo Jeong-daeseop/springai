@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +19,7 @@ public class DateTimeTool {
      * Claude가 timezone 파라미터를 채워서 호출한다.
      * 예) "서울 지금 몇 시야?" → timezone = "Asia/Seoul"
      */
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             현재 날짜와 시간을 지정한 시간대(timezone)로 반환합니다.
             timezone은 IANA 형식으로 입력하세요. 예: Asia/Seoul, UTC, America/New_York, Europe/London
@@ -32,6 +36,7 @@ public class DateTimeTool {
      *
      * 예) "30도씨가 화씨로 몇 도야?" → celsius = 30.0
      */
+    @McpToolRisk(McpToolRiskLevel.READ)
     @Tool(description = """
             섭씨(Celsius) 온도를 화씨(Fahrenheit)로 변환합니다.
             celsius 파라미터에 변환할 섭씨 온도 값을 입력하세요.

@@ -1,5 +1,8 @@
 package com.krdevops.springai.tools;
 
+import com.krdevops.springai.config.mcp.McpToolRisk;
+import com.krdevops.springai.config.mcp.McpToolRiskLevel;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.service.CodeService;
@@ -16,6 +19,7 @@ public class CodeSaverTool {
     private final CodeService codeService;
     private final ObjectMapper objectMapper;
 
+    @McpToolRisk(McpToolRiskLevel.FILE_WRITE)
     @Tool(description = """
             Claude가 생성한 eGovFrame 소스 코드를 파일로 저장합니다.
             filePath: 저장할 절대경로 (예: /Users/jeongdaeseob/Desktop/egov-gen/EmployerController.java)
@@ -27,6 +31,7 @@ public class CodeSaverTool {
         return codeService.saveGeneratedCode(filePath, code);
     }
 
+    @McpToolRisk(McpToolRiskLevel.FILE_WRITE)
     @Tool(description = """
             eGovFrame CRUD 소스를 저장할 기본 경로를 확인합니다.
             baseDir: 확인할 디렉터리 경로
@@ -36,6 +41,7 @@ public class CodeSaverTool {
         return codeService.checkOutputDirectory(baseDir);
     }
 
+    @McpToolRisk(McpToolRiskLevel.FILE_WRITE)
     @Tool(description = """
             [DEPRECATED] 이 Tool은 더 이상 사용되지 않습니다.
 
