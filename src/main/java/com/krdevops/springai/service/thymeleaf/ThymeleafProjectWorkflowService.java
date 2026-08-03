@@ -1,6 +1,7 @@
 package com.krdevops.springai.service.thymeleaf;
 
 import com.krdevops.springai.model.thymeleaf.ProjectOperationStatus;
+import com.krdevops.springai.model.thymeleaf.ThymeleafOperationSnapshot;
 import com.krdevops.springai.model.thymeleaf.ThymeleafProjectOperation;
 import com.krdevops.springai.service.contract.OperationHashFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,9 +21,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 
-/** Preview → hash 승인 → source revision 재검증 → 원자 적용/롤백 → 검증의 단일 진입점. */
+/**
+ * Preview → hash 승인 → source revision 재검증 → 원자 적용/롤백 → 검증의 단일 진입점.
+ *
+ * <p>ARCH-WP4: 상태는 {@link ThymeleafOperationStore}(Port)에 위임한다 — 운영 기본값은
+ * MySQL Adapter({@code ThymeleafProjectOperationRepository})라 재시작해도 승인·적용 이력이
+ * 남는다(RISK-03 해소). {@code ThymeleafOperationStore} 없이 3~4-인자 생성자로 직접 생성하면
+ * {@link InMemoryThymeleafOperationStore}를 기본값으로 쓴다(단위 테스트·임베디드 전용).
+ */
 @Service
 public class ThymeleafProjectWorkflowService {
 
@@ -30,18 +37,29 @@ public class ThymeleafProjectWorkflowService {
     private final ValidationGateExecutor validationGate;
     private final OperationHashFactory hashFactory;
     private final DesignMdRuleLoader designRuleLoader;
-    private final Map<String, WorkflowSnapshot> snapshots = new ConcurrentHashMap<>();
+    private final ThymeleafOperationStore store;
 
     @Autowired
     public ThymeleafProjectWorkflowService(
             ProjectOperationStateService stateService,
             ValidationGateExecutor validationGate,
             OperationHashFactory hashFactory,
-            DesignMdRuleLoader designRuleLoader) {
+            DesignMdRuleLoader designRuleLoader,
+            ThymeleafOperationStore store) {
         this.stateService = stateService;
         this.validationGate = validationGate;
         this.hashFactory = hashFactory;
         this.designRuleLoader = designRuleLoader;
+        this.store = store;
+    }
+
+    /** DB 없이 Workflow 로직만 검증하려는 단위 테스트·임베디드 사용을 위한 호환 생성자. */
+    public ThymeleafProjectWorkflowService(
+            ProjectOperationStateService stateService,
+            ValidationGateExecutor validationGate,
+            OperationHashFactory hashFactory,
+            DesignMdRuleLoader designRuleLoader) {
+        this(stateService, validationGate, hashFactory, designRuleLoader, new InMemoryThymeleafOperationStore());
     }
 
     /** 순수 파일 Workflow 단위 테스트 및 임베디드 사용을 위한 호환 생성자. */
@@ -49,7 +67,7 @@ public class ThymeleafProjectWorkflowService {
             ProjectOperationStateService stateService,
             ValidationGateExecutor validationGate,
             OperationHashFactory hashFactory) {
-        this(stateService, validationGate, hashFactory, null);
+        this(stateService, validationGate, hashFactory, null, new InMemoryThymeleafOperationStore());
     }
 
     public WorkflowResult preview(Path projectRoot, Map<String, String> generatedFiles) {
@@ -84,14 +102,15 @@ public class ThymeleafProjectWorkflowService {
         String previewHash = hashFactory.canonicalHash(Map.of(
                 "generatedFiles", files,
                 "designMdRevision", designRevision));
-        snapshots.put(operation.operationId(), new WorkflowSnapshot(
-                operation, root, Map.copyOf(files), Map.copyOf(sourceHashes),
-                designRevision, previewHash));
-        return new WorkflowResult(operation, previewHash);
+
+        ThymeleafOperationSnapshot initial = new ThymeleafOperationSnapshot(
+                1, operation, root.toString(), sourceHashes, designRevision, previewHash);
+        ThymeleafOperationSnapshot saved = store.createOrReuse(initial);
+        return new WorkflowResult(saved.operation(), saved.previewHash());
     }
 
     public WorkflowResult approve(String operationId, String expectedPreviewHash) {
-        WorkflowSnapshot snapshot = required(operationId);
+        ThymeleafOperationSnapshot snapshot = required(operationId);
         if (snapshot.operation().status() != ProjectOperationStatus.PREVIEW_READY) {
             throw new IllegalStateException("THYMELEAF_APPROVAL_REQUIRES_PREVIEW_READY");
         }
@@ -106,20 +125,21 @@ public class ThymeleafProjectWorkflowService {
                 snapshot.operation(), ProjectOperationStatus.APPROVED);
         approved = copy(approved, approved.status(), approved.previewArtifacts(), approved.targetFiles(),
                 approved.backupPath(), approved.conflictingFiles(), approved.validationErrors(), true, null);
-        save(snapshot, approved);
-        return new WorkflowResult(approved, snapshot.previewHash());
+        ThymeleafOperationSnapshot saved = nextRevision(snapshot, approved);
+        return new WorkflowResult(saved.operation(), saved.previewHash());
     }
 
     public WorkflowResult apply(String operationId) {
-        WorkflowSnapshot snapshot = required(operationId);
+        ThymeleafOperationSnapshot snapshot = required(operationId);
         ThymeleafProjectOperation operation = snapshot.operation();
         if (!stateService.validateBeforeApply(operation)) {
             throw new IllegalStateException("THYMELEAF_OPERATION_NOT_READY_FOR_APPLY");
         }
+        Path root = Path.of(snapshot.projectRoot());
         List<String> conflicts = snapshot.sourceHashes().entrySet().stream()
-                .filter(entry -> !entry.getValue().equals(currentHash(resolveTarget(snapshot.root(), entry.getKey()))))
+                .filter(entry -> !entry.getValue().equals(currentHash(resolveTarget(root, entry.getKey()))))
                 .map(Map.Entry::getKey).toList();
-        if (!snapshot.designRevision().equals(currentDesignRevision(snapshot.root()))) {
+        if (!snapshot.designRevision().equals(currentDesignRevision(root))) {
             conflicts = new ArrayList<>(conflicts);
             conflicts.add("DESIGN.md");
         }
@@ -127,29 +147,29 @@ public class ThymeleafProjectWorkflowService {
             ThymeleafProjectOperation conflicted = stateService.transitionState(operation, ProjectOperationStatus.CONFLICT);
             conflicted = copy(conflicted, conflicted.status(), conflicted.previewArtifacts(), conflicted.targetFiles(),
                     null, conflicts, conflicted.validationErrors(), false, null);
-            save(snapshot, conflicted);
-            return new WorkflowResult(conflicted, snapshot.previewHash());
+            ThymeleafOperationSnapshot saved = nextRevision(snapshot, conflicted);
+            return new WorkflowResult(saved.operation(), saved.previewHash());
         }
 
         Path staging = null;
         Path backup = null;
         List<Path> appliedTargets = new ArrayList<>();
         try {
-            staging = Files.createTempDirectory(snapshot.root(), ".thymeleaf-stage-");
-            backup = Files.createTempDirectory(snapshot.root(), ".thymeleaf-backup-");
-            for (var entry : snapshot.files().entrySet()) {
+            staging = Files.createTempDirectory(root, ".thymeleaf-stage-");
+            backup = Files.createTempDirectory(root, ".thymeleaf-backup-");
+            for (var entry : operation.previewArtifacts().entrySet()) {
                 Path staged = resolveWithin(staging, entry.getKey());
                 Files.createDirectories(staged.getParent());
                 Files.writeString(staged, entry.getValue(), StandardCharsets.UTF_8);
-                Path target = resolveTarget(snapshot.root(), entry.getKey());
+                Path target = resolveTarget(root, entry.getKey());
                 if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-                    Path saved = resolveWithin(backup, entry.getKey());
-                    Files.createDirectories(saved.getParent());
-                    Files.copy(target, saved, StandardCopyOption.COPY_ATTRIBUTES);
+                    Path savedBackup = resolveWithin(backup, entry.getKey());
+                    Files.createDirectories(savedBackup.getParent());
+                    Files.copy(target, savedBackup, StandardCopyOption.COPY_ATTRIBUTES);
                 }
             }
-            for (String relative : snapshot.files().keySet()) {
-                Path target = resolveTarget(snapshot.root(), relative);
+            for (String relative : operation.previewArtifacts().keySet()) {
+                Path target = resolveTarget(root, relative);
                 Files.createDirectories(target.getParent());
                 moveReplacing(resolveWithin(staging, relative), target);
                 appliedTargets.add(target);
@@ -157,29 +177,30 @@ public class ThymeleafProjectWorkflowService {
             ThymeleafProjectOperation applied = stateService.markAsApplied(operation);
             applied = copy(applied, applied.status(), applied.previewArtifacts(), applied.targetFiles(),
                     backup.toString(), List.of(), applied.validationErrors(), true, applied.appliedAt());
-            save(snapshot, applied);
+            ThymeleafOperationSnapshot saved = nextRevision(snapshot, applied);
             deleteTree(staging);
-            return new WorkflowResult(applied, snapshot.previewHash());
+            return new WorkflowResult(saved.operation(), saved.previewHash());
         } catch (Exception exception) {
-            rollback(snapshot.root(), backup, appliedTargets);
+            rollback(root, backup, appliedTargets);
             deleteTree(staging);
             ThymeleafProjectOperation failed = stateService.transitionState(operation, ProjectOperationStatus.FAILED);
             failed = copy(failed, failed.status(), failed.previewArtifacts(), failed.targetFiles(),
                     backup == null ? null : backup.toString(), List.of(),
                     List.of("APPLY_ROLLED_BACK: " + exception.getMessage()), false, null);
-            save(snapshot, failed);
+            nextRevision(snapshot, failed);
             throw new IllegalStateException("THYMELEAF_APPLY_ROLLED_BACK", exception);
         }
     }
 
     public WorkflowResult revalidate(String operationId) {
-        WorkflowSnapshot snapshot = required(operationId);
+        ThymeleafOperationSnapshot snapshot = required(operationId);
         if (snapshot.operation().status() != ProjectOperationStatus.APPLIED) {
             throw new IllegalStateException("THYMELEAF_VALIDATION_REQUIRES_APPLIED");
         }
+        Path root = Path.of(snapshot.projectRoot());
         List<String> errors = new ArrayList<>();
-        for (String relative : snapshot.files().keySet()) {
-            Path target = resolveTarget(snapshot.root(), relative);
+        for (String relative : snapshot.operation().previewArtifacts().keySet()) {
+            Path target = resolveTarget(root, relative);
             String content;
             try {
                 content = Files.readString(target);
@@ -195,30 +216,28 @@ public class ThymeleafProjectWorkflowService {
                     snapshot.operation(), ProjectOperationStatus.FAILED);
             failed = copy(failed, failed.status(), failed.previewArtifacts(), failed.targetFiles(),
                     failed.backupPath(), List.of(), errors, false, failed.appliedAt());
-            save(snapshot, failed);
-            return new WorkflowResult(failed, snapshot.previewHash());
+            ThymeleafOperationSnapshot saved = nextRevision(snapshot, failed);
+            return new WorkflowResult(saved.operation(), saved.previewHash());
         }
         ThymeleafProjectOperation validated = stateService.markAsValidated(snapshot.operation());
-        save(snapshot, validated);
-        return new WorkflowResult(validated, snapshot.previewHash());
+        ThymeleafOperationSnapshot saved = nextRevision(snapshot, validated);
+        return new WorkflowResult(saved.operation(), saved.previewHash());
     }
 
     public Optional<WorkflowResult> find(String operationId) {
-        WorkflowSnapshot snapshot = snapshots.get(operationId);
-        return snapshot == null ? Optional.empty()
-                : Optional.of(new WorkflowResult(snapshot.operation(), snapshot.previewHash()));
+        return store.findLatest(operationId).map(s -> new WorkflowResult(s.operation(), s.previewHash()));
     }
 
-    private WorkflowSnapshot required(String id) {
-        WorkflowSnapshot snapshot = snapshots.get(id);
-        if (snapshot == null) throw new IllegalArgumentException("THYMELEAF_OPERATION_NOT_FOUND: " + id);
-        return snapshot;
+    private ThymeleafOperationSnapshot required(String id) {
+        return store.findLatest(id)
+                .orElseThrow(() -> new IllegalArgumentException("THYMELEAF_OPERATION_NOT_FOUND: " + id));
     }
 
-    private void save(WorkflowSnapshot snapshot, ThymeleafProjectOperation operation) {
-        snapshots.put(operation.operationId(), new WorkflowSnapshot(
-                operation, snapshot.root(), snapshot.files(), snapshot.sourceHashes(),
-                snapshot.designRevision(), snapshot.previewHash()));
+    /** 이전 snapshot의 문맥(projectRoot·sourceHashes·designRevision·previewHash)을 유지한 채 다음 revision을 저장한다. */
+    private ThymeleafOperationSnapshot nextRevision(ThymeleafOperationSnapshot previous, ThymeleafProjectOperation operation) {
+        return store.save(new ThymeleafOperationSnapshot(
+                previous.revision() + 1, operation, previous.projectRoot(),
+                previous.sourceHashes(), previous.designRevision(), previous.previewHash()));
     }
 
     private Path realDirectory(Path root) {
@@ -321,8 +340,4 @@ public class ThymeleafProjectWorkflowService {
     }
 
     public record WorkflowResult(ThymeleafProjectOperation operation, String previewHash) {}
-
-    private record WorkflowSnapshot(
-            ThymeleafProjectOperation operation, Path root, Map<String, String> files,
-            Map<String, String> sourceHashes, String designRevision, String previewHash) {}
 }

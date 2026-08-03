@@ -57,28 +57,31 @@ class FlywayMigrationIntegrationTest {
     }
 
     @Test
-    void emptyDatabaseMigration_createsAllTenTables() {
+    void emptyDatabaseMigration_createsAllExpectedTables() {
         createdTestSchema = createGrantedTestSchema();
 
-        // 완전히 새 DB이므로 baseline 설정 없이 V1이 그대로 실행되어야 한다(ARCH-0307).
+        // 완전히 새 DB이므로 baseline 설정 없이 모든 migration이 그대로 실행되어야 한다(ARCH-0307).
         Flyway flyway = Flyway.configure()
                 .dataSource(HOST_URL_PREFIX + createdTestSchema + URL_SUFFIX, DB_USER, DB_PASSWORD)
                 .locations("classpath:db/migration")
                 .load();
         flyway.migrate();
 
+        // 미래에 migration이 늘어나도 깨지지 않도록, 정확한 총 개수 대신 이미 있는 최소
+        // 테이블 집합(V1)이 전부 포함됐는지와 migrate()가 pending 없이 끝났는지만 확인한다.
         JdbcTemplate testSchemaJdbc = new JdbcTemplate(
                 new DriverManagerDataSource(HOST_URL_PREFIX + createdTestSchema + URL_SUFFIX, DB_USER, DB_PASSWORD));
         List<String> tables = testSchemaJdbc.queryForList(
                 "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME LIKE 'AI\\_%'",
                 String.class, createdTestSchema);
 
-        assertThat(tables).hasSize(10);
         assertThat(tables).contains(
                 "AI_COMPONENT_REGISTRY", "AI_DESIGN_ANALYSIS", "AI_DESIGN_SYSTEM_PROFILE",
                 "AI_FIGMA_DESIGN_OPERATION", "AI_FIGMA_DESIGN_OPERATION_IDEMPOTENCY",
                 "AI_FIGMA_GENERATION_REPORT", "AI_FIGMA_REVIEW_HISTORY", "AI_FIGMA_SCREEN_SPEC",
-                "AI_GENERATION_HISTORY", "AI_SCREEN_SPECIFICATION");
+                "AI_GENERATION_HISTORY", "AI_SCREEN_SPECIFICATION",
+                "AI_THYMELEAF_PROJECT_OPERATION", "AI_THYMELEAF_PROJECT_OPERATION_IDEMPOTENCY");
+        assertThat(flyway.info().pending()).isEmpty();
     }
 
     @Test
@@ -103,11 +106,14 @@ class FlywayMigrationIntegrationTest {
                 "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'ebt' AND TABLE_NAME LIKE 'AI\\_%'",
                 Long.class);
 
-        assertThat(afterCount).isEqualTo(beforeCount);
+        // baseline이 데이터를 지우거나 만들지 않는다는 것만 확인한다(V1은 실행되지 않고 기록만
+        // 되므로 afterCount는 최소 beforeCount 이상이어야 한다 — 이후 신규 migration이 새
+        // 테이블을 더할 수 있으니 정확히 같다고 단정하지 않는다).
+        assertThat(afterCount).isGreaterThanOrEqualTo(beforeCount);
 
         MigrationInfo current = flyway.info().current();
         assertThat(current).isNotNull();
-        assertThat(current.getVersion().toString()).isEqualTo("1");
+        assertThat(flyway.info().pending()).isEmpty();
     }
 
     @Test
