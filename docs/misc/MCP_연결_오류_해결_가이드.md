@@ -1,5 +1,7 @@
 # MCP 연결 오류 해결 가이드
 
+> 과거 연결 장애 사례를 보관한 참고 문서입니다. 현재 endpoint는 `/mcp`, 기본 인증은 `X-MCP-Token`과 `MCP_AUTH_MODE=REQUIRED`입니다. 최신 절차는 [통합 사용자 가이드](../사용자_가이드.md)와 [WP1 MCP 보안 Runbook](../architecture/security/ARCH-WP1-MCP-보안-운영-Runbook.md)을 우선합니다.
+
 > 작성일: 2026-06-08  
 > 적용 버전: Spring Boot 4.1.0-RC1 / Spring AI 2.0.0-RC1 / MCP SDK 2.0.0-RC1
 

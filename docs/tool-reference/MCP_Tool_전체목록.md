@@ -1,5 +1,7 @@
 # MCP Tool 전체 목록
 
+> 이 문서의 Tool 수와 일부 설명은 이전 계약 기준일 수 있습니다. 현재 사용자는 [통합 사용자 가이드](../사용자_가이드.md)와 `src/test/resources/mcp/tool-definitions-baseline.json`의 snapshot 계약을 우선합니다.
+
 총 **23개 Tool 파일 / 74개 `@Tool` 메서드**
 
 ---

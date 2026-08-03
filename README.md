@@ -1,269 +1,182 @@
-# eGovFrame 생성형 AI MCP 서버
+# SpringAI eGovFrame MCP 서버
 
-Spring Boot 4.1.0-RC1 + Spring AI 2.0.0-RC1 기반 **Model Context Protocol(MCP) 서버**.  
-Claude Desktop/Web과 Streamable HTTP 트랜스포트로 연결되어 eGovFrame 4.3/5.0 표준 소스 자동 생성, RAG 기반 문서 검색, 보안 설정 자동화를 제공합니다.
+Spring Boot와 Spring AI로 구현한 eGovFrame 개발 지원 서버입니다. Claude Desktop/Web 또는 다른 MCP 클라이언트가 Streamable HTTP로 연결하여 eGovFrame 코드 생성, Thymeleaf 화면 생성·검증, Figma 디자인 연동, RAG 문서 검색 기능을 사용할 수 있습니다.
 
----
-
-## 아키텍처
-
-```
-사용자
-  │ 대화
-  ▼
-Claude Desktop
-  │ JSON-RPC over Streamable HTTP
-  ▼
-이 Spring Boot MCP 서버  (Servlet HTTP 서버 — /mcp)
-  │
-  ├── @Tool 메서드 44개 자동 라우팅
-  ├── MCP Resources/Prompts 제공
-  ├── Ollama (로컬 LLM)
-  ├── Redis VectorStore (RAG)
-  └── MySQL (eGovFrame 표준 테이블)
-```
-
----
-
-## 기술 스택
-
-| 구분 | 내용 |
-|------|------|
-| 프레임워크 | Spring Boot 4.1.0-RC1 + Spring AI 2.0.0-RC1 |
-| MCP 트랜스포트 | Streamable HTTP (`/mcp`, `http-only`) |
-| LLM | Ollama (로컬 실행, 인터넷 불필요) |
-| 벡터 DB | Spring AI VectorStore + Redis |
-| 세션 메모리 | Redis (채팅 이력 영속화) |
-| DB | MySQL 8.0 — Docker `egov-mysql` |
-| Java | 21+ |
-
----
+현재 MCP 계약 기준은 **92개 Tool 메서드 / 34개 Tool 객체**입니다. 모든 Tool에는 위험 등급이 지정되어 있으며 MCP 인증은 기본적으로 `REQUIRED`(deny-by-default)입니다.
 
 ## 주요 기능
 
-### 1. eGovFrame CRUD 소스 자동 생성
-DB 테이블명을 말하면 eGovFrame 5.0 표준 6개 레이어를 자동 생성합니다.
+- eGovFrame CRUD·Board·Master-detail 소스 생성
+- JSP/화면 분석과 Thymeleaf Skeleton·Responsive 변환
+- Figma Screen Specification·Design System·Export Bundle 처리
+- 승인 기반 Thymeleaf Project Preview·Apply·Rollback
+- 실제 Artifact 기반 디자인 parity 검증
+- Ollama·OpenAI 기반 채팅 및 Redis VectorStore RAG 검색
+- MySQL 기반 eGovFrame 스키마·공통코드·메뉴 조회
+- REST와 MCP 간 Preview/Approve/Apply workflow 연계
 
+## 시스템 구성
+
+```text
+MCP/Web Client
+      │ Streamable HTTP (/mcp)
+      ▼
+Spring Boot MCP Adapter
+  ├─ X-MCP-Token transport 인증
+  ├─ Tool 위험 등급 인가
+  ├─ REST Controller
+  └─ Chat/SSE UI
+      │
+      ├─ Application Services / Use Cases
+      ├─ Figma·Thymeleaf·Generation Services
+      ├─ MySQL Repository (JdbcTemplate)
+      ├─ Redis VectorStore / Chat Memory
+      ├─ Ollama·OpenAI
+      └─ Project·Artifact 저장소
 ```
-테이블명 입력
-  → SchemaReaderTool (컬럼/PK/타입 조회)
-  → CrudPromptBuilderTool (프롬프트 구성)
-  → Claude가 소스 생성
-  → CodeSaverTool (파일 저장)
-```
 
-**생성 대상 레이어:**
+## 기술 스택
 
-| 레이어 | 패키지 |
-|--------|--------|
-| Controller | `egovframework.let.{domain}.web` |
-| Service (interface) | `egovframework.let.{domain}.service` |
-| ServiceImpl | `egovframework.let.{domain}.service.impl` |
-| Mapper (@Mapper) | `egovframework.let.{domain}.service.impl` |
-| VO | `egovframework.let.{domain}.vo` |
-| MyBatis XML | `resources/egovframework/mapper/{domain}` |
-
-### 2. RAG 기반 eGovFrame 문서 검색 채팅
-eGovFrame 관련 문서를 벡터 DB에 임베딩해두고 질의 시 관련 문서를 검색해 답변합니다.
-
-- 세션별 대화 이력 유지 (Redis, 멀티턴)
-- Ollama 로컬 LLM 스트리밍 응답
-- `chat.html` 웹 UI 제공
-- `<think>` 태그 파싱으로 추론 과정 분리
-
-### 3. 프로젝트 초기화 / 보안 설정 자동화
-- **ProjectInitializrTool** — eGovFrame 표준 폴더 구조 자동 생성
-- **SecurityTemplateTool** — Spring Security XML 설정 자동 생성
-- **WorkflowGuideTool** — eGovFrame 개발 순서 가이드
-
----
-
-## MCP Tool 목록 (19개 클래스 / 44개 메서드)
-
-| 분류 | Tool | 설명 |
-|------|------|------|
-| **스키마/DB** | `SchemaReaderTool` | 테이블 컬럼/PK/타입 정보 조회 |
-| | `SqlTool` | SQL 생성 및 실행 지원 |
-| **코드 생성** | `CrudPromptBuilderTool` | 테이블 기반 CRUD 프롬프트 빌드 |
-| | `CodeTemplateTool` | eGovFrame 레이어별 코드 템플릿 |
-| | `CodeSaverTool` | 생성 소스 파일 저장 |
-| | `CodeValidatorTool` | 생성 코드 eGovFrame 표준 준수 검증 |
-| **프로젝트** | `ProjectInitializrTool` | eGovFrame 프로젝트 구조 생성 |
-| | `ProjectScannerTool` | 기존 프로젝트 구조 스캔 |
-| | `ProjectHealthTool` | 도메인 완성도 점검 |
-| | `OutputPathResolverTool` | 생성 파일 출력 경로 결정 |
-| **보안** | `SecurityTemplateTool` | Spring Security 설정 자동 생성 |
-| | `AuthTool` | 인증/인가 도구 |
-| **RAG/문서** | `RagTool` | VectorStore 기반 문서 검색 |
-| **워크플로** | `WorkflowGuideTool` | eGovFrame 개발 워크플로 가이드 |
-| **공통** | `EmployeeTool` | 직원 정보 CRUD |
-| | `CommonCodeTool` | 공통 코드 조회 |
-| | `MenuTool` | 메뉴 구조 조회 |
-| | `GenerationHistoryTool` | 코드 생성 이력 조회 |
-| | `DateTimeTool` | 현재 시각 조회 |
-
----
+| 항목 | 버전/구성 |
+|---|---|
+| Java | 17 toolchain 이상, 개발 권장 21 |
+| Spring Boot | 4.1.0-RC1 |
+| Spring AI | 2.0.0-RC1 |
+| MCP | Streamable HTTP, `/mcp` |
+| 데이터베이스 | MySQL 8 (`egov-mysql`) |
+| RAG/채팅 메모리 | Redis Stack |
+| 로컬 LLM | Ollama (`qwen3:8b`, `qwen3:1.7b`) |
+| 임베딩 | ONNX Transformers (`ko-sroberta-multitask`) |
 
 ## 빠른 시작
 
 ### 사전 요구사항
 
-- Java 21+
-- Docker (`egov-mysql` 컨테이너)
-- Ollama (`ollama serve` 실행 중)
-- Claude Desktop
+- JDK 17 이상
+- Docker 및 MySQL `egov-mysql` 컨테이너
+- Redis Stack
+- Ollama와 필요한 모델
+- ONNX 임베딩 모델 파일(`model.onnx`, `tokenizer.json`)
 
-### 1. Docker 컨테이너 시작
+### 의존 서비스
 
 ```bash
 docker start egov-mysql
-```
-
-DB 정보: `ebt` / `ebt` / `ebt01` (db / user / password)
-
-### 2. Ollama 실행
-
-```bash
 ollama serve
-ollama pull <모델명>   # 예: ollama pull mistral
+ollama pull qwen3:8b
+ollama pull qwen3:1.7b
 ```
 
-### 3. 환경변수 설정
+Redis는 기본적으로 `redis://localhost:6379`를 사용합니다.
 
-#### 필수 환경변수
-
-| 변수명 | 설명 | 예시 |
-|--------|------|------|
-| `APP_API_KEY` | `/api/tools/**` 엔드포인트 인증 키 | `my-secret-key-123` |
-| `OPENAI_API_KEY` | OpenAI API 키 | `sk-proj-...` |
-
-> **주의:** 두 환경변수 모두 미설정 시 애플리케이션 기동이 실패합니다.
-
-#### 설정 방법
-
-**방법 1 — 셸 환경변수**
+### 환경변수
 
 ```bash
-export APP_API_KEY=my-secret-key-123
-export OPENAI_API_KEY=sk-proj-...
-```
-
-**방법 2 — `.env` 파일 (로컬 개발 권장)**
-
-```bash
-# 프로젝트 루트에 .env 파일 생성 (.gitignore에 포함되어 있음)
 cp .env.example .env
-# .env 파일을 열어 값 입력
 ```
 
-`.env.example`:
-```
-APP_API_KEY=local-dev-key
-OPENAI_API_KEY=sk-proj-여기에_실제_키_입력
-OLLAMA_BASE_URL=http://localhost:11434
-REDIS_URI=redis://localhost:6379
-EGOV_OUTPUT_PATH=/Users/yourname/Desktop/egov-generated
-```
-
-**방법 3 — IDE Run Configuration**
-
-IntelliJ IDEA: `Run > Edit Configurations > Environment variables`에 추가
-
-#### 선택 환경변수
-
-| 변수명 | 기본값 | 설명 |
-|--------|--------|------|
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama 서버 주소 |
-| `OLLAMA_MODEL` | `qwen3:8b` | 기본 Ollama 모델 |
-| `REDIS_URI` | `redis://localhost:6379` | Redis 연결 URI |
-| `EGOV_OUTPUT_PATH` | `~/Desktop/egov-generated` | 소스 생성 기본 경로 |
-| `ONNX_MODEL_PATH` | `~/models/ko-sroberta/model.onnx` | 임베딩 모델 경로 |
-
----
-
-### 4. 빌드
+Spring Boot는 `.env` 파일을 자동으로 읽지 않으므로 IDE Run Configuration 또는 셸에 변수를 주입해야 합니다.
 
 ```bash
-./gradlew bootJar
-# 결과: build/libs/springai-0.0.1-SNAPSHOT.jar
+export OPENAI_API_KEY=...
+export MCP_SHARED_TOKEN='충분히 긴 무작위 토큰'
+export MCP_AUTH_MODE=REQUIRED
+export ONNX_MODEL_PATH=/path/to/model.onnx
+export ONNX_TOKENIZER_PATH=/path/to/tokenizer.json
 ```
 
-### 5. Claude Desktop 연동
+| 변수 | 기본값 | 설명 |
+|---|---|---|
+| `MCP_SHARED_TOKEN` | 없음 | MCP 공통 인증 token |
+| `MCP_AUTH_MODE` | `REQUIRED` | `AUDIT_ONLY`, `COMPATIBILITY`, `REQUIRED` |
+| `MCP_PREVIOUS_SHARED_TOKEN` | 없음 | token 회전 유예용 이전 token |
+| `MCP_PREVIOUS_TOKEN_VALID_UNTIL` | 없음 | 이전 token 만료 시각(UTC) |
+| `SERVER_ADDRESS` | `127.0.0.1` | 비-loopback이면 token과 `REQUIRED` 필수 |
+| `DB_USERNAME`/`DB_PASSWORD` | `ebt`/`ebt01` | MySQL 접속 정보 |
+| `REDIS_URI` | `redis://localhost:6379` | Redis 접속 URI |
+| `EGOV_OUTPUT_PATH` | 기본 경로 | 생성 파일 출력 경로 |
+| `FIGMA_ACCESS_TOKEN` | 없음 | Figma REST API token |
 
-MCP 서버 애플리케이션을 먼저 실행합니다.
+### 실행
 
 ```bash
 ./gradlew bootRun
 ```
 
-`~/Library/Application Support/Claude/claude_desktop_config.json`:
+기본 주소는 `http://localhost:8080`, Streamable HTTP MCP endpoint는 `http://localhost:8080/mcp`입니다.
 
-```json
-{
-  "mcpServers": {
-    "springai-mcp": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "mcp-remote@0.1.38",
-        "http://localhost:8080/mcp",
-        "--allow-http",
-        "--transport",
-        "http-only"
-      ]
-    }
-  }
-}
+MCP 클라이언트는 모든 MCP 요청에 다음 헤더를 보내야 합니다.
+
+```http
+X-MCP-Token: <MCP_SHARED_TOKEN>
 ```
 
-애플리케이션을 먼저 실행한 뒤 Claude Desktop을 재시작하면 MCP 도구가 자동 연결됩니다.
+프로젝트 MCP 클라이언트 별칭은 `springai-mcp`로 통일합니다. 다른 설정에 `egovframe-mcp`가 남아 있으면 동일한 `/mcp` 서버가 중복 표시될 수 있으므로 제거하십시오.
 
----
+Claude Desktop 설정은 사용 중인 `mcp-remote` 버전의 custom header 전달 방식을 확인해 적용하십시오. token이 없으면 `MCP_TOKEN_MISSING` 또는 `MCP_AUTH_REQUIRED`로 거부됩니다.
 
-## 개발 명령
+## REST와 MCP 보안
+
+- `/api/**`: `X-API-Key` 인증
+- `/mcp`, `/mcp/**`, `/sse`, `/sse/**`: 공통 MCP token 인증 및 Tool 위험 등급 인가
+- 기본 MCP 모드: `REQUIRED`
+- 비-loopback 바인딩: token과 `REQUIRED` 없이는 기동 차단
+- 인증 실패 전 Tool delegate가 호출되지 않음
+- token·secret·API key·fileKey는 응답과 감사 로그에서 마스킹
+
+자세한 절차는 [WP1 MCP 보안 Runbook](docs/architecture/security/ARCH-WP1-MCP-보안-운영-Runbook.md)을 참고하십시오.
+
+## 개발 및 검증
 
 ```bash
-# 전체 빌드 + 테스트
-./gradlew build
-
-# 테스트만
+./gradlew compileJava
 ./gradlew test
-
-# 실행 가능한 JAR 빌드
+./gradlew test --tests 'com.krdevops.springai.config.mcp.*' --tests 'com.krdevops.springai.config.McpToolDefinitionSnapshotTest'
 ./gradlew bootJar
-
-# 정리
-./gradlew clean
+./gradlew check
+git diff --check
 ```
 
----
-
-## 로그 확인
+CI에서 로컬 ONNX·DB·Redis 의존성을 제외하려면 다음을 사용합니다.
 
 ```bash
-# 애플리케이션 로그
-tail -f /tmp/springai-mcp.log
+./gradlew test -Pci
+```
 
-# Claude Desktop MCP 연결 로그
+## 기준선과 문서
+
+- [통합 사용자 가이드](docs/사용자_가이드.md)
+- [권장 목표 아키텍처 구현목록](docs/architecture/SpringAI_권장_목표_아키텍처_구현목록_2026-08-03.md)
+- [권장 목표 아키텍처 구현계획서](docs/architecture/SpringAI_권장_목표_아키텍처_구현계획서_2026-08-03.md)
+- [WP0 계약·테스트 기준선](docs/architecture/baseline/ARCH-WP0-baseline-2026-08-03.md)
+- [WP1 MCP 보안 Runbook](docs/architecture/security/ARCH-WP1-MCP-보안-운영-Runbook.md)
+- [전체 아키텍처 재분석](docs/architecture/SpringAI_프로젝트_전체_아키텍처_재분석_2026-08-03.md)
+
+기준선 커밋은 `a09ccd2`(WP0), `83f90f5`(WP1), `b2409d2`(문서)입니다.
+
+## 디렉터리 구조
+
+```text
+src/main/java/com/krdevops/springai
+├── config/       # Spring Security, MCP Tool 등록, 애플리케이션 설정
+├── controller/   # REST API
+├── chat/         # 채팅 UI, RAG, SSE
+├── service/      # Application Service와 도메인 처리
+├── mapper/       # JdbcTemplate Repository
+├── tools/        # MCP Tool 구현
+├── model/        # 요청·결과·계약 모델
+└── policy/       # 입력·보안 정책
+
+docs/             # 아키텍처·구현계획·운영 문서
+templates/        # eGovFrame 생성 템플릿
+website-figma-contract/ # Figma JSON Schema와 계약 테스트
+```
+
+## 로그
+
+```bash
+tail -f /tmp/springai-mcp.log
 tail -f ~/Library/Logs/Claude/mcp-server-springai-mcp.log
 ```
 
----
-
-## 패키지 구조
-
-```
-com.krdevops.springai
-├── config/          # 글로벌 설정 (McpConfig, VectorStoreConfig, ...)
-├── controller/      # HTTP API (RagController, ToolApiController)
-├── mapper/          # JdbcTemplate Repository
-├── service/         # 비즈니스 로직 서비스 21종
-├── tools/           # MCP Tool 구현체 19개 클래스 / 44개 메서드
-├── vo/              # Value Object
-└── chat/            # 채팅 서브 도메인
-    ├── config/      # 채팅 설정 (RAG, Redis, ChatMemory)
-    ├── controller/  # 채팅 컨트롤러 5종
-    ├── service/     # 채팅 서비스 인터페이스 + 구현체
-    ├── repository/  # Redis 채팅 메모리
-    └── util/        # 응답 정제, 프롬프트 템플릿
-```
+로그에 인증 token이나 API secret을 출력하지 마십시오.

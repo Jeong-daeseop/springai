@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "egovframe-mcp": {
+    "springai-mcp": {
       "type": "http",
       "url": "http://localhost:8080/mcp"
     }
