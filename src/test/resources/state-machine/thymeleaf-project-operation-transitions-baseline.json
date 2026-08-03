@@ -1,0 +1,325 @@
+[ {
+  "from" : "ANALYZED",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "ANALYZED",
+  "to" : "CONTRACT_READY",
+  "allowed" : true
+}, {
+  "from" : "ANALYZED",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "ANALYZED",
+  "to" : "APPROVED",
+  "allowed" : false
+}, {
+  "from" : "ANALYZED",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "ANALYZED",
+  "to" : "VALIDATED",
+  "allowed" : false
+}, {
+  "from" : "ANALYZED",
+  "to" : "FAILED",
+  "allowed" : false
+}, {
+  "from" : "ANALYZED",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "ANALYZED",
+  "to" : "REJECTED",
+  "allowed" : false
+}, {
+  "from" : "CONTRACT_READY",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "CONTRACT_READY",
+  "to" : "CONTRACT_READY",
+  "allowed" : false
+}, {
+  "from" : "CONTRACT_READY",
+  "to" : "PREVIEW_READY",
+  "allowed" : true
+}, {
+  "from" : "CONTRACT_READY",
+  "to" : "APPROVED",
+  "allowed" : false
+}, {
+  "from" : "CONTRACT_READY",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "CONTRACT_READY",
+  "to" : "VALIDATED",
+  "allowed" : false
+}, {
+  "from" : "CONTRACT_READY",
+  "to" : "FAILED",
+  "allowed" : false
+}, {
+  "from" : "CONTRACT_READY",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "CONTRACT_READY",
+  "to" : "REJECTED",
+  "allowed" : false
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "CONTRACT_READY",
+  "allowed" : false
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "APPROVED",
+  "allowed" : true
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "VALIDATED",
+  "allowed" : false
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "FAILED",
+  "allowed" : false
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "CONFLICT",
+  "allowed" : true
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "REJECTED",
+  "allowed" : true
+}, {
+  "from" : "APPROVED",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "APPROVED",
+  "to" : "CONTRACT_READY",
+  "allowed" : false
+}, {
+  "from" : "APPROVED",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "APPROVED",
+  "to" : "APPROVED",
+  "allowed" : false
+}, {
+  "from" : "APPROVED",
+  "to" : "APPLIED",
+  "allowed" : true
+}, {
+  "from" : "APPROVED",
+  "to" : "VALIDATED",
+  "allowed" : false
+}, {
+  "from" : "APPROVED",
+  "to" : "FAILED",
+  "allowed" : true
+}, {
+  "from" : "APPROVED",
+  "to" : "CONFLICT",
+  "allowed" : true
+}, {
+  "from" : "APPROVED",
+  "to" : "REJECTED",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "CONTRACT_READY",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "APPROVED",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "VALIDATED",
+  "allowed" : true
+}, {
+  "from" : "APPLIED",
+  "to" : "FAILED",
+  "allowed" : true
+}, {
+  "from" : "APPLIED",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "REJECTED",
+  "allowed" : false
+}, {
+  "from" : "VALIDATED",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "VALIDATED",
+  "to" : "CONTRACT_READY",
+  "allowed" : false
+}, {
+  "from" : "VALIDATED",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "VALIDATED",
+  "to" : "APPROVED",
+  "allowed" : false
+}, {
+  "from" : "VALIDATED",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "VALIDATED",
+  "to" : "VALIDATED",
+  "allowed" : false
+}, {
+  "from" : "VALIDATED",
+  "to" : "FAILED",
+  "allowed" : false
+}, {
+  "from" : "VALIDATED",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "VALIDATED",
+  "to" : "REJECTED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "CONTRACT_READY",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "APPROVED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "VALIDATED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "FAILED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "REJECTED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "CONTRACT_READY",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "APPROVED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "VALIDATED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "FAILED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "REJECTED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "CONTRACT_READY",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "APPROVED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "VALIDATED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "FAILED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "REJECTED",
+  "allowed" : false
+} ]

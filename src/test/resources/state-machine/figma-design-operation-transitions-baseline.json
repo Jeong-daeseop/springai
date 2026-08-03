@@ -1,0 +1,197 @@
+[ {
+  "from" : "ANALYZED",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "ANALYZED",
+  "to" : "PREVIEW_READY",
+  "allowed" : true
+}, {
+  "from" : "ANALYZED",
+  "to" : "APPLY_REQUIRED",
+  "allowed" : false
+}, {
+  "from" : "ANALYZED",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "ANALYZED",
+  "to" : "FAILED",
+  "allowed" : true
+}, {
+  "from" : "ANALYZED",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "ANALYZED",
+  "to" : "REJECTED",
+  "allowed" : true
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "APPLY_REQUIRED",
+  "allowed" : true
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "FAILED",
+  "allowed" : true
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "CONFLICT",
+  "allowed" : true
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "REJECTED",
+  "allowed" : true
+}, {
+  "from" : "APPLY_REQUIRED",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "APPLY_REQUIRED",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "APPLY_REQUIRED",
+  "to" : "APPLY_REQUIRED",
+  "allowed" : false
+}, {
+  "from" : "APPLY_REQUIRED",
+  "to" : "APPLIED",
+  "allowed" : true
+}, {
+  "from" : "APPLY_REQUIRED",
+  "to" : "FAILED",
+  "allowed" : true
+}, {
+  "from" : "APPLY_REQUIRED",
+  "to" : "CONFLICT",
+  "allowed" : true
+}, {
+  "from" : "APPLY_REQUIRED",
+  "to" : "REJECTED",
+  "allowed" : true
+}, {
+  "from" : "APPLIED",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "APPLY_REQUIRED",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "FAILED",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "REJECTED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "APPLY_REQUIRED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "FAILED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "REJECTED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "APPLY_REQUIRED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "FAILED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "REJECTED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "PREVIEW_READY",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "APPLY_REQUIRED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "FAILED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "REJECTED",
+  "allowed" : false
+} ]

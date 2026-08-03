@@ -1,0 +1,181 @@
+[ {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/reviews"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "GET",
+  "path" : "/api/design-systems/reviews/{targetType}/{targetId}/{targetVersion}"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "GET",
+  "path" : "/api/design-systems/{profileId}"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "GET",
+  "path" : "/api/design-systems/{profileId}/registries"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/{profileId}/registries/apply"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/{profileId}/registries/preflight"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/{profileId}/registries/preview"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/{profileId}/registries/retry"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "GET",
+  "path" : "/api/design-systems/{profileId}/registries/{version}"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/{profileId}/rollback"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "GET",
+  "path" : "/api/design-systems/{profileId}/versions/{version}"
+}, {
+  "controller" : "FigmaExportController",
+  "method" : "POST",
+  "path" : "/api/figma/exports"
+}, {
+  "controller" : "FigmaHybridController",
+  "method" : "POST",
+  "path" : "/api/figma/hybrid/candidates"
+}, {
+  "controller" : "FigmaHybridController",
+  "method" : "POST",
+  "path" : "/api/figma/hybrid/{artifactId}/approve"
+}, {
+  "controller" : "FigmaHybridController",
+  "method" : "GET",
+  "path" : "/api/figma/hybrid/{artifactId}/candidate"
+}, {
+  "controller" : "FigmaHybridController",
+  "method" : "PUT",
+  "path" : "/api/figma/hybrid/{artifactId}/candidate"
+}, {
+  "controller" : "FigmaHybridController",
+  "method" : "GET",
+  "path" : "/api/figma/hybrid/{artifactId}/report"
+}, {
+  "controller" : "FigmaHybridController",
+  "method" : "GET",
+  "path" : "/api/figma/hybrid/{artifactId}/result"
+}, {
+  "controller" : "FigmaOperationsController",
+  "method" : "GET",
+  "path" : "/api/figma/operations/design-system-impact/{profileId}"
+}, {
+  "controller" : "FigmaOperationsController",
+  "method" : "GET",
+  "path" : "/api/figma/operations/metrics"
+}, {
+  "controller" : "FigmaOperationsController",
+  "method" : "POST",
+  "path" : "/api/figma/operations/reports"
+}, {
+  "controller" : "FigmaOperationsController",
+  "method" : "GET",
+  "path" : "/api/figma/operations/screens/{screenId}/reports"
+}, {
+  "controller" : "FigmaOperationsController",
+  "method" : "POST",
+  "path" : "/api/figma/operations/{operationId}/applied-report"
+}, {
+  "controller" : "FigmaOperationsController",
+  "method" : "GET",
+  "path" : "/api/figma/operations/{operationId}/info"
+}, {
+  "controller" : "FigmaDesignOrchestrationController",
+  "method" : "POST",
+  "path" : "/api/figma/orchestration/approved-specification"
+}, {
+  "controller" : "FigmaExportController",
+  "method" : "GET",
+  "path" : "/api/figma/screens/{screenId}"
+}, {
+  "controller" : "FigmaExportController",
+  "method" : "GET",
+  "path" : "/api/figma/screens/{screenId}/download"
+}, {
+  "controller" : "FigmaExportController",
+  "method" : "POST",
+  "path" : "/api/figma/screens/{screenId}/validate"
+}, {
+  "controller" : "FigmaExportController",
+  "method" : "GET",
+  "path" : "/api/figma/screens/{screenId}/versions/{version}"
+}, {
+  "controller" : "FigmaExportController",
+  "method" : "POST",
+  "path" : "/api/figma/tokens"
+}, {
+  "controller" : "RagController",
+  "method" : "POST",
+  "path" : "/api/rag/chat"
+}, {
+  "controller" : "RagController",
+  "method" : "POST",
+  "path" : "/api/rag/ingest"
+}, {
+  "controller" : "RagController",
+  "method" : "POST",
+  "path" : "/api/rag/ingest/directory"
+}, {
+  "controller" : "RagController",
+  "method" : "POST",
+  "path" : "/api/rag/search"
+}, {
+  "controller" : "ThymeleafOperationsController",
+  "method" : "POST",
+  "path" : "/api/thymeleaf/operations/preview"
+}, {
+  "controller" : "ThymeleafOperationsController",
+  "method" : "POST",
+  "path" : "/api/thymeleaf/operations/{operationId}/apply"
+}, {
+  "controller" : "ThymeleafOperationsController",
+  "method" : "POST",
+  "path" : "/api/thymeleaf/operations/{operationId}/approve"
+}, {
+  "controller" : "ThymeleafOperationsController",
+  "method" : "GET",
+  "path" : "/api/thymeleaf/operations/{operationId}/report"
+}, {
+  "controller" : "ThymeleafOperationsController",
+  "method" : "POST",
+  "path" : "/api/thymeleaf/operations/{operationId}/revalidate"
+}, {
+  "controller" : "ToolApiController",
+  "method" : "POST",
+  "path" : "/api/tools/chat"
+}, {
+  "controller" : "ToolApiController",
+  "method" : "POST",
+  "path" : "/api/tools/getEmployee"
+}, {
+  "controller" : "ToolApiController",
+  "method" : "POST",
+  "path" : "/api/tools/getEmployeeList"
+}, {
+  "controller" : "ToolApiController",
+  "method" : "POST",
+  "path" : "/api/tools/getTableList"
+}, {
+  "controller" : "ToolApiController",
+  "method" : "POST",
+  "path" : "/api/tools/getTableSchema"
+}, {
+  "controller" : "ToolApiController",
+  "method" : "POST",
+  "path" : "/api/tools/saveGeneratedCode"
+} ]
