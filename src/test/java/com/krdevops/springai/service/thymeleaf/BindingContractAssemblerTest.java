@@ -167,6 +167,49 @@ class BindingContractAssemblerTest {
         assertThat(result.issues()).anyMatch(issue -> issue.code().equals("VO_HAS_NO_FIELDS"));
     }
 
+    @Test
+    void displayFieldWithoutMatchingVoFieldIsReviewRequiredNotSilentlyDropped() {
+        LegacyScreenAnalysis analysis = analysis(
+                LegacyScreenRole.DETAIL,
+                "<div>${sampleVO.name}</div>\n"
+                        + "<div>${sampleVO.attachmentUrl}</div>\n",
+                controller(),
+                vo("public class SampleVO {\n"
+                        + "    private String name;\n"
+                        + "    public String getName() { return name; }\n"
+                        + "    public void setName(String name) { this.name = name; }\n"
+                        + "}\n"));
+
+        ThymeleafGenerationStageResult<ThymeleafBindingContract> result = assembler.assemble(analysis);
+
+        assertThat(result.successful()).isTrue();
+        assertThat(result.value().status()).isEqualTo(BindingContractStatus.REVIEW_REQUIRED);
+        assertThat(result.issues()).anyMatch(issue -> issue.code().equals("DISPLAY_FIELD_WITHOUT_VO_FIELD"));
+    }
+
+    @Test
+    void multipleDisplayRootsAreReviewRequiredNotSilentlyMisassigned() {
+        LegacyScreenAnalysis analysis = analysis(
+                LegacyScreenRole.DETAIL,
+                "<%@ taglib prefix=\"c\" uri=\"http://java.sun.com/jsp/jstl/core\"%>\n"
+                        + "<div>${sampleVO.name}</div>\n"
+                        + "<c:forEach items=\"${replyList}\" var=\"reply\">\n"
+                        + "    <div>${reply.name}</div>\n"
+                        + "</c:forEach>\n",
+                controller(),
+                vo("public class SampleVO {\n"
+                        + "    private String name;\n"
+                        + "    public String getName() { return name; }\n"
+                        + "    public void setName(String name) { this.name = name; }\n"
+                        + "}\n"));
+
+        ThymeleafGenerationStageResult<ThymeleafBindingContract> result = assembler.assemble(analysis);
+
+        assertThat(result.successful()).isTrue();
+        assertThat(result.value().status()).isEqualTo(BindingContractStatus.REVIEW_REQUIRED);
+        assertThat(result.issues()).anyMatch(issue -> issue.code().equals("MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS"));
+    }
+
     private String springForm(String... paths) {
         StringBuilder builder = new StringBuilder();
         builder.append("<%@ taglib prefix=\"form\" uri=\"http://www.springframework.org/tags/form\"%>\n");

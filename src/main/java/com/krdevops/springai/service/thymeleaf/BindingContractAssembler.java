@@ -37,6 +37,13 @@ import java.util.Set;
  *
  * <p>옛 {@code LegacyBindingContractAssembler}(162bb3c에서 삭제, ARCH-WP6 스코프 컷 메모 참고)와
  * 동일한 판정 로직을 재구현한다.
+ *
+ * <p>{@code DISPLAY_FIELD_WITHOUT_VO_FIELD}(표시 필드가 VO에 없어 조용히 누락되는 경우)와
+ * {@code MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS}(예: 게시판 상세의 본문과 답글 목록처럼 표시 대상 root가
+ * 여러 개라 {@code primaryDisplayAttributeName} 선택이 모호한 경우)는 과거 WARNING으로만 기록되고
+ * 계약이 그대로 {@code RESOLVED}로 통과해 원본보다 적거나 잘못된 화면이 "성공"으로 렌더링될 위험이
+ * 있었다. 2026-08-04부로 이 두 이슈도 {@link BindingContractStatus#REVIEW_REQUIRED} 판정에 포함시켜
+ * {@code BindingComposer}가 렌더링을 BLOCK하도록(ARCH-0621) 만든다.
  */
 @Service
 public class BindingContractAssembler {
@@ -101,7 +108,9 @@ public class BindingContractAssembler {
         }
 
         boolean reviewRequired = viewMethod.isEmpty() || voHasNoFields
-                || issues.stream().anyMatch(issue -> "JSP_FORM_ACTION_UNRESOLVED".equals(issue.code()));
+                || issues.stream().anyMatch(issue -> "JSP_FORM_ACTION_UNRESOLVED".equals(issue.code())
+                        || "DISPLAY_FIELD_WITHOUT_VO_FIELD".equals(issue.code())
+                        || "MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS".equals(issue.code()));
 
         ControllerMethodEvidence method = resolution.get().method();
         ThymeleafRouteBinding route = new ThymeleafRouteBinding(
@@ -266,6 +275,15 @@ public class BindingContractAssembler {
             if (!fieldNames.contains(display.fieldName())) {
                 fieldNames.add(display.fieldName());
             }
+        }
+
+        if (rootFrequency.size() > 1) {
+            issues.add(issueFactory.warning(
+                    "MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS", STAGE,
+                    "표시 대상 root가 여러 개(" + rootFrequency.keySet()
+                            + ") 발견되어 primaryDisplayAttributeName 선택이 모호합니다. "
+                            + "예: 게시판 상세의 본문(post)과 답글 목록(reply)이 한 화면에 같이 있는 경우.",
+                    null, "화면을 분리하거나 승인된 ScreenSpecification으로 표시 대상을 명시하세요."));
         }
 
         String primaryDisplayAttributeName = itemsAttributeFromLoop != null
