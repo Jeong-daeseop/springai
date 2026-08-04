@@ -4,6 +4,13 @@ import com.krdevops.springai.model.thymeleaf.ProjectOperationStatus;
 import com.krdevops.springai.model.thymeleaf.ThymeleafOperationSnapshot;
 import com.krdevops.springai.model.thymeleaf.ThymeleafProjectOperation;
 import com.krdevops.springai.service.contract.OperationHashFactory;
+import com.krdevops.springai.model.operation.OperationEvent;
+import com.krdevops.springai.model.operation.OperationLock;
+import com.krdevops.springai.service.operation.OperationEventPort;
+import com.krdevops.springai.service.operation.OperationLockPort;
+import com.krdevops.springai.service.operation.NoopOperationEventPort;
+import com.krdevops.springai.service.operation.NoopOperationLockPort;
+import com.krdevops.springai.service.artifact.ArtifactService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +28,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.time.Duration;
 
 /**
  * Preview → hash 승인 → source revision 재검증 → 원자 적용/롤백 → 검증의 단일 진입점.
@@ -38,6 +47,9 @@ public class ThymeleafProjectWorkflowService {
     private final OperationHashFactory hashFactory;
     private final DesignMdRuleLoader designRuleLoader;
     private final ThymeleafOperationStore store;
+    private final OperationEventPort eventPort;
+    private final OperationLockPort lockPort;
+    private final ArtifactService artifactService;
 
     @Autowired
     public ThymeleafProjectWorkflowService(
@@ -45,12 +57,25 @@ public class ThymeleafProjectWorkflowService {
             ValidationGateExecutor validationGate,
             OperationHashFactory hashFactory,
             DesignMdRuleLoader designRuleLoader,
-            ThymeleafOperationStore store) {
+            ThymeleafOperationStore store,
+            OperationEventPort eventPort,
+            OperationLockPort lockPort,
+            ArtifactService artifactService) {
         this.stateService = stateService;
         this.validationGate = validationGate;
         this.hashFactory = hashFactory;
         this.designRuleLoader = designRuleLoader;
         this.store = store;
+        this.eventPort = eventPort;
+        this.lockPort = lockPort;
+        this.artifactService = artifactService;
+    }
+
+    public ThymeleafProjectWorkflowService(ProjectOperationStateService stateService,
+            ValidationGateExecutor validationGate, OperationHashFactory hashFactory,
+            DesignMdRuleLoader designRuleLoader, ThymeleafOperationStore store) {
+        this(stateService, validationGate, hashFactory, designRuleLoader, store,
+                new NoopOperationEventPort(), new NoopOperationLockPort(), null);
     }
 
     /** DB 없이 Workflow 로직만 검증하려는 단위 테스트·임베디드 사용을 위한 호환 생성자. */
@@ -106,6 +131,12 @@ public class ThymeleafProjectWorkflowService {
         ThymeleafOperationSnapshot initial = new ThymeleafOperationSnapshot(
                 1, operation, root.toString(), sourceHashes, designRevision, previewHash);
         ThymeleafOperationSnapshot saved = store.createOrReuse(initial);
+        recordEvent(saved, null, saved.operation().status(), "PREVIEW_CREATED");
+        if (artifactService != null) {
+            files.forEach((name, content) -> artifactService.ingestAndLink(
+                    content.getBytes(StandardCharsets.UTF_8), mediaType(name), "THYMELEAF_PREVIEW",
+                    designRevision, saved.operation().operationId(), "THYMELEAF_PROJECT"));
+        }
         return new WorkflowResult(saved.operation(), saved.previewHash());
     }
 
@@ -126,11 +157,16 @@ public class ThymeleafProjectWorkflowService {
         approved = copy(approved, approved.status(), approved.previewArtifacts(), approved.targetFiles(),
                 approved.backupPath(), approved.conflictingFiles(), approved.validationErrors(), true, null);
         ThymeleafOperationSnapshot saved = nextRevision(snapshot, approved);
+        recordEvent(saved, snapshot.operation().status(), approved.status(), "APPROVED");
         return new WorkflowResult(saved.operation(), saved.previewHash());
     }
 
     public WorkflowResult apply(String operationId) {
         ThymeleafOperationSnapshot snapshot = required(operationId);
+        String owner = UUID.randomUUID().toString();
+        OperationLock lock = lockPort.acquire("THYMELEAF:" + snapshot.projectRoot(), operationId, owner,
+                Duration.ofMinutes(5)).orElseThrow(() -> new IllegalStateException("THYMELEAF_OPERATION_LOCKED"));
+        try {
         ThymeleafProjectOperation operation = snapshot.operation();
         if (!stateService.validateBeforeApply(operation)) {
             throw new IllegalStateException("THYMELEAF_OPERATION_NOT_READY_FOR_APPLY");
@@ -148,6 +184,7 @@ public class ThymeleafProjectWorkflowService {
             conflicted = copy(conflicted, conflicted.status(), conflicted.previewArtifacts(), conflicted.targetFiles(),
                     null, conflicts, conflicted.validationErrors(), false, null);
             ThymeleafOperationSnapshot saved = nextRevision(snapshot, conflicted);
+            recordEvent(saved, operation.status(), conflicted.status(), "CONFLICT");
             return new WorkflowResult(saved.operation(), saved.previewHash());
         }
 
@@ -178,6 +215,7 @@ public class ThymeleafProjectWorkflowService {
             applied = copy(applied, applied.status(), applied.previewArtifacts(), applied.targetFiles(),
                     backup.toString(), List.of(), applied.validationErrors(), true, applied.appliedAt());
             ThymeleafOperationSnapshot saved = nextRevision(snapshot, applied);
+            recordEvent(saved, operation.status(), applied.status(), "APPLIED");
             deleteTree(staging);
             return new WorkflowResult(saved.operation(), saved.previewHash());
         } catch (Exception exception) {
@@ -188,7 +226,11 @@ public class ThymeleafProjectWorkflowService {
                     backup == null ? null : backup.toString(), List.of(),
                     List.of("APPLY_ROLLED_BACK: " + exception.getMessage()), false, null);
             nextRevision(snapshot, failed);
+            recordEvent(snapshot, operation.status(), failed.status(), "APPLY_ROLLED_BACK");
             throw new IllegalStateException("THYMELEAF_APPLY_ROLLED_BACK", exception);
+        }
+        } finally {
+            lockPort.release(lock);
         }
     }
 
@@ -217,10 +259,12 @@ public class ThymeleafProjectWorkflowService {
             failed = copy(failed, failed.status(), failed.previewArtifacts(), failed.targetFiles(),
                     failed.backupPath(), List.of(), errors, false, failed.appliedAt());
             ThymeleafOperationSnapshot saved = nextRevision(snapshot, failed);
+            recordEvent(saved, snapshot.operation().status(), failed.status(), "VALIDATION_FAILED");
             return new WorkflowResult(saved.operation(), saved.previewHash());
         }
         ThymeleafProjectOperation validated = stateService.markAsValidated(snapshot.operation());
         ThymeleafOperationSnapshot saved = nextRevision(snapshot, validated);
+        recordEvent(saved, snapshot.operation().status(), validated.status(), "VALIDATED");
         return new WorkflowResult(saved.operation(), saved.previewHash());
     }
 
@@ -238,6 +282,17 @@ public class ThymeleafProjectWorkflowService {
         return store.save(new ThymeleafOperationSnapshot(
                 previous.revision() + 1, operation, previous.projectRoot(),
                 previous.sourceHashes(), previous.designRevision(), previous.previewHash()));
+    }
+
+    private void recordEvent(ThymeleafOperationSnapshot snapshot, ProjectOperationStatus from,
+                             ProjectOperationStatus to, String type) {
+        eventPort.append(new OperationEvent(UUID.randomUUID().toString(), snapshot.operation().operationId(),
+                "THYMELEAF_PROJECT", snapshot.revision(), from == null ? null : from.name(), to.name(), type,
+                "system", UUID.randomUUID().toString(), snapshot.previewHash(), java.time.Instant.now()));
+    }
+
+    private String mediaType(String name) {
+        return name.toLowerCase().endsWith(".html") ? "text/html" : "text/plain";
     }
 
     private Path realDirectory(Path root) {
