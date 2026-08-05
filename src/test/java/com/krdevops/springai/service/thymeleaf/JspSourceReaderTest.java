@@ -85,6 +85,29 @@ class JspSourceReaderTest {
         assertThat(deleteForm.fields()).extracting("fieldName").containsExactly("emplyrId");
     }
 
+    /**
+     * BOARD 결함 수정: {@code name="${_csrf.parameterName}"}처럼 name 속성 자체가 EL 표현식이면
+     * 실제 필드 이름을 정적으로 알 수 없다(Spring Security가 런타임에 채움) — VO에 절대 존재할 수
+     * 없는 리터럴 "필드"로 오인해 FORM_FIELD_WITHOUT_VO_FIELD FATAL을 유발하면 안 된다.
+     */
+    @Test
+    void csrfHiddenInputWithElDrivenNameIsNotTreatedAsLiteralFormField() {
+        String jsp = "<form method=\"post\" action=\"/bbs/bbsDelete.do\">\n"
+                + "<c:if test=\"${not empty _csrf}\">\n"
+                + "<input type=\"hidden\" name=\"${_csrf.parameterName}\" value=\"${_csrf.token}\"/>\n"
+                + "</c:if>\n"
+                + "<input type=\"hidden\" name=\"bbsId\" value=\"${result.bbsId}\"/>\n"
+                + "<input type=\"hidden\" name=\"nttId\" value=\"${result.nttId}\"/>\n"
+                + "<button type=\"submit\">삭제</button>\n"
+                + "</form>";
+
+        JspEvidence evidence = reader.read("EgovBbsDetail.jsp", jsp);
+
+        assertThat(evidence.forms()).hasSize(1);
+        assertThat(evidence.forms().get(0).fields()).extracting("fieldName")
+                .containsExactlyInAnyOrder("bbsId", "nttId");
+    }
+
     private JspEvidence read(String fileName) throws IOException {
         String content = Files.readString(BASELINE.resolve(fileName));
         return reader.read(fileName, content);

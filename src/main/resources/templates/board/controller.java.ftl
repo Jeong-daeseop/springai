@@ -8,8 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 <#if jakartaValidation>
 import jakarta.validation.Valid;
 <#else>
@@ -39,9 +40,9 @@ public class Egov${domain}Controller {
 
     /** ${displayName} 목록 */
 <#if route.hasListAlias()>
-    @RequestMapping({"${urlPrefix}List.do", "${route.registeredListPath}"})
+    @GetMapping({"${urlPrefix}List.do", "${route.registeredListPath}"})
 <#else>
-    @RequestMapping("${urlPrefix}List.do")
+    @GetMapping("${urlPrefix}List.do")
 </#if>
     public String select${domain}List(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
@@ -88,7 +89,7 @@ public class Egov${domain}Controller {
     }
 
     /** ${displayName} 상세 (조회수 자동 증가) */
-    @RequestMapping("${urlPrefix}Detail.do")
+    @GetMapping("${urlPrefix}Detail.do")
     public String select${domain}(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
@@ -115,7 +116,7 @@ public class Egov${domain}Controller {
     }
 
     /** ${displayName} 등록 화면 */
-    @RequestMapping("${urlPrefix}RegistView.do")
+    @GetMapping("${urlPrefix}RegistView.do")
     public String insert${domain}View(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
@@ -132,7 +133,7 @@ public class Egov${domain}Controller {
     }
 
     /** ${displayName} 등록 처리 */
-    @RequestMapping("${urlPrefix}Regist.do")
+    @PostMapping("${urlPrefix}Regist.do")
     public String insert${domain}(
             @ModelAttribute("${domainLc}VO") @Valid ${domain}VO ${domainLc}VO,
             BindingResult bindingResult,
@@ -150,7 +151,7 @@ public class Egov${domain}Controller {
     }
 
     /** ${displayName} 수정 화면 */
-    @RequestMapping("${urlPrefix}UpdtView.do")
+    @GetMapping("${urlPrefix}UpdtView.do")
     public String update${domain}View(
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
@@ -170,7 +171,7 @@ public class Egov${domain}Controller {
     }
 
     /** ${displayName} 수정 처리 */
-    @RequestMapping("${urlPrefix}Updt.do")
+    @PostMapping("${urlPrefix}Updt.do")
     public String update${domain}(
             @ModelAttribute("${domainLc}VO") @Valid ${domain}VO ${domainLc}VO,
             BindingResult bindingResult,
@@ -188,7 +189,7 @@ public class Egov${domain}Controller {
     }
 
     /** ${displayName} 논리삭제 */
-    @RequestMapping("${urlPrefix}Delete.do")
+    @PostMapping("${urlPrefix}Delete.do")
     public String delete${domain}(${domain}VO ${domainLc}VO, ModelMap model) throws Exception {
         ${domainLc}VO.setBbsId(resolveBbsId(${domainLc}VO.getBbsId()));
         if (!hasCompositeKey(${domainLc}VO)) {

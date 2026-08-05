@@ -60,6 +60,7 @@ public class JspSourceReader {
             "\\b([A-Za-z_][A-Za-z0-9_]*)(?:\\.[A-Za-z0-9_]+|\\[[^\\]]*\\])*");
     private static final Pattern TWO_SEGMENT_EL = Pattern.compile(
             "\\$\\{\\s*([A-Za-z_][A-Za-z0-9_]*)\\.([A-Za-z_][A-Za-z0-9_]*)");
+    private static final Pattern PURE_EL_VALUE = Pattern.compile("^\\$\\{.*}$", Pattern.DOTALL);
 
     private static final Set<String> EL_RESERVED_WORDS = Set.of(
             "empty", "not", "and", "or", "eq", "ne", "lt", "gt", "le", "ge",
@@ -223,7 +224,7 @@ public class JspSourceReader {
         while (matcher.find()) {
             Map<String, String> attributes = attributes(matcher.group(1));
             String name = attributes.get("name");
-            if (name == null) {
+            if (name == null || PURE_EL_VALUE.matcher(name.strip()).matches()) {
                 continue;
             }
             String type = attributes.getOrDefault("type", "text").toLowerCase(Locale.ROOT);

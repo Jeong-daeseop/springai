@@ -26,6 +26,7 @@ class BindingContractAssemblerTest {
     private static final Path BASELINE = Path.of("src/test/resources/generation/baseline/crud-jsp");
     private static final Path MASTER_DETAIL_BASELINE =
             Path.of("src/test/resources/generation/baseline/master-detail-jsp");
+    private static final Path BOARD_BASELINE = Path.of("src/test/resources/generation/baseline/board-jsp");
 
     private final JspSourceReader jspReader = new JspSourceReader();
     private final ControllerSourceReader controllerReader = new ControllerSourceReader();
@@ -328,6 +329,73 @@ class BindingContractAssemblerTest {
         assertThat(contract.route().httpMethod()).isEqualTo("POST");
     }
 
+    // ── ARCH-0619: BOARD 골든 fixture(BbsVO extends BbsSearchVO, 명시 매핑, CSRF 필터링) 완료 게이트 ──
+
+    @Test
+    void boardListScreenResolvesSearchFormFieldsInheritedFromSearchVoWithoutFatal() throws IOException {
+        ThymeleafBindingContract contract = assembleBoardFixture(
+                "EgovBbsList.jsp", "EgovBbsController.java", "BbsVO.java", "BbsSearchVO.java", LegacyScreenRole.LIST);
+
+        assertThat(contract.status()).isEqualTo(BindingContractStatus.RESOLVED);
+        assertThat(contract.route().route()).isEqualTo("/bbs/bbsList.do");
+        assertThat(contract.route().httpMethod()).isEqualTo("GET");
+        assertThat(contract.route().modelAttributeName()).isEqualTo("searchVO");
+
+        // BbsSearchVO(상위 클래스)에만 선언된 필드 — VoSourceReader가 상속을 병합해야만 VO_FIELD를 찾는다.
+        assertThat(contract.fields()).extracting("fieldName")
+                .contains("pageIndex", "searchCondition", "searchKeyword", "bbsId");
+        assertThat(contract.issues()).noneMatch(issue -> issue.severity().name().equals("FATAL"));
+
+        assertThat(contract.primaryDisplayAttributeName()).isEqualTo("resultList");
+        assertThat(contract.displayFieldNames()).containsExactly(
+                "noticeAt", "nttId", "nttSj", "ntcrNm", "frstRegistPnttm", "bbsId");
+    }
+
+    @Test
+    void boardFormScreenResolvesPlainFormSubmitRouteAndRequiredValidation() throws IOException {
+        ThymeleafBindingContract contract = assembleBoardFixture(
+                "EgovBbsRegist.jsp", "EgovBbsController.java", "BbsVO.java", "BbsSearchVO.java",
+                LegacyScreenRole.FORM);
+
+        assertThat(contract.status()).isEqualTo(BindingContractStatus.RESOLVED);
+        assertThat(contract.route().route()).isEqualTo("/bbs/bbsRegist.do");
+        assertThat(contract.route().httpMethod()).isEqualTo("POST");
+        assertThat(contract.route().modelAttributeName()).isEqualTo("bbsVO");
+        assertThat(contract.route().validated()).isTrue();
+
+        var nttSjBinding = contract.fields().stream()
+                .filter(f -> f.fieldName().equals("nttSj")).findFirst().orElseThrow();
+        assertThat(nttSjBinding.required()).isTrue();
+        assertThat(nttSjBinding.boundJspTag()).isEqualTo("input");
+        assertThat(contract.issues()).noneMatch(issue -> issue.severity().name().equals("FATAL"));
+    }
+
+    /**
+     * DETAIL은 result(본문)와 file(첨부파일 loop) 두 root가 있는 실제 게시판 모양이라, secondary VO
+     * 없이는 SECONDARY_ROOT_FIELDS_UNVERIFIED로 REVIEW_REQUIRED가 되는 게 맞는 판정이다 — 여기서
+     * 확인할 것은 그 REVIEW_REQUIRED 판정 자체가 아니라, 삭제 폼(POST)이 더 이상
+     * JSP_FORM_ACTION_NOT_BOUND FATAL을 내지 않는다는 것(Controller의 명시 매핑 수정 결과)과, CSRF
+     * hidden input이 FORM_FIELD_WITHOUT_VO_FIELD FATAL을 내지 않는다는 것이다.
+     */
+    @Test
+    void boardDetailScreenDeleteFormNoLongerFatalsOnExplicitMappingAndCsrfField() throws IOException {
+        ThymeleafBindingContract contract = assembleBoardFixture(
+                "EgovBbsDetail.jsp", "EgovBbsController.java", "BbsVO.java", "BbsSearchVO.java",
+                LegacyScreenRole.DETAIL);
+
+        assertThat(contract.status()).isEqualTo(BindingContractStatus.REVIEW_REQUIRED);
+        assertThat(contract.route().route()).isEqualTo("/bbs/bbsDetail.do");
+        assertThat(contract.route().httpMethod()).isEqualTo("GET");
+        assertThat(contract.issues()).noneMatch(issue -> issue.severity().name().equals("FATAL"));
+        assertThat(contract.issues()).anyMatch(issue -> issue.code().equals("SECONDARY_ROOT_FIELDS_UNVERIFIED"));
+
+        assertThat(contract.primaryDisplayAttributeName()).isEqualTo("result");
+        assertThat(contract.displayFieldNames()).containsExactly(
+                "bbsId", "nttId", "nttSj", "nttCn", "ntcrNm", "noticeAt", "atchFileId", "frstRegistPnttm", "rdcnt");
+
+        assertThat(contract.fields()).extracting("fieldName").contains("bbsId", "nttId");
+    }
+
     @Test
     void controllerSecurityAnnotationAddsAuthorityReviewWarningWithoutBlockingContract() {
         LegacyScreenAnalysis analysis = analysis(
@@ -456,6 +524,28 @@ class BindingContractAssemblerTest {
                 "emp-" + role.name().toLowerCase(Locale.ROOT), role,
                 jspEvidence, controllerEvidence, voEvidence,
                 new SourceRevisionRef("emp-project", "rev-1", Instant.now()), java.util.List.of(), Instant.now());
+
+        ThymeleafGenerationStageResult<ThymeleafBindingContract> result = assembler.assemble(analysis);
+        assertThat(result.successful())
+                .as("issues: %s", result.issues())
+                .isTrue();
+        return result.value();
+    }
+
+    /** BOARD 계열 전용: {@code BbsVO extends BbsSearchVO} 상속 필드를 병합해 읽는다. */
+    private ThymeleafBindingContract assembleBoardFixture(
+            String jspFile, String controllerFile, String voFile, String superVoFile, LegacyScreenRole role)
+            throws IOException {
+        var jspEvidence = jspReader.read(jspFile, Files.readString(BOARD_BASELINE.resolve(jspFile)));
+        var controllerEvidence = controllerReader.read(
+                controllerFile, Files.readString(BOARD_BASELINE.resolve(controllerFile)));
+        var voEvidence = voReader.read(
+                voFile, Files.readString(BOARD_BASELINE.resolve(voFile)),
+                Files.readString(BOARD_BASELINE.resolve(superVoFile)));
+        LegacyScreenAnalysis analysis = new LegacyScreenAnalysis(
+                "bbs-" + role.name().toLowerCase(Locale.ROOT), role,
+                jspEvidence, controllerEvidence, voEvidence,
+                new SourceRevisionRef("bbs-project", "rev-1", Instant.now()), java.util.List.of(), Instant.now());
 
         ThymeleafGenerationStageResult<ThymeleafBindingContract> result = assembler.assemble(analysis);
         assertThat(result.successful())

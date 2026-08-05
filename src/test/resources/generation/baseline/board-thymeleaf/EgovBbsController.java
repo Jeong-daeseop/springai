@@ -8,8 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import jakarta.validation.Valid;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,7 +31,7 @@ public class EgovBbsController {
     private final EgovPropertyService propertiesService;
 
     /** BBS 목록 */
-    @RequestMapping("/bbs/bbsList.do")
+    @GetMapping("/bbs/bbsList.do")
     public String selectBbsList(
             @ModelAttribute("searchVO") BbsVO searchVO,
             ModelMap model) throws Exception {
@@ -74,7 +75,7 @@ public class EgovBbsController {
     }
 
     /** BBS 상세 (조회수 자동 증가) */
-    @RequestMapping("/bbs/bbsDetail.do")
+    @GetMapping("/bbs/bbsDetail.do")
     public String selectBbs(
             @ModelAttribute("searchVO") BbsVO searchVO,
             ModelMap model) throws Exception {
@@ -99,7 +100,7 @@ public class EgovBbsController {
     }
 
     /** BBS 등록 화면 */
-    @RequestMapping("/bbs/bbsRegistView.do")
+    @GetMapping("/bbs/bbsRegistView.do")
     public String insertBbsView(
             @ModelAttribute("searchVO") BbsVO searchVO,
             ModelMap model) throws Exception {
@@ -116,7 +117,7 @@ public class EgovBbsController {
     }
 
     /** BBS 등록 처리 */
-    @RequestMapping("/bbs/bbsRegist.do")
+    @PostMapping("/bbs/bbsRegist.do")
     public String insertBbs(
             @ModelAttribute("bbsVO") @Valid BbsVO bbsVO,
             BindingResult bindingResult,
@@ -134,7 +135,7 @@ public class EgovBbsController {
     }
 
     /** BBS 수정 화면 */
-    @RequestMapping("/bbs/bbsUpdtView.do")
+    @GetMapping("/bbs/bbsUpdtView.do")
     public String updateBbsView(
             @ModelAttribute("searchVO") BbsVO searchVO,
             ModelMap model) throws Exception {
@@ -154,7 +155,7 @@ public class EgovBbsController {
     }
 
     /** BBS 수정 처리 */
-    @RequestMapping("/bbs/bbsUpdt.do")
+    @PostMapping("/bbs/bbsUpdt.do")
     public String updateBbs(
             @ModelAttribute("bbsVO") @Valid BbsVO bbsVO,
             BindingResult bindingResult,
@@ -172,7 +173,7 @@ public class EgovBbsController {
     }
 
     /** BBS 논리삭제 */
-    @RequestMapping("/bbs/bbsDelete.do")
+    @PostMapping("/bbs/bbsDelete.do")
     public String deleteBbs(BbsVO bbsVO, ModelMap model) throws Exception {
         bbsVO.setBbsId(resolveBbsId(bbsVO.getBbsId()));
         if (!hasCompositeKey(bbsVO)) {

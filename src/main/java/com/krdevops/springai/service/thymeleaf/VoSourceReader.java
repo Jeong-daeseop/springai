@@ -35,10 +35,41 @@ public class VoSourceReader {
         if (voPath == null || voPath.isBlank()) {
             throw new IllegalArgumentException("voPath는 필수입니다.");
         }
-        CompilationUnit unit = StaticJavaParser.parse(content);
-        ClassOrInterfaceDeclaration clazz = unit.findFirst(ClassOrInterfaceDeclaration.class)
-                .orElseThrow(() -> new IllegalArgumentException("VO_CLASS_NOT_FOUND: " + voPath));
+        ClassOrInterfaceDeclaration clazz = parseClass(voPath, content);
+        List<VoFieldEvidence> fields = readFields(voPath, clazz);
+        return new VoEvidence(voPath, clazz.getNameAsString(), fields);
+    }
 
+    /**
+     * eGovFrame BOARD 계열처럼 {@code BbsVO extends BbsSearchVO}로 조회 조건 필드를 상위 클래스에
+     * 분리해둔 경우, 상위 클래스 소스를 함께 주면 그 필드들도 evidence에 병합한다. 동일 이름 필드는
+     * 서브클래스(자기 자신) 선언이 우선한다.
+     */
+    public VoEvidence read(String voPath, String content, String superclassContent) {
+        if (voPath == null || voPath.isBlank()) {
+            throw new IllegalArgumentException("voPath는 필수입니다.");
+        }
+        ClassOrInterfaceDeclaration clazz = parseClass(voPath, content);
+        List<VoFieldEvidence> fields = new ArrayList<>(readFields(voPath, clazz));
+        if (superclassContent != null && !superclassContent.isBlank()) {
+            Set<String> ownFieldNames = fields.stream().map(VoFieldEvidence::fieldName).collect(Collectors.toSet());
+            ClassOrInterfaceDeclaration superclass = parseClass(voPath, superclassContent);
+            for (VoFieldEvidence inherited : readFields(voPath, superclass)) {
+                if (!ownFieldNames.contains(inherited.fieldName())) {
+                    fields.add(inherited);
+                }
+            }
+        }
+        return new VoEvidence(voPath, clazz.getNameAsString(), fields);
+    }
+
+    private ClassOrInterfaceDeclaration parseClass(String voPath, String content) {
+        CompilationUnit unit = StaticJavaParser.parse(content);
+        return unit.findFirst(ClassOrInterfaceDeclaration.class)
+                .orElseThrow(() -> new IllegalArgumentException("VO_CLASS_NOT_FOUND: " + voPath));
+    }
+
+    private List<VoFieldEvidence> readFields(String voPath, ClassOrInterfaceDeclaration clazz) {
         boolean classGetter = hasLombokAccessor(clazz.getAnnotations(), "Getter")
                 || hasLombokAccessor(clazz.getAnnotations(), "Data")
                 || hasLombokAccessor(clazz.getAnnotations(), "Value");
@@ -70,8 +101,7 @@ public class VoSourceReader {
                         fieldName, type, readable, writable, validations, voPath + "#" + fieldName));
             }
         }
-
-        return new VoEvidence(voPath, clazz.getNameAsString(), fields);
+        return fields;
     }
 
     private boolean hasLombokAccessor(java.util.List<AnnotationExpr> annotations, String annotationName) {

@@ -558,9 +558,9 @@ class BoardTemplateRendererTest {
 
         assertThat(controller)
                 .contains("private static final String DEFAULT_BBS_ID = \"BBS_NOTICE\"")
-                .contains("@RequestMapping({\"/bbs/bbsList.do\", \"/cop/bbs/selectBoardList.do\"})")
+                .contains("@GetMapping({\"/bbs/bbsList.do\", \"/cop/bbs/selectBoardList.do\"})")
                 .contains("model.addAttribute(\"menuContextUrl\", \"/cop/bbs/selectBoardList.do?bbsId=BBS_NOTICE\")")
-                .doesNotContain("@RequestMapping({\"/bbs/bbsList.do\", \"/cop/bbs/selectBoardList.do?bbsId");
+                .doesNotContain("@GetMapping({\"/bbs/bbsList.do\", \"/cop/bbs/selectBoardList.do?bbsId");
         assertThat(list).contains("<title>공지사항 목록</title>")
                 .contains("<h1 class=\"egov-page-title\">공지사항 목록</h1>")
                 .contains("<caption>공지사항 목록 표</caption>");
