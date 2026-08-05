@@ -5,6 +5,7 @@ package com.krdevops.springai.model.thymeleaf;
  */
 public enum ValidationGateType {
     THYMELEAF_PARSE("Thymeleaf 파싱 검증"),
+    TEMPLATE_ENGINE_RENDER("실제 Spring TemplateEngine 렌더 검증"),
     BINDING_VALIDATION("바인딩 계약 검증"),
     ROUTE_PARITY("라우트 일치성 검증"),
     OVERFLOW_CHECK("오버플로우 검증"),
