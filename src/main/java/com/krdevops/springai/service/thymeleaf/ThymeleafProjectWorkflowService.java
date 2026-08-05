@@ -3,6 +3,8 @@ package com.krdevops.springai.service.thymeleaf;
 import com.krdevops.springai.model.thymeleaf.ProjectOperationStatus;
 import com.krdevops.springai.model.thymeleaf.ThymeleafOperationSnapshot;
 import com.krdevops.springai.model.thymeleaf.ThymeleafProjectOperation;
+import com.krdevops.springai.model.write.ProjectChangeSet;
+import com.krdevops.springai.model.write.ProjectWritePolicy;
 import com.krdevops.springai.service.contract.OperationHashFactory;
 import com.krdevops.springai.model.operation.OperationEvent;
 import com.krdevops.springai.model.operation.OperationLock;
@@ -11,19 +13,20 @@ import com.krdevops.springai.service.operation.OperationLockPort;
 import com.krdevops.springai.service.operation.NoopOperationEventPort;
 import com.krdevops.springai.service.operation.NoopOperationLockPort;
 import com.krdevops.springai.service.artifact.ArtifactService;
+import com.krdevops.springai.service.write.ApplyOutcome;
+import com.krdevops.springai.service.write.ApprovedProjectWritePort;
+import com.krdevops.springai.service.write.FileSystemApprovedProjectWritePort;
+import com.krdevops.springai.service.write.SafePathResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +41,11 @@ import java.time.Duration;
  * MySQL Adapter({@code ThymeleafProjectOperationRepository})라 재시작해도 승인·적용 이력이
  * 남는다(RISK-03 해소). {@code ThymeleafOperationStore} 없이 3~4-인자 생성자로 직접 생성하면
  * {@link InMemoryThymeleafOperationStore}를 기본값으로 쓴다(단위 테스트·임베디드 전용).
+ *
+ * <p>ARCH-WP7/ARCH-0715: {@code apply()}의 실제 파일 조작(staging→backup→atomic replace→실패 시
+ * rollback)은 더 이상 이 클래스가 직접 하지 않고 공용 {@link ApprovedProjectWritePort}에 위임한다.
+ * Operation 상태 전이·source/DESIGN.md revision 재검사·lock·이벤트 기록은 여전히 이 클래스의
+ * 책임이다 — Port는 "승인된 변경을 파일에 반영"만 알고 Thymeleaf Operation의 존재 자체를 모른다.
  */
 @Service
 public class ThymeleafProjectWorkflowService {
@@ -50,6 +58,8 @@ public class ThymeleafProjectWorkflowService {
     private final OperationEventPort eventPort;
     private final OperationLockPort lockPort;
     private final ArtifactService artifactService;
+    private final SafePathResolver pathResolver;
+    private final ApprovedProjectWritePort writePort;
 
     @Autowired
     public ThymeleafProjectWorkflowService(
@@ -60,7 +70,9 @@ public class ThymeleafProjectWorkflowService {
             ThymeleafOperationStore store,
             OperationEventPort eventPort,
             OperationLockPort lockPort,
-            ArtifactService artifactService) {
+            ArtifactService artifactService,
+            SafePathResolver pathResolver,
+            ApprovedProjectWritePort writePort) {
         this.stateService = stateService;
         this.validationGate = validationGate;
         this.hashFactory = hashFactory;
@@ -69,13 +81,16 @@ public class ThymeleafProjectWorkflowService {
         this.eventPort = eventPort;
         this.lockPort = lockPort;
         this.artifactService = artifactService;
+        this.pathResolver = pathResolver;
+        this.writePort = writePort;
     }
 
     public ThymeleafProjectWorkflowService(ProjectOperationStateService stateService,
             ValidationGateExecutor validationGate, OperationHashFactory hashFactory,
             DesignMdRuleLoader designRuleLoader, ThymeleafOperationStore store) {
         this(stateService, validationGate, hashFactory, designRuleLoader, store,
-                new NoopOperationEventPort(), new NoopOperationLockPort(), null);
+                new NoopOperationEventPort(), new NoopOperationLockPort(), null,
+                new SafePathResolver(), new FileSystemApprovedProjectWritePort(new SafePathResolver(), hashFactory));
     }
 
     /** DB 없이 Workflow 로직만 검증하려는 단위 테스트·임베디드 사용을 위한 호환 생성자. */
@@ -96,7 +111,7 @@ public class ThymeleafProjectWorkflowService {
     }
 
     public WorkflowResult preview(Path projectRoot, Map<String, String> generatedFiles) {
-        Path root = realDirectory(projectRoot);
+        Path root = pathResolver.realDirectory(projectRoot);
         String designRevision = currentDesignRevision(root);
         if (generatedFiles == null || generatedFiles.isEmpty()) {
             throw new IllegalArgumentException("generatedFiles는 최소 1개 이상이어야 합니다.");
@@ -105,7 +120,7 @@ public class ThymeleafProjectWorkflowService {
         Map<String, String> sourceHashes = new LinkedHashMap<>();
         List<String> validationErrors = new ArrayList<>();
         generatedFiles.entrySet().stream().sorted(Map.Entry.comparingByKey()).forEach(entry -> {
-            Path target = resolveTarget(root, entry.getKey());
+            Path target = pathResolver.resolveTarget(root, entry.getKey());
             String content = entry.getValue() == null ? "" : entry.getValue();
             files.put(entry.getKey(), content);
             sourceHashes.put(entry.getKey(), currentHash(target));
@@ -172,66 +187,64 @@ public class ThymeleafProjectWorkflowService {
             throw new IllegalStateException("THYMELEAF_OPERATION_NOT_READY_FOR_APPLY");
         }
         Path root = Path.of(snapshot.projectRoot());
-        List<String> conflicts = snapshot.sourceHashes().entrySet().stream()
-                .filter(entry -> !entry.getValue().equals(currentHash(resolveTarget(root, entry.getKey()))))
-                .map(Map.Entry::getKey).toList();
+
+        // DESIGN.md drift는 개별 파일 hash가 아니라 Thymeleaf 도메인 고유의 규칙 hash라
+        // ProjectChangeSet(WP7 공용 계약)에 자연스럽게 들어가지 않는다 — 파일 conflict와 별개로
+        // 여기서 먼저 검사한다. drift가 있으면 공용 Port를 아예 호출하지 않고(파일 전혀 안 건드림)
+        // 곧바로 CONFLICT로 전이한다.
         if (!snapshot.designRevision().equals(currentDesignRevision(root))) {
-            conflicts = new ArrayList<>(conflicts);
-            conflicts.add("DESIGN.md");
-        }
-        if (!conflicts.isEmpty()) {
-            ThymeleafProjectOperation conflicted = stateService.transitionState(operation, ProjectOperationStatus.CONFLICT);
-            conflicted = copy(conflicted, conflicted.status(), conflicted.previewArtifacts(), conflicted.targetFiles(),
-                    null, conflicts, conflicted.validationErrors(), false, null);
-            ThymeleafOperationSnapshot saved = nextRevision(snapshot, conflicted);
-            recordEvent(saved, operation.status(), conflicted.status(), "CONFLICT");
-            return new WorkflowResult(saved.operation(), saved.previewHash());
+            return toConflict(snapshot, operation, List.of("DESIGN.md"));
         }
 
-        Path staging = null;
-        Path backup = null;
-        List<Path> appliedTargets = new ArrayList<>();
-        try {
-            staging = Files.createTempDirectory(root, ".thymeleaf-stage-");
-            backup = Files.createTempDirectory(root, ".thymeleaf-backup-");
-            for (var entry : operation.previewArtifacts().entrySet()) {
-                Path staged = resolveWithin(staging, entry.getKey());
-                Files.createDirectories(staged.getParent());
-                Files.writeString(staged, entry.getValue(), StandardCharsets.UTF_8);
-                Path target = resolveTarget(root, entry.getKey());
-                if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-                    Path savedBackup = resolveWithin(backup, entry.getKey());
-                    Files.createDirectories(savedBackup.getParent());
-                    Files.copy(target, savedBackup, StandardCopyOption.COPY_ATTRIBUTES);
-                }
-            }
-            for (String relative : operation.previewArtifacts().keySet()) {
-                Path target = resolveTarget(root, relative);
-                Files.createDirectories(target.getParent());
-                moveReplacing(resolveWithin(staging, relative), target);
-                appliedTargets.add(target);
-            }
-            ThymeleafProjectOperation applied = stateService.markAsApplied(operation);
-            applied = copy(applied, applied.status(), applied.previewArtifacts(), applied.targetFiles(),
-                    backup.toString(), List.of(), applied.validationErrors(), true, applied.appliedAt());
-            ThymeleafOperationSnapshot saved = nextRevision(snapshot, applied);
-            recordEvent(saved, operation.status(), applied.status(), "APPLIED");
-            deleteTree(staging);
-            return new WorkflowResult(saved.operation(), saved.previewHash());
-        } catch (Exception exception) {
-            rollback(root, backup, appliedTargets);
-            deleteTree(staging);
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                snapshot.projectRoot(), snapshot.designRevision(),
+                toFileChanges(operation.previewArtifacts(), snapshot.sourceHashes()),
+                List.of(), ProjectWritePolicy.ATOMIC_APPROVED);
+        ApplyOutcome outcome = writePort.apply(changeSet);
+
+        if (outcome.status() == ApplyOutcome.Status.CONFLICT) {
+            return toConflict(snapshot, operation, outcome.conflictingPaths());
+        }
+        if (outcome.status() == ApplyOutcome.Status.ROLLED_BACK) {
             ThymeleafProjectOperation failed = stateService.transitionState(operation, ProjectOperationStatus.FAILED);
             failed = copy(failed, failed.status(), failed.previewArtifacts(), failed.targetFiles(),
-                    backup == null ? null : backup.toString(), List.of(),
-                    List.of("APPLY_ROLLED_BACK: " + exception.getMessage()), false, null);
+                    outcome.backupPath(), List.of(),
+                    List.of("APPLY_ROLLED_BACK: " + outcome.failureDetail()), false, null);
             nextRevision(snapshot, failed);
             recordEvent(snapshot, operation.status(), failed.status(), "APPLY_ROLLED_BACK");
-            throw new IllegalStateException("THYMELEAF_APPLY_ROLLED_BACK", exception);
+            throw new IllegalStateException("THYMELEAF_APPLY_ROLLED_BACK", new RuntimeException(outcome.failureDetail()));
         }
+
+        ThymeleafProjectOperation applied = stateService.markAsApplied(operation);
+        applied = copy(applied, applied.status(), applied.previewArtifacts(), applied.targetFiles(),
+                outcome.backupPath(), List.of(), applied.validationErrors(), true, applied.appliedAt());
+        ThymeleafOperationSnapshot saved = nextRevision(snapshot, applied);
+        recordEvent(saved, operation.status(), applied.status(), "APPLIED");
+        return new WorkflowResult(saved.operation(), saved.previewHash());
         } finally {
             lockPort.release(lock);
         }
+    }
+
+    private WorkflowResult toConflict(
+            ThymeleafOperationSnapshot snapshot, ThymeleafProjectOperation operation, List<String> conflicts) {
+        ThymeleafProjectOperation conflicted = stateService.transitionState(operation, ProjectOperationStatus.CONFLICT);
+        conflicted = copy(conflicted, conflicted.status(), conflicted.previewArtifacts(), conflicted.targetFiles(),
+                null, conflicts, conflicted.validationErrors(), false, null);
+        ThymeleafOperationSnapshot saved = nextRevision(snapshot, conflicted);
+        recordEvent(saved, operation.status(), conflicted.status(), "CONFLICT");
+        return new WorkflowResult(saved.operation(), saved.previewHash());
+    }
+
+    /** preview 시점 hash(승인 기준 원본)를 {@code beforeHash}로 실어 공용 {@link ProjectChangeSet}을 만든다. */
+    private List<ProjectChangeSet.FileChange> toFileChanges(
+            Map<String, String> previewArtifacts, Map<String, String> sourceHashes) {
+        List<ProjectChangeSet.FileChange> changes = new ArrayList<>();
+        for (var entry : previewArtifacts.entrySet()) {
+            changes.add(new ProjectChangeSet.FileChange(
+                    entry.getKey(), sourceHashes.get(entry.getKey()), entry.getValue(), null));
+        }
+        return changes;
     }
 
     public WorkflowResult revalidate(String operationId) {
@@ -242,7 +255,7 @@ public class ThymeleafProjectWorkflowService {
         Path root = Path.of(snapshot.projectRoot());
         List<String> errors = new ArrayList<>();
         for (String relative : snapshot.operation().previewArtifacts().keySet()) {
-            Path target = resolveTarget(root, relative);
+            Path target = pathResolver.resolveTarget(root, relative);
             String content;
             try {
                 content = Files.readString(target);
@@ -295,18 +308,6 @@ public class ThymeleafProjectWorkflowService {
         return name.toLowerCase().endsWith(".html") ? "text/html" : "text/plain";
     }
 
-    private Path realDirectory(Path root) {
-        try {
-            Path real = root.toRealPath();
-            if (!Files.isDirectory(real) || Files.isSymbolicLink(root)) {
-                throw new IllegalArgumentException("PROJECT_ROOT_INVALID: " + root);
-            }
-            return real;
-        } catch (IOException exception) {
-            throw new IllegalArgumentException("PROJECT_ROOT_NOT_FOUND: " + root, exception);
-        }
-    }
-
     private String currentDesignRevision(Path root) {
         if (designRuleLoader == null) return "DESIGN_GATE_NOT_CONFIGURED";
         var result = designRuleLoader.load(root.toString());
@@ -318,71 +319,12 @@ public class ThymeleafProjectWorkflowService {
         return result.value().contentHash() == null ? "MISSING" : result.value().contentHash();
     }
 
-    private Path resolveTarget(Path root, String relative) {
-        if (relative == null || relative.isBlank() || Path.of(relative).isAbsolute()) {
-            throw new SecurityException("THYMELEAF_TARGET_PATH_INVALID: " + relative);
-        }
-        Path target = root.resolve(relative).normalize();
-        if (!target.startsWith(root) || containsSymbolicLink(root, target)) {
-            throw new SecurityException("THYMELEAF_TARGET_PATH_ESCAPE: " + relative);
-        }
-        return target;
-    }
-
-    private boolean containsSymbolicLink(Path root, Path target) {
-        Path current = root;
-        for (Path part : root.relativize(target)) {
-            current = current.resolve(part);
-            if (Files.isSymbolicLink(current)) return true;
-            if (!Files.exists(current, LinkOption.NOFOLLOW_LINKS)) break;
-        }
-        return false;
-    }
-
-    private Path resolveWithin(Path root, String relative) {
-        Path resolved = root.resolve(relative).normalize();
-        if (!resolved.startsWith(root)) throw new SecurityException("THYMELEAF_STAGE_PATH_ESCAPE");
-        return resolved;
-    }
-
     private String currentHash(Path path) {
         if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) return "MISSING";
         try {
             return hashFactory.sha256Hex(Files.readAllBytes(path));
         } catch (IOException exception) {
             throw new IllegalStateException("SOURCE_REVISION_READ_FAILED: " + path, exception);
-        }
-    }
-
-    private void moveReplacing(Path source, Path target) throws IOException {
-        try {
-            Files.move(source, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException exception) {
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-        }
-    }
-
-    private void rollback(Path root, Path backup, List<Path> appliedTargets) {
-        for (int index = appliedTargets.size() - 1; index >= 0; index--) {
-            Path target = appliedTargets.get(index);
-            try {
-                Path saved = backup == null ? null : backup.resolve(root.relativize(target)).normalize();
-                if (saved != null && saved.startsWith(backup) && Files.exists(saved)) {
-                    Files.copy(saved, target, StandardCopyOption.REPLACE_EXISTING);
-                } else {
-                    Files.deleteIfExists(target);
-                }
-            } catch (IOException ignored) {
-                // 원래 실패를 보존하고 Workflow 결과에 rollback 실패를 기록할 후속 확장 지점.
-            }
-        }
-    }
-
-    private void deleteTree(Path path) {
-        if (path == null || !Files.exists(path) || Files.isSymbolicLink(path)) return;
-        try (var paths = Files.walk(path)) {
-            for (Path item : paths.sorted(Comparator.reverseOrder()).toList()) Files.deleteIfExists(item);
-        } catch (IOException ignored) {
         }
     }
 
