@@ -1,8 +1,15 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.model.write.ProjectChangeSet;
+import com.krdevops.springai.model.write.ProjectWritePolicy;
+import com.krdevops.springai.service.contract.OperationHashFactory;
+import com.krdevops.springai.service.write.ApplyOutcome;
+import com.krdevops.springai.service.write.ApprovedProjectWritePort;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,9 +20,15 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** 생성 프로젝트의 MyBatis mapperLocations와 MapperScannerConfigurer를 멱등하게 보강한다. */
+/**
+ * 생성 프로젝트의 MyBatis mapperLocations와 MapperScannerConfigurer를 멱등하게 보강한다.
+ *
+ * <p>WP7 5차 pass: 저장은 {@code Files.writeString} 원시 호출 대신 공용
+ * {@link ApprovedProjectWritePort}({@link ProjectWritePolicy#ATOMIC_APPROVED})로 위임한다.
+ */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class MyBatisRuntimeConfigurer {
 
     static final String CONTEXT_COMMON_XML =
@@ -31,6 +44,10 @@ public class MyBatisRuntimeConfigurer {
                     + "<property\\s+name=\"basePackage\"\\s+value=\")([^\"]*)(\"[^>]*/>.*?</bean>)",
             Pattern.DOTALL);
 
+    private final CodeService codeService;
+    private final ApprovedProjectWritePort writePort;
+    private final OperationHashFactory hashFactory;
+
     public ConfigurationResult ensureConfigured(String outputPath, String mapperPackage) {
         Path contextCommon = Path.of(outputPath, CONTEXT_COMMON_XML).normalize();
         if (!Files.exists(contextCommon)) {
@@ -44,7 +61,7 @@ public class MyBatisRuntimeConfigurer {
             patched = ensureMapperScanner(patched, mapperPackage, contextCommon);
             boolean changed = !patched.equals(original);
             if (changed) {
-                Files.writeString(contextCommon, patched, StandardCharsets.UTF_8);
+                writeChange(outputPath, original, patched);
             }
 
             ValidationResult validation = validateContent(patched, mapperPackage);
@@ -55,9 +72,28 @@ public class MyBatisRuntimeConfigurer {
             return ConfigurationResult.success(contextCommon, changed,
                     action + " — mapperPackage=" + mapperPackage
                             + ", basePackage=" + requiredBasePackage(mapperPackage));
-        } catch (Exception e) {
+        } catch (IOException | IllegalStateException e) {
             log.warn("MyBatis Mapper 런타임 설정 보강 실패: {}", e.getMessage());
             return ConfigurationResult.failed(contextCommon, e.getMessage());
+        }
+    }
+
+    private void writeChange(String outputPath, String before, String after) throws IOException {
+        codeService.validateOutputRoot(outputPath);
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                outputPath, null,
+                List.of(new ProjectChangeSet.FileChange(
+                        CONTEXT_COMMON_XML, hashFactory.sha256Hex(before.getBytes(StandardCharsets.UTF_8)),
+                        after, null)),
+                List.of(), ProjectWritePolicy.ATOMIC_APPROVED);
+        ApplyOutcome outcome = writePort.apply(changeSet);
+        if (outcome.status() != ApplyOutcome.Status.APPLIED) {
+            String detail = switch (outcome.status()) {
+                case CONFLICT -> "적용 직전 파일이 변경됨: " + outcome.conflictingPaths();
+                case ROLLED_BACK -> outcome.failureDetail();
+                default -> "알 수 없는 결과: " + outcome.status();
+            };
+            throw new IOException(detail);
         }
     }
 

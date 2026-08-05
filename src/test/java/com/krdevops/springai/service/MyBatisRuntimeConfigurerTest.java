@@ -1,5 +1,11 @@
 package com.krdevops.springai.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.config.EgovProperties;
+import com.krdevops.springai.service.contract.OperationHashFactory;
+import com.krdevops.springai.service.write.FileSystemApprovedProjectWritePort;
+import com.krdevops.springai.service.write.SafePathResolver;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -10,13 +16,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class MyBatisRuntimeConfigurerTest {
 
-    private final MyBatisRuntimeConfigurer configurer = new MyBatisRuntimeConfigurer();
+    private MyBatisRuntimeConfigurer configurer(Path outputRoot) {
+        EgovProperties properties = new EgovProperties();
+        EgovProperties.Output output = new EgovProperties.Output();
+        output.setBasePath(outputRoot.toString());
+        properties.setOutput(output);
+        CodeService codeService = new CodeService(properties);
+        FileSystemApprovedProjectWritePort writePort = new FileSystemApprovedProjectWritePort(
+                new SafePathResolver(), new OperationHashFactory(new ObjectMapper()));
+        return new MyBatisRuntimeConfigurer(codeService, writePort, new OperationHashFactory(new ObjectMapper()));
+    }
 
     @Test
     void freshLayoutPackageUnderCom_usesProjectRootMapperScan(@TempDir Path root) throws Exception {
         Path context = writeContext(root, baseContext());
 
-        MyBatisRuntimeConfigurer.ConfigurationResult result = configurer.ensureConfigured(
+        MyBatisRuntimeConfigurer.ConfigurationResult result = configurer(root).ensureConfigured(
                 root.toString(), "egovframework.let.com.cmm.service");
 
         assertThat(result.success()).isTrue();
@@ -30,7 +45,7 @@ class MyBatisRuntimeConfigurerTest {
     void existingNarrowComScanner_isUpgradedAndRedundantChildRemoved(@TempDir Path root) throws Exception {
         Path context = writeContext(root, withScanner("egovframework.let.com"));
 
-        MyBatisRuntimeConfigurer.ConfigurationResult result = configurer.ensureConfigured(
+        MyBatisRuntimeConfigurer.ConfigurationResult result = configurer(root).ensureConfigured(
                 root.toString(), "egovframework.let.cop.bbs.service.impl");
 
         assertThat(result.success()).isTrue();
@@ -42,6 +57,7 @@ class MyBatisRuntimeConfigurerTest {
     @Test
     void existingProjectRootScanner_isPreservedIdempotently(@TempDir Path root) throws Exception {
         Path context = writeContext(root, withScanner("egovframework.let"));
+        MyBatisRuntimeConfigurer configurer = configurer(root);
 
         MyBatisRuntimeConfigurer.ConfigurationResult first = configurer.ensureConfigured(
                 root.toString(), "egovframework.let.cop.bbs.service.impl");
@@ -59,7 +75,7 @@ class MyBatisRuntimeConfigurerTest {
     void unrelatedCustomPackage_isPreservedAlongsideEgovRoot(@TempDir Path root) throws Exception {
         Path context = writeContext(root, withScanner("com.acme.mapper, egovframework.let.com"));
 
-        configurer.ensureConfigured(root.toString(), "egovframework.let.cop.bbs.service.impl");
+        configurer(root).ensureConfigured(root.toString(), "egovframework.let.cop.bbs.service.impl");
 
         assertThat(Files.readString(context))
                 .contains("value=\"com.acme.mapper, egovframework.let\"");
@@ -69,7 +85,7 @@ class MyBatisRuntimeConfigurerTest {
     void validateRejectsMapperOutsideConfiguredRange(@TempDir Path root) throws Exception {
         writeContext(root, withScanner("egovframework.let.com"));
 
-        MyBatisRuntimeConfigurer.ValidationResult result = configurer.validate(
+        MyBatisRuntimeConfigurer.ValidationResult result = configurer(root).validate(
                 root.toString(), "egovframework.let.cop.bbs.service.impl");
 
         assertThat(result.valid()).isFalse();
@@ -80,10 +96,29 @@ class MyBatisRuntimeConfigurerTest {
     void nonEgovMapperPackage_isAddedWithoutBroadeningToArbitraryParent(@TempDir Path root) throws Exception {
         Path context = writeContext(root, baseContext());
 
-        configurer.ensureConfigured(root.toString(), "com.example.board.mapper");
+        configurer(root).ensureConfigured(root.toString(), "com.example.board.mapper");
 
         assertThat(Files.readString(context))
                 .contains("value=\"com.example.board.mapper\"");
+    }
+
+    /** ATOMIC_APPROVED 전환 확인: 디스크 쓰기가 실패하면 원본 파일이 그대로 보존되고 failed 결과가 온다. */
+    @Test
+    void diskWriteFailure_returnsFailedResultAndLeavesOriginalFileUntouched(@TempDir Path root) throws Exception {
+        Path context = writeContext(root, baseContext());
+        String original = Files.readString(context);
+        Path parent = context.getParent();
+        boolean readOnlySet = parent.toFile().setWritable(false);
+        Assumptions.assumeTrue(readOnlySet, "이 실행 환경(예: root)에서는 디렉터리 쓰기 금지가 걸리지 않아 이 테스트를 건너뛴다.");
+        try {
+            MyBatisRuntimeConfigurer.ConfigurationResult result = configurer(root).ensureConfigured(
+                    root.toString(), "egovframework.let.com.cmm.service");
+
+            assertThat(result.success()).isFalse();
+        } finally {
+            parent.toFile().setWritable(true);
+        }
+        assertThat(Files.readString(context)).isEqualTo(original);
     }
 
     private Path writeContext(Path root, String content) throws Exception {

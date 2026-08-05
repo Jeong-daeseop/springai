@@ -1,17 +1,38 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.model.write.ProjectChangeSet;
+import com.krdevops.springai.model.write.ProjectWritePolicy;
+import com.krdevops.springai.service.contract.OperationHashFactory;
+import com.krdevops.springai.service.write.ApplyOutcome;
+import com.krdevops.springai.service.write.ApprovedProjectWritePort;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
-/** 기존 사용자 CSS를 보존하면서 게시판 CRUD 공통 계약만 멱등적으로 추가한다. */
+/**
+ * 기존 사용자 CSS를 보존하면서 게시판 CRUD 공통 계약만 멱등적으로 추가한다.
+ *
+ * <p>WP7 5차 pass: 저장은 {@code Files.writeString} 원시 호출 대신 공용
+ * {@link ApprovedProjectWritePort}({@link ProjectWritePolicy#ATOMIC_APPROVED})로 위임한다 —
+ * 사용자가 직접 편집한 CSS를 보존하는 계약이므로 drift 검사 없이 덮어쓰는 BEST_EFFORT는 맞지 않는다.
+ */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class KrdsStylesConfigurer {
+
+    private static final String WAR_RELATIVE_PATH = "src/main/webapp/resources/css/styles.css";
+    private static final String BOOT_RELATIVE_PATH = "src/main/resources/static/resources/css/styles.css";
+
+    private final CodeService codeService;
+    private final ApprovedProjectWritePort writePort;
+    private final OperationHashFactory hashFactory;
 
     public static final String START_MARKER = "/* === egov-board-crud:start === */";
     public static final String END_MARKER = "/* === egov-board-crud:end === */";
@@ -94,18 +115,16 @@ public class KrdsStylesConfigurer {
 """;
 
     public CssPatchResult ensureBoardCrudStyles(String outputPath) {
-        Path war = Path.of(outputPath, "src/main/webapp/resources/css/styles.css");
-        Path boot = Path.of(outputPath, "src/main/resources/static/resources/css/styles.css");
-        Path target = Files.exists(war) ? war : Files.exists(boot) ? boot : null;
-        if (target == null) {
-            Path warResources = war.getParent();
-            Path bootResources = boot.getParent();
-            target = Files.isDirectory(warResources) ? war : Files.isDirectory(bootResources) ? boot : null;
-            if (target == null) return new CssPatchResult(Status.NOT_FOUND, null,
+        TargetResolution resolution = resolveTarget(outputPath);
+        if (resolution == null) {
+            return new CssPatchResult(Status.NOT_FOUND, null,
                     "정적 CSS 리소스 경로를 찾을 수 없습니다. initializeProject를 먼저 실행하세요.");
         }
+        Path target = resolution.path();
         try {
-            String current = Files.exists(target) ? Files.readString(target, StandardCharsets.UTF_8) : "";
+            boolean existed = Files.exists(target);
+            String current = existed ? Files.readString(target, StandardCharsets.UTF_8) : "";
+            String beforeHash = existed ? hashFactory.sha256Hex(current.getBytes(StandardCharsets.UTF_8)) : null;
             if (current.contains(START_MARKER)) {
                 int start = current.indexOf(START_MARKER);
                 int end = current.indexOf(END_MARKER, start);
@@ -120,14 +139,13 @@ public class KrdsStylesConfigurer {
                     return new CssPatchResult(Status.PRESERVED, target.toString(), "기존 보강 블록 유지");
                 }
                 String updated = current.substring(0, start) + expected + current.substring(end);
-                Files.writeString(target, updated, StandardCharsets.UTF_8);
+                writeChange(outputPath, resolution.relativePath(), beforeHash, updated);
                 return new CssPatchResult(Status.PATCHED, target.toString(), "기존 CRUD CSS 계약 갱신 완료");
             }
-            Files.createDirectories(target.getParent());
-            Files.writeString(target, current + CRUD_CSS, StandardCharsets.UTF_8);
+            writeChange(outputPath, resolution.relativePath(), beforeHash, current + CRUD_CSS);
             return new CssPatchResult(Status.PATCHED, target.toString(),
                     current.isEmpty() ? "styles.css 신규 생성" : "기존 styles.css 보강 완료");
-        } catch (Exception e) {
+        } catch (IOException e) {
             log.warn("[krds-styles] CSS 보강 실패: {}", e.getMessage());
             return new CssPatchResult(Status.FAILED, target.toString(), e.getMessage());
         }
@@ -135,19 +153,16 @@ public class KrdsStylesConfigurer {
 
     /** CRUD 표 밀도 스타일을 별도 marker로 멱등 보강한다. */
     public CssPatchResult ensureTableDensityStyles(String outputPath) {
-        Path war = Path.of(outputPath, "src/main/webapp/resources/css/styles.css");
-        Path boot = Path.of(outputPath, "src/main/resources/static/resources/css/styles.css");
-        Path target = Files.exists(war) ? war : Files.exists(boot) ? boot : null;
-        if (target == null) {
-            target = Files.isDirectory(war.getParent()) ? war
-                    : Files.isDirectory(boot.getParent()) ? boot : null;
-        }
-        if (target == null) {
+        TargetResolution resolution = resolveTarget(outputPath);
+        if (resolution == null) {
             return new CssPatchResult(Status.NOT_FOUND, null,
                     "정적 CSS 리소스 경로를 찾을 수 없습니다. initializeProject를 먼저 실행하세요.");
         }
+        Path target = resolution.path();
         try {
-            String current = Files.exists(target) ? Files.readString(target, StandardCharsets.UTF_8) : "";
+            boolean existed = Files.exists(target);
+            String current = existed ? Files.readString(target, StandardCharsets.UTF_8) : "";
+            String beforeHash = existed ? hashFactory.sha256Hex(current.getBytes(StandardCharsets.UTF_8)) : null;
             String expected = TableDensityCssContract.CSS.trim();
             int start = current.indexOf(DENSITY_START_MARKER);
             if (start >= 0) {
@@ -161,33 +176,29 @@ public class KrdsStylesConfigurer {
                 if (existing.equals(expected)) {
                     return new CssPatchResult(Status.PRESERVED, target.toString(), "기존 density 블록 유지");
                 }
-                Files.writeString(target, current.substring(0, start) + expected + current.substring(end),
-                        StandardCharsets.UTF_8);
+                writeChange(outputPath, resolution.relativePath(), beforeHash,
+                        current.substring(0, start) + expected + current.substring(end));
                 return new CssPatchResult(Status.PATCHED, target.toString(), "density CSS 계약 갱신 완료");
             }
-            Files.createDirectories(target.getParent());
-            Files.writeString(target, current + TableDensityCssContract.CSS, StandardCharsets.UTF_8);
+            writeChange(outputPath, resolution.relativePath(), beforeHash, current + TableDensityCssContract.CSS);
             return new CssPatchResult(Status.PATCHED, target.toString(), "density CSS 보강 완료");
-        } catch (Exception e) {
+        } catch (IOException e) {
             return new CssPatchResult(Status.FAILED, target.toString(), e.getMessage());
         }
     }
 
     /** 등록/수정 폼 2단 배치 스타일을 별도 marker로 멱등 보강한다. */
     public CssPatchResult ensureFormColumnLayoutStyles(String outputPath) {
-        Path war = Path.of(outputPath, "src/main/webapp/resources/css/styles.css");
-        Path boot = Path.of(outputPath, "src/main/resources/static/resources/css/styles.css");
-        Path target = Files.exists(war) ? war : Files.exists(boot) ? boot : null;
-        if (target == null) {
-            target = Files.isDirectory(war.getParent()) ? war
-                    : Files.isDirectory(boot.getParent()) ? boot : null;
-        }
-        if (target == null) {
+        TargetResolution resolution = resolveTarget(outputPath);
+        if (resolution == null) {
             return new CssPatchResult(Status.NOT_FOUND, null,
                     "정적 CSS 리소스 경로를 찾을 수 없습니다. initializeProject를 먼저 실행하세요.");
         }
+        Path target = resolution.path();
         try {
-            String current = Files.exists(target) ? Files.readString(target, StandardCharsets.UTF_8) : "";
+            boolean existed = Files.exists(target);
+            String current = existed ? Files.readString(target, StandardCharsets.UTF_8) : "";
+            String beforeHash = existed ? hashFactory.sha256Hex(current.getBytes(StandardCharsets.UTF_8)) : null;
             String expected = FormColumnLayoutCssContract.CSS.trim();
             int start = current.indexOf(FORM_COLUMN_LAYOUT_START_MARKER);
             if (start >= 0) {
@@ -201,16 +212,47 @@ public class KrdsStylesConfigurer {
                 if (existing.equals(expected)) {
                     return new CssPatchResult(Status.PRESERVED, target.toString(), "기존 form column layout 블록 유지");
                 }
-                Files.writeString(target, current.substring(0, start) + expected + current.substring(end),
-                        StandardCharsets.UTF_8);
+                writeChange(outputPath, resolution.relativePath(), beforeHash,
+                        current.substring(0, start) + expected + current.substring(end));
                 return new CssPatchResult(Status.PATCHED, target.toString(), "form column layout CSS 계약 갱신 완료");
             }
-            Files.createDirectories(target.getParent());
-            Files.writeString(target, current + FormColumnLayoutCssContract.CSS, StandardCharsets.UTF_8);
+            writeChange(outputPath, resolution.relativePath(), beforeHash,
+                    current + FormColumnLayoutCssContract.CSS);
             return new CssPatchResult(Status.PATCHED, target.toString(), "form column layout CSS 보강 완료");
-        } catch (Exception e) {
+        } catch (IOException e) {
             return new CssPatchResult(Status.FAILED, target.toString(), e.getMessage());
         }
+    }
+
+    private TargetResolution resolveTarget(String outputPath) {
+        Path war = Path.of(outputPath, WAR_RELATIVE_PATH);
+        Path boot = Path.of(outputPath, BOOT_RELATIVE_PATH);
+        if (Files.exists(war)) return new TargetResolution(war, WAR_RELATIVE_PATH);
+        if (Files.exists(boot)) return new TargetResolution(boot, BOOT_RELATIVE_PATH);
+        if (Files.isDirectory(war.getParent())) return new TargetResolution(war, WAR_RELATIVE_PATH);
+        if (Files.isDirectory(boot.getParent())) return new TargetResolution(boot, BOOT_RELATIVE_PATH);
+        return null;
+    }
+
+    private void writeChange(String outputPath, String relativePath, String beforeHash, String after)
+            throws IOException {
+        codeService.validateOutputRoot(outputPath);
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                outputPath, null,
+                List.of(new ProjectChangeSet.FileChange(relativePath, beforeHash, after, null)),
+                List.of(), ProjectWritePolicy.ATOMIC_APPROVED);
+        ApplyOutcome outcome = writePort.apply(changeSet);
+        if (outcome.status() != ApplyOutcome.Status.APPLIED) {
+            String detail = switch (outcome.status()) {
+                case CONFLICT -> "적용 직전 파일이 변경됨: " + outcome.conflictingPaths();
+                case ROLLED_BACK -> outcome.failureDetail();
+                default -> "알 수 없는 결과: " + outcome.status();
+            };
+            throw new IOException(detail);
+        }
+    }
+
+    private record TargetResolution(Path path, String relativePath) {
     }
 
     public enum Status { PATCHED, PRESERVED, NOT_FOUND, FAILED }

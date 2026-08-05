@@ -1,10 +1,15 @@
 package com.krdevops.springai.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.config.EgovProperties;
 import com.krdevops.springai.model.board.BoardDisplayModel;
 import com.krdevops.springai.model.board.BoardRouteModel;
 import com.krdevops.springai.model.board.BoardTemplateModel;
 import com.krdevops.springai.model.crud.CrudViewType;
 import com.krdevops.springai.model.crud.FieldModel;
+import com.krdevops.springai.service.contract.OperationHashFactory;
+import com.krdevops.springai.service.write.FileSystemApprovedProjectWritePort;
+import com.krdevops.springai.service.write.SafePathResolver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -16,8 +21,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class BoardGeneratedCodeAuditorTest {
 
-    private final BoardGeneratedCodeAuditor auditor =
-            new BoardGeneratedCodeAuditor(new MyBatisRuntimeConfigurer());
+    // 이 테스트는 MyBatisRuntimeConfigurer의 순수 패키지 병합 로직만 쓰고 ensureConfigured(파일
+    // write)는 호출하지 않으므로, write 관련 협력자는 어떤 값이든 상관없다.
+    private final BoardGeneratedCodeAuditor auditor = new BoardGeneratedCodeAuditor(new MyBatisRuntimeConfigurer(
+            new CodeService(new EgovProperties()),
+            new FileSystemApprovedProjectWritePort(new SafePathResolver(), new OperationHashFactory(new ObjectMapper())),
+            new OperationHashFactory(new ObjectMapper())));
 
     @Test
     void auditsGeneratedBoardContracts(@TempDir Path root) throws Exception {

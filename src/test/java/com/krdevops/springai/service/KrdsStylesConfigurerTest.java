@@ -1,5 +1,11 @@
 package com.krdevops.springai.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.config.EgovProperties;
+import com.krdevops.springai.service.contract.OperationHashFactory;
+import com.krdevops.springai.service.write.FileSystemApprovedProjectWritePort;
+import com.krdevops.springai.service.write.SafePathResolver;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -8,15 +14,29 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * WP7 5차 pass: {@code Files.writeString} 원시 호출을 공용
+ * {@code ApprovedProjectWritePort}(ATOMIC_APPROVED)로 전환한다.
+ */
 class KrdsStylesConfigurerTest {
 
-    private final KrdsStylesConfigurer configurer = new KrdsStylesConfigurer();
+    private KrdsStylesConfigurer configurer(Path outputRoot) {
+        EgovProperties properties = new EgovProperties();
+        EgovProperties.Output output = new EgovProperties.Output();
+        output.setBasePath(outputRoot.toString());
+        properties.setOutput(output);
+        CodeService codeService = new CodeService(properties);
+        FileSystemApprovedProjectWritePort writePort = new FileSystemApprovedProjectWritePort(
+                new SafePathResolver(), new OperationHashFactory(new ObjectMapper()));
+        return new KrdsStylesConfigurer(codeService, writePort, new OperationHashFactory(new ObjectMapper()));
+    }
 
     @Test
     void patchesWarCssOnceAndPreservesUserRules(@TempDir Path root) throws Exception {
         Path css = root.resolve("src/main/webapp/resources/css/styles.css");
         Files.createDirectories(css.getParent());
         Files.writeString(css, ".user-rule { color: rebeccapurple; }\n");
+        KrdsStylesConfigurer configurer = configurer(root);
 
         var first = configurer.ensureBoardCrudStyles(root.toString());
         String once = Files.readString(css);
@@ -30,7 +50,7 @@ class KrdsStylesConfigurerTest {
 
     @Test
     void reportsNotFoundWhenStaticResourceStructureIsMissing(@TempDir Path root) {
-        assertThat(configurer.ensureBoardCrudStyles(root.toString()).status())
+        assertThat(configurer(root).ensureBoardCrudStyles(root.toString()).status())
                 .isEqualTo(KrdsStylesConfigurer.Status.NOT_FOUND);
     }
 
@@ -46,7 +66,7 @@ class KrdsStylesConfigurerTest {
 .after { color: blue; }
 """);
 
-        var result = configurer.ensureBoardCrudStyles(root.toString());
+        var result = configurer(root).ensureBoardCrudStyles(root.toString());
         String updated = Files.readString(css);
 
         assertThat(result.status()).isEqualTo(KrdsStylesConfigurer.Status.PATCHED);
@@ -91,6 +111,7 @@ class KrdsStylesConfigurerTest {
         Path css = root.resolve("src/main/webapp/resources/css/styles.css");
         Files.createDirectories(css.getParent());
         Files.writeString(css, ".user { color: black; }\n");
+        KrdsStylesConfigurer configurer = configurer(root);
 
         var first = configurer.ensureTableDensityStyles(root.toString());
         var second = configurer.ensureTableDensityStyles(root.toString());
@@ -123,6 +144,7 @@ class KrdsStylesConfigurerTest {
         Path css = root.resolve("src/main/webapp/resources/css/styles.css");
         Files.createDirectories(css.getParent());
         Files.writeString(css, ".user { color: black; }\n");
+        KrdsStylesConfigurer configurer = configurer(root);
 
         var first = configurer.ensureFormColumnLayoutStyles(root.toString());
         var second = configurer.ensureFormColumnLayoutStyles(root.toString());
@@ -134,5 +156,37 @@ class KrdsStylesConfigurerTest {
                 .contains(".egov-layout-two-col")
                 .contains(".form-row-two-col")
                 .startsWith(".user");
+    }
+
+    @Test
+    void newStylesCssIsCreatedThroughPortWhenDirectoryExistsButFileDoesNot(@TempDir Path root) throws Exception {
+        Path cssDir = root.resolve("src/main/webapp/resources/css");
+        Files.createDirectories(cssDir);
+
+        var result = configurer(root).ensureBoardCrudStyles(root.toString());
+
+        assertThat(result.status()).isEqualTo(KrdsStylesConfigurer.Status.PATCHED);
+        assertThat(result.message()).contains("신규 생성");
+        assertThat(Files.readString(cssDir.resolve("styles.css"))).contains(KrdsStylesConfigurer.START_MARKER);
+    }
+
+    /** ATOMIC_APPROVED 전환 확인: 디스크 쓰기가 실패하면 원본 파일이 그대로 보존돼야 한다. */
+    @Test
+    void diskWriteFailure_leavesOriginalFileUntouched(@TempDir Path root) throws Exception {
+        Path css = root.resolve("src/main/webapp/resources/css/styles.css");
+        Files.createDirectories(css.getParent());
+        Files.writeString(css, ".user-rule { color: rebeccapurple; }\n");
+        String original = Files.readString(css);
+        Path cssDir = css.getParent();
+        boolean readOnlySet = cssDir.toFile().setWritable(false);
+        Assumptions.assumeTrue(readOnlySet, "이 실행 환경(예: root)에서는 디렉터리 쓰기 금지가 걸리지 않아 이 테스트를 건너뛴다.");
+        try {
+            var result = configurer(root).ensureBoardCrudStyles(root.toString());
+
+            assertThat(result.status()).isEqualTo(KrdsStylesConfigurer.Status.FAILED);
+        } finally {
+            cssDir.toFile().setWritable(true);
+        }
+        assertThat(Files.readString(css)).isEqualTo(original);
     }
 }
