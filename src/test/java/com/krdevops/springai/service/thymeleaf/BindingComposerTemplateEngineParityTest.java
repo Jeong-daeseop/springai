@@ -145,6 +145,33 @@ class BindingComposerTemplateEngineParityTest {
         assertThat(rendered).contains("action=\"/emp/employerList.do\"");
     }
 
+    @Test
+    void detailHtml_rendersSecondaryListThroughRealTemplateEngineWithoutError() {
+        ThymeleafRouteBinding route = new ThymeleafRouteBinding(
+                "/bbsMaster/bbsMasterDetail.do", "GET", "selectBbsMaster", null, null, false, false, List.of());
+        ThymeleafFieldBinding bbsIdField = new ThymeleafFieldBinding(
+                "bbsId", "String", true, false, List.of(), null, "VO_ONLY", 0.6);
+        ThymeleafBindingContract contract = new ThymeleafBindingContract(
+                "bbs-master-detail", LegacyScreenRole.DETAIL, route, List.of(bbsIdField),
+                List.of("bbsId"), "result", List.of("bbsId", "useAt"), "detailList",
+                List.of(), List.of(), BindingContractStatus.RESOLVED, List.of(), null, Instant.now());
+
+        ThymeleafGenerationStageResult<String> composed = composer.compose(contract, "BBSMASTER 상세", "layout/default");
+        assertThat(composed.successful()).as("issues: %s", composed.issues()).isTrue();
+        String contentFragment = extractContentFragment(composed.value());
+
+        List<DetailRow> rows = List.of(new DetailRow("bbs-1", "Y"), new DetailRow("bbs-2", "N"));
+
+        WebContext context = springAwareContext(Map.of());
+        context.setVariable("result", new BbsMasterRow("BBSMASTER-1"));
+        context.setVariable("detailList", rows);
+
+        assertThatCode(() -> templateEngine.process(contentFragment, context)).doesNotThrowAnyException();
+        String rendered = templateEngine.process(contentFragment, context);
+
+        assertThat(rendered).contains("bbs-1").contains("bbs-2").contains("Y").contains("N");
+    }
+
     /** 옛 {@code LegacyThymeleafRenderer}가 만들던 layout:decorate 래핑을 제거하고 content fragment만 남긴다. */
     private String extractContentFragment(String html) {
         int start = html.indexOf("<section");
@@ -255,6 +282,38 @@ class BindingComposerTemplateEngineParityTest {
 
         public String getLastUpdtPnttm() {
             return lastUpdtPnttm;
+        }
+    }
+
+    /** DETAIL 화면의 주 root(예: master-detail의 BBSMASTER) — {@code result.bbsId}가 참조하는 값. */
+    public static class BbsMasterRow {
+        private final String bbsId;
+
+        BbsMasterRow(String bbsId) {
+            this.bbsId = bbsId;
+        }
+
+        public String getBbsId() {
+            return bbsId;
+        }
+    }
+
+    /** DETAIL 화면의 부 root(예: master-detail의 BBSUSE 목록) — {@code item.bbsId}/{@code item.useAt}. */
+    public static class DetailRow {
+        private final String bbsId;
+        private final String useAt;
+
+        DetailRow(String bbsId, String useAt) {
+            this.bbsId = bbsId;
+            this.useAt = useAt;
+        }
+
+        public String getBbsId() {
+            return bbsId;
+        }
+
+        public String getUseAt() {
+            return useAt;
         }
     }
 }

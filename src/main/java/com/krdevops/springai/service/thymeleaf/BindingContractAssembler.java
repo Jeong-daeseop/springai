@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -44,6 +45,19 @@ import java.util.Set;
  * 계약이 그대로 {@code RESOLVED}로 통과해 원본보다 적거나 잘못된 화면이 "성공"으로 렌더링될 위험이
  * 있었다. 2026-08-04부로 이 두 이슈도 {@link BindingContractStatus#REVIEW_REQUIRED} 판정에 포함시켜
  * {@code BindingComposer}가 렌더링을 BLOCK하도록(ARCH-0621) 만든다.
+ *
+ * <p>WP6 3차 pass(ARCH-0619/0620, 2026-08-05): 표시 대상 root가 정확히 2개이고 그 중 하나가
+ * {@code c:forEach}로 순회되는 목록(BOARD의 첨부파일 목록, master-detail의 하위 표)이면
+ * {@code MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS}(모호함) 대신 더 구체적인
+ * {@code SECONDARY_ROOT_FIELDS_UNVERIFIED}로 판정한다 — 어느 쪽이 주 root고 어느 쪽이 부 root인지는
+ * 명확하므로("모호"하지 않음) 그 부 root의 필드가 검증됐는지가 유일한 관건이다. 호출자가
+ * {@link #assemble(LegacyScreenAnalysis, VoEvidence)}로 부 root 전용 VO evidence를 함께 주고 모든
+ * 필드가 거기 존재하면 계약이 {@code RESOLVED}로 통과하며 {@code secondaryDisplayFieldNames}/
+ * {@code secondaryDisplayAttributeName}이 채워진다(master-detail). VO가 없거나 일부 필드가 없으면
+ * (예: BOARD 첨부파일처럼 필드가 eGovFrame 공통 컴포넌트 VO에 속해 이 화면의 로컬 소스 어디에도 없는
+ * 경우) 여전히 {@code REVIEW_REQUIRED}로 막는다 — 검증할 수 없는 필드를 조용히 통과시키지 않는다는
+ * 원칙은 그대로 유지한다. root가 3개 이상이거나 두 root가 모두 loop거나 모두 non-loop인 경우는 이
+ * 패턴에 해당하지 않아 기존 {@code MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS} 판정을 그대로 쓴다.
  */
 @Service
 public class BindingContractAssembler {
@@ -61,6 +75,16 @@ public class BindingContractAssembler {
     }
 
     public ThymeleafGenerationStageResult<ThymeleafBindingContract> assemble(LegacyScreenAnalysis analysis) {
+        return assemble(analysis, null);
+    }
+
+    /**
+     * @param secondaryVo 표시 대상 root가 2개(주 root + {@code c:forEach} 목록)일 때 그 두 번째
+     *                     root의 필드를 검증할 VO. {@code null}이면 두 번째 root는 미검증으로 남아
+     *                     {@code REVIEW_REQUIRED}가 된다.
+     */
+    public ThymeleafGenerationStageResult<ThymeleafBindingContract> assemble(
+            LegacyScreenAnalysis analysis, VoEvidence secondaryVo) {
         JspEvidence jsp = analysis.jsp();
         ControllerEvidence controller = analysis.controller();
         VoEvidence vo = analysis.vo();
@@ -97,7 +121,7 @@ public class BindingContractAssembler {
             return ThymeleafGenerationStageResult.failure(issues);
         }
 
-        DisplayFieldResolution displayFields = resolveDisplayFields(jsp, vo, controller, issues);
+        DisplayFieldResolution displayFields = resolveDisplayFields(jsp, vo, controller, secondaryVo, issues);
 
         ModelAttributeResolution modelAttributes = resolveModelAttributes(jsp, controller, issues);
 
@@ -110,7 +134,8 @@ public class BindingContractAssembler {
         boolean reviewRequired = viewMethod.isEmpty() || voHasNoFields
                 || issues.stream().anyMatch(issue -> "JSP_FORM_ACTION_UNRESOLVED".equals(issue.code())
                         || "DISPLAY_FIELD_WITHOUT_VO_FIELD".equals(issue.code())
-                        || "MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS".equals(issue.code()));
+                        || "MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS".equals(issue.code())
+                        || "SECONDARY_ROOT_FIELDS_UNVERIFIED".equals(issue.code()));
 
         ControllerMethodEvidence method = resolution.get().method();
         ThymeleafRouteBinding route = new ThymeleafRouteBinding(
@@ -133,6 +158,7 @@ public class BindingContractAssembler {
         ThymeleafBindingContract contract = new ThymeleafBindingContract(
                 analysis.screenId(), role, route, fields,
                 displayFields.fieldNames(), displayFields.primaryDisplayAttributeName(),
+                displayFields.secondaryFieldNames(), displayFields.secondaryDisplayAttributeName(),
                 modelAttributes.resolved(), modelAttributes.unresolved(),
                 reviewRequired ? BindingContractStatus.REVIEW_REQUIRED : BindingContractStatus.RESOLVED,
                 issues, analysis.sourceRevision(), Instant.now());
@@ -248,10 +274,13 @@ public class BindingContractAssembler {
     /**
      * WARNING 검증(DISPLAY_FIELD_WITHOUT_VO_FIELD)과 함께, Composer가 LIST th:each/DETAIL 표시에
      * 쓸 {@code displayFieldNames}(JSP 등장 순서)와 {@code primaryDisplayAttributeName}(LIST는
-     * forEach items 속성, DETAIL은 가장 많이 등장한 root)을 계산한다.
+     * forEach items 속성, DETAIL은 가장 많이 등장한 root)을 계산한다. root가 정확히 2개고 하나가
+     * loop(다른 하나는 non-loop)면 {@link #resolvePrimaryWithSecondaryRoot}로 위임한다(클래스
+     * Javadoc의 WP6 3차 pass 설명 참고).
      */
     private DisplayFieldResolution resolveDisplayFields(
-            JspEvidence jsp, VoEvidence vo, ControllerEvidence controller, List<GenerationIssue> issues) {
+            JspEvidence jsp, VoEvidence vo, ControllerEvidence controller, VoEvidence secondaryVo,
+            List<GenerationIssue> issues) {
         Set<String> loopVariables = new LinkedHashSet<>();
         Map<String, String> loopVariableToItemsAttribute = new LinkedHashMap<>();
         jsp.forEachBindings().forEach(binding -> {
@@ -262,50 +291,124 @@ public class BindingContractAssembler {
         Set<String> controllerModelAttributes = new LinkedHashSet<>();
         controller.methods().forEach(method -> controllerModelAttributes.addAll(method.modelAttributesAdded()));
 
-        List<String> fieldNames = new ArrayList<>();
-        Map<String, Integer> rootFrequency = new LinkedHashMap<>();
-        String itemsAttributeFromLoop = null;
-
+        Map<String, List<JspDisplayFieldEvidence>> displaysByRoot = new LinkedHashMap<>();
         for (JspDisplayFieldEvidence display : jsp.displayFields()) {
             String root = display.rootAttributeName();
             boolean candidateVoRoot = loopVariables.contains(root)
                     || (controllerModelAttributes.contains(root) && !NON_VO_MODEL_ATTRIBUTE_NAMES.contains(root));
-            if (!candidateVoRoot) {
-                continue;
-            }
-            rootFrequency.merge(root, 1, Integer::sum);
-            if (itemsAttributeFromLoop == null && loopVariableToItemsAttribute.containsKey(root)) {
-                itemsAttributeFromLoop = loopVariableToItemsAttribute.get(root);
-            }
-            if (vo.field(display.fieldName()).isEmpty()) {
-                issues.add(issueFactory.warning(
-                        "DISPLAY_FIELD_WITHOUT_VO_FIELD", STAGE,
-                        "표시 필드 '" + root + "." + display.fieldName() + "'에 대응하는 VO 필드가 없습니다.",
-                        display.sourceLocation(), null));
-                continue;
-            }
-            if (!fieldNames.contains(display.fieldName())) {
-                fieldNames.add(display.fieldName());
+            if (candidateVoRoot) {
+                displaysByRoot.computeIfAbsent(root, key -> new ArrayList<>()).add(display);
             }
         }
 
-        if (rootFrequency.size() > 1) {
+        if (displaysByRoot.size() == 2) {
+            List<String> roots = new ArrayList<>(displaysByRoot.keySet());
+            String loopRoot = roots.stream().filter(loopVariables::contains).findFirst().orElse(null);
+            String nonLoopRoot = roots.stream().filter(root -> !loopVariables.contains(root)).findFirst().orElse(null);
+            if (loopRoot != null && nonLoopRoot != null) {
+                String secondaryItemsAttribute = loopVariableToItemsAttribute.getOrDefault(loopRoot, loopRoot);
+                return resolvePrimaryWithSecondaryRoot(
+                        nonLoopRoot, displaysByRoot.get(nonLoopRoot), vo,
+                        loopRoot, secondaryItemsAttribute, displaysByRoot.get(loopRoot), secondaryVo, issues);
+            }
+        }
+
+        return resolveWithoutSecondaryRoot(displaysByRoot, loopVariableToItemsAttribute, vo, issues);
+    }
+
+    /** 기존(WP6 1차 pass) 판정 그대로: 단일 root는 성공, 이 패턴에 해당하지 않는 다중 root는 여전히 모호함으로 막는다. */
+    private DisplayFieldResolution resolveWithoutSecondaryRoot(
+            Map<String, List<JspDisplayFieldEvidence>> displaysByRoot,
+            Map<String, String> loopVariableToItemsAttribute, VoEvidence vo, List<GenerationIssue> issues) {
+        List<String> fieldNames = new ArrayList<>();
+        String itemsAttributeFromLoop = null;
+        for (var entry : displaysByRoot.entrySet()) {
+            String root = entry.getKey();
+            if (itemsAttributeFromLoop == null && loopVariableToItemsAttribute.containsKey(root)) {
+                itemsAttributeFromLoop = loopVariableToItemsAttribute.get(root);
+            }
+            for (JspDisplayFieldEvidence display : entry.getValue()) {
+                if (vo.field(display.fieldName()).isEmpty()) {
+                    issues.add(issueFactory.warning(
+                            "DISPLAY_FIELD_WITHOUT_VO_FIELD", STAGE,
+                            "표시 필드 '" + root + "." + display.fieldName() + "'에 대응하는 VO 필드가 없습니다.",
+                            display.sourceLocation(), null));
+                    continue;
+                }
+                if (!fieldNames.contains(display.fieldName())) {
+                    fieldNames.add(display.fieldName());
+                }
+            }
+        }
+
+        if (displaysByRoot.size() > 1) {
             issues.add(issueFactory.warning(
                     "MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS", STAGE,
-                    "표시 대상 root가 여러 개(" + rootFrequency.keySet()
+                    "표시 대상 root가 여러 개(" + displaysByRoot.keySet()
                             + ") 발견되어 primaryDisplayAttributeName 선택이 모호합니다. "
-                            + "예: 게시판 상세의 본문(post)과 답글 목록(reply)이 한 화면에 같이 있는 경우.",
+                            + "예: 표시 대상 root가 3개 이상이거나, 모두 loop 목록이거나 모두 단일 객체인 경우.",
                     null, "화면을 분리하거나 승인된 ScreenSpecification으로 표시 대상을 명시하세요."));
         }
 
         String primaryDisplayAttributeName = itemsAttributeFromLoop != null
                 ? itemsAttributeFromLoop
-                : rootFrequency.entrySet().stream()
-                        .max(Map.Entry.comparingByValue())
+                : displaysByRoot.entrySet().stream()
+                        .max(Comparator.comparingInt(entry -> entry.getValue().size()))
                         .map(Map.Entry::getKey)
                         .orElse(null);
 
-        return new DisplayFieldResolution(List.copyOf(fieldNames), primaryDisplayAttributeName);
+        return new DisplayFieldResolution(List.copyOf(fieldNames), primaryDisplayAttributeName, List.of(), null);
+    }
+
+    /**
+     * 정확히 2개의 root(주 root=non-loop 단일 객체, 부 root=loop 목록)를 다룬다. 부 root의 필드는
+     * {@code secondaryVo}가 주어지고 그 필드가 전부 거기 존재할 때만 검증된 것으로 보고 계약에
+     * 채운다 — 그렇지 않으면 {@code SECONDARY_ROOT_FIELDS_UNVERIFIED}로 REVIEW_REQUIRED가 된다.
+     */
+    private DisplayFieldResolution resolvePrimaryWithSecondaryRoot(
+            String primaryRoot, List<JspDisplayFieldEvidence> primaryDisplays, VoEvidence vo,
+            String secondaryRoot, String secondaryItemsAttribute, List<JspDisplayFieldEvidence> secondaryDisplays,
+            VoEvidence secondaryVo, List<GenerationIssue> issues) {
+        List<String> primaryFieldNames = new ArrayList<>();
+        for (JspDisplayFieldEvidence display : primaryDisplays) {
+            if (vo.field(display.fieldName()).isEmpty()) {
+                issues.add(issueFactory.warning(
+                        "DISPLAY_FIELD_WITHOUT_VO_FIELD", STAGE,
+                        "표시 필드 '" + primaryRoot + "." + display.fieldName() + "'에 대응하는 VO 필드가 없습니다.",
+                        display.sourceLocation(), null));
+                continue;
+            }
+            if (!primaryFieldNames.contains(display.fieldName())) {
+                primaryFieldNames.add(display.fieldName());
+            }
+        }
+
+        List<String> secondaryFieldNames = new ArrayList<>();
+        for (JspDisplayFieldEvidence display : secondaryDisplays) {
+            if (!secondaryFieldNames.contains(display.fieldName())) {
+                secondaryFieldNames.add(display.fieldName());
+            }
+        }
+
+        boolean secondaryVerified = secondaryVo != null
+                && secondaryFieldNames.stream().allMatch(name -> secondaryVo.field(name).isPresent());
+
+        if (!secondaryVerified) {
+            String reason = secondaryVo == null
+                    ? "검증할 VO가 제공되지 않았습니다"
+                    : "제공된 secondary VO('" + secondaryVo.voPath() + "')에 없는 필드가 있습니다";
+            issues.add(issueFactory.warning(
+                    "SECONDARY_ROOT_FIELDS_UNVERIFIED", STAGE,
+                    "표시 대상 root가 2개(" + primaryRoot + ", " + secondaryRoot + ") 발견됐습니다. 두 번째 root('"
+                            + secondaryRoot + "')는 " + reason + ". "
+                            + "예: 게시판 상세의 본문(" + primaryRoot + ")과 첨부파일 목록(" + secondaryRoot + ").",
+                    null, "secondary VO를 함께 전달하거나 승인된 ScreenSpecification으로 표시 대상을 명시하세요."));
+            return new DisplayFieldResolution(List.copyOf(primaryFieldNames), primaryRoot, List.of(), null);
+        }
+
+        return new DisplayFieldResolution(
+                List.copyOf(primaryFieldNames), primaryRoot,
+                List.copyOf(secondaryFieldNames), secondaryItemsAttribute);
     }
 
     private ModelAttributeResolution resolveModelAttributes(
@@ -358,6 +461,8 @@ public class BindingContractAssembler {
     private record ModelAttributeResolution(List<String> resolved, List<String> unresolved) {
     }
 
-    private record DisplayFieldResolution(List<String> fieldNames, String primaryDisplayAttributeName) {
+    private record DisplayFieldResolution(
+            List<String> fieldNames, String primaryDisplayAttributeName,
+            List<String> secondaryFieldNames, String secondaryDisplayAttributeName) {
     }
 }

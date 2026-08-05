@@ -171,6 +171,10 @@ public class BindingComposer {
         model.put("displayFields", resolveDisplayFieldBindings(contract));
         model.put("formFields", contract.fields());
         model.put("primaryDisplayAttributeName", contract.primaryDisplayAttributeName());
+        // WP6 3차 pass: 부 root(예: 첨부파일 목록, master-detail 하위 표)는 주 root와 다른 VO에서
+        // 검증되므로 ThymeleafFieldBinding(주 VO 기준 provenance)이 아니라 필드명 문자열 그대로 쓴다.
+        model.put("secondaryDisplayFields", contract.secondaryDisplayFieldNames());
+        model.put("secondaryDisplayAttributeName", contract.secondaryDisplayAttributeName());
         model.put("route", contract.route());
         model.put("layoutDensity", resolveLayoutDensity(approvedScreenSpecification).name());
         model.put("formColumnLayout", resolveFormColumnLayout(approvedScreenSpecification).name());

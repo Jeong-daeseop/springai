@@ -24,6 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BindingContractAssemblerTest {
 
     private static final Path BASELINE = Path.of("src/test/resources/generation/baseline/crud-jsp");
+    private static final Path MASTER_DETAIL_BASELINE =
+            Path.of("src/test/resources/generation/baseline/master-detail-jsp");
 
     private final JspSourceReader jspReader = new JspSourceReader();
     private final ControllerSourceReader controllerReader = new ControllerSourceReader();
@@ -88,6 +90,68 @@ class BindingContractAssemblerTest {
         assertThat(contract.primaryDisplayAttributeName()).isEqualTo("result");
         assertThat(contract.displayFieldNames()).containsExactly(
                 "emplyrId", "emplyrNm", "emailAdres", "ofcpsNm", "frstRegistPnttm", "lastUpdtPnttm");
+    }
+
+    @Test
+    void masterDetailScreenResolvesPrimaryAndSecondaryDisplayFieldsWhenSecondaryVoProvided() {
+        LegacyScreenAnalysis analysis = analysis(
+                LegacyScreenRole.DETAIL,
+                "<%@ taglib prefix=\"c\" uri=\"http://java.sun.com/jsp/jstl/core\"%>\n"
+                        + "<div>${sampleVO.name}</div>\n"
+                        + "<c:forEach items=\"${replyList}\" var=\"reply\">\n"
+                        + "    <div>${reply.content}</div>\n"
+                        + "</c:forEach>\n",
+                controller(),
+                vo("public class SampleVO {\n"
+                        + "    private String name;\n"
+                        + "    public String getName() { return name; }\n"
+                        + "    public void setName(String name) { this.name = name; }\n"
+                        + "}\n"));
+        var secondaryVo = voReader.read("ReplyVO.java", vo("public class ReplyVO {\n"
+                + "    private String content;\n"
+                + "    public String getContent() { return content; }\n"
+                + "    public void setContent(String content) { this.content = content; }\n"
+                + "}\n"));
+
+        ThymeleafGenerationStageResult<ThymeleafBindingContract> result = assembler.assemble(analysis, secondaryVo);
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        ThymeleafBindingContract contract = result.value();
+        assertThat(contract.status()).isEqualTo(BindingContractStatus.RESOLVED);
+        assertThat(contract.primaryDisplayAttributeName()).isEqualTo("sampleVO");
+        assertThat(contract.displayFieldNames()).containsExactly("name");
+        assertThat(contract.secondaryDisplayAttributeName()).isEqualTo("replyList");
+        assertThat(contract.secondaryDisplayFieldNames()).containsExactly("content");
+        assertThat(contract.issues()).noneMatch(issue -> issue.code().equals("SECONDARY_ROOT_FIELDS_UNVERIFIED"));
+    }
+
+    @Test
+    void boardStyleDetailScreenWithoutSecondaryVoStaysReviewRequiredWithSpecificIssue() {
+        LegacyScreenAnalysis analysis = analysis(
+                LegacyScreenRole.DETAIL,
+                "<%@ taglib prefix=\"c\" uri=\"http://java.sun.com/jsp/jstl/core\"%>\n"
+                        + "<div>${sampleVO.name}</div>\n"
+                        + "<c:forEach items=\"${fileList}\" var=\"file\">\n"
+                        + "    <div>${file.originalFileName}</div>\n"
+                        + "</c:forEach>\n",
+                controller(),
+                vo("public class SampleVO {\n"
+                        + "    private String name;\n"
+                        + "    public String getName() { return name; }\n"
+                        + "    public void setName(String name) { this.name = name; }\n"
+                        + "}\n"));
+
+        ThymeleafGenerationStageResult<ThymeleafBindingContract> result = assembler.assemble(analysis);
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        ThymeleafBindingContract contract = result.value();
+        assertThat(contract.status()).isEqualTo(BindingContractStatus.REVIEW_REQUIRED);
+        assertThat(contract.primaryDisplayAttributeName()).isEqualTo("sampleVO");
+        assertThat(contract.displayFieldNames()).containsExactly("name");
+        assertThat(contract.secondaryDisplayAttributeName()).isNull();
+        assertThat(contract.secondaryDisplayFieldNames()).isEmpty();
+        assertThat(contract.issues()).anyMatch(issue -> issue.code().equals("SECONDARY_ROOT_FIELDS_UNVERIFIED"));
+        assertThat(contract.issues()).noneMatch(issue -> issue.code().equals("MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS"));
     }
 
     @Test
@@ -207,7 +271,61 @@ class BindingContractAssemblerTest {
 
         assertThat(result.successful()).isTrue();
         assertThat(result.value().status()).isEqualTo(BindingContractStatus.REVIEW_REQUIRED);
-        assertThat(result.issues()).anyMatch(issue -> issue.code().equals("MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS"));
+        // WP6 3차 pass(2026-08-05): 이 모양(non-loop 주 root + loop 부 root)은 더 이상 "모호"하지
+        // 않다 — 어느 쪽이 주/부 root인지는 명확하고, 관건은 부 root 필드 검증 여부뿐이라 더 구체적인
+        // SECONDARY_ROOT_FIELDS_UNVERIFIED로 판정이 바뀌었다(REVIEW_REQUIRED로 막는 결론은 동일).
+        assertThat(result.issues()).anyMatch(issue -> issue.code().equals("SECONDARY_ROOT_FIELDS_UNVERIFIED"));
+    }
+
+    @Test
+    void masterDetailListScreenResolvesThroughExistingPipelineUnchanged() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                MASTER_DETAIL_BASELINE, "EgovBbsMasterList.jsp", "EgovBbsMasterController.java",
+                "BbsMasterVO.java", LegacyScreenRole.LIST);
+
+        assertThat(contract.status()).isEqualTo(BindingContractStatus.RESOLVED);
+        assertThat(contract.route().route()).isEqualTo("/bbs/bbsMasterList.do");
+        assertThat(contract.primaryDisplayAttributeName()).isEqualTo("resultList");
+        assertThat(contract.secondaryDisplayAttributeName()).isNull();
+    }
+
+    @Test
+    void masterDetailGoldenFixtureDetailScreenResolvesWithSecondaryVo() throws IOException {
+        var jspEvidence = jspReader.read("EgovBbsMasterDetail.jsp",
+                Files.readString(MASTER_DETAIL_BASELINE.resolve("EgovBbsMasterDetail.jsp")));
+        var controllerEvidence = controllerReader.read("EgovBbsMasterController.java",
+                Files.readString(MASTER_DETAIL_BASELINE.resolve("EgovBbsMasterController.java")));
+        var voEvidence = voReader.read("BbsMasterVO.java",
+                Files.readString(MASTER_DETAIL_BASELINE.resolve("BbsMasterVO.java")));
+        var secondaryVoEvidence = voReader.read("BbsuseVO.java",
+                Files.readString(MASTER_DETAIL_BASELINE.resolve("BbsuseVO.java")));
+        LegacyScreenAnalysis analysis = new LegacyScreenAnalysis(
+                "bbs-master-detail", LegacyScreenRole.DETAIL, jspEvidence, controllerEvidence, voEvidence,
+                new SourceRevisionRef("bbs-project", "rev-1", Instant.now()), java.util.List.of(), Instant.now());
+
+        ThymeleafGenerationStageResult<ThymeleafBindingContract> result =
+                assembler.assemble(analysis, secondaryVoEvidence);
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        ThymeleafBindingContract contract = result.value();
+        assertThat(contract.status()).isEqualTo(BindingContractStatus.RESOLVED);
+        assertThat(contract.route().route()).isEqualTo("/bbs/bbsMasterDetail.do");
+        assertThat(contract.primaryDisplayAttributeName()).isEqualTo("result");
+        assertThat(contract.displayFieldNames()).containsExactly("bbsId", "bbsNm", "bbsIntrcn");
+        assertThat(contract.secondaryDisplayAttributeName()).isEqualTo("detailList");
+        assertThat(contract.secondaryDisplayFieldNames())
+                .containsExactly("bbsId", "useAt", "sendTargetClassify");
+    }
+
+    @Test
+    void masterDetailFormScreenResolvesThroughExistingPipelineUnchanged() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                MASTER_DETAIL_BASELINE, "EgovBbsMasterRegist.jsp", "EgovBbsMasterController.java",
+                "BbsMasterVO.java", LegacyScreenRole.FORM);
+
+        assertThat(contract.status()).isEqualTo(BindingContractStatus.RESOLVED);
+        assertThat(contract.route().route()).isEqualTo("/bbs/bbsMasterRegist.do");
+        assertThat(contract.route().httpMethod()).isEqualTo("POST");
     }
 
     @Test
@@ -324,10 +442,16 @@ class BindingContractAssemblerTest {
 
     private ThymeleafBindingContract assembleFixture(
             String jspFile, String controllerFile, String voFile, LegacyScreenRole role) throws IOException {
-        var jspEvidence = jspReader.read(jspFile, Files.readString(BASELINE.resolve(jspFile)));
+        return assembleFixture(BASELINE, jspFile, controllerFile, voFile, role);
+    }
+
+    private ThymeleafBindingContract assembleFixture(
+            Path baseline, String jspFile, String controllerFile, String voFile, LegacyScreenRole role)
+            throws IOException {
+        var jspEvidence = jspReader.read(jspFile, Files.readString(baseline.resolve(jspFile)));
         var controllerEvidence = controllerReader.read(
-                controllerFile, Files.readString(BASELINE.resolve(controllerFile)));
-        var voEvidence = voReader.read(voFile, Files.readString(BASELINE.resolve(voFile)));
+                controllerFile, Files.readString(baseline.resolve(controllerFile)));
+        var voEvidence = voReader.read(voFile, Files.readString(baseline.resolve(voFile)));
         LegacyScreenAnalysis analysis = new LegacyScreenAnalysis(
                 "emp-" + role.name().toLowerCase(Locale.ROOT), role,
                 jspEvidence, controllerEvidence, voEvidence,

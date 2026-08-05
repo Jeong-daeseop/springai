@@ -10,6 +10,7 @@ import com.krdevops.springai.model.thymeleaf.BindingContractStatus;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenAnalysis;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenRole;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingContract;
+import com.krdevops.springai.model.thymeleaf.ThymeleafFieldBinding;
 import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult;
 import com.krdevops.springai.model.thymeleaf.ThymeleafRouteBinding;
 import com.krdevops.springai.service.contract.GenerationIssueFactory;
@@ -240,6 +241,37 @@ class BindingComposerTest {
                 contract.displayFieldNames(), contract.primaryDisplayAttributeName(),
                 contract.modelAttributesResolved(), contract.modelAttributesUnresolved(),
                 contract.status(), contract.issues(), contract.sourceRevision(), contract.createdAt());
+    }
+
+    @Test
+    void detailContractRendersSecondaryListWhenSecondaryRootResolved() {
+        ThymeleafRouteBinding route = new ThymeleafRouteBinding(
+                "/bbsMaster/bbsMasterDetail.do", "GET", "selectBbsMaster", null, null, false, false, List.of());
+        ThymeleafFieldBinding bbsIdField = new ThymeleafFieldBinding(
+                "bbsId", "String", true, false, List.of(), "c:out", "VO_ONLY", 0.6);
+        ThymeleafBindingContract contract = new ThymeleafBindingContract(
+                "bbs-master-detail", LegacyScreenRole.DETAIL, route, List.of(bbsIdField),
+                List.of("bbsId"), "result", List.of("bbsId", "useAt"), "detailList",
+                List.of(), List.of(), BindingContractStatus.RESOLVED, List.of(), null, Instant.now());
+
+        ThymeleafGenerationStageResult<String> result = composer.compose(contract, "BBSMASTER 상세", "layout/default");
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        String html = result.value();
+        assertThat(html).contains("th:each=\"item : ${detailList}\"");
+        assertThat(html).contains("th:text=\"${item.bbsId}\"");
+        assertThat(html).contains("th:text=\"${item.useAt}\"");
+    }
+
+    @Test
+    void detailContractOmitsSecondaryListWhenSecondaryRootAbsent() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerDetail.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.DETAIL);
+
+        ThymeleafGenerationStageResult<String> result = composer.compose(contract, "직원 상세", "layout/default");
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        assertThat(result.value()).doesNotContain("th:each=\"item :");
     }
 
     @Test

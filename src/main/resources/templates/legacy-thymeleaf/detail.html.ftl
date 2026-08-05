@@ -30,6 +30,31 @@
         </table>
     </div>
 
+<#if secondaryDisplayAttributeName??>
+    <div class="krds-table-wrap">
+        <table class="tbl data">
+            <caption>${pageTitle} 관련 목록</caption>
+            <thead>
+            <tr>
+<#list secondaryDisplayFields as f>
+                <th scope="col">${f}</th>
+</#list>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="item : ${'$'}{${secondaryDisplayAttributeName}}">
+<#list secondaryDisplayFields as f>
+                <td th:text="${'$'}{item.${f}}"></td>
+</#list>
+            </tr>
+            <tr th:if="${'$'}{#lists.isEmpty(${secondaryDisplayAttributeName})}">
+                <td colspan="${secondaryDisplayFields?size}" class="egov-empty-cell">관련 항목이 없습니다.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</#if>
+
     <div class="egov-form-actions">
         <a th:href="@{${route.route()}}" class="krds-btn secondary medium egov-btn">목록</a>
     </div>
