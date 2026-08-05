@@ -11,11 +11,13 @@ import com.krdevops.springai.model.crud.ScreenSubsetMode;
 import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.LayoutDensity;
+import com.krdevops.springai.model.write.ProjectChangeSet;
 import com.krdevops.springai.service.generation.crud.CrudPipelineFixture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -34,6 +36,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
@@ -48,6 +51,7 @@ class CrudOrchestrationServiceTest {
     @Mock CrudModelFactory         crudModelFactory;
     @Mock CrudTemplateRenderer     crudTemplateRenderer;
     @Mock CodeService              codeService;
+    @Mock com.krdevops.springai.service.write.ApprovedProjectWritePort writePort;
     @Mock CodeValidatorService     codeValidatorService;
     @Mock GenerationHistoryService generationHistoryService;
     @Mock ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
@@ -67,10 +71,11 @@ class CrudOrchestrationServiceTest {
         sut = new CrudOrchestrationService(CrudPipelineFixture.applicationService(
                 crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
                 crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector,
-                crudTemplateRenderer, codeService, krdsStylesConfigurer, warEntryPointConfigurer,
+                crudTemplateRenderer, codeService, writePort, krdsStylesConfigurer, warEntryPointConfigurer,
                 thymeleafRuntimeConfigurer, myBatisRuntimeConfigurer, codeValidatorService,
                 generatedCodeContractAuditor, generationHistoryService));
 
+        lenient().when(writePort.apply(any())).thenAnswer(CrudPipelineFixture.alwaysSucceeds());
         lenient().when(crudProgramMetadataService.resolve(any(), any(), any(), any()))
                 .thenReturn(CrudProgramMetadata.fallback("fallback"));
         lenient().when(routeCollisionDetector.findConflicts(any(), any(), any()))
@@ -291,19 +296,27 @@ class CrudOrchestrationServiceTest {
         given(crudModelFactory.fromSchema(any(), any(), any(), any(), any(), any(), any(CrudViewType.class), any(ScreenSubsetMode.class), any())).willReturn(fakeModel());
         given(crudTemplateRenderer.renderByLayerKey(any(), any())).willReturn("// code");
         doReturn("// code").when(crudTemplateRenderer).renderByLayerKey(any(), any(), any(), any(), any(), any());
-        given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 완료: ...");
         given(codeValidatorService.validateDirectory(any())).willReturn("OK");
         given(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).willReturn("OK");
 
         sut.orchestrate("com", "LETTNEMPLYRINFO", "Employer",
                 "egovframework.let.emp", "/tmp/egov-test", "5.0");
 
-        verify(codeService, atLeastOnce()).saveGeneratedCode(
-                "/tmp/egov-test/src/main/java/egovframework/let/emp/service/EmployerVO.java", "// code");
-        verify(codeService, atLeastOnce()).saveGeneratedCode(
-                "/tmp/egov-test/src/main/resources/egovframework/mapper/employer/EmployerMapper.xml", "// code");
-        verify(codeService, atLeastOnce()).saveGeneratedCode(
-                "/tmp/egov-test/src/main/webapp/WEB-INF/jsp/employer/EgovEmployerList.jsp", "// code");
+        ArgumentCaptor<ProjectChangeSet> captor = ArgumentCaptor.forClass(ProjectChangeSet.class);
+        verify(writePort).apply(captor.capture());
+        List<ProjectChangeSet.FileChange> files = captor.getValue().generatedFiles();
+        assertThat(files).anySatisfy(f -> {
+            assertThat(f.path()).isEqualTo("src/main/java/egovframework/let/emp/service/EmployerVO.java");
+            assertThat(f.content()).isEqualTo("// code");
+        });
+        assertThat(files).anySatisfy(f -> {
+            assertThat(f.path()).isEqualTo("src/main/resources/egovframework/mapper/employer/EmployerMapper.xml");
+            assertThat(f.content()).isEqualTo("// code");
+        });
+        assertThat(files).anySatisfy(f -> {
+            assertThat(f.path()).isEqualTo("src/main/webapp/WEB-INF/jsp/employer/EgovEmployerList.jsp");
+            assertThat(f.content()).isEqualTo("// code");
+        });
     }
 
     @Test
@@ -311,7 +324,6 @@ class CrudOrchestrationServiceTest {
         given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
         given(crudModelFactory.fromSchema(any(), any(), any(), any(), any(), any(), any(CrudViewType.class), any(ScreenSubsetMode.class), any())).willReturn(fakeModel());
         given(crudTemplateRenderer.renderByLayerKey(any(), any())).willReturn("// code");
-        given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 완료: ...");
         given(codeValidatorService.validateDirectory(any())).willReturn("OK");
         given(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).willReturn("OK");
 
@@ -334,12 +346,14 @@ class CrudOrchestrationServiceTest {
                 .doesNotContain("EgovEmployerList.jsp");
         verify(crudTemplateRenderer, atLeastOnce()).renderByLayerKey(
                 eq("thymeleafList"), any(), any(), any(), any(), any());
-        verify(codeService, atLeastOnce()).saveGeneratedCode(
-                eq("/tmp/egov-test/src/main/resources/templates/employer/EgovEmployerList.html"), any());
-        verify(codeService, atLeastOnce()).saveGeneratedCode(
-                eq("/tmp/egov-test/src/main/resources/templates/layout/default.html"), any());
-        verify(codeService, atLeastOnce()).saveGeneratedCode(
-                eq("/tmp/egov-test/src/main/resources/templates/layout/gnb.html"), any());
+        ArgumentCaptor<ProjectChangeSet> captor = ArgumentCaptor.forClass(ProjectChangeSet.class);
+        verify(writePort).apply(captor.capture());
+        List<String> paths = captor.getValue().generatedFiles().stream()
+                .map(ProjectChangeSet.FileChange::path).toList();
+        assertThat(paths)
+                .contains("src/main/resources/templates/employer/EgovEmployerList.html")
+                .contains("src/main/resources/templates/layout/default.html")
+                .contains("src/main/resources/templates/layout/gnb.html");
         verify(crudModelFactory).fromSchema(any(), any(), any(), any(), any(), any(),
                 eq(CrudViewType.THYMELEAF), eq(ScreenSubsetMode.LIST_AND_DETAIL), isNull());
     }
@@ -471,7 +485,7 @@ class CrudOrchestrationServiceTest {
         given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
         given(crudModelFactory.fromSchema(any(), any(), any(), any(), any(), any(), any(CrudViewType.class), any(ScreenSubsetMode.class), any())).willReturn(fakeModel());
         given(crudTemplateRenderer.renderByLayerKey(any(), any())).willReturn("// code");
-        given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 실패: 권한 없음");
+        doAnswer(CrudPipelineFixture.failingPaths(path -> true, "권한 없음")).when(writePort).apply(any());
         given(codeValidatorService.validateDirectory(any())).willReturn("검증 실패");
         given(generationHistoryService.saveHistory(any(), any(), any(), any(), any())).willReturn("OK");
 

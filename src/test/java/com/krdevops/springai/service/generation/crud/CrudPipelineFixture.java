@@ -24,8 +24,16 @@ import com.krdevops.springai.service.generation.pipeline.processor.ControllerSca
 import com.krdevops.springai.service.generation.pipeline.processor.DefaultGenerationHistoryRecorder;
 import com.krdevops.springai.service.generation.pipeline.processor.MyBatisRuntimeProcessor;
 import com.krdevops.springai.service.generation.pipeline.processor.ThymeleafRuntimeProcessor;
+import com.krdevops.springai.model.write.ProjectChangeSet;
+import com.krdevops.springai.service.write.ApplyOutcome;
+import com.krdevops.springai.service.write.ApprovedProjectWritePort;
+import org.mockito.stubbing.Answer;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * Spring 컨텍스트 없이 CRUD 생성 Pipeline 전체를 실제 구현체로 조립하는 테스트 헬퍼.
@@ -33,6 +41,11 @@ import java.util.List;
  * <p>Bean 등록 순서에 의존하지 않는다는 점을 드러내기 위해 Verifier는 일부러 실행 순서와 반대로
  * (Contract → Directory) 넘긴다 — {@link GenerationVerifierRunner}가 stage/order로 재정렬해
  * Directory 검증이 먼저 실행되어야 한다.
+ *
+ * <p>WP7 2차 pass: {@code CodeServiceGenerationExecutor}가 실제 파일 저장을
+ * {@link ApprovedProjectWritePort}에 위임하게 되면서, 이 fixture를 쓰는 테스트는 이제
+ * {@code codeService.saveGeneratedCode(...)}가 아니라 {@code writePort.apply(...)}를 mock해야
+ * 한다 — {@link #alwaysSucceeds()}/{@link #failingPaths}를 사용하라.
  */
 public final class CrudPipelineFixture {
 
@@ -48,6 +61,7 @@ public final class CrudPipelineFixture {
             BoardRouteCollisionDetector routeCollisionDetector,
             CrudTemplateRenderer crudTemplateRenderer,
             CodeService codeService,
+            ApprovedProjectWritePort writePort,
             KrdsStylesConfigurer krdsStylesConfigurer,
             WarEntryPointConfigurer warEntryPointConfigurer,
             ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer,
@@ -61,7 +75,7 @@ public final class CrudPipelineFixture {
                         generationDesignContextService, crudModelFactory, thymeleafLayoutValidator,
                         routeCollisionDetector),
                 new CrudGenerationRenderer(crudTemplateRenderer),
-                new CodeServiceGenerationExecutor(codeService),
+                new CodeServiceGenerationExecutor(codeService, writePort),
                 new GenerationProcessorRunner(List.of(
                         new CrudTableDensityCssProcessor(krdsStylesConfigurer),
                         new CrudFormColumnCssProcessor(krdsStylesConfigurer),
@@ -74,5 +88,30 @@ public final class CrudPipelineFixture {
                         new CodeDirectoryVerifier(codeValidatorService))),
                 new DefaultGenerationHistoryRecorder(generationHistoryService),
                 new CrudGenerationResultAssembler());
+    }
+
+    /** mock된 {@link ApprovedProjectWritePort#apply}가 항상 전체 성공한 것처럼 응답하게 한다. */
+    public static Answer<ApplyOutcome> alwaysSucceeds() {
+        return failingPaths(path -> false, null);
+    }
+
+    /**
+     * mock된 {@link ApprovedProjectWritePort#apply}가 {@code shouldFail}에 걸리는 상대경로만
+     * {@code failureMessage}로 실패 처리하고 나머지는 성공한 것처럼 응답하게 한다.
+     */
+    public static Answer<ApplyOutcome> failingPaths(Predicate<String> shouldFail, String failureMessage) {
+        return invocation -> {
+            ProjectChangeSet changeSet = invocation.getArgument(0);
+            List<String> applied = new ArrayList<>();
+            Map<String, String> failures = new LinkedHashMap<>();
+            for (ProjectChangeSet.FileChange change : changeSet.generatedFiles()) {
+                if (shouldFail.test(change.path())) {
+                    failures.put(change.path(), failureMessage);
+                } else {
+                    applied.add(change.path());
+                }
+            }
+            return failures.isEmpty() ? ApplyOutcome.applied(applied, null) : ApplyOutcome.partiallyApplied(applied, failures);
+        };
     }
 }

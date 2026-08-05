@@ -184,6 +184,45 @@ class FileSystemApprovedProjectWritePortTest {
     }
 
     @Test
+    void bestEffortCompatibilityCreatesProjectRootWhenMissing(@TempDir Path parent) {
+        Path freshRoot = parent.resolve("brand-new-project");
+
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                freshRoot.toString(), "rev-1",
+                List.of(new ProjectChangeSet.FileChange("EmployerVO.java", null, "class EmployerVO {}", null)),
+                List.of(), ProjectWritePolicy.BEST_EFFORT_COMPATIBILITY);
+
+        ApplyOutcome outcome = port.apply(changeSet);
+
+        assertThat(outcome.status()).isEqualTo(ApplyOutcome.Status.APPLIED);
+        assertThat(freshRoot.resolve("EmployerVO.java")).hasContent("class EmployerVO {}");
+    }
+
+    @Test
+    void bestEffortCompatibilityAppliesEachFileIndependentlyContinuingPastFailure(
+            @TempDir Path root) throws Exception {
+        Path good = root.resolve("a.html");
+        // "blocked"를 파일로 만들어 blocked/b.html의 부모 디렉터리 생성이 실패하게 한다 —
+        // ATOMIC_APPROVED의 rollback 테스트와 같은 기법이지만 여기서는 a.html이 롤백되지 않아야 한다.
+        Files.writeString(root.resolve("blocked"), "parent-is-a-file");
+
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                root.toString(), "rev-1",
+                List.of(
+                        new ProjectChangeSet.FileChange("a.html", null, "generated-a", null),
+                        new ProjectChangeSet.FileChange("blocked/b.html", null, "generated-b", null)),
+                List.of(), ProjectWritePolicy.BEST_EFFORT_COMPATIBILITY);
+
+        ApplyOutcome outcome = port.apply(changeSet);
+
+        assertThat(outcome.status()).isEqualTo(ApplyOutcome.Status.PARTIALLY_APPLIED);
+        assertThat(outcome.appliedPaths()).containsExactly("a.html");
+        assertThat(good).hasContent("generated-a");
+        assertThat(outcome.failureMessages()).containsOnlyKeys("blocked/b.html");
+        assertThat(outcome.failureMessages().get("blocked/b.html")).isNotBlank();
+    }
+
+    @Test
     void rejectsChangeSetPathEscapingProjectRootWithoutWritingAnything(@TempDir Path root) throws Exception {
         Path decoy = root.resolve("decoy.html");
         Files.writeString(decoy, "keep-me");

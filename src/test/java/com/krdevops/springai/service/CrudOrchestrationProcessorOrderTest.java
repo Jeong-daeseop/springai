@@ -62,6 +62,7 @@ class CrudOrchestrationProcessorOrderTest {
     @Mock CrudModelFactory crudModelFactory;
     @Mock CrudTemplateRenderer crudTemplateRenderer;
     @Mock CodeService codeService;
+    @Mock com.krdevops.springai.service.write.ApprovedProjectWritePort writePort;
     @Mock CodeValidatorService codeValidatorService;
     @Mock GenerationHistoryService generationHistoryService;
     @Mock ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
@@ -81,7 +82,7 @@ class CrudOrchestrationProcessorOrderTest {
         sut = new CrudOrchestrationService(CrudPipelineFixture.applicationService(
                 crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
                 crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector,
-                crudTemplateRenderer, codeService, krdsStylesConfigurer, warEntryPointConfigurer,
+                crudTemplateRenderer, codeService, writePort, krdsStylesConfigurer, warEntryPointConfigurer,
                 thymeleafRuntimeConfigurer, myBatisRuntimeConfigurer, codeValidatorService,
                 generatedCodeContractAuditor, generationHistoryService));
 
@@ -102,7 +103,7 @@ class CrudOrchestrationProcessorOrderTest {
                         KrdsStylesConfigurer.Status.PATCHED, "styles.css", "OK"));
         given(crudTemplateRenderer.renderByLayerKey(any(), any(), any(), any(), any(), any()))
                 .willReturn("// code");
-        given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 완료: ...");
+        given(writePort.apply(any())).willAnswer(CrudPipelineFixture.alwaysSucceeds());
         given(warEntryPointConfigurer.configure(any(), any()))
                 .willReturn(WarEntryPointConfigurer.ConfigurationResult.success("완료"));
         given(myBatisRuntimeConfigurer.ensureConfigured(any(), any()))
@@ -120,7 +121,7 @@ class CrudOrchestrationProcessorOrderTest {
                 "/tmp/egov-test", "5.0", "thymeleaf", "create", null, null);
 
         InOrder order = inOrder(
-                krdsStylesConfigurer, crudTemplateRenderer, codeService, warEntryPointConfigurer,
+                krdsStylesConfigurer, crudTemplateRenderer, writePort, warEntryPointConfigurer,
                 thymeleafRuntimeConfigurer, myBatisRuntimeConfigurer, codeValidatorService,
                 generatedCodeContractAuditor, generationHistoryService);
 
@@ -128,10 +129,11 @@ class CrudOrchestrationProcessorOrderTest {
         order.verify(krdsStylesConfigurer).ensureTableDensityStyles("/tmp/egov-test");
         // PRE_WRITE 110: Form Column CSS
         order.verify(krdsStylesConfigurer).ensureFormColumnLayoutStyles("/tmp/egov-test");
-        // WRITE: 레이어별 렌더링 + 저장 (최소 1회 이상 — 레이어 수만큼 반복)
+        // WRITE: 레이어별 렌더링 + 저장(모든 레이어를 한 ProjectChangeSet으로 묶어 1회 적용,
+        // WP7 2차 pass — ApprovedProjectWritePort로 전환)
         order.verify(crudTemplateRenderer, Mockito.atLeastOnce())
                 .renderByLayerKey(any(), any(), any(), any(), any(), any());
-        order.verify(codeService, Mockito.atLeastOnce()).saveGeneratedCode(any(), any());
+        order.verify(writePort).apply(any());
         // POST_WRITE 100: Entry Point(index.jsp 기본 진입점 갱신)
         order.verify(warEntryPointConfigurer).configure(any(), any());
         // POST_WRITE 200: Thymeleaf Runtime

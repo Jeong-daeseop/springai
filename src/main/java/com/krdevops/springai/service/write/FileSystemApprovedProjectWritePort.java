@@ -14,8 +14,10 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -39,7 +41,14 @@ public class FileSystemApprovedProjectWritePort implements ApprovedProjectWriteP
 
     @Override
     public ApplyOutcome apply(ProjectChangeSet changeSet) {
-        Path root = pathResolver.realDirectory(Path.of(changeSet.projectRootRef()));
+        Path requestedRoot = Path.of(changeSet.projectRootRef());
+        // BEST_EFFORT_COMPATIBILITY는 신규 프로젝트 최초 생성처럼 root가 아직 없는 경우를 지원해야
+        // 한다 — codeService.saveGeneratedCode가 지금까지 Files.createDirectories로 그래왔듯.
+        // ATOMIC_APPROVED(Thymeleaf)는 항상 기존 프로젝트를 다루므로 이 완화가 필요하지 않다.
+        if (changeSet.policy() == ProjectWritePolicy.BEST_EFFORT_COMPATIBILITY) {
+            createDirectoriesIfMissing(requestedRoot);
+        }
+        Path root = pathResolver.realDirectory(requestedRoot);
 
         // 경로 검증은 drift 검사보다 먼저 한다 — root 이탈은 승인된 변경으로도 정당화될 수 없는
         // 별도 위반이라 CONFLICT가 아니라 예외로 즉시 중단한다.
@@ -50,14 +59,58 @@ public class FileSystemApprovedProjectWritePort implements ApprovedProjectWriteP
             pathResolver.resolveTarget(root, deletion.path());
         }
 
-        if (changeSet.policy() == ProjectWritePolicy.ATOMIC_APPROVED) {
-            List<String> conflicts = detectConflicts(root, changeSet);
-            if (!conflicts.isEmpty()) {
-                return ApplyOutcome.conflict(conflicts);
-            }
+        if (changeSet.policy() == ProjectWritePolicy.BEST_EFFORT_COMPATIBILITY) {
+            return applyBestEffort(root, changeSet);
+        }
+
+        List<String> conflicts = detectConflicts(root, changeSet);
+        if (!conflicts.isEmpty()) {
+            return ApplyOutcome.conflict(conflicts);
         }
 
         return stageAndApply(root, changeSet);
+    }
+
+    /**
+     * {@link ProjectWritePolicy#BEST_EFFORT_COMPATIBILITY} 전용: drift 검사·staging·backup·rollback
+     * 없이 파일마다 독립적으로 쓴다. 승인·hash 검증 없이 즉시 쓰던 기존 Tool(예: {@code CodeService})과
+     * 동일한 보장 수준을 그대로 유지한다 — 하나 실패해도 이미 쓴 다른 파일은 되돌리지 않는다.
+     */
+    private ApplyOutcome applyBestEffort(Path root, ProjectChangeSet changeSet) {
+        List<String> appliedPaths = new ArrayList<>();
+        Map<String, String> failureMessages = new LinkedHashMap<>();
+        for (var change : changeSet.generatedFiles()) {
+            try {
+                Path target = pathResolver.resolveTarget(root, change.path());
+                Files.createDirectories(target.getParent());
+                Files.writeString(target, change.content(), StandardCharsets.UTF_8);
+                appliedPaths.add(change.path());
+            } catch (IOException exception) {
+                failureMessages.put(change.path(), exception.getMessage());
+            }
+        }
+        for (var deletion : changeSet.deletions()) {
+            try {
+                Files.deleteIfExists(pathResolver.resolveTarget(root, deletion.path()));
+                appliedPaths.add(deletion.path());
+            } catch (IOException exception) {
+                failureMessages.put(deletion.path(), exception.getMessage());
+            }
+        }
+        return failureMessages.isEmpty()
+                ? ApplyOutcome.applied(appliedPaths, null)
+                : ApplyOutcome.partiallyApplied(appliedPaths, failureMessages);
+    }
+
+    private void createDirectoriesIfMissing(Path root) {
+        if (Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
+            return;
+        }
+        try {
+            Files.createDirectories(root);
+        } catch (IOException exception) {
+            throw new IllegalStateException("PROJECT_ROOT_CREATE_FAILED: " + root, exception);
+        }
     }
 
     private List<String> detectConflicts(Path root, ProjectChangeSet changeSet) {

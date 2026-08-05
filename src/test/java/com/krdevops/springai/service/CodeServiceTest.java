@@ -9,6 +9,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CodeServiceTest {
 
@@ -125,6 +127,35 @@ class CodeServiceTest {
 
         assertThat(result).startsWith("파일 삭제 완료:");
         assertThat(target).doesNotExist();
+    }
+
+    @Test
+    void validateOutputRoot_underBasePath_doesNotThrow() {
+        Path basePath = tempDir.resolve("workspace").resolve("egov-generated");
+        CodeService service = new CodeService(egovProperties(basePath));
+
+        assertThatCode(() -> service.validateOutputRoot(basePath.resolve("emp").toString()))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void validateOutputRoot_underAllowedPath_doesNotThrow() {
+        Path basePath = tempDir.resolve("workspace").resolve("egov-generated");
+        Path allowedPath = tempDir.resolve("external").resolve("egov-boot-web");
+        CodeService service = new CodeService(egovProperties(basePath, allowedPath));
+
+        assertThatCode(() -> service.validateOutputRoot(allowedPath.toString()))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void validateOutputRoot_outsideAllowedLocations_throwsSecurityException() {
+        Path basePath = tempDir.resolve("workspace").resolve("egov-generated");
+        CodeService service = new CodeService(egovProperties(basePath));
+        Path outside = tempDir.resolve("outside");
+
+        assertThatThrownBy(() -> service.validateOutputRoot(outside.toString()))
+                .isInstanceOf(SecurityException.class);
     }
 
     @Test

@@ -84,19 +84,10 @@ public class CodeService {
         Path target = Paths.get(filePath);
         if (target.isAbsolute()) {
             target = target.normalize();
-            // 절대경로 allowlist: basePath, 그 부모(workspace root), 명시 allowedPaths 하위만 허용
-            // e.g., basePath=~/Desktop/egov-generated -> workspace=~/Desktop 까지 허용
-            Path basePath      = Paths.get(egovProperties.getOutput().getBasePath()).toAbsolutePath().normalize();
-            Path workspaceRoot = basePath.getParent();
-            boolean underBase      = target.startsWith(basePath);
-            boolean underWorkspace = workspaceRoot != null && target.startsWith(workspaceRoot);
-            boolean underAllowedPath = egovProperties.getOutput().getAllowedPaths().stream()
-                .map(path -> Paths.get(path).toAbsolutePath().normalize())
-                .anyMatch(target::startsWith);
-            if (!underBase && !underWorkspace && !underAllowedPath) {
-                log.warn("허용 범위 밖 절대경로 차단: {}", filePath);
-                throw new PathNotAllowedException(
-                    "파일 저장 실패: 허용 범위 밖 경로입니다 (egov.output.base-path, workspace 또는 allowed-paths 하위만 허용).");
+            try {
+                validateOutputRoot(target.toString());
+            } catch (SecurityException e) {
+                throw new PathNotAllowedException("파일 저장 실패: " + e.getMessage());
             }
             return target;
         }
@@ -108,6 +99,32 @@ public class CodeService {
             throw new PathNotAllowedException("파일 저장 실패: 허용 범위 밖 경로입니다.");
         }
         return target;
+    }
+
+    /**
+     * {@code outputPath}(파이프라인 생성 결과의 루트)가 허용된 위치(basePath, workspace root,
+     * allowedPaths) 아래인지 검증한다. {@code resolveAndValidateTarget}의 절대경로 검증과 동일한
+     * 규칙이며, {@code CodeServiceGenerationExecutor}가 {@code ApprovedProjectWritePort}로 파일을
+     * 쓰기 전에 이 메서드를 먼저 호출해 {@code saveGeneratedCode}가 해오던 것과 같은 보안 경계를
+     * 유지한다 — {@code SafePathResolver}는 주어진 root 안에서의 이탈만 막지, 그 root 자체가
+     * 허용된 위치인지는 모른다(ARCH-0704 project root registry 부재, WP7 1차 pass 메모 참고).
+     */
+    public void validateOutputRoot(String outputPath) {
+        // 절대경로 allowlist: basePath, 그 부모(workspace root), 명시 allowedPaths 하위만 허용
+        // e.g., basePath=~/Desktop/egov-generated -> workspace=~/Desktop 까지 허용
+        Path target = Paths.get(outputPath).toAbsolutePath().normalize();
+        Path basePath = Paths.get(egovProperties.getOutput().getBasePath()).toAbsolutePath().normalize();
+        Path workspaceRoot = basePath.getParent();
+        boolean underBase = target.startsWith(basePath);
+        boolean underWorkspace = workspaceRoot != null && target.startsWith(workspaceRoot);
+        boolean underAllowedPath = egovProperties.getOutput().getAllowedPaths().stream()
+                .map(path -> Paths.get(path).toAbsolutePath().normalize())
+                .anyMatch(target::startsWith);
+        if (!underBase && !underWorkspace && !underAllowedPath) {
+            log.warn("허용 범위 밖 절대경로 차단: {}", outputPath);
+            throw new SecurityException(
+                    "허용 범위 밖 경로입니다 (egov.output.base-path, workspace 또는 allowed-paths 하위만 허용).");
+        }
     }
 
     private static final class PathNotAllowedException extends Exception {

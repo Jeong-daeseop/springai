@@ -48,6 +48,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -65,6 +66,7 @@ class CrudGenerationApplicationServiceTest {
     @Mock CrudModelFactory crudModelFactory;
     @Mock CrudTemplateRenderer crudTemplateRenderer;
     @Mock CodeService codeService;
+    @Mock com.krdevops.springai.service.write.ApprovedProjectWritePort writePort;
     @Mock CodeValidatorService codeValidatorService;
     @Mock GenerationHistoryService generationHistoryService;
     @Mock ThymeleafRuntimeConfigurer thymeleafRuntimeConfigurer;
@@ -84,7 +86,7 @@ class CrudGenerationApplicationServiceTest {
         sut = CrudPipelineFixture.applicationService(
                 crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
                 crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector,
-                crudTemplateRenderer, codeService, krdsStylesConfigurer, warEntryPointConfigurer,
+                crudTemplateRenderer, codeService, writePort, krdsStylesConfigurer, warEntryPointConfigurer,
                 thymeleafRuntimeConfigurer, myBatisRuntimeConfigurer, codeValidatorService,
                 generatedCodeContractAuditor, generationHistoryService);
 
@@ -96,7 +98,7 @@ class CrudGenerationApplicationServiceTest {
                 any(CrudViewType.class), any(ScreenSubsetMode.class), any()))
                 .willReturn(fakeModel(LayoutDensity.STANDARD, FormColumnLayout.SINGLE_COLUMN));
         given(crudTemplateRenderer.renderByLayerKey(any(), any())).willReturn("// code");
-        given(codeService.saveGeneratedCode(any(), any())).willReturn("파일 저장 완료: ...");
+        given(writePort.apply(any())).willAnswer(CrudPipelineFixture.alwaysSucceeds());
         given(myBatisRuntimeConfigurer.ensureConfigured(any(), any()))
                 .willReturn(new MyBatisRuntimeConfigurer.ConfigurationResult(
                         true, false, false, Path.of("/tmp/context-common.xml"), "검증 통과"));
@@ -175,8 +177,8 @@ class CrudGenerationApplicationServiceTest {
     void renderAndSaveFailuresAccumulateInLayerOrderWhileOthersSucceed() {
         given(crudTemplateRenderer.renderByLayerKey(contains("mapperXml"), any()))
                 .willThrow(new RuntimeException("템플릿 로딩 실패"));
-        given(codeService.saveGeneratedCode(contains("EmployerVO.java"), any()))
-                .willReturn("파일 저장 실패: 권한 없음");
+        doAnswer(CrudPipelineFixture.failingPaths(path -> path.contains("EmployerVO.java"), "권한 없음"))
+                .when(writePort).apply(any());
 
         CrudOrchestrationResult result = sut.execute(command("jsp"));
 
@@ -201,8 +203,8 @@ class CrudGenerationApplicationServiceTest {
 
     @Test
     void historyRecordsSucceededFileCountOnly() {
-        given(codeService.saveGeneratedCode(contains("EmployerVO.java"), any()))
-                .willReturn("파일 저장 실패: 권한 없음");
+        doAnswer(CrudPipelineFixture.failingPaths(path -> path.contains("EmployerVO.java"), "권한 없음"))
+                .when(writePort).apply(any());
 
         sut.execute(command("jsp"));
 
