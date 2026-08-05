@@ -239,6 +239,48 @@ class FileSystemApprovedProjectWritePortTest {
         assertThat(root.getParent().resolve("escape.html")).doesNotExist();
     }
 
+    // ── ARCH-0717/0718: 바이너리 콘텐츠(로고 등 이미지 자산) ────────────────────────
+
+    @Test
+    void atomicApprovedWritesBinaryContentAsRawBytesNotUtf8Text(@TempDir Path root) {
+        // 유효한 UTF-8 텍스트가 아닌 바이트(PNG 매직 넘버 포함) — writeString 경로로 잘못 타면
+        // 깨지거나 예외가 난다.
+        byte[] pngBytes = {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, (byte) 0xFE};
+
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                root.toString(), "rev-1",
+                List.of(new ProjectChangeSet.FileChange("logo.png", null, null, null, pngBytes)),
+                List.of(), ProjectWritePolicy.ATOMIC_APPROVED);
+
+        ApplyOutcome outcome = port.apply(changeSet);
+
+        assertThat(outcome.status()).isEqualTo(ApplyOutcome.Status.APPLIED);
+        assertThat(readBytes(root.resolve("logo.png"))).isEqualTo(pngBytes);
+    }
+
+    @Test
+    void bestEffortCompatibilityWritesBinaryContentAsRawBytes(@TempDir Path root) {
+        byte[] pngBytes = {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, (byte) 0xFE};
+
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                root.toString(), "rev-1",
+                List.of(new ProjectChangeSet.FileChange("logo.png", null, null, null, pngBytes)),
+                List.of(), ProjectWritePolicy.BEST_EFFORT_COMPATIBILITY);
+
+        ApplyOutcome outcome = port.apply(changeSet);
+
+        assertThat(outcome.status()).isEqualTo(ApplyOutcome.Status.APPLIED);
+        assertThat(readBytes(root.resolve("logo.png"))).isEqualTo(pngBytes);
+    }
+
+    private byte[] readBytes(Path path) {
+        try {
+            return Files.readAllBytes(path);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private String hash(String content) {
         return hashFactory.sha256Hex(content.getBytes(StandardCharsets.UTF_8));
     }

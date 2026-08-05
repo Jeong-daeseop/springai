@@ -27,14 +27,26 @@ public record ProjectChangeSet(
         }
     }
 
-    /** {@code path}는 projectRootRef 기준 상대경로. {@code beforeHash}가 없으면(신규 파일) "MISSING". */
-    public record FileChange(String path, String beforeHash, String content, String afterHash) {
+    /**
+     * {@code path}는 projectRootRef 기준 상대경로. {@code beforeHash}가 없으면(신규 파일) "MISSING".
+     * {@code binaryContent}가 있으면(ARCH-0717 로고 등 이미지 자산) {@code content}는 무시되고 원본
+     * 바이트 그대로 쓴다 — {@code isBinary()}로 판별한다.
+     */
+    public record FileChange(String path, String beforeHash, String content, String afterHash, byte[] binaryContent) {
         public FileChange {
             if (path == null || path.isBlank()) {
                 throw new IllegalArgumentException("path는 필수입니다.");
             }
             content = content == null ? "" : content;
             beforeHash = beforeHash == null || beforeHash.isBlank() ? "MISSING" : beforeHash;
+        }
+
+        public FileChange(String path, String beforeHash, String content, String afterHash) {
+            this(path, beforeHash, content, afterHash, null);
+        }
+
+        public boolean isBinary() {
+            return binaryContent != null;
         }
     }
 

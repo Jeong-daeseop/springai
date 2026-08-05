@@ -45,4 +45,26 @@ class ProjectChangeSetTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("path");
     }
+
+    // ── ARCH-0717/0718: 바이너리 콘텐츠(로고 등 이미지 자산) 지원 ─────────────────
+
+    @Test
+    void legacyFourArgConstructorIsNotBinary() {
+        var change = new ProjectChangeSet.FileChange("a.html", "h1", "content", "h2");
+
+        assertThat(change.isBinary()).isFalse();
+        assertThat(change.binaryContent()).isNull();
+        assertThat(change.content()).isEqualTo("content");
+    }
+
+    @Test
+    void fiveArgConstructorWithBinaryContentIsBinaryAndDefaultsStringContentToEmpty() {
+        byte[] bytes = {(byte) 0x89, 0x50, 0x4E, 0x47};
+        var change = new ProjectChangeSet.FileChange("logo.png", null, null, null, bytes);
+
+        assertThat(change.isBinary()).isTrue();
+        assertThat(change.binaryContent()).isEqualTo(bytes);
+        assertThat(change.content()).isEmpty();
+        assertThat(change.beforeHash()).isEqualTo("MISSING");
+    }
 }

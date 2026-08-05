@@ -83,7 +83,7 @@ public class FileSystemApprovedProjectWritePort implements ApprovedProjectWriteP
             try {
                 Path target = pathResolver.resolveTarget(root, change.path());
                 Files.createDirectories(target.getParent());
-                Files.writeString(target, change.content(), StandardCharsets.UTF_8);
+                writeContent(target, change);
                 appliedPaths.add(change.path());
             } catch (IOException exception) {
                 failureMessages.put(change.path(), exception.getMessage());
@@ -100,6 +100,14 @@ public class FileSystemApprovedProjectWritePort implements ApprovedProjectWriteP
         return failureMessages.isEmpty()
                 ? ApplyOutcome.applied(appliedPaths, null)
                 : ApplyOutcome.partiallyApplied(appliedPaths, failureMessages);
+    }
+
+    private void writeContent(Path target, ProjectChangeSet.FileChange change) throws IOException {
+        if (change.isBinary()) {
+            Files.write(target, change.binaryContent());
+        } else {
+            Files.writeString(target, change.content(), StandardCharsets.UTF_8);
+        }
     }
 
     private void createDirectoriesIfMissing(Path root) {
@@ -140,7 +148,7 @@ public class FileSystemApprovedProjectWritePort implements ApprovedProjectWriteP
             for (var change : changeSet.generatedFiles()) {
                 Path staged = pathResolver.resolveWithin(staging, change.path());
                 Files.createDirectories(staged.getParent());
-                Files.writeString(staged, change.content(), StandardCharsets.UTF_8);
+                writeContent(staged, change);
                 backupIfExists(root, backup, change.path());
             }
             for (var deletion : changeSet.deletions()) {
