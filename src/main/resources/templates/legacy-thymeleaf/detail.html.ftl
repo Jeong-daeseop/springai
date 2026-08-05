@@ -7,6 +7,9 @@
     <title>${pageTitle}</title>
 </head>
 <section layout:fragment="content" class="egov-legacy-page">
+<#if route.securityEvidence()?has_content>
+    <!-- egov-authority-provenance: <#list route.securityEvidence() as s>${s}<#sep>; </#sep></#list> -->
+</#if>
     <div class="egov-page-header">
         <h1 class="egov-page-title">${pageTitle}</h1>
     </div>

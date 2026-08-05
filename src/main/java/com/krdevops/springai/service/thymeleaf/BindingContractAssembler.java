@@ -118,6 +118,18 @@ public class BindingContractAssembler {
                 method.modelAttributeParamName(), method.modelAttributeType(),
                 method.validated(), method.redirect(), method.securityEvidence());
 
+        // ARCH-0614: 권한(authority) 증거는 route/field처럼 FATAL/REVIEW_REQUIRED로 막지 않는다 —
+        // 이 Assembler는 Spring Security 어노테이션의 의미를 해석하지 않으므로 무엇이 "동등한 보호"인지
+        // 판단할 수 없다. 대신 WARNING으로 표면화해 BindingComposer가 렌더 결과에 provenance
+        // 주석으로 남기고, 사람이 생성된 Thymeleaf 화면에 동등한 권한 제약이 있는지 검토하게 한다.
+        if (!route.securityEvidence().isEmpty()) {
+            issues.add(issueFactory.warning(
+                    "AUTHORITY_EVIDENCE_REQUIRES_REVIEW", STAGE,
+                    "원본 Controller 메서드에 권한 제약이 있습니다: " + route.securityEvidence()
+                            + ". 생성된 Thymeleaf 화면이 동등한 보호를 적용하는지 확인하세요.",
+                    method.sourceLocation(), null));
+        }
+
         ThymeleafBindingContract contract = new ThymeleafBindingContract(
                 analysis.screenId(), role, route, fields,
                 displayFields.fieldNames(), displayFields.primaryDisplayAttributeName(),

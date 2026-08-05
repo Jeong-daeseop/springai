@@ -7,8 +7,14 @@
     <title>${pageTitle}</title>
 </head>
 <section layout:fragment="content" class="egov-legacy-page">
+<#if route.securityEvidence()?has_content>
+    <!-- egov-authority-provenance: <#list route.securityEvidence() as s>${s}<#sep>; </#sep></#list> -->
+</#if>
     <div class="egov-page-header">
         <h1 class="egov-page-title">${pageTitle}</h1>
+<#if registRoute?? && actionPlacement == "TOP_RIGHT">
+        <a th:href="@{${registRoute}}" class="krds-btn primary medium egov-btn egov-btn-register">등록</a>
+</#if>
     </div>
 
     <div id="toast-alert" th:if="${'$'}{message}" class="egov-toast" role="alert" aria-live="polite">
@@ -57,5 +63,11 @@
             </tbody>
         </table>
     </div>
+
+<#if registRoute?? && actionPlacement == "BOTTOM_RIGHT">
+    <div class="egov-form-actions">
+        <a th:href="@{${registRoute}}" class="krds-btn primary medium egov-btn egov-btn-register">등록</a>
+    </div>
+</#if>
 </section>
 </html>

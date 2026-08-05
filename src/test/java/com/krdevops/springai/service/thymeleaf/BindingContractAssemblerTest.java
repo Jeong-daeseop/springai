@@ -210,6 +210,46 @@ class BindingContractAssemblerTest {
         assertThat(result.issues()).anyMatch(issue -> issue.code().equals("MULTIPLE_DISPLAY_ROOTS_AMBIGUOUS"));
     }
 
+    @Test
+    void controllerSecurityAnnotationAddsAuthorityReviewWarningWithoutBlockingContract() {
+        LegacyScreenAnalysis analysis = analysis(
+                LegacyScreenRole.FORM,
+                springForm("name"),
+                securedController(),
+                vo("public class SampleVO {\n"
+                        + "    private String name;\n"
+                        + "    public String getName() { return name; }\n"
+                        + "    public void setName(String name) { this.name = name; }\n"
+                        + "}\n"));
+
+        ThymeleafGenerationStageResult<ThymeleafBindingContract> result = assembler.assemble(analysis);
+
+        assertThat(result.successful()).isTrue();
+        assertThat(result.value().status()).isEqualTo(BindingContractStatus.RESOLVED);
+        assertThat(result.value().route().securityEvidence())
+                .anyMatch(evidence -> evidence.contains("PreAuthorize"));
+        assertThat(result.issues()).anyMatch(issue -> issue.code().equals("AUTHORITY_EVIDENCE_REQUIRES_REVIEW"));
+    }
+
+    @Test
+    void controllerWithoutSecurityAnnotationAddsNoAuthorityWarning() {
+        LegacyScreenAnalysis analysis = analysis(
+                LegacyScreenRole.FORM,
+                springForm("name"),
+                controller(),
+                vo("public class SampleVO {\n"
+                        + "    private String name;\n"
+                        + "    public String getName() { return name; }\n"
+                        + "    public void setName(String name) { this.name = name; }\n"
+                        + "}\n"));
+
+        ThymeleafGenerationStageResult<ThymeleafBindingContract> result = assembler.assemble(analysis);
+
+        assertThat(result.successful()).isTrue();
+        assertThat(result.value().route().securityEvidence()).isEmpty();
+        assertThat(result.issues()).noneMatch(issue -> issue.code().equals("AUTHORITY_EVIDENCE_REQUIRES_REVIEW"));
+    }
+
     private String springForm(String... paths) {
         StringBuilder builder = new StringBuilder();
         builder.append("<%@ taglib prefix=\"form\" uri=\"http://www.springframework.org/tags/form\"%>\n");
@@ -237,6 +277,30 @@ class BindingContractAssemblerTest {
                 + "        model.addAttribute(\"sampleVO\", new SampleVO());\n"
                 + "        return \"sample/SampleForm\";\n"
                 + "    }\n"
+                + "    @PostMapping(\"/sample/formSubmit.do\")\n"
+                + "    public String formSubmit(@ModelAttribute(\"sampleVO\") @Valid SampleVO sampleVO, ModelMap model) {\n"
+                + "        return \"redirect:/sample/list.do\";\n"
+                + "    }\n"
+                + "}\n";
+    }
+
+    private String securedController() {
+        return "package test;\n"
+                + "import org.springframework.stereotype.Controller;\n"
+                + "import org.springframework.web.bind.annotation.GetMapping;\n"
+                + "import org.springframework.web.bind.annotation.PostMapping;\n"
+                + "import org.springframework.web.bind.annotation.ModelAttribute;\n"
+                + "import org.springframework.ui.ModelMap;\n"
+                + "import org.springframework.security.access.prepost.PreAuthorize;\n"
+                + "import jakarta.validation.Valid;\n"
+                + "@Controller\n"
+                + "public class SampleController {\n"
+                + "    @GetMapping(\"/sample/formView.do\")\n"
+                + "    public String formView(@ModelAttribute(\"sampleVO\") SampleVO sampleVO, ModelMap model) {\n"
+                + "        model.addAttribute(\"sampleVO\", new SampleVO());\n"
+                + "        return \"sample/SampleForm\";\n"
+                + "    }\n"
+                + "    @PreAuthorize(\"hasRole('ADMIN')\")\n"
                 + "    @PostMapping(\"/sample/formSubmit.do\")\n"
                 + "    public String formSubmit(@ModelAttribute(\"sampleVO\") @Valid SampleVO sampleVO, ModelMap model) {\n"
                 + "        return \"redirect:/sample/list.do\";\n"

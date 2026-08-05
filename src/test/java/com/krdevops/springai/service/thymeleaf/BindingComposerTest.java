@@ -1,6 +1,7 @@
 package com.krdevops.springai.service.thymeleaf;
 
 import com.krdevops.springai.model.contract.SourceRevisionRef;
+import com.krdevops.springai.model.design.ActionPlacement;
 import com.krdevops.springai.model.design.FormColumnLayout;
 import com.krdevops.springai.model.design.LayoutDensity;
 import com.krdevops.springai.model.design.ScreenSpecStatus;
@@ -146,6 +147,54 @@ class BindingComposerTest {
     }
 
     @Test
+    void listContractOmitsRegisterLinkWhenRegistRouteAbsentEvenIfApproved() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.LIST);
+        ScreenSpecification approved = screenSpecification(
+                ScreenSpecStatus.APPROVED, LayoutDensity.STANDARD, FormColumnLayout.SINGLE_COLUMN);
+
+        ThymeleafGenerationStageResult<String> result =
+                composer.compose(contract, "직원 목록", "layout/default", approved, null);
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        assertThat(result.value()).doesNotContain("egov-btn-register");
+    }
+
+    @Test
+    void listContractRendersRegisterLinkAtTopWhenRegistRouteProvidedWithDefaultPlacement() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.LIST);
+
+        ThymeleafGenerationStageResult<String> result = composer.compose(
+                contract, "직원 목록", "layout/default", null, "/emp/employerRegist.do");
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        String html = result.value();
+        assertThat(html).contains("th:href=\"@{/emp/employerRegist.do}\"");
+        int registerIndex = html.indexOf("egov-btn-register");
+        int tableIndex = html.indexOf("krds-table-wrap");
+        assertThat(registerIndex).isGreaterThan(0);
+        assertThat(registerIndex).isLessThan(tableIndex);
+    }
+
+    @Test
+    void listContractRendersRegisterLinkAtBottomWhenApprovedActionPlacementIsBottomRight() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.LIST);
+        ScreenSpecification approved = screenSpecification(
+                ScreenSpecStatus.APPROVED, ActionPlacement.BOTTOM_RIGHT);
+
+        ThymeleafGenerationStageResult<String> result = composer.compose(
+                contract, "직원 목록", "layout/default", approved, "/emp/employerRegist.do");
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        String html = result.value();
+        int registerIndex = html.indexOf("egov-btn-register");
+        int tableIndex = html.indexOf("krds-table-wrap");
+        assertThat(registerIndex).isGreaterThan(tableIndex);
+    }
+
+    @Test
     void formContractWithoutScreenSpecificationStaysSingleColumn() throws IOException {
         ThymeleafBindingContract contract = assembleFixture(
                 "EgovEmployerRegist.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.FORM);
@@ -154,6 +203,43 @@ class BindingComposerTest {
 
         assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
         assertThat(result.value()).doesNotContain("egov-layout-two-col");
+    }
+
+    @Test
+    void listContractRendersAuthorityProvenanceCommentWhenSecurityEvidencePresent() throws IOException {
+        ThymeleafBindingContract contract = withSecurityEvidence(assembleFixture(
+                "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.LIST),
+                List.of("@PreAuthorize(\"hasRole('ADMIN')\")"));
+
+        ThymeleafGenerationStageResult<String> result = composer.compose(contract, "직원 목록", "layout/default");
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        assertThat(result.value()).contains("egov-authority-provenance").contains("PreAuthorize");
+    }
+
+    @Test
+    void listContractWithoutSecurityEvidenceOmitsAuthorityProvenanceComment() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.LIST);
+
+        ThymeleafGenerationStageResult<String> result = composer.compose(contract, "직원 목록", "layout/default");
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        assertThat(result.value()).doesNotContain("egov-authority-provenance");
+    }
+
+    private ThymeleafBindingContract withSecurityEvidence(
+            ThymeleafBindingContract contract, List<String> securityEvidence) {
+        ThymeleafRouteBinding original = contract.route();
+        ThymeleafRouteBinding securedRoute = new ThymeleafRouteBinding(
+                original.route(), original.httpMethod(), original.controllerMethodName(),
+                original.modelAttributeName(), original.modelAttributeType(), original.validated(),
+                original.redirect(), securityEvidence);
+        return new ThymeleafBindingContract(
+                contract.screenId(), contract.screenRole(), securedRoute, contract.fields(),
+                contract.displayFieldNames(), contract.primaryDisplayAttributeName(),
+                contract.modelAttributesResolved(), contract.modelAttributesUnresolved(),
+                contract.status(), contract.issues(), contract.sourceRevision(), contract.createdAt());
     }
 
     @Test
@@ -208,5 +294,13 @@ class BindingComposerTest {
         return new ScreenSpecification(
                 "spec-1", 1, status, "직원", "CRUD", "LIST", "ebt", "EMPLOYER",
                 List.of(), List.of(), List.of(), layoutDensity, formColumnLayout, LocalDateTime.now());
+    }
+
+    private ScreenSpecification screenSpecification(ScreenSpecStatus status, ActionPlacement actionPlacement) {
+        return new ScreenSpecification(
+                "spec-1", 1, status, "직원", "CRUD", "LIST", "ebt", "EMPLOYER",
+                List.of(), List.of(), List.of(), LayoutDensity.STANDARD, FormColumnLayout.SINGLE_COLUMN,
+                actionPlacement, com.krdevops.springai.model.design.SearchPanelPlacement.ABOVE_TABLE,
+                LocalDateTime.now());
     }
 }
