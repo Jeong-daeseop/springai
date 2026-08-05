@@ -1,6 +1,10 @@
 package com.krdevops.springai.service.thymeleaf;
 
 import com.krdevops.springai.model.contract.GenerationIssue;
+import com.krdevops.springai.model.design.FormColumnLayout;
+import com.krdevops.springai.model.design.LayoutDensity;
+import com.krdevops.springai.model.design.ScreenSpecStatus;
+import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.thymeleaf.BindingContractStatus;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingContract;
 import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult;
@@ -32,6 +36,16 @@ import java.util.Map;
  * <p>옛 {@code LegacyThymeleafViewComposer}+{@code LegacyThymeleafRenderer}(162bb3c에서 삭제)를
  * 하나로 합쳐 재구현한다. {@code ScreenHtmlSkeletonGenerator}(ARCH-0609, `ScreenSpecification`
  * 기반)는 이 pass에서 쓰지 않는다 — ARCH-WP6 스코프 컷 메모 참고.
+ *
+ * <p>ARCH-0608(2차 pass): 승인된 {@link ScreenSpecification}이 함께 전달되면 그 표시 밀도
+ * ({@code layoutDensity}, LIST) / 입력칸 배치({@code formColumnLayout}, FORM)만 결합한다 —
+ * {@code CrudTableDensityCssProcessor}/{@code CrudFormColumnCssProcessor}가 CRUD 생성 파이프라인에서
+ * 쓰는 {@code egov-density-*}/{@code egov-layout-two-col} 클래스 계약을 그대로 재사용한다. route,
+ * field, 검증, 보안 계약은 {@link ThymeleafBindingContract}(Legacy 증거)에서만 나오며 이 결합으로
+ * 절대 바뀌지 않는다 — 우선순위: 업무 Binding/보안 계약 > 승인 ScreenSpecification > 안전한 기본값
+ * (구현계획서 §12). {@code status()}가 {@link ScreenSpecStatus#APPROVED}가 아니면 무시하고 기본값
+ * ({@link LayoutDensity#STANDARD}/{@link FormColumnLayout#SINGLE_COLUMN})을 쓴다. DESIGN.md
+ * 결합(§12 우선순위의 그 다음 단계)은 대응하는 카테고리 키 계약이 아직 없어 이번 pass 범위 밖이다.
  */
 @Slf4j
 @Service
@@ -60,6 +74,19 @@ public class BindingComposer {
      */
     public ThymeleafGenerationStageResult<String> compose(
             ThymeleafBindingContract contract, String pageTitle, String layoutView) {
+        return compose(contract, pageTitle, layoutView, null);
+    }
+
+    /**
+     * @param contract 조립된 Binding 계약
+     * @param pageTitle 화면 제목
+     * @param layoutView {@code layout:decorate}가 가리킬 공통 레이아웃 fragment 경로
+     * @param approvedScreenSpecification 승인된 ScreenSpecification(ARCH-0608). {@code null}이거나
+     *                                     {@link ScreenSpecStatus#APPROVED}가 아니면 무시한다.
+     */
+    public ThymeleafGenerationStageResult<String> compose(
+            ThymeleafBindingContract contract, String pageTitle, String layoutView,
+            ScreenSpecification approvedScreenSpecification) {
         if (contract.status() == BindingContractStatus.REVIEW_REQUIRED) {
             GenerationIssue blocked = issueFactory.issue(
                     "BINDING_REVIEW_REQUIRED_BLOCKS_COMPOSE", GenerationIssue.Severity.FATAL, STAGE,
@@ -78,7 +105,8 @@ public class BindingComposer {
             return ThymeleafGenerationStageResult.failure(List.of(unsupported));
         }
 
-        Map<String, Object> dataModel = buildDataModel(contract, pageTitle, layoutView);
+        Map<String, Object> dataModel =
+                buildDataModel(contract, pageTitle, layoutView, approvedScreenSpecification);
         try {
             Template template = boardFreemarkerConfiguration.getTemplate(templateName);
             StringWriter writer = new StringWriter();
@@ -100,7 +128,9 @@ public class BindingComposer {
         }
     }
 
-    private Map<String, Object> buildDataModel(ThymeleafBindingContract contract, String pageTitle, String layoutView) {
+    private Map<String, Object> buildDataModel(
+            ThymeleafBindingContract contract, String pageTitle, String layoutView,
+            ScreenSpecification approvedScreenSpecification) {
         Map<String, Object> model = new HashMap<>();
         model.put("pageTitle", pageTitle);
         model.put("layoutView", layoutView);
@@ -112,7 +142,23 @@ public class BindingComposer {
         model.put("formFields", contract.fields());
         model.put("primaryDisplayAttributeName", contract.primaryDisplayAttributeName());
         model.put("route", contract.route());
+        model.put("layoutDensity", resolveLayoutDensity(approvedScreenSpecification).name());
+        model.put("formColumnLayout", resolveFormColumnLayout(approvedScreenSpecification).name());
         return model;
+    }
+
+    private boolean isApproved(ScreenSpecification spec) {
+        return spec != null && spec.status() == ScreenSpecStatus.APPROVED;
+    }
+
+    private LayoutDensity resolveLayoutDensity(ScreenSpecification approvedScreenSpecification) {
+        return isApproved(approvedScreenSpecification)
+                ? approvedScreenSpecification.layoutDensity() : LayoutDensity.STANDARD;
+    }
+
+    private FormColumnLayout resolveFormColumnLayout(ScreenSpecification approvedScreenSpecification) {
+        return isApproved(approvedScreenSpecification)
+                ? approvedScreenSpecification.formColumnLayout() : FormColumnLayout.SINGLE_COLUMN;
     }
 
     private List<com.krdevops.springai.model.thymeleaf.ThymeleafFieldBinding> resolveDisplayFieldBindings(

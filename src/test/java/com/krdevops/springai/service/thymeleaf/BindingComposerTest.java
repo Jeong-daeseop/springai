@@ -1,6 +1,10 @@
 package com.krdevops.springai.service.thymeleaf;
 
 import com.krdevops.springai.model.contract.SourceRevisionRef;
+import com.krdevops.springai.model.design.FormColumnLayout;
+import com.krdevops.springai.model.design.LayoutDensity;
+import com.krdevops.springai.model.design.ScreenSpecStatus;
+import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.thymeleaf.BindingContractStatus;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenAnalysis;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenRole;
@@ -18,6 +22,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 
@@ -87,6 +92,71 @@ class BindingComposerTest {
     }
 
     @Test
+    void listContractWithoutScreenSpecificationUsesStandardDensity() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.LIST);
+
+        ThymeleafGenerationStageResult<String> result = composer.compose(contract, "직원 목록", "layout/default");
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        assertThat(result.value()).contains("egov-density-standard");
+    }
+
+    @Test
+    void listContractAppliesApprovedScreenSpecificationLayoutDensity() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.LIST);
+        ScreenSpecification approved = screenSpecification(
+                ScreenSpecStatus.APPROVED, LayoutDensity.COMPACT, FormColumnLayout.SINGLE_COLUMN);
+
+        ThymeleafGenerationStageResult<String> result =
+                composer.compose(contract, "직원 목록", "layout/default", approved);
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        assertThat(result.value()).contains("egov-density-compact");
+    }
+
+    @Test
+    void listContractIgnoresUnapprovedScreenSpecificationAndKeepsSafeDefault() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.LIST);
+        ScreenSpecification reviewRequired = screenSpecification(
+                ScreenSpecStatus.REVIEW_REQUIRED, LayoutDensity.COMFORTABLE, FormColumnLayout.SINGLE_COLUMN);
+
+        ThymeleafGenerationStageResult<String> result =
+                composer.compose(contract, "직원 목록", "layout/default", reviewRequired);
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        assertThat(result.value()).contains("egov-density-standard");
+        assertThat(result.value()).doesNotContain("egov-density-comfortable");
+    }
+
+    @Test
+    void formContractAppliesApprovedScreenSpecificationFormColumnLayout() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerRegist.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.FORM);
+        ScreenSpecification approved = screenSpecification(
+                ScreenSpecStatus.APPROVED, LayoutDensity.STANDARD, FormColumnLayout.TWO_COLUMN);
+
+        ThymeleafGenerationStageResult<String> result =
+                composer.compose(contract, "직원 등록", "layout/default", approved);
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        assertThat(result.value()).contains("egov-layout-two-col");
+    }
+
+    @Test
+    void formContractWithoutScreenSpecificationStaysSingleColumn() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerRegist.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.FORM);
+
+        ThymeleafGenerationStageResult<String> result = composer.compose(contract, "직원 등록", "layout/default");
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        assertThat(result.value()).doesNotContain("egov-layout-two-col");
+    }
+
+    @Test
     void detailContractRendersDisplayFieldsAndBackLink() throws IOException {
         ThymeleafBindingContract contract = assembleFixture(
                 "EgovEmployerDetail.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.DETAIL);
@@ -131,5 +201,12 @@ class BindingComposerTest {
         ThymeleafGenerationStageResult<ThymeleafBindingContract> result = assembler.assemble(analysis);
         assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
         return result.value();
+    }
+
+    private ScreenSpecification screenSpecification(
+            ScreenSpecStatus status, LayoutDensity layoutDensity, FormColumnLayout formColumnLayout) {
+        return new ScreenSpecification(
+                "spec-1", 1, status, "직원", "CRUD", "LIST", "ebt", "EMPLOYER",
+                List.of(), List.of(), List.of(), layoutDensity, formColumnLayout, LocalDateTime.now());
     }
 }

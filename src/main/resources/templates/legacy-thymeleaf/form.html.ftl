@@ -25,7 +25,7 @@
         <div class="krds-table-wrap"
              data-egov-responsive="single-column-below-tablet"
              data-egov-breakpoint-tablet="768">
-            <table class="tbl col egov-form-table">
+            <table class="tbl col egov-form-table<#if formColumnLayout == "TWO_COLUMN"> egov-layout-two-col</#if>">
                 <caption>${pageTitle} 입력 폼</caption>
                 <tbody>
 <#list formFields as f>

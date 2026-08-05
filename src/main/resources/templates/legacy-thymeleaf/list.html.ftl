@@ -24,7 +24,7 @@
         </form>
     </div>
 
-    <div class="krds-table-wrap"
+    <div class="krds-table-wrap egov-density-${layoutDensity?lower_case}"
          data-egov-responsive="table-to-card"
          data-egov-breakpoint-tablet="768"
          data-egov-breakpoint-mobile="390">
