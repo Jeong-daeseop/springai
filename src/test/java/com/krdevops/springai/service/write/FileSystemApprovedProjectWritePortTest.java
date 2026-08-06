@@ -284,4 +284,153 @@ class FileSystemApprovedProjectWritePortTest {
     private String hash(String content) {
         return hashFactory.sha256Hex(content.getBytes(StandardCharsets.UTF_8));
     }
+
+    // ── ARCH-0713/M3-G5: rollback 실패 보고 + afterHash 검증 ────────────────────
+
+    /**
+     * {@code rollback()}을 {@code apply()} 전체 흐름을 통해 간접 유발하지 않고 직접 호출한다 —
+     * "정방향 write가 성공한 뒤 같은 경로의 복구만 실패"하는 상황은 이 파일시스템에서 move/copy
+     * 둘 다 디렉터리 쓰기 권한 하나로만 게이트되는 걸 실측 확인했고(둘 다 성공 or 둘 다 실패),
+     * 따라서 apply() 전체를 거치는 통합 시나리오로는 재현 불가능하다 — rollback()의 로직 변경
+     * (예외를 삼키지 않고 수집)만 직접 검증한다.
+     */
+    @Test
+    void rollbackReturnsFailureMessagesWhenRestoreItselfFails(@TempDir Path root) throws Exception {
+        Path backup = Files.createTempDirectory(root, ".rb-test-backup-");
+        Files.writeString(backup.resolve("a.html"), "original");
+        Path target = root.resolve("a.html");
+        Files.writeString(target, "moved-in-content");
+        boolean readOnlySet = root.toFile().setWritable(false);
+        org.junit.jupiter.api.Assumptions.assumeTrue(
+                readOnlySet, "이 실행 환경(예: root)에서는 디렉터리 쓰기 금지가 걸리지 않아 이 테스트를 건너뛴다.");
+        try {
+            var failures = port.rollback(root, backup, List.of(target), java.util.Set.of());
+
+            assertThat(failures).containsKey("a.html");
+        } finally {
+            root.toFile().setWritable(true);
+        }
+    }
+
+    @Test
+    void rollbackSucceedsWithoutFailuresWhenBackupIsRestorable(@TempDir Path root) throws Exception {
+        Path backup = Files.createTempDirectory(root, ".rb-test-backup-");
+        Files.writeString(backup.resolve("a.html"), "original");
+        Path target = root.resolve("a.html");
+        Files.writeString(target, "moved-in-content");
+
+        var failures = port.rollback(root, backup, List.of(target), java.util.Set.of());
+
+        assertThat(failures).isEmpty();
+        assertThat(target).hasContent("original");
+    }
+
+    @Test
+    void atomicApprovedRollsBackNewFileWhenWrittenContentDoesNotMatchAfterHash(@TempDir Path root) {
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                root.toString(), "rev-1",
+                List.of(new ProjectChangeSet.FileChange("a.html", null, "generated-a", "not-the-real-hash")),
+                List.of(), ProjectWritePolicy.ATOMIC_APPROVED);
+
+        ApplyOutcome outcome = port.apply(changeSet);
+
+        assertThat(outcome.status()).isEqualTo(ApplyOutcome.Status.ROLLED_BACK);
+        assertThat(root.resolve("a.html")).doesNotExist();
+    }
+
+    @Test
+    void atomicApprovedSucceedsWhenAfterHashNullAndContentWrittenCorrectly(@TempDir Path root) {
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                root.toString(), "rev-1",
+                List.of(new ProjectChangeSet.FileChange("a.html", null, "generated-a", null)),
+                List.of(), ProjectWritePolicy.ATOMIC_APPROVED);
+
+        ApplyOutcome outcome = port.apply(changeSet);
+
+        assertThat(outcome.status()).isEqualTo(ApplyOutcome.Status.APPLIED);
+        assertThat(root.resolve("a.html")).hasContent("generated-a");
+    }
+
+    @Test
+    void bestEffortCompatibilityFailsOnlyFileWithHashMismatchAndKeepsOthers(@TempDir Path root) {
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                root.toString(), "rev-1",
+                List.of(
+                        new ProjectChangeSet.FileChange("good.html", null, "good-content", null),
+                        new ProjectChangeSet.FileChange("bad.html", null, "bad-content", "not-the-real-hash")),
+                List.of(), ProjectWritePolicy.BEST_EFFORT_COMPATIBILITY);
+
+        ApplyOutcome outcome = port.apply(changeSet);
+
+        assertThat(outcome.status()).isEqualTo(ApplyOutcome.Status.PARTIALLY_APPLIED);
+        assertThat(outcome.appliedPaths()).containsExactly("good.html");
+        assertThat(outcome.failureMessages()).containsOnlyKeys("bad.html");
+        assertThat(root.resolve("good.html")).hasContent("good-content");
+    }
+
+    // ── ARCH-0704: project root registry ────────────────────────────────────
+
+    @Test
+    void rejectsUnregisteredRootEvenWhenChangeSetIsOtherwiseValidAtomic(@TempDir Path root) {
+        var registryPort = new InMemoryProjectRootRegistryPort();
+        var registryEnforcingPort = new FileSystemApprovedProjectWritePort(
+                new SafePathResolver(), hashFactory, registryPort, new com.krdevops.springai.service.operation.NoopOperationLockPort());
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                root.toString(), "rev-1",
+                List.of(new ProjectChangeSet.FileChange("a.html", null, "generated-a", null)),
+                List.of(), ProjectWritePolicy.ATOMIC_APPROVED);
+
+        assertThatThrownBy(() -> registryEnforcingPort.apply(changeSet))
+                .isInstanceOf(SecurityException.class)
+                .hasMessageContaining("PROJECT_ROOT_NOT_REGISTERED");
+        assertThat(root.resolve("a.html")).doesNotExist();
+    }
+
+    @Test
+    void rejectsUnregisteredRootForBestEffortToo(@TempDir Path root) {
+        var registryPort = new InMemoryProjectRootRegistryPort();
+        var registryEnforcingPort = new FileSystemApprovedProjectWritePort(
+                new SafePathResolver(), hashFactory, registryPort, new com.krdevops.springai.service.operation.NoopOperationLockPort());
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                root.toString(), "rev-1",
+                List.of(new ProjectChangeSet.FileChange("a.html", null, "generated-a", null)),
+                List.of(), ProjectWritePolicy.BEST_EFFORT_COMPATIBILITY);
+
+        assertThatThrownBy(() -> registryEnforcingPort.apply(changeSet))
+                .isInstanceOf(SecurityException.class)
+                .hasMessageContaining("PROJECT_ROOT_NOT_REGISTERED");
+        assertThat(root.resolve("a.html")).doesNotExist();
+    }
+
+    @Test
+    void appliesNormallyWhenRootIsRegistered(@TempDir Path root) {
+        var registryPort = new InMemoryProjectRootRegistryPort();
+        var resolver = new SafePathResolver();
+        registryPort.register(resolver.canonicalKey(root), "tester", "TEST");
+        var registryEnforcingPort = new FileSystemApprovedProjectWritePort(
+                resolver, hashFactory, registryPort, new com.krdevops.springai.service.operation.NoopOperationLockPort());
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                root.toString(), "rev-1",
+                List.of(new ProjectChangeSet.FileChange("a.html", null, "generated-a", null)),
+                List.of(), ProjectWritePolicy.ATOMIC_APPROVED);
+
+        ApplyOutcome outcome = registryEnforcingPort.apply(changeSet);
+
+        assertThat(outcome.status()).isEqualTo(ApplyOutcome.Status.APPLIED);
+        assertThat(root.resolve("a.html")).hasContent("generated-a");
+    }
+
+    @Test
+    void twoArgCompatConstructorAllowsAnyRootForExistingCallers(@TempDir Path root) {
+        // 2-arg 생성자(기존 10곳 이상의 호출자/테스트가 그대로 씀)는 AllowAllProjectRootRegistryPort로
+        // 기본값을 채워 registry 검증을 건너뛴다 — 하위호환 확인.
+        ProjectChangeSet changeSet = new ProjectChangeSet(
+                root.toString(), "rev-1",
+                List.of(new ProjectChangeSet.FileChange("a.html", null, "generated-a", null)),
+                List.of(), ProjectWritePolicy.ATOMIC_APPROVED);
+
+        ApplyOutcome outcome = port.apply(changeSet);
+
+        assertThat(outcome.status()).isEqualTo(ApplyOutcome.Status.APPLIED);
+    }
 }

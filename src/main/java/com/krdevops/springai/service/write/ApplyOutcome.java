@@ -50,5 +50,16 @@ public record ApplyOutcome(
         return new ApplyOutcome(Status.PARTIALLY_APPLIED, appliedPaths, List.of(), failureMessages, null, null);
     }
 
-    public enum Status { APPLIED, CONFLICT, ROLLED_BACK, PARTIALLY_APPLIED }
+    /**
+     * ARCH-0713: 적용 실패 후 복구(rollback) 자체도 일부 실패한 경우 — {@code rolledBack}과 달리
+     * "원래 상태로 되돌렸다"를 보장하지 않는다. {@code failureMessages}는 복구에 실패한 경로 →
+     * 사유(예: backup에서 복사 실패)다. backup 디렉터리는 지우지 않으므로 사후 수동 복구가 필요하다.
+     */
+    public static ApplyOutcome rollbackFailed(
+            String failureDetail, String backupPath, Map<String, String> rollbackFailureMessages) {
+        return new ApplyOutcome(Status.ROLLBACK_FAILED, List.of(), List.of(), rollbackFailureMessages, backupPath,
+                failureDetail);
+    }
+
+    public enum Status { APPLIED, CONFLICT, ROLLED_BACK, ROLLBACK_FAILED, PARTIALLY_APPLIED }
 }

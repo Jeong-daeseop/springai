@@ -1,8 +1,11 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.config.EgovProperties;
-import lombok.RequiredArgsConstructor;
+import com.krdevops.springai.service.write.AllowAllProjectRootRegistryPort;
+import com.krdevops.springai.service.write.ProjectRootRegistryPort;
+import com.krdevops.springai.service.write.SafePathResolver;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -13,10 +16,27 @@ import java.util.Map;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class CodeService {
 
     private final EgovProperties egovProperties;
+    private final ProjectRootRegistryPort projectRootRegistryPort;
+    private final SafePathResolver pathResolver;
+
+    @Autowired
+    public CodeService(EgovProperties egovProperties, ProjectRootRegistryPort projectRootRegistryPort,
+            SafePathResolver pathResolver) {
+        this.egovProperties = egovProperties;
+        this.projectRootRegistryPort = projectRootRegistryPort;
+        this.pathResolver = pathResolver;
+    }
+
+    /**
+     * 기존 1-arg 호출자·테스트 호환용 — registry 등록은 통과 처리한다
+     * ({@link AllowAllProjectRootRegistryPort}).
+     */
+    public CodeService(EgovProperties egovProperties) {
+        this(egovProperties, new AllowAllProjectRootRegistryPort(), new SafePathResolver());
+    }
 
     /**
      * @deprecated text-block 치환 방식은 FreeMarker 전환으로 제거되었습니다.
@@ -125,6 +145,12 @@ public class CodeService {
             throw new SecurityException(
                     "허용 범위 밖 경로입니다 (egov.output.base-path, workspace 또는 allowed-paths 하위만 허용).");
         }
+        // ARCH-0704: 정적 allowlist를 통과한 경로는 project root registry에도 지연 등록
+        // (lazy registration)한다 — 이미 이 allowlist로 검증된 위치라 새로 위험을 추가하지
+        // 않으면서, ApprovedProjectWritePort.apply()가 항상 요구하는 registry 등록을
+        // 호출자가 별도 조치 없이도 자연스럽게 채워준다.
+        projectRootRegistryPort.register(
+                pathResolver.canonicalKey(target), "CODE_SERVICE_LEGACY_ALLOWLIST", "LEGACY_ALLOWLIST");
     }
 
     private static final class PathNotAllowedException extends Exception {

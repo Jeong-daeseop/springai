@@ -76,4 +76,33 @@ class SafePathResolverTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("PROJECT_ROOT_NOT_FOUND");
     }
+
+    // ── ARCH-0704: registry/lock key canonicalization ───────────────────────
+
+    @Test
+    void canonicalKeyOfExistingPathReturnsRealPath(@TempDir Path root) throws IOException {
+        Path existing = Files.createDirectories(root.resolve("sub"));
+
+        String key = resolver.canonicalKey(existing);
+
+        assertThat(key).isEqualTo(existing.toRealPath().toString());
+    }
+
+    @Test
+    void canonicalKeyOfMissingPathReturnsNormalizedAbsolutePath(@TempDir Path root) {
+        Path missing = root.resolve("not-yet-created");
+
+        String key = resolver.canonicalKey(missing);
+
+        assertThat(key).isEqualTo(missing.toAbsolutePath().normalize().toString());
+    }
+
+    @Test
+    void canonicalKeyResolvesSymlinkToSameKeyAsRealTarget(@TempDir Path root) throws IOException {
+        Path realTarget = Files.createDirectories(root.resolve("real-target"));
+        Path link = root.resolve("linked-alias");
+        Files.createSymbolicLink(link, realTarget);
+
+        assertThat(resolver.canonicalKey(link)).isEqualTo(resolver.canonicalKey(realTarget));
+    }
 }

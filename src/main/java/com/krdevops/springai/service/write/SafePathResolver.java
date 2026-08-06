@@ -53,6 +53,25 @@ public class SafePathResolver {
         return resolved;
     }
 
+    /**
+     * WP7 6차 pass/ARCH-0704: registry·lock key로 쓸 정규화된 문자열을 만든다. 경로가 실제로
+     * 존재하면 {@code toRealPath()}(symlink까지 해소한 canonical 경로)를, 아직 없으면(신규
+     * 프로젝트 생성 이전 시점) {@code toAbsolutePath().normalize()}를 쓴다. macOS에서 {@code /tmp}가
+     * {@code /private/tmp}로 symlink되는 것처럼, 등록 시점과 검사 시점에 서로 다른
+     * canonicalization 방식을 쓰면 같은 논리적 경로가 다른 키로 취급될 수 있다 — 이 메서드
+     * 하나로만 registry/lock key를 만들어 그 불일치를 막는다.
+     */
+    public String canonicalKey(Path path) {
+        try {
+            if (Files.exists(path, LinkOption.NOFOLLOW_LINKS)) {
+                return path.toRealPath().toString();
+            }
+        } catch (IOException ignored) {
+            // toRealPath 실패(권한 등) 시 아래 fallback으로 넘어간다.
+        }
+        return path.toAbsolutePath().normalize().toString();
+    }
+
     /** symlink가 아닌 실제 디렉터리인지 확인하고 정규화된 real path를 반환한다. */
     public Path realDirectory(Path root) {
         try {

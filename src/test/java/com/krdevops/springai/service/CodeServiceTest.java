@@ -1,6 +1,8 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.config.EgovProperties;
+import com.krdevops.springai.service.write.InMemoryProjectRootRegistryPort;
+import com.krdevops.springai.service.write.SafePathResolver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -156,6 +158,32 @@ class CodeServiceTest {
 
         assertThatThrownBy(() -> service.validateOutputRoot(outside.toString()))
                 .isInstanceOf(SecurityException.class);
+    }
+
+    @Test
+    void validateOutputRoot_success_lazilyRegistersCanonicalKeyInRegistry() {
+        Path basePath = tempDir.resolve("workspace").resolve("egov-generated");
+        SafePathResolver resolver = new SafePathResolver();
+        InMemoryProjectRootRegistryPort registryPort = new InMemoryProjectRootRegistryPort();
+        CodeService service = new CodeService(egovProperties(basePath), registryPort, resolver);
+
+        service.validateOutputRoot(basePath.toString());
+
+        assertThat(registryPort.isRegistered(resolver.canonicalKey(basePath))).isTrue();
+    }
+
+    @Test
+    void validateOutputRoot_outsideAllowedLocations_doesNotRegister() {
+        Path basePath = tempDir.resolve("workspace").resolve("egov-generated");
+        SafePathResolver resolver = new SafePathResolver();
+        InMemoryProjectRootRegistryPort registryPort = new InMemoryProjectRootRegistryPort();
+        CodeService service = new CodeService(egovProperties(basePath), registryPort, resolver);
+        Path outside = tempDir.resolve("outside");
+
+        assertThatThrownBy(() -> service.validateOutputRoot(outside.toString()))
+                .isInstanceOf(SecurityException.class);
+
+        assertThat(registryPort.isRegistered(resolver.canonicalKey(outside))).isFalse();
     }
 
     @Test

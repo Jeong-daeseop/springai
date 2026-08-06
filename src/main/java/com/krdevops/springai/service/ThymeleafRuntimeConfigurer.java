@@ -279,6 +279,8 @@ public class ThymeleafRuntimeConfigurer {
         String detail = switch (outcome.status()) {
             case CONFLICT -> "적용 직전 파일이 변경됨: " + outcome.conflictingPaths();
             case ROLLED_BACK -> outcome.failureDetail();
+            case ROLLBACK_FAILED -> "복구까지 실패함(" + outcome.failureDetail()
+                    + ") — 원본 상태로 안 돌아갔을 수 있습니다: " + outcome.failureMessages();
             default -> "알 수 없는 결과: " + outcome.status();
         };
         for (var change : changes) {

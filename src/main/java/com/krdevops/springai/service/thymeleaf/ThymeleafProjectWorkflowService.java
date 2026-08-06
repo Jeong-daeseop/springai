@@ -158,12 +158,15 @@ public class ThymeleafProjectWorkflowService {
     public WorkflowResult approve(String operationId, String expectedPreviewHash) {
         ThymeleafOperationSnapshot snapshot = required(operationId);
         if (snapshot.operation().status() != ProjectOperationStatus.PREVIEW_READY) {
+            recordEvent(snapshot, snapshot.operation().status(), snapshot.operation().status(), "APPROVAL_REJECTED");
             throw new IllegalStateException("THYMELEAF_APPROVAL_REQUIRES_PREVIEW_READY");
         }
         if (!snapshot.previewHash().equals(expectedPreviewHash)) {
+            recordEvent(snapshot, snapshot.operation().status(), snapshot.operation().status(), "APPROVAL_REJECTED");
             throw new IllegalStateException("THYMELEAF_PREVIEW_HASH_MISMATCH");
         }
         if (!snapshot.operation().validationErrors().isEmpty()) {
+            recordEvent(snapshot, snapshot.operation().status(), snapshot.operation().status(), "APPROVAL_REJECTED");
             throw new IllegalStateException("THYMELEAF_PREVIEW_VALIDATION_FAILED: "
                     + snapshot.operation().validationErrors());
         }
@@ -184,6 +187,7 @@ public class ThymeleafProjectWorkflowService {
         try {
         ThymeleafProjectOperation operation = snapshot.operation();
         if (!stateService.validateBeforeApply(operation)) {
+            recordEvent(snapshot, operation.status(), operation.status(), "APPLY_REJECTED");
             throw new IllegalStateException("THYMELEAF_OPERATION_NOT_READY_FOR_APPLY");
         }
         Path root = Path.of(snapshot.projectRoot());
@@ -205,14 +209,23 @@ public class ThymeleafProjectWorkflowService {
         if (outcome.status() == ApplyOutcome.Status.CONFLICT) {
             return toConflict(snapshot, operation, outcome.conflictingPaths());
         }
-        if (outcome.status() == ApplyOutcome.Status.ROLLED_BACK) {
+        if (outcome.status() == ApplyOutcome.Status.ROLLED_BACK
+                || outcome.status() == ApplyOutcome.Status.ROLLBACK_FAILED) {
+            // ARCH-0713: ROLLBACK_FAILED는 "복구까지 실패해 파일이 원래 상태로 안 돌아갔을 수
+            // 있다"는 뜻이라, ROLLED_BACK과 같은 값으로 취급해 아래로 흘려보내면 안 된다(성공
+            // 처리로 오인하는 거짓 보고 버그가 됨) — 둘 다 FAILED로 전이시키되 이벤트 타입으로
+            // 구분한다.
+            boolean rollbackFailed = outcome.status() == ApplyOutcome.Status.ROLLBACK_FAILED;
+            String eventType = rollbackFailed ? "APPLY_ROLLBACK_FAILED" : "APPLY_ROLLED_BACK";
+            String errorPrefix = rollbackFailed ? "APPLY_ROLLBACK_FAILED: " : "APPLY_ROLLED_BACK: ";
             ThymeleafProjectOperation failed = stateService.transitionState(operation, ProjectOperationStatus.FAILED);
             failed = copy(failed, failed.status(), failed.previewArtifacts(), failed.targetFiles(),
                     outcome.backupPath(), List.of(),
-                    List.of("APPLY_ROLLED_BACK: " + outcome.failureDetail()), false, null);
+                    List.of(errorPrefix + outcome.failureDetail()), false, null);
             nextRevision(snapshot, failed);
-            recordEvent(snapshot, operation.status(), failed.status(), "APPLY_ROLLED_BACK");
-            throw new IllegalStateException("THYMELEAF_APPLY_ROLLED_BACK", new RuntimeException(outcome.failureDetail()));
+            recordEvent(snapshot, operation.status(), failed.status(), eventType);
+            String exceptionCode = rollbackFailed ? "THYMELEAF_APPLY_ROLLBACK_FAILED" : "THYMELEAF_APPLY_ROLLED_BACK";
+            throw new IllegalStateException(exceptionCode, new RuntimeException(outcome.failureDetail()));
         }
 
         ThymeleafProjectOperation applied = stateService.markAsApplied(operation);
@@ -299,6 +312,13 @@ public class ThymeleafProjectWorkflowService {
 
     private void recordEvent(ThymeleafOperationSnapshot snapshot, ProjectOperationStatus from,
                              ProjectOperationStatus to, String type) {
+        // ARCH-0707(WP7 6차 pass, 2026-08-06): actor는 "system"으로 고정한다 — 구현 누락이
+        // 아니라 이 서버의 인증 모델상 채울 수 있는 의미 있는 값이 없기 때문이다. MCP 인증은
+        // 전역 공유 토큰 하나뿐이라 McpAuthenticationInterceptor가 principal을 항상 리터럴
+        // "mcp-shared-token"으로 고정한다 — 그 값을 여기 그대로 넣으면 "개별 사용자를 식별했다"는
+        // 오해만 유발할 뿐 실제 감사 가치는 없다. 이 제약이 CRUD/Board/Master-detail에 별도
+        // 승인 워크플로우를 신설하지 않기로 한 결정과도 맞물려 있다(§11 6차 pass 실행 메모 참고).
+        // 사용자별 자격증명(OAuth 등)이 도입되면 이 자리를 실제 principal로 교체한다.
         eventPort.append(new OperationEvent(UUID.randomUUID().toString(), snapshot.operation().operationId(),
                 "THYMELEAF_PROJECT", snapshot.revision(), from == null ? null : from.name(), to.name(), type,
                 "system", UUID.randomUUID().toString(), snapshot.previewHash(), java.time.Instant.now()));
