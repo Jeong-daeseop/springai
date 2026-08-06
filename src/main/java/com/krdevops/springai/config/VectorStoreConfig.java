@@ -7,7 +7,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import redis.clients.jedis.RedisClient;
+import redis.clients.jedis.DefaultJedisClientConfig;
+import redis.clients.jedis.JedisClientConfig;
 import java.net.URI;
+import java.time.Duration;
 
 /**
  * Vector Store 설정 — Redis Stack (redis-stack 컨테이너)
@@ -28,9 +31,33 @@ public class VectorStoreConfig {
     @Value("${spring.ai.vectorstore.redis.prefix:egov:}")
     private String prefix;
 
+    private final OperationalResilienceProperties resilienceProperties;
+
+    public VectorStoreConfig(OperationalResilienceProperties resilienceProperties) {
+        this.resilienceProperties = resilienceProperties;
+    }
+
     @Bean
     public RedisClient redisClient() {
-        return RedisClient.create(URI.create(redisUri));
+        URI uri = URI.create(redisUri);
+        var builder = DefaultJedisClientConfig.builder()
+                .connectionTimeoutMillis(toMillis(resilienceProperties.getTimeout().getRedisConnect()))
+                .socketTimeoutMillis(toMillis(resilienceProperties.getTimeout().getRedisRead()))
+                .ssl("rediss".equalsIgnoreCase(uri.getScheme()));
+        if (uri.getUserInfo() != null) {
+            String[] credentials = uri.getUserInfo().split(":", 2);
+            if (!credentials[0].isBlank()) builder.user(credentials[0]);
+            if (credentials.length == 2 && !credentials[1].isBlank()) builder.password(credentials[1]);
+        }
+        if (uri.getPath() != null && uri.getPath().matches("/\\d+")) {
+            builder.database(Integer.parseInt(uri.getPath().substring(1)));
+        }
+        JedisClientConfig clientConfig = builder.build();
+        return RedisClient.builder().fromURI(uri).clientConfig(clientConfig).build();
+    }
+
+    private int toMillis(Duration duration) {
+        return Math.toIntExact(Math.min(Integer.MAX_VALUE, duration.toMillis()));
     }
 
     @Bean

@@ -1,25 +1,17 @@
 spring:
   application:
     name: springai-mcp
+  profiles:
+    default: dev
   thymeleaf:
-    cache: false
-    prefix: file:src/main/resources/templates/
     suffix: .html
-  web:
-    resources:
-      static-locations: file:src/main/resources/static/
   servlet:
     multipart:
       max-file-size: 50MB
       max-request-size: 100MB
-  devtools:
-    restart:
-      enabled: true
-    livereload:
-      enabled: true
   mvc:
     async:
-      request-timeout: -1           # SSE async 요청 timeout 비활성화
+      request-timeout: ${APP_SSE_TOTAL_TIMEOUT:5m}
   main:
     banner-mode: off
     web-application-type: servlet   # SSE HTTP 서버 활성화
@@ -36,6 +28,7 @@ spring:
         keep-alive-interval: 30s
     openai:
       api-key: ${OPENAI_API_KEY}
+      timeout: ${APP_OPENAI_TOTAL_TIMEOUT:2m}
       chat:
         options:
           model: gpt-4o-mini
@@ -71,15 +64,19 @@ spring:
         prefix: ${REDIS_PREFIX:egov:}
         initialize-schema: true    # VectorStoreConfig.initializeSchema(true)와 일치
   datasource:
-    url: jdbc:mysql://localhost:3306/ebt?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8
-    username: ${DB_USERNAME:ebt}
-    password: ${DB_PASSWORD:ebt01}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       keepalive-time: 60000       # Mac 슬립 후 재연결 속도 향상
-      connection-timeout: 30000
+      connection-timeout: ${APP_MYSQL_CONNECT_TIMEOUT_MS:30000}
       idle-timeout: 600000
       max-lifetime: 1800000
+  jdbc:
+    template:
+      query-timeout: ${APP_MYSQL_QUERY_TIMEOUT:30s}
+  data:
+    redis:
+      connect-timeout: ${APP_REDIS_CONNECT_TIMEOUT:3s}
+      timeout: ${APP_REDIS_READ_TIMEOUT:5s}
   # ARCH-WP3: 기존에 데이터가 있는 DB는 V1을 실제 실행하지 않고 baseline으로만 기록하고,
   # 완전히 새 DB는 V1을 그대로 실행해 10개 AI_* 테이블을 만든다. migration 실패 시
   # 기본적으로 기동이 실패한다(ARCH-0304) — 별도 구현 불필요.
@@ -110,6 +107,32 @@ chat:
     max-messages: 8       # 20 → 8: 토큰 예산 확보 (num-ctx 8192 기준)
 
 app:
+  templates:
+    # 운영 중 교체가 필요한 템플릿만 이 절대 경로에서 우선 탐색한다. 비어 있으면 jar classpath만 사용한다.
+    external-directory: ${EXTERNAL_TEMPLATE_DIRECTORY:}
+  resilience:
+    circuit-breaker:
+      failure-threshold: ${APP_CIRCUIT_FAILURE_THRESHOLD:5}
+      open-duration: ${APP_CIRCUIT_OPEN_DURATION:30s}
+    bulkhead:
+      capture-concurrency: ${APP_CAPTURE_CONCURRENCY:4}
+      indexing-concurrency: ${APP_INDEXING_CONCURRENCY:2}
+      chat-concurrency: ${APP_CHAT_CONCURRENCY:8}
+    timeout:
+      mysql-connect: ${APP_MYSQL_CONNECT_TIMEOUT:30s}
+      redis-connect: ${APP_REDIS_CONNECT_TIMEOUT:3s}
+      redis-read: ${APP_REDIS_READ_TIMEOUT:5s}
+      openai-connect: ${APP_OPENAI_CONNECT_TIMEOUT:5s}
+      openai-first-token: ${APP_OPENAI_FIRST_TOKEN_TIMEOUT:30s}
+      openai-idle: ${APP_OPENAI_IDLE_TIMEOUT:45s}
+      ollama-connect: ${APP_OLLAMA_CONNECT_TIMEOUT:3s}
+      ollama-first-token: ${APP_OLLAMA_FIRST_TOKEN_TIMEOUT:60s}
+      ollama-idle: ${APP_OLLAMA_IDLE_TIMEOUT:60s}
+      figma-connect: ${APP_FIGMA_CONNECT_TIMEOUT:5s}
+      figma-total: ${APP_FIGMA_TOTAL_TIMEOUT:30s}
+      extractor-connect: ${APP_EXTRACTOR_CONNECT_TIMEOUT:3s}
+      extractor-total: ${APP_EXTRACTOR_TOTAL_TIMEOUT:60s}
+      sse-total: ${APP_SSE_TOTAL_TIMEOUT:5m}
   db:
     # ARCH-0310: Flyway(V1)가 이제 이 10개 테이블을 만든다. 이 flag는 default true로 기존
     # @PostConstruct DDL을 그대로 유지해 이중 안전망 역할을 하며, 전체 환경에서 Flyway만으로
@@ -221,3 +244,21 @@ egov:
 
 logging:
   config: classpath:logback-spring.xml
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,externalDependencies
+  health:
+    defaults:
+      enabled: true

@@ -62,7 +62,10 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/mcp/**", "/sse/**", "/", "/ai/**",
-                    "/api/chat/**", "/api/ollama/**", "/api/documents/**").permitAll()
+                    "/api/chat/**", "/api/ollama/**", "/api/documents/**",
+                    "/js/**", "/css/**", "/images/**", "/webjars/**",
+                    "/actuator/health", "/actuator/health/**",
+                    "/actuator/metrics", "/actuator/metrics/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().denyAll()
             )

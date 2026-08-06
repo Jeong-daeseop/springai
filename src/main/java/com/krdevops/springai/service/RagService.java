@@ -7,6 +7,8 @@ import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import com.krdevops.springai.service.resilience.ExternalCallGuard;
+import com.krdevops.springai.service.resilience.ExternalDependency;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -63,6 +65,7 @@ public class RagService {
     private final VectorStore  vectorStore;
     private final ChunkService chunkService;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ExternalCallGuard externalCallGuard;
     // 리다이렉트 비활성화 — SSRF 검증 후 리다이렉트로 내부망 우회 방지
     // 주의: DNS 리바인딩 공격(검증 시 공인 IP → 연결 시 사설 IP) 완전 차단은 불가.
     //       운영 환경에서는 화이트리스트 방식 적용 권장.
@@ -83,6 +86,11 @@ public class RagService {
      * @param type    문서 유형 (document / source_code / history)
      */
     public String ingestText(String docId, String content, String type) {
+        return externalCallGuard.execute(ExternalDependency.REDIS,
+                () -> ingestTextOnce(docId, content, type));
+    }
+
+    private String ingestTextOnce(String docId, String content, String type) {
         // 기존 청크 삭제 — 파일 수정 시 구 청크 누적 방지
         deleteOldChunks(docId);
 
@@ -287,12 +295,13 @@ public class RagService {
      * @param topK  반환할 최대 문서 수
      */
     public List<Document> search(String query, int topK) {
-        return vectorStore.similaritySearch(
-            SearchRequest.builder()
-                .query(query)
-                .topK(topK)
-                .build()
-        );
+        return externalCallGuard.execute(ExternalDependency.REDIS,
+                () -> vectorStore.similaritySearch(
+                    SearchRequest.builder()
+                        .query(query)
+                        .topK(topK)
+                        .build()
+                ));
     }
 
     /**

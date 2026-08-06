@@ -3,11 +3,14 @@ package com.krdevops.springai.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.config.DesignVisionProperties;
+import com.krdevops.springai.config.OperationalResilienceProperties;
 import com.krdevops.springai.model.design.FigmaNodeDocument;
 import com.krdevops.springai.model.design.FigmaReference;
 import com.krdevops.springai.service.figma.FigmaApiQuery;
 import com.krdevops.springai.service.figma.FigmaComponentsResponse;
 import com.krdevops.springai.service.figma.FigmaStylesResponse;
+import com.krdevops.springai.service.resilience.ExternalCallGuard;
+import com.krdevops.springai.service.resilience.ExternalDependency;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -33,27 +36,41 @@ public class FigmaApiClient {
     private final HttpClient httpClient;
     private final Sleeper sleeper;
     private final String baseUrl;
+    private final ExternalCallGuard guard;
 
     @Autowired
-    public FigmaApiClient(DesignVisionProperties properties, ObjectMapper objectMapper) {
+    public FigmaApiClient(DesignVisionProperties properties, ObjectMapper objectMapper,
+                          ExternalCallGuard guard) {
         this(properties, objectMapper, HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(Math.max(1,
                         properties.getFigma().getConnectTimeoutSeconds())))
                 .followRedirects(HttpClient.Redirect.NEVER)
-                .build(), Thread::sleep, BASE_URL);
+                .build(), Thread::sleep, BASE_URL, guard);
     }
 
     FigmaApiClient(DesignVisionProperties properties, ObjectMapper objectMapper,
                    HttpClient httpClient, Sleeper sleeper, String baseUrl) {
+        this(properties, objectMapper, httpClient, sleeper, baseUrl,
+                new ExternalCallGuard(new OperationalResilienceProperties()));
+    }
+
+    private FigmaApiClient(DesignVisionProperties properties, ObjectMapper objectMapper,
+                           HttpClient httpClient, Sleeper sleeper, String baseUrl,
+                           ExternalCallGuard guard) {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.httpClient = httpClient;
         this.sleeper = sleeper;
         this.baseUrl = baseUrl;
+        this.guard = guard;
     }
 
     public FigmaNodeDocument fetchNode(FigmaReference reference) {
         ensureEnabled();
+        return guard.execute(ExternalDependency.FIGMA, () -> fetchNodeOnce(reference));
+    }
+
+    private FigmaNodeDocument fetchNodeOnce(FigmaReference reference) {
         URI uri = URI.create(baseUrl + "/files/" + encodePath(reference.fileKey())
                 + "/nodes?ids=" + encodeQuery(reference.nodeId())
                 + "&depth=" + effectiveDepth());
@@ -222,7 +239,8 @@ public class FigmaApiClient {
     public FigmaStylesResponse queryStyles(String fileKey) {
         ensureEnabled();
         URI uri = URI.create(baseUrl + "/files/" + encodePath(fileKey) + "/styles");
-        return callApi(uri, FigmaStylesResponse.class);
+        return guard.execute(ExternalDependency.FIGMA,
+                () -> callApi(uri, FigmaStylesResponse.class));
     }
 
     /**
@@ -232,7 +250,8 @@ public class FigmaApiClient {
     public FigmaComponentsResponse queryComponents(String fileKey) {
         ensureEnabled();
         URI uri = URI.create(baseUrl + "/files/" + encodePath(fileKey) + "/components");
-        return callApi(uri, FigmaComponentsResponse.class);
+        return guard.execute(ExternalDependency.FIGMA,
+                () -> callApi(uri, FigmaComponentsResponse.class));
     }
 
     /**

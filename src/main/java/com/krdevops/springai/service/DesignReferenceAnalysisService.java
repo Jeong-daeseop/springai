@@ -13,9 +13,13 @@ import com.krdevops.springai.model.design.FigmaDesignSourceMetadata;
 import com.krdevops.springai.model.design.SemanticDesignCandidate;
 import com.krdevops.springai.model.design.UiDesignSpec;
 import com.krdevops.springai.model.design.VisionAnalysisRequest;
+import com.krdevops.springai.service.resilience.ExternalCallGuard;
+import com.krdevops.springai.service.resilience.ExternalDependency;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -33,6 +37,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -54,6 +60,15 @@ public class DesignReferenceAnalysisService {
     private final FigmaApiClient figmaApiClient;
     private final FigmaDesignSpecMapper figmaDesignSpecMapper;
     private final FigmaCacheKeyFactory figmaCacheKeyFactory;
+    private Executor visionExecutor = ForkJoinPool.commonPool();
+    private ExternalCallGuard externalCallGuard;
+
+    @Autowired
+    void configureOperationalIsolation(@Qualifier("visionExecutor") Executor visionExecutor,
+                                       ExternalCallGuard externalCallGuard) {
+        this.visionExecutor = visionExecutor;
+        this.externalCallGuard = externalCallGuard;
+    }
 
     public DesignAnalysisResult analyze(String referencePath, String pageRange, String featureType) {
         Path path = pathValidator.validate(referencePath);
@@ -140,7 +155,7 @@ public class DesignReferenceAnalysisService {
             Path path, String pageRange, String featureType, String sourceHash) {
         List<VisionAnalysisRequest.VisionImage> sourceImages = loadImages(path, pageRange);
         List<VisionAnalysisRequest.VisionImage> images = imagePreprocessor.preprocess(sourceImages);
-        UiDesignSpec uiSpec = analyzeWithRetry(
+        UiDesignSpec uiSpec = analyzeWithTimeout(
                 new VisionAnalysisRequest(featureType, images, properties.getPromptVersion()));
         DesignAnalysisResult result = new DesignAnalysisResult(
                 UUID.randomUUID().toString(), sourceHash, path.toString(), pageRange,
@@ -251,21 +266,22 @@ public class DesignReferenceAnalysisService {
         }
     }
 
-    private UiDesignSpec analyzeWithRetry(VisionAnalysisRequest request) {
-        RuntimeException last = null;
-        int attempts = Math.max(1, properties.getMaxAttempts());
-        for (int attempt = 1; attempt <= attempts; attempt++) {
-            try {
-                return CompletableFuture.supplyAsync(() -> visionAnalysisClient.analyze(request))
-                        .orTimeout(Math.max(1, properties.getTimeoutSeconds()), TimeUnit.SECONDS)
-                        .join();
-            } catch (CompletionException e) {
-                Throwable cause = e.getCause() == null ? e : e.getCause();
-                last = cause instanceof RuntimeException runtime
-                        ? runtime : new IllegalStateException(cause.getMessage(), cause);
-                log.warn("비전 분석 호출 실패({}/{}): {}", attempt, attempts, cause.getMessage());
-            }
+    private UiDesignSpec analyzeWithTimeout(VisionAnalysisRequest request) {
+        // 생성형 POST는 중복 실행 부작용이 있어 자동 retry하지 않는다. retry는 Figma GET에만 적용한다.
+        try {
+            return CompletableFuture.supplyAsync(() -> analyzeVisionOnce(request), visionExecutor)
+                    .orTimeout(Math.max(1, properties.getTimeoutSeconds()), TimeUnit.SECONDS)
+                    .join();
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause() == null ? e : e.getCause();
+            throw new IllegalStateException("비전 분석 호출에 실패했습니다.", cause);
         }
-        throw new IllegalStateException("비전 분석 호출이 " + attempts + "회 모두 실패했습니다.", last);
+    }
+
+    private UiDesignSpec analyzeVisionOnce(VisionAnalysisRequest request) {
+        if (externalCallGuard == null) return visionAnalysisClient.analyze(request);
+        ExternalDependency dependency = "openai".equalsIgnoreCase(visionAnalysisClient.providerId())
+                ? ExternalDependency.OPENAI : ExternalDependency.OLLAMA;
+        return externalCallGuard.execute(dependency, () -> visionAnalysisClient.analyze(request));
     }
 }

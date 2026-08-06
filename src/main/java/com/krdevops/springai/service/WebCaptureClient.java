@@ -3,6 +3,8 @@ package com.krdevops.springai.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.config.WebCaptureProperties;
 import com.krdevops.springai.model.capture.CaptureWebPageRequest;
+import com.krdevops.springai.service.resilience.ExternalCallGuard;
+import com.krdevops.springai.service.resilience.ExternalDependency;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -18,10 +20,13 @@ public class WebCaptureClient {
     private final WebCaptureProperties properties;
     private final ObjectMapper objectMapper;
     private final HttpClient client;
+    private final ExternalCallGuard guard;
 
-    public WebCaptureClient(WebCaptureProperties properties, ObjectMapper objectMapper) {
+    public WebCaptureClient(WebCaptureProperties properties, ObjectMapper objectMapper,
+                            ExternalCallGuard guard) {
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.guard = guard;
         this.client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(properties.getConnectTimeoutSeconds()))
                 .followRedirects(HttpClient.Redirect.NEVER)
@@ -31,6 +36,12 @@ public class WebCaptureClient {
     public byte[] capture(CaptureWebPageRequest request, URI validatedUrl,
                           String captureId, String documentKey) {
         ensureEnabled();
+        return guard.execute(ExternalDependency.EXTRACTOR,
+                () -> captureOnce(request, validatedUrl, captureId, documentKey));
+    }
+
+    private byte[] captureOnce(CaptureWebPageRequest request, URI validatedUrl,
+                               String captureId, String documentKey) {
         try {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("captureId", captureId);
@@ -68,10 +79,12 @@ public class WebCaptureClient {
     public boolean health() {
         if (!properties.isEnabled()) return false;
         try {
-            HttpRequest request = HttpRequest.newBuilder(endpoint("/v1/health"))
-                    .timeout(Duration.ofSeconds(properties.getConnectTimeoutSeconds()))
-                    .header("X-Extractor-Key", properties.getExtractorApiKey()).GET().build();
-            return client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode() == 200;
+            return guard.execute(ExternalDependency.EXTRACTOR, () -> {
+                HttpRequest request = HttpRequest.newBuilder(endpoint("/v1/health"))
+                        .timeout(Duration.ofSeconds(properties.getConnectTimeoutSeconds()))
+                        .header("X-Extractor-Key", properties.getExtractorApiKey()).GET().build();
+                return client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode() == 200;
+            });
         } catch (Exception e) {
             return false;
         }

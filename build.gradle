@@ -42,6 +42,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.freemarker:freemarker:2.3.33'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
     implementation 'com.networknt:json-schema-validator:3.0.1'
@@ -103,6 +104,13 @@ tasks.register('browserGateTest', Exec) {
     description = 'WP8 Playwright 1440/768/390, axe, visual diff Gate를 실제 Chromium으로 검증합니다.'
     workingDir file('jsp-design-extractor')
     commandLine 'npm', 'run', 'test:browser-gate'
+}
+
+tasks.register('prodBootJarSmoke', Exec) {
+    group = 'verification'
+    description = '소스 디렉터리 밖에서 prod bootJar의 Thymeleaf와 정적 리소스를 검증합니다.'
+    dependsOn tasks.named('bootJar')
+    commandLine 'node', 'scripts/prod-bootjar-smoke.mjs'
 }
 
 tasks.named('check') {

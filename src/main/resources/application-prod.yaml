@@ -1,0 +1,30 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  thymeleaf:
+    cache: true
+    prefix: classpath:/templates/
+  web:
+    resources:
+      static-locations: classpath:/static/
+  devtools:
+    restart:
+      enabled: false
+    livereload:
+      enabled: false
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  ai:
+    vectorstore:
+      redis:
+        uri: ${REDIS_URI}
+
+app:
+  db:
+    legacy-repository-ddl-enabled: false
+  design-vision:
+    provider: ${DESIGN_VISION_PROVIDER:disabled}
+

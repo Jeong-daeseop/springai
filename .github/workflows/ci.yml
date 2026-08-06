@@ -49,6 +49,9 @@ jobs:
       - name: Test and build
         run: ./gradlew clean test bootJar -Pci --stacktrace
 
+      - name: Test WP9 prod bootJar from isolated working directory
+        run: ./gradlew prodBootJarSmoke -Pci --stacktrace
+
       - name: Upload test diagnostics
         if: failure()
         uses: actions/upload-artifact@v4
