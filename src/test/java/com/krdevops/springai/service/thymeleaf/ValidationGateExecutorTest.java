@@ -167,6 +167,9 @@ class ValidationGateExecutorTest {
         assertEquals(GateSeverity.BLOCK, executor.severityOf(ValidationGateType.TEMPLATE_ENGINE_RENDER));
         assertEquals(GateSeverity.BLOCK, executor.severityOf(ValidationGateType.BINDING_VALIDATION));
         assertEquals(GateSeverity.BLOCK, executor.severityOf(ValidationGateType.ROUTE_PARITY));
+        assertEquals(GateSeverity.BLOCK, executor.severityOf(ValidationGateType.BROWSER_RENDER));
+        assertEquals(GateSeverity.BLOCK, executor.severityOf(ValidationGateType.ACCESSIBILITY));
+        assertEquals(GateSeverity.BLOCK, executor.severityOf(ValidationGateType.VISUAL_PARITY));
     }
 
     @Test

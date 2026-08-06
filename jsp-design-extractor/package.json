@@ -8,13 +8,18 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
-    "test": "npm run build && node scripts/e2e.mjs"
+    "test": "npm run build && node scripts/e2e.mjs",
+    "test:browser-gate": "node --test test/browser-gate.test.mjs",
+    "browser-gate": "node scripts/browser-gate.mjs"
   },
   "dependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "jszip": "^3.10.1",
+    "pixelmatch": "^7.2.0",
     "playwright": "^1.55.0",
+    "pngjs": "^7.0.0",
     "website-figma-contract": "file:../website-figma-contract"
   },
   "devDependencies": {

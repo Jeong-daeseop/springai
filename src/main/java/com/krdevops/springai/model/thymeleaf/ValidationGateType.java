@@ -9,7 +9,10 @@ public enum ValidationGateType {
     BINDING_VALIDATION("바인딩 계약 검증"),
     ROUTE_PARITY("라우트 일치성 검증"),
     OVERFLOW_CHECK("오버플로우 검증"),
-    BUILD_VALIDATION("빌드 검증");
+    BUILD_VALIDATION("빌드 검증"),
+    BROWSER_RENDER("Playwright 브라우저 렌더 검증"),
+    ACCESSIBILITY("axe 접근성 검증"),
+    VISUAL_PARITY("스크린샷 시각 일치성 검증");
 
     public final String description;
 

@@ -49,7 +49,10 @@ public class ValidationGateExecutor {
             ValidationGateType.BINDING_VALIDATION, GateSeverity.BLOCK,
             ValidationGateType.ROUTE_PARITY, GateSeverity.BLOCK,
             ValidationGateType.OVERFLOW_CHECK, GateSeverity.WARN,
-            ValidationGateType.BUILD_VALIDATION, GateSeverity.BLOCK));
+            ValidationGateType.BUILD_VALIDATION, GateSeverity.BLOCK,
+            ValidationGateType.BROWSER_RENDER, GateSeverity.BLOCK,
+            ValidationGateType.ACCESSIBILITY, GateSeverity.BLOCK,
+            ValidationGateType.VISUAL_PARITY, GateSeverity.BLOCK));
 
     private final SpringTemplateEngine templateEngine;
 

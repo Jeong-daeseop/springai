@@ -98,6 +98,13 @@ tasks.register('figmaContractTest', Exec) {
     commandLine 'npm', 'test'
 }
 
+tasks.register('browserGateTest', Exec) {
+    group = 'verification'
+    description = 'WP8 Playwright 1440/768/390, axe, visual diff Gate를 실제 Chromium으로 검증합니다.'
+    workingDir file('jsp-design-extractor')
+    commandLine 'npm', 'run', 'test:browser-gate'
+}
+
 tasks.named('check') {
     dependsOn tasks.named('figmaContractTest')
 }

@@ -27,6 +27,25 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: jsp-design-extractor/package-lock.json
+
+      - name: Install browser Gate dependencies
+        working-directory: jsp-design-extractor
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: jsp-design-extractor
+        run: npx playwright install --with-deps chromium
+
+      - name: Test WP8 browser Gate
+        working-directory: jsp-design-extractor
+        run: npm run test:browser-gate
+
       - name: Test and build
         run: ./gradlew clean test bootJar -Pci --stacktrace
 
