@@ -1,5 +1,6 @@
 package com.krdevops.springai.config.mcp;
 
+import com.krdevops.springai.config.observability.ObservabilityContextHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -10,19 +11,23 @@ public class McpSecurityAuditLogger {
     private static final Logger log = LoggerFactory.getLogger(McpSecurityAuditLogger.class);
 
     public void authentication(String correlationId, McpCredentialValidator.Status status, String remoteAddress) {
-        if (status == McpCredentialValidator.Status.VALID_CURRENT
-                || status == McpCredentialValidator.Status.VALID_PREVIOUS) {
-            log.info("mcp_authentication correlationId={} status={} remoteAddress={}",
-                    correlationId, status, remoteAddress);
-        } else {
-            log.warn("mcp_authentication correlationId={} status={} remoteAddress={}",
-                    correlationId, status, remoteAddress);
+        try (var ignored = ObservabilityContextHolder.openEvent("mcp_authentication")) {
+            if (status == McpCredentialValidator.Status.VALID_CURRENT
+                    || status == McpCredentialValidator.Status.VALID_PREVIOUS) {
+                log.info("mcp_authentication correlationId={} status={} remoteAddress={}",
+                        correlationId, status, remoteAddress);
+            } else {
+                log.warn("mcp_authentication correlationId={} status={} remoteAddress={}",
+                        correlationId, status, remoteAddress);
+            }
         }
     }
 
     public void authorization(String correlationId, String toolName, McpToolRiskLevel risk,
                               String decision, String credentialVersion) {
-        log.info("mcp_authorization correlationId={} tool={} riskLevel={} decision={} credentialVersion={}",
-                correlationId, toolName, risk, decision, credentialVersion);
+        try (var ignored = ObservabilityContextHolder.openEvent("mcp_authorization")) {
+            log.info("mcp_authorization correlationId={} tool={} riskLevel={} decision={} credentialVersion={}",
+                    correlationId, toolName, risk, decision, credentialVersion);
+        }
     }
 }

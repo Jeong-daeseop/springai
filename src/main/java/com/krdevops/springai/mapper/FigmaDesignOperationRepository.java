@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * R1-014/R1-029: {@link FigmaDesignOperation}을 revision 단위로 불변 저장하고,
@@ -40,6 +42,7 @@ public class FigmaDesignOperationRepository {
     private final OperationHashFactory operationHashFactory;
     private final FigmaDesignOperationStateService stateService;
     private final LegacyRepositoryDdlProperties ddlProperties;
+    private OperationalTelemetry telemetry;
 
     public FigmaDesignOperationRepository(
             JdbcTemplate jdbcTemplate,
@@ -56,6 +59,9 @@ public class FigmaDesignOperationRepository {
         this.stateService = stateService;
         this.ddlProperties = ddlProperties;
     }
+
+    @Autowired
+    void configureTelemetry(OperationalTelemetry telemetry) { this.telemetry = telemetry; }
 
     @PostConstruct
     public void createTableIfNotExists() {
@@ -116,7 +122,9 @@ public class FigmaDesignOperationRepository {
             return findLatest(winnerOperationId).orElseThrow(() -> idempotencyIndexCorrupt(hash));
         }
 
-        return insertRevision(initial);
+        FigmaDesignOperation saved = insertRevision(initial);
+        recordTransition(saved.operationId(), null, saved.status(), "CREATED");
+        return saved;
     }
 
     /**
@@ -136,12 +144,17 @@ public class FigmaDesignOperationRepository {
 
         if (hasSourceRevisionConflict(current, observedSourceRevision)) {
             stateService.assertTransitionAllowed(current.status(), FigmaDesignOperationStatus.CONFLICT);
-            return insertRevision(current.withNextRevision(
+            FigmaDesignOperation saved = insertRevision(current.withNextRevision(
                     FigmaDesignOperationStatus.CONFLICT, observedSourceRevision, issues, artifacts));
+            recordTransition(operationId, current.status(), saved.status(), "CONFLICT");
+            return saved;
         }
 
         stateService.assertTransitionAllowed(current.status(), requestedStatus);
-        return insertRevision(current.withNextRevision(requestedStatus, observedSourceRevision, issues, artifacts));
+        FigmaDesignOperation saved = insertRevision(
+                current.withNextRevision(requestedStatus, observedSourceRevision, issues, artifacts));
+        recordTransition(operationId, current.status(), saved.status(), requestedStatus.name());
+        return saved;
     }
 
     /** 실제 Plugin 적용 보고를 받은 뒤에만 호출할 수 있다({@code pluginReportReceived=true}). */
@@ -150,8 +163,10 @@ public class FigmaDesignOperationRepository {
         FigmaDesignOperation current = findLatest(operationId)
                 .orElseThrow(() -> operationNotFound(operationId));
         stateService.assertTransitionToAppliedAllowed(current.status(), pluginReportReceived);
-        return insertRevision(current.withNextRevision(
+        FigmaDesignOperation saved = insertRevision(current.withNextRevision(
                 FigmaDesignOperationStatus.APPLIED, current.sourceRevision(), current.issues(), artifacts));
+        recordTransition(operationId, current.status(), saved.status(), "APPLIED");
+        return saved;
     }
 
     public Optional<FigmaDesignOperation> findLatest(String operationId) {
@@ -208,6 +223,12 @@ public class FigmaDesignOperationRepository {
                             + operation.operationId() + "/" + operation.revision(), exception);
         }
         return operation;
+    }
+
+    private void recordTransition(String operationId, FigmaDesignOperationStatus from,
+                                  FigmaDesignOperationStatus to, String event) {
+        if (telemetry != null) telemetry.operationTransition(operationId, "FIGMA_DESIGN",
+                from == null ? null : from.name(), to.name(), event);
     }
 
     private Optional<String> findOperationIdByHash(String hash) {

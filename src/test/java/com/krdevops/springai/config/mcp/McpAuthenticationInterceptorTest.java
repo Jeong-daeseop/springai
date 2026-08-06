@@ -1,5 +1,7 @@
 package com.krdevops.springai.config.mcp;
 
+import com.krdevops.springai.config.observability.ObservabilityContextHolder;
+import com.krdevops.springai.config.observability.ObservabilityFilter;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockFilterChain;
@@ -14,6 +16,7 @@ class McpAuthenticationInterceptorTest {
     @AfterEach
     void clearActor() {
         McpActorContext.clear();
+        ObservabilityContextHolder.clear();
     }
 
     private McpAuthenticationInterceptor interceptor(String sharedToken) {
@@ -96,5 +99,24 @@ class McpAuthenticationInterceptorTest {
                 (req, res) -> observed[0] = McpActorContext.current());
 
         assertThat(observed[0].authenticated()).isTrue();
+    }
+
+    @Test
+    void observabilityFilter가_생성한_correlationId를_MCP인증까지_그대로_전파한다() throws Exception {
+        ObservabilityFilter observabilityFilter = new ObservabilityFilter();
+        McpAuthenticationInterceptor filter = interceptor("expected-token");
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/mcp");
+        request.addHeader("X-MCP-Token", "expected-token");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        String[] observed = new String[2];
+
+        observabilityFilter.doFilter(request, response, (req, res) ->
+                filter.doFilter(req, res, (nestedRequest, nestedResponse) -> {
+                    observed[0] = ObservabilityContextHolder.current().correlationId();
+                    observed[1] = McpActorContext.current().correlationId();
+                }));
+
+        assertThat(observed[0]).isEqualTo(response.getHeader(ObservabilityFilter.CORRELATION_HEADER));
+        assertThat(observed[1]).isEqualTo(observed[0]);
     }
 }

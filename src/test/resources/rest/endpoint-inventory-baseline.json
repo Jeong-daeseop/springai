@@ -119,6 +119,18 @@
   "method" : "POST",
   "path" : "/api/figma/tokens"
 }, {
+  "controller" : "OperationalStatusController",
+  "method" : "POST",
+  "path" : "/api/operations/artifacts/reconcile"
+}, {
+  "controller" : "OperationalStatusController",
+  "method" : "POST",
+  "path" : "/api/operations/artifacts/reconcile/dry-run"
+}, {
+  "controller" : "OperationalStatusController",
+  "method" : "GET",
+  "path" : "/api/operations/status"
+}, {
   "controller" : "RagController",
   "method" : "POST",
   "path" : "/api/rag/chat"

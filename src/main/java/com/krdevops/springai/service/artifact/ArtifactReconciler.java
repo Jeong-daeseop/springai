@@ -16,6 +16,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
+import com.krdevops.springai.service.observability.OperationalStatusService;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /**
  * ARCH-0509/0511: catalog(DB)와 filesystem 실제 상태를 비교해
@@ -31,14 +34,35 @@ public class ArtifactReconciler {
     private final ArtifactStoreProperties properties;
     private final ArtifactCatalogPort catalog;
     private final ArtifactStorePort store;
+    private final OperationalTelemetry telemetry;
+    private final OperationalStatusService statusService;
 
     public ArtifactReconciler(ArtifactStoreProperties properties, ArtifactCatalogPort catalog, ArtifactStorePort store) {
+        this(properties, catalog, store, null, null);
+    }
+
+    @Autowired
+    public ArtifactReconciler(ArtifactStoreProperties properties, ArtifactCatalogPort catalog,
+                              ArtifactStorePort store, OperationalTelemetry telemetry,
+                              OperationalStatusService statusService) {
         this.properties = properties;
         this.catalog = catalog;
         this.store = store;
+        this.telemetry = telemetry;
+        this.statusService = statusService;
     }
 
     public ArtifactReconciliationReport reconcile(boolean dryRun) {
+        long startedAt = System.nanoTime();
+        try {
+            return reconcileInternal(dryRun, startedAt);
+        } catch (RuntimeException e) {
+            if (telemetry != null) telemetry.reconciliationFailure(dryRun, System.nanoTime() - startedAt);
+            throw e;
+        }
+    }
+
+    private ArtifactReconciliationReport reconcileInternal(boolean dryRun, long startedAt) {
         Set<String> filesOnDisk = listContentHashesOnDisk();
         List<Artifact> catalogEntries = catalog.findAll();
 
@@ -71,7 +95,11 @@ public class ArtifactReconciler {
             }
         }
 
-        return new ArtifactReconciliationReport(dryRun, orphans, missing, quarantined);
+        ArtifactReconciliationReport report =
+                new ArtifactReconciliationReport(dryRun, orphans, missing, quarantined);
+        if (telemetry != null) telemetry.reconciliation(report, System.nanoTime() - startedAt);
+        if (statusService != null) statusService.record(report);
+        return report;
     }
 
     private Set<String> listContentHashesOnDisk() {

@@ -10,6 +10,8 @@ import org.thymeleaf.exceptions.TemplateProcessingException;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.StringTemplateResolver;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -55,6 +57,7 @@ public class ValidationGateExecutor {
             ValidationGateType.VISUAL_PARITY, GateSeverity.BLOCK));
 
     private final SpringTemplateEngine templateEngine;
+    private OperationalTelemetry telemetry;
 
     public ValidationGateExecutor() {
         StringTemplateResolver resolver = new StringTemplateResolver();
@@ -62,6 +65,9 @@ public class ValidationGateExecutor {
         this.templateEngine = new SpringTemplateEngine();
         this.templateEngine.setTemplateResolver(resolver);
     }
+
+    @Autowired
+    void configureTelemetry(OperationalTelemetry telemetry) { this.telemetry = telemetry; }
 
     /** @return {@code type}이 실패했을 때 Preview/Apply를 막아야 하는지(BLOCK) 검토만 필요한지(WARN). */
     public GateSeverity severityOf(ValidationGateType type) {
@@ -132,8 +138,8 @@ public class ValidationGateExecutor {
         }
 
         long duration = System.currentTimeMillis() - start;
-        return new ValidationGateResult(
-                ValidationGateType.TEMPLATE_ENGINE_RENDER, issues.isEmpty(), issues, duration, Instant.now());
+        return observed(new ValidationGateResult(
+                ValidationGateType.TEMPLATE_ENGINE_RENDER, issues.isEmpty(), issues, duration, Instant.now()));
     }
 
     /**
@@ -157,13 +163,13 @@ public class ValidationGateExecutor {
         }
 
         long duration = System.currentTimeMillis() - start;
-        return new ValidationGateResult(
+        return observed(new ValidationGateResult(
             ValidationGateType.THYMELEAF_PARSE,
             issues.isEmpty(),
             issues,
             duration,
             Instant.now()
-        );
+        ));
     }
 
     /**
@@ -187,13 +193,13 @@ public class ValidationGateExecutor {
         }
 
         long duration = System.currentTimeMillis() - start;
-        return new ValidationGateResult(
+        return observed(new ValidationGateResult(
             ValidationGateType.BINDING_VALIDATION,
             issues.isEmpty(),
             issues,
             duration,
             Instant.now()
-        );
+        ));
     }
 
     /**
@@ -217,13 +223,13 @@ public class ValidationGateExecutor {
         }
 
         long duration = System.currentTimeMillis() - start;
-        return new ValidationGateResult(
+        return observed(new ValidationGateResult(
             ValidationGateType.ROUTE_PARITY,
             issues.isEmpty(),
             issues,
             duration,
             Instant.now()
-        );
+        ));
     }
 
     /**
@@ -249,13 +255,13 @@ public class ValidationGateExecutor {
         }
 
         long duration = System.currentTimeMillis() - start;
-        return new ValidationGateResult(
+        return observed(new ValidationGateResult(
             ValidationGateType.OVERFLOW_CHECK,
             issues.isEmpty(),
             issues,
             duration,
             Instant.now()
-        );
+        ));
     }
 
     /**
@@ -279,16 +285,22 @@ public class ValidationGateExecutor {
         }
 
         long duration = System.currentTimeMillis() - start;
-        return new ValidationGateResult(
+        return observed(new ValidationGateResult(
             ValidationGateType.BUILD_VALIDATION,
             issues.isEmpty(),
             issues,
             duration,
             Instant.now()
-        );
+        ));
     }
 
     // ===== 헬퍼 메서드 =====
+
+    private ValidationGateResult observed(ValidationGateResult result) {
+        if (telemetry != null) telemetry.gate(result.gateType(), severityOf(result.gateType()),
+                result.passed(), java.time.Duration.ofMillis(result.durationMs()));
+        return result;
+    }
 
     private boolean isWellFormedHtml(String html) {
         // 기본 태그 닫힘 확인

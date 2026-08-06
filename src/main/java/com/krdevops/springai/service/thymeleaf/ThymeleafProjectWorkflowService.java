@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.time.Duration;
+import com.krdevops.springai.config.observability.ObservabilityContextHolder;
 
 /**
  * Preview → hash 승인 → source revision 재검증 → 원자 적용/롤백 → 검증의 단일 진입점.
@@ -319,9 +320,13 @@ public class ThymeleafProjectWorkflowService {
         // 오해만 유발할 뿐 실제 감사 가치는 없다. 이 제약이 CRUD/Board/Master-detail에 별도
         // 승인 워크플로우를 신설하지 않기로 한 결정과도 맞물려 있다(§11 6차 pass 실행 메모 참고).
         // 사용자별 자격증명(OAuth 등)이 도입되면 이 자리를 실제 principal로 교체한다.
-        eventPort.append(new OperationEvent(UUID.randomUUID().toString(), snapshot.operation().operationId(),
-                "THYMELEAF_PROJECT", snapshot.revision(), from == null ? null : from.name(), to.name(), type,
-                "system", UUID.randomUUID().toString(), snapshot.previewHash(), java.time.Instant.now()));
+        var context = ObservabilityContextHolder.current();
+        try (var ignored = ObservabilityContextHolder.openOperation(snapshot.operation().operationId())) {
+            eventPort.append(new OperationEvent(UUID.randomUUID().toString(), snapshot.operation().operationId(),
+                    "THYMELEAF_PROJECT", snapshot.revision(), from == null ? null : from.name(), to.name(), type,
+                    context.actorId() == null ? "system" : context.actorId(), context.correlationId(),
+                    snapshot.previewHash(), java.time.Instant.now()));
+        }
     }
 
     private String mediaType(String name) {

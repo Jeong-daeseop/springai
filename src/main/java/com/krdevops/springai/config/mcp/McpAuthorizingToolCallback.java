@@ -4,6 +4,7 @@ import org.springframework.ai.chat.model.ToolContext;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.tool.metadata.ToolMetadata;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
 
 /**
  * ARCH-0108: Tool 메서드 실행 전에 {@link ToolAuthorizationPolicy}를 통과시키는 데코레이터.
@@ -16,17 +17,25 @@ public class McpAuthorizingToolCallback implements ToolCallback {
     private final McpToolRiskLevel riskLevel;
     private final ToolAuthorizationPolicy policy;
     private final McpSensitiveDataRedactor redactor;
+    private final OperationalTelemetry telemetry;
 
     public McpAuthorizingToolCallback(ToolCallback delegate, McpToolRiskLevel riskLevel, ToolAuthorizationPolicy policy) {
-        this(delegate, riskLevel, policy, McpSensitiveDataRedactor.noop());
+        this(delegate, riskLevel, policy, McpSensitiveDataRedactor.noop(), null);
     }
 
     public McpAuthorizingToolCallback(ToolCallback delegate, McpToolRiskLevel riskLevel,
                                       ToolAuthorizationPolicy policy, McpSensitiveDataRedactor redactor) {
+        this(delegate, riskLevel, policy, redactor, null);
+    }
+
+    public McpAuthorizingToolCallback(ToolCallback delegate, McpToolRiskLevel riskLevel,
+                                      ToolAuthorizationPolicy policy, McpSensitiveDataRedactor redactor,
+                                      OperationalTelemetry telemetry) {
         this.delegate = delegate;
         this.riskLevel = riskLevel;
         this.policy = policy;
         this.redactor = redactor;
+        this.telemetry = telemetry;
     }
 
     @Override
@@ -41,14 +50,33 @@ public class McpAuthorizingToolCallback implements ToolCallback {
 
     @Override
     public String call(String toolInput) {
-        policy.authorize(delegate.getToolDefinition().name(), riskLevel, toolInput);
-        return callRedacted(() -> delegate.call(toolInput));
+        return invoke(toolInput, () -> delegate.call(toolInput));
     }
 
     @Override
     public String call(String toolInput, ToolContext toolContext) {
-        policy.authorize(delegate.getToolDefinition().name(), riskLevel, toolInput);
-        return callRedacted(() -> delegate.call(toolInput, toolContext));
+        return invoke(toolInput, () -> delegate.call(toolInput, toolContext));
+    }
+
+    private String invoke(String toolInput, java.util.function.Supplier<String> invocation) {
+        long startedAt = System.nanoTime();
+        try {
+            policy.authorize(delegate.getToolDefinition().name(), riskLevel, toolInput);
+            String result = callRedacted(invocation);
+            record("SUCCESS", startedAt);
+            return result;
+        } catch (McpAuthorizationException exception) {
+            record("DENIED", startedAt);
+            throw exception;
+        } catch (RuntimeException exception) {
+            record("FAILURE", startedAt);
+            throw exception;
+        }
+    }
+
+    private void record(String outcome, long startedAt) {
+        if (telemetry != null) telemetry.toolCall(delegate.getToolDefinition().name(),
+                riskLevel.name(), outcome, System.nanoTime() - startedAt);
     }
 
     private String callRedacted(java.util.function.Supplier<String> invocation) {

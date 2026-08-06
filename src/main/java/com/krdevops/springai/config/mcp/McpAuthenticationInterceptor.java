@@ -8,6 +8,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import com.krdevops.springai.config.observability.ObservabilityContextHolder;
+import com.krdevops.springai.config.observability.ObservabilityFilter;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -25,7 +27,7 @@ public class McpAuthenticationInterceptor extends OncePerRequestFilter {
 
     private static final String TOKEN_HEADER = "X-MCP-Token";
 
-    private static final String CORRELATION_HEADER = "X-Correlation-ID";
+    private static final String CORRELATION_HEADER = ObservabilityFilter.CORRELATION_HEADER;
 
     private final McpCredentialValidator credentialValidator;
     private final McpSecurityAuditLogger auditLogger;
@@ -61,9 +63,11 @@ public class McpAuthenticationInterceptor extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(
                         new UsernamePasswordAuthenticationToken(principal, null, grantedAuthorities));
                 McpActorContext.set(principal.actorContext());
+                ObservabilityContextHolder.setActor(principal.name());
             } else {
                 McpActorContext.set(new McpActorContext(
                         false, null, Set.of(), correlationId, null, failureCode(result.status())));
+                ObservabilityContextHolder.setActor("anonymous");
             }
             filterChain.doFilter(request, response);
         } finally {
@@ -78,6 +82,10 @@ public class McpAuthenticationInterceptor extends OncePerRequestFilter {
     }
 
     private String resolveCorrelationId(HttpServletRequest request) {
+        Object propagated = request.getAttribute(ObservabilityFilter.CORRELATION_ATTRIBUTE);
+        if (propagated instanceof String value && value.matches("[A-Za-z0-9._:-]{1,128}")) {
+            return value;
+        }
         String supplied = request.getHeader(CORRELATION_HEADER);
         if (supplied != null && supplied.matches("[A-Za-z0-9._:-]{1,128}")) {
             return supplied;

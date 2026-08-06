@@ -39,6 +39,7 @@ import com.krdevops.springai.tools.FigmaExportTool;
 import com.krdevops.springai.tools.FigmaDesignOrchestrationTool;
 import com.krdevops.springai.tools.FigmaApprovedSpecificationTool;
 import com.krdevops.springai.tools.ThymeleafProjectWorkflowTool;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
@@ -100,7 +101,8 @@ public class McpConfig {
             ThymeleafProjectWorkflowTool thymeleafProjectWorkflowTool,
             McpToolRiskAnnotationResolver riskResolver,
             ToolAuthorizationPolicy authorizationPolicy,
-            McpSensitiveDataRedactor redactor) {
+            McpSensitiveDataRedactor redactor,
+            OperationalTelemetry telemetry) {
         ToolCallbackProvider rawProvider = MethodToolCallbackProvider.builder()
                 .toolObjects(
                         dateTimeTool, designReferenceTool, employeeTool, schemaReaderTool, codeSaverTool,
@@ -123,7 +125,8 @@ public class McpConfig {
             ToolCallback callback = raw[i];
             Method toolMethod = resolveToolMethod(callback);
             McpToolRiskLevel riskLevel = riskResolver.resolve(toolMethod);
-            authorized[i] = new McpAuthorizingToolCallback(callback, riskLevel, authorizationPolicy, redactor);
+            authorized[i] = new McpAuthorizingToolCallback(
+                    callback, riskLevel, authorizationPolicy, redactor, telemetry);
         }
         return ToolCallbackProvider.from(authorized);
     }

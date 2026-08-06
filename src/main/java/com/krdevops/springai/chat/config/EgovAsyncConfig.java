@@ -1,6 +1,7 @@
 package com.krdevops.springai.chat.config;
 
 import com.krdevops.springai.config.OperationalResilienceProperties;
+import com.krdevops.springai.config.observability.ObservabilityContextHolder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.jspecify.annotations.NonNull;
@@ -29,6 +30,7 @@ public class EgovAsyncConfig implements WebMvcConfigurer {
         executor.setQueueCapacity(concurrency * 25);
         executor.setThreadNamePrefix("doc-processor-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+        executor.setTaskDecorator(ObservabilityContextHolder::wrap);
         executor.initialize();
         return executor;
     }
@@ -55,6 +57,7 @@ public class EgovAsyncConfig implements WebMvcConfigurer {
         executor.setMaxPoolSize(10);
         executor.setQueueCapacity(50);
         executor.setThreadNamePrefix("mvc-async-");
+        executor.setTaskDecorator(ObservabilityContextHolder::wrap);
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
         return executor;
@@ -73,6 +76,7 @@ public class EgovAsyncConfig implements WebMvcConfigurer {
         executor.setQueueCapacity(concurrency * queueMultiplier);
         executor.setThreadNamePrefix(prefix);
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+        executor.setTaskDecorator(ObservabilityContextHolder::wrap);
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
         executor.initialize();

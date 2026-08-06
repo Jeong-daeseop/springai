@@ -12,6 +12,10 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
+import com.krdevops.springai.model.thymeleaf.GateSeverity;
+import com.krdevops.springai.model.thymeleaf.ValidationGateType;
+import org.springframework.beans.factory.annotation.Autowired;
 
 /** 운영자가 명시적으로 활성화한 경우에만 생성 대상 프로젝트를 독립 컴파일한다. */
 @Service
@@ -19,8 +23,19 @@ import java.util.concurrent.TimeUnit;
 public class GeneratedProjectBuildValidator {
 
     private final EgovProperties properties;
+    private OperationalTelemetry telemetry;
+
+    @Autowired
+    void configureTelemetry(OperationalTelemetry telemetry) { this.telemetry = telemetry; }
 
     public BuildValidationReport validate(String projectRootPath) {
+        BuildValidationReport report = validateInternal(projectRootPath);
+        if (telemetry != null) telemetry.gate(ValidationGateType.BUILD_VALIDATION, GateSeverity.BLOCK,
+                report.passed(), report.duration());
+        return report;
+    }
+
+    private BuildValidationReport validateInternal(String projectRootPath) {
         long startedAt = System.nanoTime();
         if (!properties.getValidation().isAllowBuildExecution()) {
             return BuildValidationReport.blocked(

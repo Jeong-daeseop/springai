@@ -4,6 +4,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -73,5 +75,31 @@ class McpAuthorizingToolCallbackTest {
         McpActorContext.set(McpActorContext.ANONYMOUS);
 
         assertThat(wrapper.getToolDefinition()).isEqualTo(definition);
+    }
+
+    @Test
+    void tool_허용과_거부를_low_cardinality_metric으로_기록한다() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        OperationalTelemetry telemetry = new OperationalTelemetry(registry);
+        ToolCallback delegate = mock(ToolCallback.class);
+        ToolDefinition definition = ToolDefinition.builder()
+                .name("generateCrudSource").description("d").inputSchema("{}").build();
+        when(delegate.getToolDefinition()).thenReturn(definition);
+        when(delegate.call("{}")).thenReturn("ok");
+        McpAuthorizingToolCallback wrapper = new McpAuthorizingToolCallback(
+                delegate, McpToolRiskLevel.READ, requiredPolicy(), McpSensitiveDataRedactor.noop(), telemetry);
+
+        McpActorContext.set(new McpActorContext(true, "test-actor"));
+        assertThat(wrapper.call("{}")).isEqualTo("ok");
+        McpActorContext.set(McpActorContext.ANONYMOUS);
+        assertThatThrownBy(() -> wrapper.call("{}"))
+                .isInstanceOf(McpAuthorizationException.class);
+
+        assertThat(registry.get("springai.tool.calls.total")
+                .tag("tool_family", "GENERATION").tag("outcome", "SUCCESS").counter().count())
+                .isEqualTo(1);
+        assertThat(registry.get("springai.tool.calls.total")
+                .tag("tool_family", "GENERATION").tag("outcome", "DENIED").counter().count())
+                .isEqualTo(1);
     }
 }

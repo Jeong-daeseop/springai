@@ -4,6 +4,7 @@ import com.krdevops.springai.config.mcp.McpAuthenticationInterceptor;
 import com.krdevops.springai.config.mcp.McpCredentialValidator;
 import com.krdevops.springai.config.mcp.McpSecurityAuditLogger;
 import com.krdevops.springai.service.figma.FigmaRestTokenService;
+import com.krdevops.springai.config.observability.ObservabilityContextHolder;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -153,5 +154,6 @@ public class SecurityConfig {
         UsernamePasswordAuthenticationToken auth =
             new UsernamePasswordAuthenticationToken(principal, null, List.of());
         SecurityContextHolder.getContext().setAuthentication(auth);
+        ObservabilityContextHolder.setActor(principal);
     }
 }
