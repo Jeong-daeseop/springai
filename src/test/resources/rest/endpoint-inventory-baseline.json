@@ -160,6 +160,10 @@
   "path" : "/api/thymeleaf/operations/{operationId}/approve"
 }, {
   "controller" : "ThymeleafOperationsController",
+  "method" : "POST",
+  "path" : "/api/thymeleaf/operations/{operationId}/baseline-approvals"
+}, {
+  "controller" : "ThymeleafOperationsController",
   "method" : "GET",
   "path" : "/api/thymeleaf/operations/{operationId}/report"
 }, {

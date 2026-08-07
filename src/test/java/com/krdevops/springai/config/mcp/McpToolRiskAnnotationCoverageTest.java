@@ -46,6 +46,6 @@ class McpToolRiskAnnotationCoverageTest {
 
         assertThat(missing).as("@McpToolRisk 누락된 @Tool 메서드").isEmpty();
         // WP2(Bridge 제거) 이후 실측치 — McpConfig에 새 Tool을 등록하면 이 값도 함께 갱신한다.
-        assertThat(scannedMethods).isEqualTo(92);
+        assertThat(scannedMethods).isEqualTo(94);
     }
 }

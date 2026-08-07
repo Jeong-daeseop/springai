@@ -38,6 +38,7 @@ import com.krdevops.springai.tools.DesignSystemTool;
 import com.krdevops.springai.tools.FigmaExportTool;
 import com.krdevops.springai.tools.FigmaDesignOrchestrationTool;
 import com.krdevops.springai.tools.FigmaApprovedSpecificationTool;
+import com.krdevops.springai.tools.ThymeleafBaselineApprovalTool;
 import com.krdevops.springai.tools.ThymeleafProjectWorkflowTool;
 import com.krdevops.springai.service.observability.OperationalTelemetry;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -99,6 +100,7 @@ public class McpConfig {
             FigmaDesignOrchestrationTool figmaDesignOrchestrationTool,
             FigmaApprovedSpecificationTool figmaApprovedSpecificationTool,
             ThymeleafProjectWorkflowTool thymeleafProjectWorkflowTool,
+            ThymeleafBaselineApprovalTool thymeleafBaselineApprovalTool,
             McpToolRiskAnnotationResolver riskResolver,
             ToolAuthorizationPolicy authorizationPolicy,
             McpSensitiveDataRedactor redactor,
@@ -114,7 +116,8 @@ public class McpConfig {
                         securityTemplateTool, sqlTool, outputPathResolverTool, thymeleafLayoutTool,
                         captureWebPageTool, designArtifactTool, figmaExportTool, designSystemTool,
                         figmaDesignOrchestrationTool,
-                        figmaApprovedSpecificationTool, thymeleafProjectWorkflowTool)
+                        figmaApprovedSpecificationTool, thymeleafProjectWorkflowTool,
+                        thymeleafBaselineApprovalTool)
                 .build();
 
         // ARCH-0108/ARCH-0103: 모든 등록 Tool을 ToolAuthorizationPolicy로 감싸고,

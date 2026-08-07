@@ -1,8 +1,14 @@
 package com.krdevops.springai.service.thymeleaf;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.model.thymeleaf.BrowserValidationReport;
+import com.krdevops.springai.model.thymeleaf.BrowserValidationRequest;
+import com.krdevops.springai.model.thymeleaf.GateSeverity;
 import com.krdevops.springai.model.thymeleaf.ProjectOperationStatus;
 import com.krdevops.springai.model.thymeleaf.ThymeleafOperationSnapshot;
 import com.krdevops.springai.model.thymeleaf.ThymeleafProjectOperation;
+import com.krdevops.springai.model.thymeleaf.ValidationGateResult;
+import com.krdevops.springai.model.thymeleaf.ValidationReport;
 import com.krdevops.springai.model.write.ProjectChangeSet;
 import com.krdevops.springai.model.write.ProjectWritePolicy;
 import com.krdevops.springai.service.contract.OperationHashFactory;
@@ -61,6 +67,9 @@ public class ThymeleafProjectWorkflowService {
     private final ArtifactService artifactService;
     private final SafePathResolver pathResolver;
     private final ApprovedProjectWritePort writePort;
+    private final BrowserValidationGateExecutor browserValidationGate;
+    private final BrowserGateDirectoryResolver browserGateDirectories;
+    private final ObjectMapper reportMapper = new ObjectMapper().findAndRegisterModules();
 
     @Autowired
     public ThymeleafProjectWorkflowService(
@@ -73,7 +82,9 @@ public class ThymeleafProjectWorkflowService {
             OperationLockPort lockPort,
             ArtifactService artifactService,
             SafePathResolver pathResolver,
-            ApprovedProjectWritePort writePort) {
+            ApprovedProjectWritePort writePort,
+            BrowserValidationGateExecutor browserValidationGate,
+            BrowserGateDirectoryResolver browserGateDirectories) {
         this.stateService = stateService;
         this.validationGate = validationGate;
         this.hashFactory = hashFactory;
@@ -84,6 +95,8 @@ public class ThymeleafProjectWorkflowService {
         this.artifactService = artifactService;
         this.pathResolver = pathResolver;
         this.writePort = writePort;
+        this.browserValidationGate = browserValidationGate;
+        this.browserGateDirectories = browserGateDirectories;
     }
 
     public ThymeleafProjectWorkflowService(ProjectOperationStateService stateService,
@@ -91,7 +104,8 @@ public class ThymeleafProjectWorkflowService {
             DesignMdRuleLoader designRuleLoader, ThymeleafOperationStore store) {
         this(stateService, validationGate, hashFactory, designRuleLoader, store,
                 new NoopOperationEventPort(), new NoopOperationLockPort(), null,
-                new SafePathResolver(), new FileSystemApprovedProjectWritePort(new SafePathResolver(), hashFactory));
+                new SafePathResolver(), new FileSystemApprovedProjectWritePort(new SafePathResolver(), hashFactory),
+                null, null);
     }
 
     /** DB 없이 Workflow 로직만 검증하려는 단위 테스트·임베디드 사용을 위한 호환 생성자. */
@@ -262,12 +276,29 @@ public class ThymeleafProjectWorkflowService {
     }
 
     public WorkflowResult revalidate(String operationId) {
+        return revalidate(operationId, null);
+    }
+
+    /**
+     * WP8 3차 pass/ARCH-0810/0811: {@code browserOptions}가 주어진 화면만 브라우저 Gate
+     * (render/axe/visual parity)까지 실행하고, 파일별 Gate 결과를 {@link ValidationReport}로
+     * 영속화한다. {@code browserOptions}가 없으면 무인자 오버로드와 완전히 같은 정적 parse 검증만
+     * 수행한다 — 브라우저 프로세스를 띄우지 않는다.
+     *
+     * <p>이 서버는 다른 프로젝트에 코드를 생성하는 도구라 생성 화면이 돌아가는 서버를 자동으로
+     * 갖지 못한다. 그래서 렌더 대상은 호출자가 URL 또는 완성 HTML로 명시해야 하고, 브라우저
+     * Gate가 설정되지 않은 인스턴스에 옵션이 들어오면 조용히 건너뛰지 않고 실패시킨다 —
+     * "검증한 줄 알았는데 아무것도 안 했다"가 가장 위험한 결과이기 때문이다.
+     */
+    public WorkflowResult revalidate(String operationId, RevalidateBrowserOptions browserOptions) {
         ThymeleafOperationSnapshot snapshot = required(operationId);
         if (snapshot.operation().status() != ProjectOperationStatus.APPLIED) {
             throw new IllegalStateException("THYMELEAF_VALIDATION_REQUIRES_APPLIED");
         }
         Path root = Path.of(snapshot.projectRoot());
         List<String> errors = new ArrayList<>();
+        Map<String, List<ValidationGateResult>> browserResults =
+                runBrowserGates(root, operationId, browserOptions, errors);
         for (String relative : snapshot.operation().previewArtifacts().keySet()) {
             Path target = pathResolver.resolveTarget(root, relative);
             String content;
@@ -279,6 +310,11 @@ public class ThymeleafProjectWorkflowService {
             }
             var parse = validationGate.validateThymeleafParse(content);
             if (!parse.passed()) parse.issues().forEach(issue -> errors.add(relative + ": " + issue));
+
+            List<ValidationGateResult> results = new ArrayList<>();
+            results.add(parse);
+            results.addAll(browserResults.getOrDefault(relative, List.of()));
+            persistValidationReport(snapshot, relative, results, content);
         }
         if (!errors.isEmpty()) {
             ThymeleafProjectOperation failed = stateService.transitionState(
@@ -293,6 +329,55 @@ public class ThymeleafProjectWorkflowService {
         ThymeleafOperationSnapshot saved = nextRevision(snapshot, validated);
         recordEvent(saved, snapshot.operation().status(), validated.status(), "VALIDATED");
         return new WorkflowResult(saved.operation(), saved.previewHash());
+    }
+
+    /**
+     * @return 파일 경로(없으면 screenId)별 브라우저 Gate 결과. BLOCK severity 실패는 {@code errors}에
+     *         합류시켜 기존 FAILED/VALIDATED 분기가 그대로 처리하게 한다.
+     */
+    private Map<String, List<ValidationGateResult>> runBrowserGates(
+            Path root, String operationId, RevalidateBrowserOptions browserOptions, List<String> errors) {
+        if (browserOptions == null || browserOptions.screens().isEmpty()) {
+            return Map.of();
+        }
+        if (browserValidationGate == null || browserGateDirectories == null) {
+            throw new IllegalStateException("THYMELEAF_BROWSER_GATE_NOT_CONFIGURED");
+        }
+        Path artifactDirectory = browserGateDirectories.artifactDirectory(root, operationId);
+        Path baselineDirectory = browserGateDirectories.baselineDirectory(root);
+        Map<String, List<ValidationGateResult>> byFile = new LinkedHashMap<>();
+        for (BrowserScreenValidationRequest screen : browserOptions.screens()) {
+            BrowserValidationReport report = browserValidationGate.validate(new BrowserValidationRequest(
+                    screen.screenId(), screen.url(), screen.renderedHtml(),
+                    artifactDirectory, baselineDirectory, screen.maskSelectors(), screen.readySelector(),
+                    BrowserValidationRequest.DEFAULT_MAX_DIFFERENCE_RATIO,
+                    BrowserValidationRequest.DEFAULT_TIMEOUT_MILLIS));
+            List<ValidationGateResult> results = report.toGateResults();
+            String label = screen.relativeFile() == null || screen.relativeFile().isBlank()
+                    ? screen.screenId() : screen.relativeFile();
+            byFile.computeIfAbsent(label, key -> new ArrayList<>()).addAll(results);
+            for (ValidationGateResult result : results) {
+                if (result.passed() || validationGate.severityOf(result.gateType()) != GateSeverity.BLOCK) continue;
+                result.issues().forEach(issue -> errors.add(label + ": " + issue));
+            }
+        }
+        return byFile;
+    }
+
+    private void persistValidationReport(ThymeleafOperationSnapshot snapshot, String relative,
+                                         List<ValidationGateResult> results, String content) {
+        if (artifactService == null) return;
+        boolean blocked = results.stream().anyMatch(result -> !result.passed()
+                && validationGate.severityOf(result.gateType()) == GateSeverity.BLOCK);
+        ValidationReport report = new ValidationReport(relative, results, blocked,
+                hashFactory.sha256Hex(content.getBytes(StandardCharsets.UTF_8)), java.time.Instant.now());
+        try {
+            artifactService.ingestAndLink(reportMapper.writeValueAsBytes(report), "application/json",
+                    "THYMELEAF_VALIDATION_REPORT", snapshot.designRevision(),
+                    snapshot.operation().operationId(), "THYMELEAF_PROJECT");
+        } catch (IOException exception) {
+            throw new IllegalStateException("THYMELEAF_VALIDATION_REPORT_SERIALIZATION_FAILED: " + relative, exception);
+        }
     }
 
     public Optional<WorkflowResult> find(String operationId) {
@@ -362,4 +447,20 @@ public class ThymeleafProjectWorkflowService {
     }
 
     public record WorkflowResult(ThymeleafProjectOperation operation, String previewHash) {}
+
+    /** 비어 있거나 {@code null}이면 재검증은 브라우저 Gate를 아예 실행하지 않는다. */
+    public record RevalidateBrowserOptions(List<BrowserScreenValidationRequest> screens) {
+        public RevalidateBrowserOptions {
+            screens = screens == null ? List.of() : List.copyOf(screens);
+        }
+    }
+
+    /** {@code url}과 {@code renderedHtml} 중 정확히 하나만 지정한다. */
+    public record BrowserScreenValidationRequest(
+            String screenId, String relativeFile, String url, String renderedHtml,
+            List<String> maskSelectors, String readySelector) {
+        public BrowserScreenValidationRequest {
+            maskSelectors = maskSelectors == null ? List.of() : List.copyOf(maskSelectors);
+        }
+    }
 }

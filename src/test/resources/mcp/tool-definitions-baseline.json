@@ -87,6 +87,50 @@
     "type" : "object"
   }
 }, {
+  "name" : "approveThymeleafBaseline",
+  "description" : "적용된 Thymeleaf 화면을 지금 렌더해 시각 비교 baseline으로 승인합니다. url 또는 renderedHtml 중 하나만 지정하며, 요청한 viewport가 하나라도 렌더에 실패하면 아무 baseline도 갱신하지 않습니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "maskSelectors" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      },
+      "operationId" : {
+        "type" : "string"
+      },
+      "readySelector" : {
+        "type" : "string"
+      },
+      "relativeFile" : {
+        "type" : "string"
+      },
+      "renderedHtml" : {
+        "type" : "string"
+      },
+      "screenId" : {
+        "type" : "string"
+      },
+      "sharedSecret" : {
+        "type" : "string"
+      },
+      "url" : {
+        "type" : "string"
+      },
+      "viewports" : {
+        "items" : {
+          "type" : "string"
+        },
+        "type" : "array"
+      }
+    },
+    "required" : [ "sharedSecret", "operationId", "screenId", "relativeFile", "url", "renderedHtml", "viewports", "maskSelectors", "readySelector" ],
+    "type" : "object"
+  }
+}, {
   "name" : "approveThymeleafProject",
   "description" : "Preview hash가 일치하는 Thymeleaf Project Operation을 명시적으로 승인합니다.",
   "inputSchema" : {
@@ -2017,6 +2061,54 @@
       }
     },
     "required" : [ "sharedSecret", "operationId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "revalidateThymeleafProjectWithBrowserGate",
+  "description" : "적용된 Thymeleaf 파일의 정적 Gate에 더해, 지정한 화면을 실제 브라우저로 렌더해 render/접근성/시각 비교 Gate까지 실행합니다. 각 화면은 url 또는 renderedHtml 중 하나만 지정합니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "operationId" : {
+        "type" : "string"
+      },
+      "screens" : {
+        "items" : {
+          "additionalProperties" : false,
+          "properties" : {
+            "maskSelectors" : {
+              "items" : {
+                "type" : "string"
+              },
+              "type" : "array"
+            },
+            "readySelector" : {
+              "type" : "string"
+            },
+            "relativeFile" : {
+              "type" : "string"
+            },
+            "renderedHtml" : {
+              "type" : "string"
+            },
+            "screenId" : {
+              "type" : "string"
+            },
+            "url" : {
+              "type" : "string"
+            }
+          },
+          "required" : [ "maskSelectors", "readySelector", "relativeFile", "renderedHtml", "screenId", "url" ],
+          "type" : "object"
+        },
+        "type" : "array"
+      },
+      "sharedSecret" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sharedSecret", "operationId", "screens" ],
     "type" : "object"
   }
 }, {

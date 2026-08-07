@@ -58,8 +58,10 @@ class McpToolDefinitionSnapshotTest {
      * 임의 서버 경로를 읽는 등 운영 Tool로 볼 수 없어 MCP 등록에서 완전히 제거했다.
      * 재구현은 DesignParityValidationUseCase/ApprovedProjectWritePort 계약 확정 후
      * 별도 MCP 계약 버전에서 진행한다.)
+     * WP8 3차 pass 업데이트: 92 → 94 (approveThymeleafBaseline,
+     * revalidateThymeleafProjectWithBrowserGate)
      */
-    private static final int EXPECTED_TOOL_METHOD_COUNT = 92;
+    private static final int EXPECTED_TOOL_METHOD_COUNT = 94;
 
     /**
      * McpConfig.allToolCallbacks(...)의 toolObjects(...) 인자 개수(등록된 *Tool 컴포넌트 클래스 수).
@@ -68,8 +70,9 @@ class McpToolDefinitionSnapshotTest {
      * R6-039 업데이트: 31 → 32 (FigmaDesignOrchestrationTool 추가)
      * I-6 업데이트: 32 → 33 (FigmaThymeleafBridgeTool 추가) → ARCH-WP2에서 제거
      * ARCH-WP2 업데이트: 35 → 34 (FigmaThymeleafBridgeTool 제거)
+     * WP8 3차 pass 업데이트: 34 → 35 (ThymeleafBaselineApprovalTool 추가)
      */
-    private static final int EXPECTED_TOOL_OBJECT_COUNT = 34;
+    private static final int EXPECTED_TOOL_OBJECT_COUNT = 35;
 
     @Autowired
     private ToolCallbackProvider allToolCallbacks;

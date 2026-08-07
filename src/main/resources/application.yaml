@@ -148,6 +148,11 @@ app:
     auth-mode: ${MCP_AUTH_MODE:REQUIRED}
     # COMPATIBILITY 모드는 이 UTC 시각 전까지만 레거시 Tool 인자 secret을 허용한다.
     legacy-credential-valid-until: ${MCP_LEGACY_CREDENTIAL_VALID_UNTIL:}
+  thymeleaf:
+    browser-gate:
+      # WP8 브라우저 Gate의 승인 baseline·렌더 scratch 보관 루트. 대상 프로젝트 경로 hash로
+      # 다시 격리되므로 여러 프로젝트가 이 루트 하나를 공유해도 서로 섞이지 않는다.
+      baseline-root: ${THYMELEAF_BASELINE_ROOT:${java.io.tmpdir}/springai-thymeleaf-baselines}
   figma:
     # /mcp/** 전역 permitAll과 별도로 신규 Figma/DesignSystem Tool 메서드 내부에서 검증한다.
     mcp-shared-secret: ${FIGMA_MCP_SHARED_SECRET:}

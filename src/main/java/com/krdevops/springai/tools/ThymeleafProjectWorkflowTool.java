@@ -11,6 +11,7 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 /** REST와 동일 Workflow를 사용하는 승인 기반 Thymeleaf MCP 진입점. */
@@ -48,6 +49,18 @@ public class ThymeleafProjectWorkflowTool {
     public String revalidateThymeleafProject(String sharedSecret, String operationId) {
         authorization.authorize(sharedSecret);
         return json(workflow.revalidate(operationId));
+    }
+
+    // Spring AI가 @Tool 오버로드를 이름으로만 구분하므로 브라우저 Gate 확장은 별도 메서드로 노출한다.
+    @McpToolRisk(McpToolRiskLevel.APPLY)
+    @Tool(description = "적용된 Thymeleaf 파일의 정적 Gate에 더해, 지정한 화면을 실제 브라우저로 렌더해 "
+            + "render/접근성/시각 비교 Gate까지 실행합니다. 각 화면은 url 또는 renderedHtml 중 하나만 지정합니다.")
+    public String revalidateThymeleafProjectWithBrowserGate(
+            String sharedSecret, String operationId,
+            List<ThymeleafProjectWorkflowService.BrowserScreenValidationRequest> screens) {
+        authorization.authorize(sharedSecret);
+        return json(workflow.revalidate(operationId,
+                new ThymeleafProjectWorkflowService.RevalidateBrowserOptions(screens)));
     }
 
     @McpToolRisk(McpToolRiskLevel.APPLY)
