@@ -132,6 +132,46 @@ class FigmaDesignOrchestrationServiceTest {
         verify(repository, never()).createOrReuse(org.mockito.ArgumentMatchers.any());
     }
 
+    /**
+     * 형식이 어긋난 editableNodeIds는 Operation이 저장되기 전에 거부해야 한다. 통과시키면 Apply
+     * 시점 scope 재검증이 오탐 CONFLICT를 내는데, CONFLICT는 종단 상태이고 동일 requestHash를
+     * createOrReuse가 재사용하므로 해당 요청이 영구히 복구 불가가 된다.
+     */
+    @Test
+    void malformedEditableNodeIdIsRejectedBeforeRepositoryAccess() {
+        FigmaDesignOperationRepository repository = mock(FigmaDesignOperationRepository.class);
+        FigmaDesignRequest request = FigmaDesignRequest.modifyExisting(
+                "버튼 색상 변경", "allowed-file", List.of("node-789"));
+
+        assertThatThrownBy(() -> service(mock(FigmaContextAnalyzer.class),
+                mock(FigmaFileAllowlistValidator.class), mock(FigmaScreenExportService.class),
+                mock(DesignArtifactService.class), repository).processExplicitRequest(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("nodeId");
+        verify(repository, never()).createOrReuse(org.mockito.ArgumentMatchers.any());
+    }
+
+    /** URL 표기(1-2)로 들어와도 REST 표기(1:2)로 정규화해 저장한다. */
+    @Test
+    void urlStyleEditableNodeIdIsNormalizedBeforePersisting() {
+        FigmaContextAnalyzer analyzer = mock(FigmaContextAnalyzer.class);
+        FigmaDesignOperationRepository repository = mock(FigmaDesignOperationRepository.class);
+        FigmaDesignRequest incoming = FigmaDesignRequest.modifyExisting(
+                "버튼 색상 변경", "allowed-file", List.of("1-2", "3:4"));
+        FigmaDesignRequest expected = FigmaDesignRequest.modifyExisting(
+                "버튼 색상 변경", "allowed-file", List.of("1:2", "3:4"));
+        when(analyzer.analyze(incoming.prompt(), null)).thenReturn(highConfidence());
+        when(repository.createOrReuse(expected))
+                .thenReturn(operation(expected, FigmaDesignOperationStatus.ANALYZED, List.of()));
+
+        var result = service(analyzer, mock(FigmaFileAllowlistValidator.class),
+                mock(FigmaScreenExportService.class), mock(DesignArtifactService.class), repository)
+                .processExplicitRequest(incoming);
+
+        assertThat(result.request().editableNodeIds()).containsExactly("1:2", "3:4");
+        verify(repository).createOrReuse(expected);
+    }
+
     private FigmaDesignOrchestrationService service(
             FigmaContextAnalyzer analyzer,
             FigmaFileAllowlistValidator allowlist,

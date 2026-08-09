@@ -1860,7 +1860,7 @@
   }
 }, {
   "name" : "modifyExistingDesign",
-  "description" : "기존 Figma 화면을 수정합니다.\n지정한 노드 ID 범위 내에서만 수정을 허용하며, 승인되지 않은 컴포넌트는 차단합니다.\n\n입력:\n- prompt: 수정 요청 (예: \"버튼 색상을 파란색으로, 텍스트는 더 크게\")\n- fileKey: Figma 파일 Key\n- editableNodeIds: 수정 가능 노드 ID 목록 (예: [\"node-789\", \"node-101\"])\n\n출력: FigmaDesignOperation\n\n주의:\n- editableNodeIds가 필수입니다.\n- Apply 전에 editableNodeIds 범위가 현재 file/page와 일치하는지 재검증합니다.\n",
+  "description" : "기존 Figma 화면을 수정합니다.\n지정한 노드 ID 범위 내에서만 수정을 허용하며, 승인되지 않은 컴포넌트는 차단합니다.\n\n입력:\n- prompt: 수정 요청 (예: \"버튼 색상을 파란색으로, 텍스트는 더 크게\")\n- fileKey: Figma 파일 Key\n- editableNodeIds: 수정 가능 노드 ID 목록 (예: [\"1:2\", \"3:4\"])\n\n출력: FigmaDesignOperation\n\n주의:\n- editableNodeIds가 필수입니다.\n- nodeId는 Figma 표기(`1:2`, URL의 `1-2`도 허용)만 받습니다. 다른 형식은 요청 시점에 거부됩니다.\n- Apply 전에 editableNodeIds 범위가 현재 file/page와 일치하는지 재검증합니다.\n",
   "inputSchema" : {
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
@@ -1922,6 +1922,67 @@
       }
     },
     "required" : [ "artifactId" ],
+    "type" : "object"
+  }
+}, {
+  "name" : "previewThymeleafBindingGeneration",
+  "description" : "프로젝트의 JSP·Controller·VO를 안전하게 분석해 Binding Contract 기반 Thymeleaf를 생성하고, 파일을 쓰지 않은 PREVIEW_READY 승인 Operation을 만듭니다. REVIEW_REQUIRED 계약은 Preview 전에 차단합니다.",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "request" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "controllerRelativePath" : {
+            "type" : "string"
+          },
+          "jspRelativePath" : {
+            "type" : "string"
+          },
+          "layoutView" : {
+            "type" : "string"
+          },
+          "outputRelativePath" : {
+            "type" : "string"
+          },
+          "pageTitle" : {
+            "type" : "string"
+          },
+          "projectRootPath" : {
+            "type" : "string"
+          },
+          "registRoute" : {
+            "type" : "string"
+          },
+          "screenId" : {
+            "type" : "string"
+          },
+          "screenRole" : {
+            "enum" : [ "LIST", "FORM", "DETAIL" ],
+            "type" : "string"
+          },
+          "screenSpecificationId" : {
+            "type" : "string"
+          },
+          "secondaryVoRelativePath" : {
+            "type" : "string"
+          },
+          "voRelativePath" : {
+            "type" : "string"
+          },
+          "voSuperclassRelativePath" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "controllerRelativePath", "jspRelativePath", "layoutView", "outputRelativePath", "pageTitle", "projectRootPath", "registRoute", "screenId", "screenRole", "screenSpecificationId", "secondaryVoRelativePath", "voRelativePath", "voSuperclassRelativePath" ],
+        "type" : "object"
+      },
+      "sharedSecret" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "sharedSecret", "request" ],
     "type" : "object"
   }
 }, {

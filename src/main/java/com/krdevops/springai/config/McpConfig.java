@@ -39,6 +39,7 @@ import com.krdevops.springai.tools.FigmaExportTool;
 import com.krdevops.springai.tools.FigmaDesignOrchestrationTool;
 import com.krdevops.springai.tools.FigmaApprovedSpecificationTool;
 import com.krdevops.springai.tools.ThymeleafBaselineApprovalTool;
+import com.krdevops.springai.tools.ThymeleafBindingGenerationTool;
 import com.krdevops.springai.tools.ThymeleafProjectWorkflowTool;
 import com.krdevops.springai.service.observability.OperationalTelemetry;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -99,6 +100,7 @@ public class McpConfig {
             DesignSystemTool designSystemTool,
             FigmaDesignOrchestrationTool figmaDesignOrchestrationTool,
             FigmaApprovedSpecificationTool figmaApprovedSpecificationTool,
+            ThymeleafBindingGenerationTool thymeleafBindingGenerationTool,
             ThymeleafProjectWorkflowTool thymeleafProjectWorkflowTool,
             ThymeleafBaselineApprovalTool thymeleafBaselineApprovalTool,
             McpToolRiskAnnotationResolver riskResolver,
@@ -116,7 +118,8 @@ public class McpConfig {
                         securityTemplateTool, sqlTool, outputPathResolverTool, thymeleafLayoutTool,
                         captureWebPageTool, designArtifactTool, figmaExportTool, designSystemTool,
                         figmaDesignOrchestrationTool,
-                        figmaApprovedSpecificationTool, thymeleafProjectWorkflowTool,
+                        figmaApprovedSpecificationTool, thymeleafBindingGenerationTool,
+                        thymeleafProjectWorkflowTool,
                         thymeleafBaselineApprovalTool)
                 .build();
 

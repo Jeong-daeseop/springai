@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import com.krdevops.springai.model.design.FigmaNodeIds;
+
 import java.util.List;
 
 /**
@@ -91,11 +93,12 @@ public class FigmaDesignOrchestrationService {
     /**
      * 명시적 요청 처리 (모든 타입).
      */
-    public FigmaDesignOperation processExplicitRequest(FigmaDesignRequest request) {
-        if (request == null) {
+    public FigmaDesignOperation processExplicitRequest(FigmaDesignRequest incoming) {
+        if (incoming == null) {
             throw new IllegalArgumentException("request는 필수입니다");
         }
-        validateAdvancedRequest(request);
+        validateAdvancedRequest(incoming);
+        FigmaDesignRequest request = normalizeEditableNodeIds(incoming);
         allowlistValidator.validateFileKey(request.fileKey());
         var analysis = contextAnalyzer.analyze(request.prompt(), null);
         FigmaDesignOperation operation = operationRepository.createOrReuse(request);
@@ -105,6 +108,26 @@ public class FigmaDesignOrchestrationService {
         return operationRepository.appendTransition(
                 operation.operationId(), FigmaDesignOperationStatus.REJECTED,
                 null, confidenceIssues(analysis), List.of());
+    }
+
+    /**
+     * Apply 시점 scope 재검증이 저장된 값을 그대로 조회하므로, 요청이 원장에 들어가기 전에
+     * {@code 1-2}/{@code 1:2} 표기를 정규화하고 형식이 어긋나면 여기서 거부한다. 잘못된 nodeId를
+     * 통과시키면 Apply에서 오탐 CONFLICT가 나는데, CONFLICT는 종단 상태이고 동일 requestHash는
+     * {@code createOrReuse}가 재사용하므로 해당 요청이 영구히 복구 불가가 된다.
+     */
+    private FigmaDesignRequest normalizeEditableNodeIds(FigmaDesignRequest request) {
+        if (request.editableNodeIds() == null || request.editableNodeIds().isEmpty()) {
+            return request;
+        }
+        List<String> normalized = FigmaNodeIds.normalizeAll(request.editableNodeIds(), "editableNodeIds");
+        if (normalized.equals(request.editableNodeIds())) {
+            return request;
+        }
+        return new FigmaDesignRequest(
+                request.type(), request.prompt(), request.fileKey(), request.referenceNodeIds(),
+                normalized, request.imageNodeIds(), request.targetPlatform(),
+                request.components(), request.screens());
     }
 
     private void validateAdvancedRequest(FigmaDesignRequest request) {

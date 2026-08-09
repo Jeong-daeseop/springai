@@ -4,6 +4,7 @@ import com.krdevops.springai.model.figma.contract.FigmaDesignOperation;
 import com.krdevops.springai.model.figma.ops.DesignSystemImpact;
 import com.krdevops.springai.model.figma.ops.FigmaGenerationReport;
 import com.krdevops.springai.model.figma.ops.FigmaOperationalMetrics;
+import com.krdevops.springai.service.FigmaApiException;
 import com.krdevops.springai.service.figma.FigmaDesignOperationService;
 import com.krdevops.springai.service.figma.FigmaOperationsService;
 import java.util.List;
@@ -79,6 +80,11 @@ public class FigmaOperationsController {
                     operationId, report
             );
             return ResponseEntity.ok(updated);
+        } catch (FigmaApiException e) {
+            // scope 재검증 중 전파된 Figma 오류(인증 실패·rate limit 등)가 불투명한 500으로
+            // 새지 않도록 원인 코드를 붙여 표준 응답으로 변환한다.
+            throw new FigmaRequestException(
+                    "FIGMA_OPERATION_APPLY_FAILED", e.code() + ": " + e.getMessage());
         } catch (IllegalStateException | IllegalArgumentException e) {
             throw new FigmaRequestException("FIGMA_OPERATION_APPLY_FAILED", e.getMessage());
         }

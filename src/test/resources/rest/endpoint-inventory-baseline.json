@@ -147,6 +147,10 @@
   "method" : "POST",
   "path" : "/api/rag/search"
 }, {
+  "controller" : "ThymeleafBindingGenerationController",
+  "method" : "POST",
+  "path" : "/api/thymeleaf/binding-generations/preview"
+}, {
   "controller" : "ThymeleafOperationsController",
   "method" : "POST",
   "path" : "/api/thymeleaf/operations/preview"

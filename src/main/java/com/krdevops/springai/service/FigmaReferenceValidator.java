@@ -1,6 +1,7 @@
 package com.krdevops.springai.service;
 
 import com.krdevops.springai.config.DesignVisionProperties;
+import com.krdevops.springai.model.design.FigmaNodeIds;
 import com.krdevops.springai.model.design.FigmaReference;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,7 +19,6 @@ public class FigmaReferenceValidator {
 
     private static final String ALLOWED_HOST = "www.figma.com";
     private static final Pattern FILE_KEY_PATTERN = Pattern.compile("[A-Za-z0-9_-]{6,128}");
-    private static final Pattern NODE_ID_PATTERN = Pattern.compile("[0-9]+[:-][0-9]+");
 
     private final DesignVisionProperties properties;
 
@@ -75,12 +75,7 @@ public class FigmaReferenceValidator {
     }
 
     private String normalizeNodeId(String value) {
-        if (value == null || value.isBlank()) return null;
-        String decoded = URLDecoder.decode(value.trim(), StandardCharsets.UTF_8);
-        if (!NODE_ID_PATTERN.matcher(decoded).matches()) {
-            throw new IllegalArgumentException("올바른 Figma nodeId 형식이 아닙니다.");
-        }
-        return decoded.replace('-', ':');
+        return FigmaNodeIds.normalize(value);
     }
 
     private String queryParameter(URI uri, String name) {

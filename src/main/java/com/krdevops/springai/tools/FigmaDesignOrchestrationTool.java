@@ -99,12 +99,13 @@ public class FigmaDesignOrchestrationTool {
             입력:
             - prompt: 수정 요청 (예: "버튼 색상을 파란색으로, 텍스트는 더 크게")
             - fileKey: Figma 파일 Key
-            - editableNodeIds: 수정 가능 노드 ID 목록 (예: ["node-789", "node-101"])
+            - editableNodeIds: 수정 가능 노드 ID 목록 (예: ["1:2", "3:4"])
 
             출력: FigmaDesignOperation
 
             주의:
             - editableNodeIds가 필수입니다.
+            - nodeId는 Figma 표기(`1:2`, URL의 `1-2`도 허용)만 받습니다. 다른 형식은 요청 시점에 거부됩니다.
             - Apply 전에 editableNodeIds 범위가 현재 file/page와 일치하는지 재검증합니다.
             """)
     public String modifyExistingDesign(

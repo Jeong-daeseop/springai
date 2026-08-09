@@ -87,6 +87,56 @@ class FigmaApiClientTest {
                         error -> assertThat(error.code()).isEqualTo("FIGMA_REFERENCE_NOT_FOUND"));
     }
 
+    /** 삭제된 노드는 404가 아니라 200 + nodes:{id:null}로 돌아오므로 별도 코드로 구분해야 한다. */
+    @Test
+    void reportsDeletedNodeAsNodeNotFoundInsteadOfInvalidResponse() throws Exception {
+        HttpServer deletedNode = server(exchange ->
+                respond(exchange, 200, "{\"version\":\"123\",\"nodes\":{\"1:2\":null}}"));
+
+        assertThatThrownBy(() -> client(deletedNode, properties())
+                .fetchNode(new FigmaReference("abcdef", "1:2")))
+                .isInstanceOfSatisfying(FigmaApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("FIGMA_NODE_NOT_FOUND"));
+    }
+
+    /** 존재 확인은 노드 수만큼 왕복하지 않고 한 번의 GET으로 끝내며, 없는 노드만 돌려준다. */
+    @Test
+    void findMissingNodeIdsUsesOneRequestAndReportsOnlyAbsentNodes() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        List<String> queries = new java.util.ArrayList<>();
+        HttpServer server = server(exchange -> {
+            requests.incrementAndGet();
+            queries.add(exchange.getRequestURI().getQuery());
+            respond(exchange, 200, "{\"version\":\"123\",\"nodes\":{\"1:2\":{\"document\":{}},\"3:4\":null}}");
+        });
+
+        List<String> missing = client(server, properties())
+                .findMissingNodeIds("abcdef", List.of("1:2", "3:4", "5:6"));
+
+        assertThat(missing).containsExactly("3:4", "5:6");
+        assertThat(requests.get()).isEqualTo(1);
+        assertThat(queries.get(0)).contains("depth=1");
+    }
+
+    /** 파일 자체가 없으면(404) 요청한 노드 전부를 누락으로 본다. */
+    @Test
+    void findMissingNodeIdsTreatsMissingFileAsAllNodesMissing() throws Exception {
+        HttpServer server = server(exchange -> respond(exchange, 404, "{}"));
+
+        assertThat(client(server, properties()).findMissingNodeIds("abcdef", List.of("1:2", "3:4")))
+                .containsExactly("1:2", "3:4");
+    }
+
+    /** 인증 실패는 "노드 없음"으로 오판하면 안 되므로 그대로 전파한다. */
+    @Test
+    void findMissingNodeIdsPropagatesAuthFailure() throws Exception {
+        HttpServer server = server(exchange -> respond(exchange, 401, "{}"));
+
+        assertThatThrownBy(() -> client(server, properties()).findMissingNodeIds("abcdef", List.of("1:2")))
+                .isInstanceOfSatisfying(FigmaApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("FIGMA_AUTH_FAILED"));
+    }
+
     @Test
     void rejectsMalformedJson() throws Exception {
         HttpServer malformed = server(exchange -> respond(exchange, 200, "{not-json"));

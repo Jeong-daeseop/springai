@@ -60,8 +60,9 @@ class McpToolDefinitionSnapshotTest {
      * 별도 MCP 계약 버전에서 진행한다.)
      * WP8 3차 pass 업데이트: 92 → 94 (approveThymeleafBaseline,
      * revalidateThymeleafProjectWithBrowserGate)
+     * WP6 생성 진입점 결선: 94 → 95 (previewThymeleafBindingGeneration)
      */
-    private static final int EXPECTED_TOOL_METHOD_COUNT = 94;
+    private static final int EXPECTED_TOOL_METHOD_COUNT = 95;
 
     /**
      * McpConfig.allToolCallbacks(...)의 toolObjects(...) 인자 개수(등록된 *Tool 컴포넌트 클래스 수).
@@ -71,8 +72,9 @@ class McpToolDefinitionSnapshotTest {
      * I-6 업데이트: 32 → 33 (FigmaThymeleafBridgeTool 추가) → ARCH-WP2에서 제거
      * ARCH-WP2 업데이트: 35 → 34 (FigmaThymeleafBridgeTool 제거)
      * WP8 3차 pass 업데이트: 34 → 35 (ThymeleafBaselineApprovalTool 추가)
+     * WP6 생성 진입점 결선: 35 → 36 (ThymeleafBindingGenerationTool 추가)
      */
-    private static final int EXPECTED_TOOL_OBJECT_COUNT = 35;
+    private static final int EXPECTED_TOOL_OBJECT_COUNT = 36;
 
     @Autowired
     private ToolCallbackProvider allToolCallbacks;

@@ -70,6 +70,53 @@ public class FigmaApiClient {
         return guard.execute(ExternalDependency.FIGMA, () -> fetchNodeOnce(reference));
     }
 
+    /** Figma 연동이 켜져 있고 토큰이 있는지. 호출 전에 fail-closed 여부를 판단할 때 쓴다. */
+    public boolean isFigmaEnabled() {
+        return properties.getFigma().isEnabled() && !properties.getFigma().getAccessToken().isBlank();
+    }
+
+    /**
+     * 여러 노드의 존재 여부를 한 번의 GET으로 확인하고, 현재 파일에 없는 nodeId만 돌려준다.
+     * Figma NODES 엔드포인트는 콤마 구분 다중 ID를 지원하므로 노드 수만큼 왕복하지 않는다
+     * (노드별 순차 호출은 rate limit 한 번에 전체가 막힌다).
+     *
+     * <p>존재 확인만 하므로 {@code depth=1}로 문서 본문을 최소화한다. 파일 자체가 없으면(404)
+     * 요청한 전부를 누락으로 본다. 인증 실패·rate limit 등 다른 오류는 "노드 없음"으로 오판하면
+     * 안 되므로 그대로 전파한다.
+     */
+    public List<String> findMissingNodeIds(String fileKey, List<String> nodeIds) {
+        ensureEnabled();
+        if (nodeIds == null || nodeIds.isEmpty()) {
+            return List.of();
+        }
+        return guard.execute(ExternalDependency.FIGMA, () -> findMissingNodeIdsOnce(fileKey, nodeIds));
+    }
+
+    private List<String> findMissingNodeIdsOnce(String fileKey, List<String> nodeIds) {
+        String ids = nodeIds.stream().map(this::encodeQuery).collect(java.util.stream.Collectors.joining(","));
+        URI uri = URI.create(baseUrl + "/files/" + encodePath(fileKey) + "/nodes?ids=" + ids + "&depth=1");
+        JsonNode root;
+        try {
+            root = callApi(uri, JsonNode.class);
+        } catch (FigmaApiException e) {
+            if ("FIGMA_REFERENCE_NOT_FOUND".equals(e.code())) {
+                return List.copyOf(nodeIds);
+            }
+            throw e;
+        }
+        if (root.path("version").asText(null) == null) {
+            throw new FigmaApiException("FIGMA_RESPONSE_INVALID", 200,
+                    "Figma API 응답에 파일 버전이 없습니다.");
+        }
+        JsonNode nodes = root.path("nodes");
+        return nodeIds.stream()
+                .filter(nodeId -> {
+                    JsonNode node = nodes.path(nodeId);
+                    return node.isMissingNode() || node.isNull();
+                })
+                .toList();
+    }
+
     private FigmaNodeDocument fetchNodeOnce(FigmaReference reference) {
         URI uri = URI.create(baseUrl + "/files/" + encodePath(reference.fileKey())
                 + "/nodes?ids=" + encodeQuery(reference.nodeId())
@@ -120,10 +167,20 @@ public class FigmaApiClient {
         try {
             JsonNode root = objectMapper.readTree(body);
             String version = root.path("version").asText(null);
-            JsonNode document = root.path("nodes").path(reference.nodeId()).path("document");
-            if (version == null || version.isBlank() || !document.isObject()) {
+            if (version == null || version.isBlank()) {
                 throw new FigmaApiException("FIGMA_RESPONSE_INVALID", 200,
-                        "Figma API 응답에 버전 또는 노드 문서가 없습니다.");
+                        "Figma API 응답에 파일 버전이 없습니다.");
+            }
+            // 삭제된 노드를 조회하면 Figma는 404가 아니라 200 + nodes:{id:null}을 돌려준다.
+            JsonNode node = root.path("nodes").path(reference.nodeId());
+            if (node.isMissingNode() || node.isNull()) {
+                throw new FigmaApiException("FIGMA_NODE_NOT_FOUND", 200,
+                        "Figma 파일에 해당 노드가 없습니다.");
+            }
+            JsonNode document = node.path("document");
+            if (!document.isObject()) {
+                throw new FigmaApiException("FIGMA_RESPONSE_INVALID", 200,
+                        "Figma API 응답에 노드 문서가 없습니다.");
             }
             return new FigmaNodeDocument(version, document.deepCopy());
         } catch (FigmaApiException e) {

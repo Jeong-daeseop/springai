@@ -2,8 +2,10 @@ package com.krdevops.springai.service.figma;
 
 import com.krdevops.springai.controller.FigmaOperationsController;
 import com.krdevops.springai.mapper.FigmaDesignOperationRepository;
+import com.krdevops.springai.model.contract.GenerationIssue;
 import com.krdevops.springai.model.figma.contract.FigmaDesignOperation;
 import com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus;
+import com.krdevops.springai.service.FigmaApiClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ public class FigmaDesignOperationService {
 
     private final FigmaDesignOperationRepository repository;
     private final FigmaDesignOperationStateService stateService;
+    private final FigmaApiClient figmaApiClient;
 
     /**
      * Operation 조회 (R5-040)
@@ -50,6 +53,9 @@ public class FigmaDesignOperationService {
 
         // 상태 전이 검증 (Plugin 보고서 필수)
         stateService.assertTransitionToAppliedAllowed(current.status(), true);
+
+        // 요청 시점 editableNodeIds가 Apply 시점에도 유효한지 재검증 (R5-042)
+        validateEditableNodeIds(operationId);
 
         log.info("Transitioning operation {} to APPLIED (screenId={})",
                  operationId, report.screenId());
@@ -90,27 +96,46 @@ public class FigmaDesignOperationService {
 
     /**
      * R5-042: editableNodeIds 범위 재검증.
-     * 요청 시점과 실제 Apply 시점 사이에 파일/페이지 구조가 변경되었는지 확인.
+     * 요청 시점과 실제 Apply 시점 사이에 파일/페이지 구조가 변경되었는지 확인한다.
+     * 누락 노드가 있으면 Operation을 CONFLICT로 전이한 뒤 예외를 던진다.
      */
-    public void validateEditableNodeIds(
-            String operationId,
-            String fileKey,
-            List<String> currentEditableNodeIds
-    ) {
+    public void validateEditableNodeIds(String operationId) {
         FigmaDesignOperation operation = repository.findLatest(operationId)
-                .orElseThrow(() -> new IllegalArgumentException("Operation not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Operation not found: " + operationId));
 
-        // 요청된 editableNodeIds
         List<String> requestedNodeIds = operation.request().editableNodeIds();
         if (requestedNodeIds == null || requestedNodeIds.isEmpty()) {
             return; // MODIFY_EXISTING이 아닌 경우
         }
 
-        // 현재 file의 노드 ID 목록과 비교
-        // TODO: Figma API로 현재 노드 ID 목록 조회
-        // 요청 시점의 노드 ID가 현재 file에 모두 존재하는지 확인
-        // 미승인 컴포넌트가 포함되어 있지 않은지 확인
+        // Figma 연동이 꺼져 있으면 검증할 방법 자체가 없다. 여기서 실패시키면 MODIFY_EXISTING
+        // Operation이 APPLY_REQUIRED에 갇혀 APPLIED로 영영 못 가므로(생성 경로는 Figma 접근 없이도
+        // APPLY_REQUIRED까지 올라간다), 검증을 건너뛰고 경고만 남긴다.
+        if (!figmaApiClient.isFigmaEnabled()) {
+            log.warn("Figma 연동이 비활성이라 operation {}의 editable scope 재검증을 건너뜁니다 "
+                    + "(요청 노드 {}개).", operationId, requestedNodeIds.size());
+            return;
+        }
 
-        log.debug("Editable nodes validation passed for operation {}", operationId);
+        // 노드 수만큼 왕복하지 않도록 한 번의 GET으로 존재 여부를 확인한다.
+        List<String> missing = figmaApiClient.findMissingNodeIds(
+                operation.request().fileKey(), requestedNodeIds);
+        if (missing.isEmpty()) {
+            log.debug("Editable nodes validation passed for operation {}", operationId);
+            return;
+        }
+
+        List<GenerationIssue> issues = missing.stream()
+                .map(id -> new GenerationIssue(
+                        "FIGMA_EDITABLE_NODE_MISSING",
+                        GenerationIssue.Severity.ERROR,
+                        "EDITABLE_SCOPE_VALIDATION",
+                        id,
+                        "editableNodeIds에 포함된 노드가 현재 Figma 파일에 존재하지 않습니다: " + id,
+                        "요청을 다시 생성하거나 editableNodeIds를 갱신하세요."))
+                .toList();
+        repository.appendTransition(operationId, FigmaDesignOperationStatus.CONFLICT,
+                operation.sourceRevision(), issues, operation.artifacts());
+        throw new IllegalStateException("FIGMA_OPERATION_EDITABLE_SCOPE_CONFLICT: " + missing);
     }
 }
