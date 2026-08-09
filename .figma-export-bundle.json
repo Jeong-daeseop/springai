@@ -13,7 +13,7 @@
     "designSystem": {
       "profileId": "ftc-krds",
       "profileVersion": "1.0.0",
-      "registryVersion": "2026.07.27-1"
+      "registryVersion": "2026.08.09-4"
     },
     "content": {
       "logicalNodeId": "user-list",
@@ -178,7 +178,7 @@
       "id": "ftc-krds",
       "name": "FTC 정부 포털 Design System",
       "version": "1.0.0",
-      "registryVersion": "2026.07.27-1",
+      "registryVersion": "2026.08.09-4",
       "libraryFileKey": "mVy5h1UbORVqQoBm8Wr1bT",
       "status": "PUBLISHED",
       "components": {},
@@ -190,70 +190,70 @@
     "registry": {
       "profileId": "ftc-krds",
       "profileVersion": "1.0.0",
-      "registryVersion": "2026.07.27-1",
+      "registryVersion": "2026.08.09-4",
       "library": {
         "fileKey": "mVy5h1UbORVqQoBm8Wr1bT",
         "name": "FTC 정부 포털 Design System"
       },
       "components": {
         "egov.listPage": {
-          "componentSetKey": "LIST_PAGE_COMPONENT_SET_KEY",
+          "componentSetKey": "405ab16bd6afa4d783f8aba0aa52da46b56333ef",
           "componentName": "List Page",
           "publishStatus": "CURRENT",
           "variants": {},
           "properties": {}
         },
         "egov.pageHeader": {
-          "componentSetKey": "PAGE_HEADER_COMPONENT_SET_KEY",
+          "componentSetKey": "8c7d0632317bba976549ea48d10d7564cc75b688",
           "componentName": "Page Header",
           "publishStatus": "CURRENT",
           "variants": {},
           "properties": {}
         },
         "egov.searchPanel": {
-          "componentSetKey": "SEARCH_PANEL_COMPONENT_SET_KEY",
+          "componentSetKey": "4795ce70af875871d39349a8065515fa242369c3",
           "componentName": "Search Panel",
           "publishStatus": "CURRENT",
           "variants": {},
           "properties": {}
         },
         "egov.dataTable": {
-          "componentSetKey": "DATA_TABLE_COMPONENT_SET_KEY",
+          "componentSetKey": "fc2bd4334142c0b45ac9cda22d3481afee5b2633",
           "componentName": "Data Table",
           "publishStatus": "CURRENT",
           "variants": {},
           "properties": {}
         },
         "egov.actionArea": {
-          "componentSetKey": "ACTION_AREA_COMPONENT_SET_KEY",
+          "componentSetKey": "0017f3e8b9726a9543f43d8d179432383e84c8b1",
           "componentName": "Action Area",
           "publishStatus": "CURRENT",
           "variants": {},
           "properties": {}
         },
         "krds.button": {
-          "componentSetKey": "BUTTON_COMPONENT_SET_KEY",
+          "componentSetKey": "64cdb2d3a4b4dbed180d998a4f9f208a84ff3e3a",
           "componentName": "Button",
           "publishStatus": "CURRENT",
           "variants": {},
           "properties": {}
         },
         "krds.textField": {
-          "componentSetKey": "TEXT_FIELD_COMPONENT_SET_KEY",
+          "componentSetKey": "ed27981ce72372bfa1fc0485456da0ca93ac2f4a",
           "componentName": "Text Field",
           "publishStatus": "CURRENT",
           "variants": {},
           "properties": {}
         },
         "krds.select": {
-          "componentSetKey": "SELECT_COMPONENT_SET_KEY",
+          "componentSetKey": "3523b3e77afaa7dbeb53f8fdf97ee9b478df2f5f",
           "componentName": "Select",
           "publishStatus": "CURRENT",
           "variants": {},
           "properties": {}
         },
         "krds.pagination": {
-          "componentSetKey": "PAGINATION_COMPONENT_SET_KEY",
+          "componentSetKey": "579d06dc90daeb7dc9a296ecf67f891d59162c7f",
           "componentName": "Pagination",
           "publishStatus": "CURRENT",
           "variants": {},
@@ -269,6 +269,6 @@
     "figmaScreenSpecSchemaVersion": "figma-screen-spec-v1",
     "screenSpecificationVersion": 3,
     "designSystemProfileVersion": "1.0.0",
-    "registryVersion": "2026.07.27-1"
+    "registryVersion": "2026.08.09-4"
   }
 }

@@ -3,9 +3,11 @@ import { bytesToHex } from "@noble/hashes/utils";
 import {
   compareSnapshots,
   componentSnapshot,
+  figmaVariableName,
   normalizePluginError,
   planComponentChange,
   transitionReviewStatus,
+  utf8Bytes,
   validateSpec,
 } from "./core";
 import type {
@@ -75,7 +77,7 @@ figma.showUI(__html__, { width: 420, height: 680 });
 
 async function contentHash(value: unknown): Promise<string> {
   const json = JSON.stringify(value, Object.keys(value as object).sort());
-  return bytesToHex(sha256(new TextEncoder().encode(json)));
+  return bytesToHex(sha256(utf8Bytes(json)));
 }
 
 // ── R3-017: designSystemId+logicalId로 태깅된 기존 노드 탐색 ──
@@ -92,11 +94,11 @@ function findTaggedComponentSets(designSystemId: string): Map<string, ComponentS
   return result;
 }
 
-function findTaggedVariables(designSystemId: string): Map<string, Variable> {
+async function findTaggedVariables(designSystemId: string): Promise<Map<string, Variable>> {
   const result = new Map<string, Variable>();
-  for (const collection of figma.variables.getLocalVariableCollections()) {
+  for (const collection of await figma.variables.getLocalVariableCollectionsAsync()) {
     for (const variableId of collection.variableIds) {
-      const variable = figma.variables.getVariableById(variableId);
+      const variable = await figma.variables.getVariableByIdAsync(variableId);
       if (variable && variable.getPluginData(PLUGIN_DATA_NS_ID) === designSystemId) {
         const logicalId = variable.getPluginData(PLUGIN_DATA_LOGICAL_ID);
         if (logicalId) result.set(logicalId, variable);
@@ -125,7 +127,7 @@ function allRegistryDefinitions(spec: DesignSystemSpec): ComponentDefinition[] {
 async function computeDiff(spec: DesignSystemSpec): Promise<DiffEntry[]> {
   const entries: DiffEntry[] = [];
   const existingSets = findTaggedComponentSets(spec.id);
-  const existingVars = findTaggedVariables(spec.id);
+  const existingVars = await findTaggedVariables(spec.id);
   const definitions = allRegistryDefinitions(spec);
   const incomingComponentIds = new Set(definitions.map(def => def.id));
   const incomingTokenNames = new Set([
@@ -255,8 +257,8 @@ function parseVariableValue(category: TokenCategory, raw: string): VariableValue
   return raw;
 }
 
-function findOrCreateCollection(name: string, modes: string[]): VariableCollection {
-  const existing = figma.variables.getLocalVariableCollections().find(c => c.name === name);
+async function findOrCreateCollection(name: string, modes: string[]): Promise<VariableCollection> {
+  const existing = (await figma.variables.getLocalVariableCollectionsAsync()).find(c => c.name === name);
   const collection = existing ?? figma.variables.createVariableCollection(name);
   const desiredModes = modes.length > 0 ? modes : ["Default"];
   if (collection.modes.length === 1 && collection.modes[0].name !== desiredModes[0]) {
@@ -268,21 +270,46 @@ function findOrCreateCollection(name: string, modes: string[]): VariableCollecti
   return collection;
 }
 
-function findOrCreateVariable(collection: VariableCollection, name: string, type: VariableResolvedDataType): Variable {
+async function findOrCreateVariable(
+  collection: VariableCollection,
+  name: string,
+  type: VariableResolvedDataType,
+  ownerDesignSystemId?: string,
+): Promise<Variable> {
+  const variableName = figmaVariableName(name);
   for (const variableId of collection.variableIds) {
-    const variable = figma.variables.getVariableById(variableId);
-    if (variable && variable.name === name) return variable;
+    const variable = await figma.variables.getVariableByIdAsync(variableId);
+    if (!variable) continue;
+    const sameLogicalVariable = variable.getPluginData(PLUGIN_DATA_LOGICAL_ID) === name
+      || variable.name === variableName;
+    if (!sameLogicalVariable) continue;
+    if (variable.resolvedType === type) return variable;
+    if (ownerDesignSystemId && variable.getPluginData(PLUGIN_DATA_NS_ID) === ownerDesignSystemId) {
+      // 이전 실행이 중간 실패해 남긴 동일 논리 변수의 타입만 복구한다.
+      // 다른 Design System이 소유한 변수는 삭제하지 않고 명시적인 오류로 중단한다.
+      variable.remove();
+      break;
+    }
+    if (ownerDesignSystemId && !variable.getPluginData(PLUGIN_DATA_NS_ID)) {
+      // 구버전 Plugin이 createVariable 직후 중단되어 소유 표식 없이 남긴 잔여 변수는
+      // 원본을 보존한 채 legacy 경로로 이동하고, 요청 타입의 새 변수를 만든다.
+      variable.name = `legacy/${variableName}/${variable.resolvedType.toLowerCase()}`;
+      break;
+    }
+    throw new Error(
+      `Variable 타입이 일치하지 않습니다: ${name} (기존 ${variable.resolvedType}, 요청 ${type})`,
+    );
   }
-  return figma.variables.createVariable(name, collection, type);
+  return figma.variables.createVariable(variableName, collection, type);
 }
 
 async function applyTokens(spec: DesignSystemSpec): Promise<void> {
   if (spec.tokens.length === 0) return;
-  const collection = findOrCreateCollection("Foundation", ["Default"]);
+  const collection = await findOrCreateCollection("Foundation", ["Default"]);
   const defaultModeId = collection.modes[0].modeId;
   for (const token of spec.tokens) {
     const type = resolvedTypeFor(token.category);
-    const variable = findOrCreateVariable(collection, token.name, type);
+    const variable = await findOrCreateVariable(collection, token.name, type, spec.id);
     variable.setValueForMode(defaultModeId, parseVariableValue(token.category, token.value));
     variable.setPluginData(PLUGIN_DATA_NS_ID, spec.id);
     variable.setPluginData(PLUGIN_DATA_LOGICAL_ID, token.name);
@@ -291,11 +318,19 @@ async function applyTokens(spec: DesignSystemSpec): Promise<void> {
 }
 
 async function applyVariableCollections(spec: DesignSystemSpec): Promise<void> {
+  const tokenTypeByName = new Map(
+    spec.tokens.map(token => [token.name, resolvedTypeFor(token.category)]),
+  );
   for (const vc of spec.variableCollections) {
-    const collection = findOrCreateCollection(vc.name, vc.modes);
+    const collection = await findOrCreateCollection(vc.name, vc.modes);
     const modeIdByName = new Map(collection.modes.map(m => [m.name, m.modeId]));
     for (const [variableName, valuesByMode] of Object.entries(vc.valuesByMode)) {
-      const variable = findOrCreateVariable(collection, variableName, "STRING");
+      const variable = await findOrCreateVariable(
+        collection,
+        variableName,
+        tokenTypeByName.get(variableName) ?? "STRING",
+        spec.id,
+      );
       for (const [modeName, rawValue] of Object.entries(valuesByMode)) {
         const modeId = modeIdByName.get(modeName);
         if (!modeId) continue;
@@ -357,15 +392,16 @@ function optionalPx(raw?: string): number | null {
   return value > 0 ? value : null;
 }
 
-function buildVariantComponent(
+async function buildVariantComponent(
   defName: string,
   combo: Record<string, string>,
   layout?: ComponentLayout | null,
-): ComponentNode {
+): Promise<ComponentNode> {
   const component = figma.createComponent();
   component.name = variantName(combo);
   component.resize(120, 40);
   const label = figma.createText();
+  await figma.loadFontAsync(label.fontName as FontName);
   label.characters = `${defName} · ${variantName(combo)}`;
   component.appendChild(label);
   applyLayout(component, layout
@@ -373,18 +409,14 @@ function buildVariantComponent(
   return component;
 }
 
-function applyNonVariantProperties(target: ComponentSetNode, properties: ComponentProperty[]): void {
-  const existingDefs = target.componentPropertyDefinitions ?? {};
-  for (const property of properties) {
-    if (property.type === "VARIANT") continue;
-    const alreadyDefined = Object.keys(existingDefs).some(key => key.split("#")[0] === property.name);
-    if (alreadyDefined) continue;
-    if (property.type === "BOOLEAN") {
-      target.addComponentProperty(property.name, "BOOLEAN", property.defaultValue === "true");
-    } else if (property.type === "TEXT") {
-      target.addComponentProperty(property.name, "TEXT", property.defaultValue ?? "");
-    } else if (property.type === "INSTANCE_SWAP") {
-      target.addComponentProperty(property.name, "INSTANCE_SWAP", "");
+function applyNonVariantProperties(target: ComponentSetNode, _properties: ComponentProperty[]): void {
+  // Component Set에만 추가한 TEXT/BOOLEAN 속성은 실제 내부 레이어에 연결되지
+  // 않으면 Figma Publish 단계에서 "Unused properties"로 거부된다. 현재 Author
+  // 샘플은 해당 속성을 내부 레이어에 바인딩하지 않으므로, Publish 가능한
+  // Component Set을 유지하기 위해 기존의 연결되지 않은 속성을 제거한다.
+  for (const [propertyName, definition] of Object.entries(target.componentPropertyDefinitions ?? {})) {
+    if (definition.type !== "VARIANT" && definition.type !== "SLOT") {
+      target.deleteComponentProperty(propertyName);
     }
   }
 }
@@ -393,8 +425,8 @@ async function applyComponent(spec: DesignSystemSpec, def: ComponentDefinition, 
   const existing = existingSets.get(def.id);
   if (!existing) {
     const combos = variantCombinations(def.variants);
-    const variantComponents = combos.map(combo =>
-      buildVariantComponent(def.name, combo, def.layout));
+    const variantComponents = await Promise.all(combos.map(combo =>
+      buildVariantComponent(def.name, combo, def.layout)));
     for (const c of variantComponents) figma.currentPage.appendChild(c);
     const set = figma.combineAsVariants(variantComponents, figma.currentPage);
     set.name = def.name;
@@ -418,7 +450,7 @@ async function applyComponent(spec: DesignSystemSpec, def: ComponentDefinition, 
   for (const combo of variantCombinations(def.variants)) {
     const name = variantName(combo);
     if (existingCombos.has(name)) continue;
-    const created = buildVariantComponent(def.name, combo, def.layout);
+    const created = await buildVariantComponent(def.name, combo, def.layout);
     existing.appendChild(created);
   }
   existing.setPluginData(PLUGIN_DATA_CONTENT_HASH, await contentHash(def));
@@ -531,27 +563,11 @@ async function buildPreviewPage(spec: DesignSystemSpec, diff: DiffEntry[]): Prom
 
 // ── R4-001~006: 사람 Publish 후 공개 Key와 상태를 ComponentRegistry 후보로 내보낸다. ──
 
-function propertyMappings(def: ComponentDefinition): ComponentRegistryExport["components"][string]["properties"] {
-  const mappings: ComponentRegistryExport["components"][string]["properties"] = {};
-  for (const property of def.properties) {
-    const values = property.type === "VARIANT"
-      ? Object.fromEntries((def.variants[property.name] ?? []).map(value => [value, value]))
-      : {};
-    mappings[property.name] = {
-      figmaProperty: property.name,
-      type: property.type,
-      values,
-    };
-  }
-  for (const [variantName, options] of Object.entries(def.variants)) {
-    if (mappings[variantName]) continue;
-    mappings[variantName] = {
-      figmaProperty: variantName,
-      type: "VARIANT",
-      values: Object.fromEntries(options.map(value => [value, value])),
-    };
-  }
-  return mappings;
+function propertyMappings(_def: ComponentDefinition): ComponentRegistryExport["components"][string]["properties"] {
+  // Registry에는 실제 Figma 인스턴스에 연결된 속성만 노출한다. 현재 샘플
+  // Component Set은 variant key로만 동기화하며, 연결되지 않은 속성을 내보내면
+  // 대상 플러그인이 존재하지 않는 속성을 setProperties() 하게 된다.
+  return {};
 }
 
 async function buildRegistryExport(
@@ -584,10 +600,10 @@ async function buildRegistryExport(
   }
 
   const variables: ComponentRegistryExport["variables"] = {};
-  for (const collection of figma.variables.getLocalVariableCollections()) {
+  for (const collection of await figma.variables.getLocalVariableCollectionsAsync()) {
     const collectionStatus = await collection.getPublishStatusAsync();
     for (const variableId of collection.variableIds) {
-      const variable = figma.variables.getVariableById(variableId);
+      const variable = await figma.variables.getVariableByIdAsync(variableId);
       if (!variable || variable.getPluginData(PLUGIN_DATA_NS_ID) !== spec.id) continue;
       const logicalId = variable.getPluginData(PLUGIN_DATA_LOGICAL_ID);
       if (!logicalId) continue;
@@ -694,6 +710,8 @@ figma.ui.onmessage = async (message: IncomingMessage) => {
         figma.ui.postMessage({ type: "VALIDATION_ERROR", errors });
         return;
       }
+      // documentAccess: dynamic-page 환경에서는 전체 문서 탐색 전에 명시적으로 로드해야 한다.
+      await figma.loadAllPagesAsync();
       currentSpec = parsed;
       validationIssues = [];
       validationDesignSystemId = parsed.id;

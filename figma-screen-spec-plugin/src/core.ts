@@ -169,6 +169,15 @@ export function planFallback(node: FigmaNodeSpec, registry: ComponentRegistry): 
   };
 }
 
+/** 실제 생성 결과의 fallback을 SUCCESS로 숨기지 않기 위한 보고 상태 정책. */
+export function generationStatus(
+  fatal: boolean,
+  fallbackCount: number,
+): "SUCCESS" | "PARTIAL" | "FAILED" {
+  if (fatal) return "FAILED";
+  return fallbackCount > 0 ? "PARTIAL" : "SUCCESS";
+}
+
 export function reconcile(
   root: FigmaNodeSpec,
   existing: ExistingLogicalNode[],

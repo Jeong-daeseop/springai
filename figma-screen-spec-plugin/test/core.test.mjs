@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   describeLayoutAnnotations,
+  generationStatus,
   mappedProperties,
   planFallback,
   previewLegacyMigration,
@@ -9,6 +10,12 @@ import {
   selectVariantName,
   validateBundle
 } from "../dist-test/core.mjs";
+
+test("Desktop fallback is reported as PARTIAL instead of SUCCESS", () => {
+  assert.equal(generationStatus(false, 1), "PARTIAL");
+  assert.equal(generationStatus(false, 0), "SUCCESS");
+  assert.equal(generationStatus(true, 0), "FAILED");
+});
 
 const registryEntry = {
   componentSetKey: "BUTTON_SET_KEY",

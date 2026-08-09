@@ -55,17 +55,13 @@ function validateSpec(spec) {
       validateSizeRange(layout.minWidth, layout.maxWidth, "width", componentPath, component.id, errors);
       validateSizeRange(layout.minHeight, layout.maxHeight, "height", componentPath, component.id, errors);
     }
-    if (component.developer?.documentationUrl) {
-      try {
-        new URL(component.developer.documentationUrl);
-      } catch {
-        errors.push({
-          code: "INVALID_DOCUMENTATION_URL",
-          path: `${componentPath}/developer/documentationUrl`,
-          targetId: component.id,
-          message: `\uCEF4\uD3EC\uB10C\uD2B8 ${component.id}\uC758 documentationUrl\uC774 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.`
-        });
-      }
+    if (component.developer?.documentationUrl && !isAbsoluteHttpUrl(component.developer.documentationUrl)) {
+      errors.push({
+        code: "INVALID_DOCUMENTATION_URL",
+        path: `${componentPath}/developer/documentationUrl`,
+        targetId: component.id,
+        message: `\uCEF4\uD3EC\uB10C\uD2B8 ${component.id}\uC758 documentationUrl\uC774 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.`
+      });
     }
   });
   const aliasOwners = /* @__PURE__ */ new Map();
@@ -148,6 +144,26 @@ function validateSpec(spec) {
       issues: Array.isArray(value.issues) ? value.issues : []
     }
   };
+}
+function isAbsoluteHttpUrl(value) {
+  return /^https?:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/i.test(value);
+}
+function utf8Bytes(value) {
+  const encoded = encodeURIComponent(value);
+  const bytes = [];
+  for (let index = 0; index < encoded.length; index++) {
+    if (encoded[index] === "%") {
+      bytes.push(Number.parseInt(encoded.slice(index + 1, index + 3), 16));
+      index += 2;
+    } else {
+      bytes.push(encoded.charCodeAt(index));
+    }
+  }
+  return new Uint8Array(bytes);
+}
+function figmaVariableName(logicalId) {
+  const parts = logicalId.trim().split(/[./]+/u).map((part) => part.trim()).filter(Boolean).map((part) => part.replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/-{2,}/g, "-").replace(/^-+|-+$/g, "")).filter(Boolean);
+  return parts.length > 0 ? parts.join("/") : "token/unnamed";
 }
 function validateSizeRange(minimum, maximum, dimension, componentPath, componentId, errors) {
   const min = parsePositiveSize(minimum);
@@ -255,8 +271,11 @@ function normalizePluginError(error) {
 export {
   compareSnapshots,
   componentSnapshot,
+  figmaVariableName,
+  isAbsoluteHttpUrl,
   normalizePluginError,
   planComponentChange,
   transitionReviewStatus,
+  utf8Bytes,
   validateSpec
 };

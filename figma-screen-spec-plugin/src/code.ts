@@ -1,6 +1,7 @@
 import {
   describeLayoutAnnotations,
   flattenSpec,
+  generationStatus,
   mappedProperties,
   planFallback,
   previewLegacyMigration,
@@ -36,6 +37,7 @@ const DATA_MIGRATION_BACKUP = "figmaScreenSpec.migrationBackup";
 figma.showUI(__html__, { width: 440, height: 720 });
 
 type Pending = { bundle: FigmaExportBundle; issues: ExportIssue[] };
+type ImportedComponent = ComponentSetNode | ComponentNode;
 type Message =
   | { type: "LOAD_BUNDLE"; bundle: unknown }
   | { type: "FETCH_BUNDLE"; baseUrl: string; screenId: string; version?: number; apiKey?: string; token?: string }
@@ -377,9 +379,10 @@ async function applyBundle(
   figma.currentPage.selection = [root];
   figma.viewport.scrollAndZoomIntoView([root]);
   const fatal = issues.some(issue => issue.severity === "FATAL" || issue.severity === "ERROR");
+  const status = generationStatus(fatal, reportCounts.fallback);
   return {
     reportId: `figma-${screen.screenId}-v${screen.screenVersion}-${Date.now()}`,
-    status: fatal ? "FAILED" : "SUCCESS",
+    status,
     figmaScreenSpec: screen,
     generatedAt: new Date().toISOString(),
     screenId: screen.screenId,
@@ -402,7 +405,7 @@ async function syncNode(
   parent: PageNode | FrameNode,
   existing: Map<string, FrameNode>,
   registry: ComponentRegistry,
-  importedComponents: Map<string, ComponentSetNode>,
+  importedComponents: Map<string, ImportedComponent>,
   screenId: string,
   screenVersion: number,
   changes: ReconciliationChange[],
@@ -433,7 +436,8 @@ async function syncNode(
   const entry = registry.components[spec.type];
   if (entry) {
     removeFallbackPlaceholder(wrapper);
-    await ensurePublishedInstance(wrapper, spec, entry, importedComponents, issues);
+    const published = await ensurePublishedInstance(wrapper, spec, entry, importedComponents, issues);
+    if (!published) counts.fallback++;
   } else {
     const plan = planFallback(spec, registry);
     if (plan) {
@@ -477,18 +481,20 @@ async function ensurePublishedInstance(
   wrapper: FrameNode,
   spec: FigmaNodeSpec,
   entry: RegistryEntry,
-  importedComponents: Map<string, ComponentSetNode>,
+  importedComponents: Map<string, ImportedComponent>,
   issues: ExportIssue[],
-): Promise<void> {
+): Promise<boolean> {
   try {
     const componentSet = importedComponents.get(entry.componentSetKey);
     if (!componentSet) throw new Error("사전 import된 Component Set을 찾을 수 없습니다.");
     const properties = mappedProperties(spec.properties, entry);
     await resolveInstanceSwapProperties(entry, properties, spec, issues);
     const variantName = selectVariantName(properties, entry);
-    const component = componentSet.children.find(child =>
-      child.type === "COMPONENT" && (!variantName || child.name === variantName)) as ComponentNode | undefined
-      ?? componentSet.children.find(child => child.type === "COMPONENT") as ComponentNode | undefined;
+    const component = componentSet.type === "COMPONENT"
+      ? componentSet
+      : componentSet.children.find(child =>
+        child.type === "COMPONENT" && (!variantName || child.name === variantName)) as ComponentNode | undefined
+        ?? componentSet.children.find(child => child.type === "COMPONENT") as ComponentNode | undefined;
     if (!component) throw new Error("Component Set에 사용할 Variant가 없습니다.");
 
     let instance = wrapper.children.find(child =>
@@ -502,6 +508,7 @@ async function ensurePublishedInstance(
     }
     instance.name = `${spec.type} · Published Instance`;
     applyOwnedProperties(instance, properties);
+    return true;
   } catch (error) {
     await ensureFallbackPlaceholder(wrapper, {
       label: `⚠ ${spec.type} (Published Instance import 실패)`,
@@ -512,6 +519,7 @@ async function ensurePublishedInstance(
       message: `${spec.type} import 실패: ${error instanceof Error ? error.message : "알 수 없는 오류"}`,
       logicalNodeId: spec.logicalNodeId,
     });
+    return false;
   }
 }
 
@@ -601,7 +609,7 @@ async function preloadComponents(
   root: FigmaNodeSpec,
   registry: ComponentRegistry,
   issues: ExportIssue[],
-): Promise<Map<string, ComponentSetNode>> {
+): Promise<Map<string, ImportedComponent>> {
   const keys = new Set<string>();
   const visit = (node: FigmaNodeSpec) => {
     const key = registry.components[node.type]?.componentSetKey;
@@ -609,25 +617,45 @@ async function preloadComponents(
     node.children.forEach(visit);
   };
   visit(root);
-  const imported = new Map<string, ComponentSetNode>();
+  const imported = new Map<string, ImportedComponent>();
   for (const key of keys) {
     const logicalType = Object.entries(registry.components).find(([, entry]) => entry.componentSetKey === key)?.[0];
     try {
       imported.set(key, await figma.importComponentSetByKeyAsync(key));
     } catch {
-      const localSet = logicalType ? findLocalComponentSet(registry.components[logicalType]) : null;
-      if (localSet) {
-        imported.set(key, localSet);
-        issues.push({
-          code: "COMPONENT_SET_KEY_PLACEHOLDER_FALLBACK",
-          severity: "WARNING",
-          message: `${logicalType}의 componentSetKey(${key})를 import할 수 없어 현재 Figma 파일의 동일 이름 Component Set으로 대체했습니다.`,
-          logicalNodeId: null,
-        });
+      try {
+        // Some Figma registries expose a published single Component key rather
+        // than a Component Set key. It is still a valid Published Instance
+        // source, so accept it after the Component Set import attempt.
+        imported.set(key, await figma.importComponentByKeyAsync(key));
+      } catch {
+        const localComponent = logicalType ? findLocalComponent(registry.components[logicalType]) : null;
+        if (localComponent) {
+          imported.set(key, localComponent);
+          continue;
+        }
+        const localSet = logicalType ? findLocalComponentSet(registry.components[logicalType]) : null;
+        if (localSet) {
+          imported.set(key, localSet);
+          issues.push({
+            code: "COMPONENT_SET_KEY_PLACEHOLDER_FALLBACK",
+            severity: "WARNING",
+            message: `${logicalType}의 componentSetKey(${key})를 import할 수 없어 현재 Figma 파일의 동일 이름 Component Set으로 대체했습니다.`,
+            logicalNodeId: null,
+          });
+        }
       }
     }
   }
   return imported;
+}
+
+function findLocalComponent(entry: RegistryEntry): ComponentNode | null {
+  const targetName = normalizeLookupName(entry.componentName ?? "");
+  if (!targetName) return null;
+  const candidates = figma.root.findAll(node =>
+    node.type === "COMPONENT" && normalizeLookupName(node.name) === targetName) as ComponentNode[];
+  return candidates[0] ?? null;
 }
 
 function findLocalComponentSet(entry: RegistryEntry): ComponentSetNode | null {

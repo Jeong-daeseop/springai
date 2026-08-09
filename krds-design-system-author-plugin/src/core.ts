@@ -129,17 +129,14 @@ export function validateSpec(spec: unknown): { errors: ValidationIssue[]; parsed
       validateSizeRange(layout.minWidth, layout.maxWidth, "width", componentPath, component.id, errors);
       validateSizeRange(layout.minHeight, layout.maxHeight, "height", componentPath, component.id, errors);
     }
-    if (component.developer?.documentationUrl) {
-      try {
-        new URL(component.developer.documentationUrl);
-      } catch {
-        errors.push({
-          code: "INVALID_DOCUMENTATION_URL",
-          path: `${componentPath}/developer/documentationUrl`,
-          targetId: component.id,
-          message: `컴포넌트 ${component.id}의 documentationUrl이 올바르지 않습니다.`,
-        });
-      }
+    if (component.developer?.documentationUrl
+      && !isAbsoluteHttpUrl(component.developer.documentationUrl)) {
+      errors.push({
+        code: "INVALID_DOCUMENTATION_URL",
+        path: `${componentPath}/developer/documentationUrl`,
+        targetId: component.id,
+        message: `컴포넌트 ${component.id}의 documentationUrl이 올바르지 않습니다.`,
+      });
     }
   });
 
@@ -225,6 +222,48 @@ export function validateSpec(spec: unknown): { errors: ValidationIssue[]; parsed
       issues: Array.isArray(value.issues) ? value.issues as Issue[] : [],
     },
   };
+}
+
+/** Figma plugin sandbox에는 브라우저의 URL 전역이 없으므로 순수 문자열 계약으로 검증한다. */
+export function isAbsoluteHttpUrl(value: string): boolean {
+  return /^https?:\/\/[^\s/?#]+(?:[/?#][^\s]*)?$/i.test(value);
+}
+
+/** Figma plugin sandbox에 TextEncoder가 없어도 결정론적으로 UTF-8 바이트를 만든다. */
+export function utf8Bytes(value: string): Uint8Array {
+  const encoded = encodeURIComponent(value);
+  const bytes: number[] = [];
+  for (let index = 0; index < encoded.length; index++) {
+    if (encoded[index] === "%") {
+      bytes.push(Number.parseInt(encoded.slice(index + 1, index + 3), 16));
+      index += 2;
+    } else {
+      bytes.push(encoded.charCodeAt(index));
+    }
+  }
+  return new Uint8Array(bytes);
+}
+
+/**
+ * 논리 토큰 ID는 pluginData에 원문으로 보존하고, Figma Variable 이름만 안전한 경로로 정규화한다.
+ *
+ * 실제 DesignSystemSpec에는 공백·연속 구분자·제어문자·구두점이 섞인 토큰 ID가 들어올 수 있다.
+ * 이런 값을 그대로 createVariable()에 넘기면 Figma API가 `invalid variable name`으로 중단하므로,
+ * 점/슬래시는 계층 구분자로 취급하고 각 경로 조각을 Figma가 받을 수 있는 문자로 제한한다.
+ */
+export function figmaVariableName(logicalId: string): string {
+  const parts = logicalId
+    .trim()
+    .split(/[./]+/u)
+    .map(part => part.trim())
+    .filter(Boolean)
+    .map(part => part
+      .replace(/[^\p{L}\p{N}_-]+/gu, "-")
+      .replace(/-{2,}/g, "-")
+      .replace(/^-+|-+$/g, ""))
+    .filter(Boolean);
+
+  return parts.length > 0 ? parts.join("/") : "token/unnamed";
 }
 
 function validateSizeRange(

@@ -2,9 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   componentSnapshot,
+  figmaVariableName,
+  isAbsoluteHttpUrl,
   normalizePluginError,
   planComponentChange,
   transitionReviewStatus,
+  utf8Bytes,
   validateSpec,
 } from "../dist-test/core.mjs";
 
@@ -47,6 +50,25 @@ test("sample DesignSystemSpec validates and preserves component count", () => {
   const result = validateSpec(spec());
   assert.equal(result.errors.length, 0);
   assert.equal(result.parsed.components.length, 1);
+});
+
+test("documentation URL validation works without the browser URL global", () => {
+  assert.equal(isAbsoluteHttpUrl("https://www.krds.go.kr/"), true);
+  assert.equal(isAbsoluteHttpUrl("http://localhost:8080/docs"), true);
+  assert.equal(isAbsoluteHttpUrl("/relative/docs"), false);
+  assert.equal(isAbsoluteHttpUrl("javascript:alert(1)"), false);
+});
+
+test("UTF-8 encoding works without the browser TextEncoder global", () => {
+  assert.deepEqual([...utf8Bytes("A한")], [65, 237, 149, 156]);
+});
+
+test("logical token ids are normalized to valid Figma variable paths", () => {
+  assert.equal(figmaVariableName("color.primary"), "color/primary");
+  assert.equal(figmaVariableName(" spacing..16 "), "spacing/16");
+  assert.equal(figmaVariableName(" typography / body / font weight "), "typography/body/font-weight");
+  assert.equal(figmaVariableName("../"), "token/unnamed");
+  assert.equal(figmaVariableName("\u0000\u0001"), "token/unnamed");
 });
 
 test("validation error contains precise path and target id", () => {
