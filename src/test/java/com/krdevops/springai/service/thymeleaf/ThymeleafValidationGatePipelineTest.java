@@ -1,10 +1,14 @@
 package com.krdevops.springai.service.thymeleaf;
 
 import com.krdevops.springai.model.contract.SourceRevisionRef;
+import com.krdevops.springai.model.thymeleaf.BindingContractStatus;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenAnalysis;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenRole;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingContract;
+import com.krdevops.springai.model.thymeleaf.ThymeleafFieldBinding;
 import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult;
+import com.krdevops.springai.model.thymeleaf.ThymeleafRouteBinding;
+import com.krdevops.springai.model.thymeleaf.ValidationGateType;
 import com.krdevops.springai.model.thymeleaf.ValidationReport;
 import com.krdevops.springai.service.contract.GenerationIssueFactory;
 import freemarker.template.Configuration;
@@ -17,10 +21,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -57,15 +59,12 @@ class ThymeleafValidationGatePipelineTest {
                 "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.LIST);
         String html = composer.compose(contract, "직원 목록", "layout/default").value();
 
-        Set<String> expectedBindings = new LinkedHashSet<>();
-        contract.displayFieldNames().forEach(field ->
-                expectedBindings.add("${item." + field + "}"));
-
-        ValidationReport report = gateExecutor.runThymeleafGates(
-                contract.screenId(), contract.route().route(), html, expectedBindings);
+        ValidationReport report = gateExecutor.runThymeleafGates(contract, html);
 
         assertThat(report.blocked()).as("issues: %s", report.results()).isFalse();
         assertThat(report.inputHash()).isNotBlank();
+        assertThat(report.results()).extracting("gateType")
+                .contains(ValidationGateType.TEMPLATE_ENGINE_RENDER);
     }
 
     @Test
@@ -74,14 +73,28 @@ class ThymeleafValidationGatePipelineTest {
                 "EgovEmployerRegist.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.FORM);
         String html = composer.compose(contract, "직원 등록", "layout/default").value();
 
-        Set<String> expectedBindings = new LinkedHashSet<>();
-        contract.fields().forEach(field ->
-                expectedBindings.add("th:field=\"*{" + field.fieldName() + "}\""));
-
-        ValidationReport report = gateExecutor.runThymeleafGates(
-                contract.screenId(), contract.route().route(), html, expectedBindings);
+        ValidationReport report = gateExecutor.runThymeleafGates(contract, html);
 
         assertThat(report.blocked()).as("issues: %s", report.results()).isFalse();
+    }
+
+    @Test
+    void detailContractPassesAutomaticRenderBindingAndRouteGates() {
+        ThymeleafRouteBinding route = new ThymeleafRouteBinding(
+                "/bbsMaster/bbsMasterList.do", "GET", "selectBbsMaster", null, null,
+                false, false, List.of());
+        ThymeleafFieldBinding bbsId = new ThymeleafFieldBinding(
+                "bbsId", "String", true, false, List.of(), null, "VO_ONLY", 0.6);
+        ThymeleafBindingContract contract = new ThymeleafBindingContract(
+                "bbs-master-detail", LegacyScreenRole.DETAIL, route, List.of(bbsId),
+                List.of("bbsId"), "result", List.of("bbsId", "useAt"), "detailList",
+                List.of(), List.of(), BindingContractStatus.RESOLVED, List.of(), null, Instant.now());
+        String html = composer.compose(contract, "BBSMASTER 상세", "layout/default").value();
+
+        ValidationReport report = gateExecutor.runThymeleafGates(contract, html);
+
+        assertThat(report.blocked()).as("issues: %s", report.results()).isFalse();
+        assertThat(report.results()).allSatisfy(result -> assertThat(result.passed()).isTrue());
     }
 
     private ThymeleafBindingContract assembleFixture(

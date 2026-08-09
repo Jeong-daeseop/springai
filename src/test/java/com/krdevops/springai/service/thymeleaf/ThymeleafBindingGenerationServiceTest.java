@@ -7,6 +7,9 @@ import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenRole;
 import com.krdevops.springai.model.thymeleaf.ProjectOperationStatus;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingPreviewRequest;
+import com.krdevops.springai.model.thymeleaf.ValidationGateResult;
+import com.krdevops.springai.model.thymeleaf.ValidationGateType;
+import com.krdevops.springai.model.thymeleaf.ValidationReport;
 import com.krdevops.springai.service.ScreenSpecificationService;
 import com.krdevops.springai.service.artifact.ArtifactService;
 import com.krdevops.springai.service.artifact.FilesystemArtifactStore;
@@ -41,18 +44,21 @@ class ThymeleafBindingGenerationServiceTest {
     @TempDir Path artifactRoot;
 
     private OperationHashFactory hashFactory;
+    private ObjectMapper objectMapper;
     private RecordingArtifactCatalog artifactCatalog;
+    private ArtifactService artifactService;
     private ThymeleafOperationStore operationStore;
     private ThymeleafProjectWorkflowService workflow;
     private ThymeleafBindingGenerationService service;
 
     @BeforeEach
     void setUp() throws Exception {
-        hashFactory = new OperationHashFactory(new ObjectMapper().findAndRegisterModules());
+        objectMapper = new ObjectMapper().findAndRegisterModules();
+        hashFactory = new OperationHashFactory(objectMapper);
         artifactCatalog = new RecordingArtifactCatalog();
         ArtifactStoreProperties properties = new ArtifactStoreProperties();
         properties.setRootPath(artifactRoot);
-        ArtifactService artifactService = new ArtifactService(
+        artifactService = new ArtifactService(
                 new FilesystemArtifactStore(properties), artifactCatalog);
         SafePathResolver pathResolver = new SafePathResolver();
         operationStore = new InMemoryThymeleafOperationStore();
@@ -135,6 +141,50 @@ class ThymeleafBindingGenerationServiceTest {
         assertThat(second.workflow().previewHash()).isNotEqualTo(first.workflow().previewHash());
         assertThat(second.workflow().operation().operationId())
                 .isNotEqualTo(first.workflow().operation().operationId());
+    }
+
+    @Test
+    void revalidateAutomaticallyRunsContractAndTemplateEngineGates() throws Exception {
+        var preview = service.preview(validRequest());
+        String operationId = preview.workflow().operation().operationId();
+        workflow.approve(operationId, preview.workflow().previewHash());
+        workflow.apply(operationId);
+
+        var validated = workflow.revalidate(operationId);
+
+        assertThat(validated.operation().status()).isEqualTo(ProjectOperationStatus.VALIDATED);
+        var reports = artifactCatalog.ofType("THYMELEAF_VALIDATION_REPORT");
+        assertThat(reports).hasSize(1);
+        ValidationReport report = objectMapper.readValue(
+                artifactService.read(reports.get(0)).orElseThrow(), ValidationReport.class);
+        assertThat(report.screenId()).isEqualTo(preview.outputRelativePath());
+        assertThat(report.results()).extracting(ValidationGateResult::gateType)
+                .containsExactly(
+                        ValidationGateType.THYMELEAF_PARSE,
+                        ValidationGateType.TEMPLATE_ENGINE_RENDER,
+                        ValidationGateType.BINDING_VALIDATION,
+                        ValidationGateType.ROUTE_PARITY,
+                        ValidationGateType.OVERFLOW_CHECK);
+        assertThat(report.blocked()).isFalse();
+    }
+
+    @Test
+    void revalidateBlocksWhenAppliedFileLosesContractBinding() throws Exception {
+        var preview = service.preview(validRequest());
+        String operationId = preview.workflow().operation().operationId();
+        workflow.approve(operationId, preview.workflow().previewHash());
+        workflow.apply(operationId);
+        String field = preview.bindingContract().displayFieldNames().get(0);
+        Path generated = projectRoot.resolve(preview.outputRelativePath());
+        Files.writeString(generated, Files.readString(generated)
+                .replace("th:text=\"${item." + field + "}\"", "data-removed-binding=\"" + field + "\""));
+
+        var failed = workflow.revalidate(operationId);
+
+        assertThat(failed.operation().status()).isEqualTo(ProjectOperationStatus.FAILED);
+        assertThat(failed.operation().validationErrors())
+                .anySatisfy(error -> assertThat(error)
+                        .contains("바인딩 누락").contains("${item." + field + "}"));
     }
 
     @Test

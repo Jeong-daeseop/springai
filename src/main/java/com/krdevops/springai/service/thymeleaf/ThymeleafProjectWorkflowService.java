@@ -347,8 +347,9 @@ public class ThymeleafProjectWorkflowService {
     /**
      * WP8 3차 pass/ARCH-0810/0811: {@code browserOptions}가 주어진 화면만 브라우저 Gate
      * (render/axe/visual parity)까지 실행하고, 파일별 Gate 결과를 {@link ValidationReport}로
-     * 영속화한다. {@code browserOptions}가 없으면 무인자 오버로드와 완전히 같은 정적 parse 검증만
-     * 수행한다 — 브라우저 프로세스를 띄우지 않는다.
+     * 영속화한다. 저장된 Binding Contract가 있으면 browser 옵션과 무관하게 WP6/WP8 정적 Gate
+     * (parse/실제 TemplateEngine render/binding/route/overflow)를 자동 실행한다. 과거 일반 Preview처럼
+     * 계약이 없는 Operation은 parse-only 호환을 유지한다.
      *
      * <p>이 서버는 다른 프로젝트에 코드를 생성하는 도구라 생성 화면이 돌아가는 서버를 자동으로
      * 갖지 못한다. 그래서 렌더 대상은 호출자가 URL 또는 완성 HTML로 명시해야 하고, 브라우저
@@ -373,11 +374,17 @@ public class ThymeleafProjectWorkflowService {
                 errors.add(relative + ": 파일 읽기 실패");
                 continue;
             }
-            var parse = validationGate.validateThymeleafParse(content);
-            if (!parse.passed()) parse.issues().forEach(issue -> errors.add(relative + ": " + issue));
-
             List<ValidationGateResult> results = new ArrayList<>();
-            results.add(parse);
+            if (snapshot.bindingContract() == null) {
+                results.add(validationGate.validateThymeleafParse(content));
+            } else {
+                results.addAll(validationGate.runThymeleafGates(
+                        snapshot.bindingContract(), content).results());
+            }
+            for (ValidationGateResult result : results) {
+                if (result.passed() || validationGate.severityOf(result.gateType()) != GateSeverity.BLOCK) continue;
+                result.issues().forEach(issue -> errors.add(relative + ": " + issue));
+            }
             results.addAll(browserResults.getOrDefault(relative, List.of()));
             persistValidationReport(snapshot, relative, results, content);
         }

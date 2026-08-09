@@ -98,6 +98,14 @@ class ValidationGateExecutorTest {
     }
 
     @Test
+    void testValidateRouteParityMatchesDetailLinkExpression() {
+        ValidationGateResult result = executor.validateRouteParity(
+                "/admin/users", "<a th:href=\"@{/admin/users}\">목록</a>");
+
+        assertTrue(result.passed(), "DETAIL 화면의 원본 route 링크도 일치로 판정해야 한다");
+    }
+
+    @Test
     void testValidateNoOverflowWithinLimit() {
         String html = "<div style=\"width: 1200px;\"></div>";
 

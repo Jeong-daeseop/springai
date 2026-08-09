@@ -1,13 +1,22 @@
 package com.krdevops.springai.service.thymeleaf;
 
 import com.krdevops.springai.model.thymeleaf.GateSeverity;
+import com.krdevops.springai.model.thymeleaf.LegacyScreenRole;
+import com.krdevops.springai.model.thymeleaf.ThymeleafBindingContract;
 import com.krdevops.springai.model.thymeleaf.ValidationGateResult;
 import com.krdevops.springai.model.thymeleaf.ValidationGateType;
 import com.krdevops.springai.model.thymeleaf.ValidationReport;
 import org.springframework.stereotype.Service;
+import org.springframework.expression.AccessException;
+import org.springframework.expression.EvaluationContext;
+import org.springframework.expression.PropertyAccessor;
+import org.springframework.expression.TypedValue;
+import org.springframework.expression.spel.support.DataBindingPropertyAccessor;
+import org.springframework.expression.spel.support.SimpleEvaluationContext;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.exceptions.TemplateProcessingException;
 import org.thymeleaf.spring6.SpringTemplateEngine;
+import org.thymeleaf.spring6.expression.ThymeleafEvaluationContext;
 import org.thymeleaf.templatemode.TemplateMode;
 import org.thymeleaf.templateresolver.StringTemplateResolver;
 import com.krdevops.springai.service.observability.OperationalTelemetry;
@@ -22,6 +31,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -37,6 +48,40 @@ import java.util.regex.Pattern;
 public class ValidationGateExecutor {
 
     private static final Pattern BINDING_PATTERN = Pattern.compile("\\$\\{[^}]+\\}|th:field=\"\\*\\{[^}]+\\}\"");
+    private static final Pattern WEB_LINK_ATTRIBUTE = Pattern.compile(
+            "th:(action|href)=\"@\\{([^\"}]*)}\"");
+    private static final Pattern FIELD_ERROR_CONDITION = Pattern.compile(
+            "th:if=\"\\$\\{#fields\\.hasErrors\\('[^']+'\\)}\"");
+    private static final PropertyAccessor MAP_PROPERTY_ACCESSOR = new PropertyAccessor() {
+        @Override
+        public Class<?>[] getSpecificTargetClasses() {
+            return new Class<?>[]{Map.class};
+        }
+
+        @Override
+        public boolean canRead(EvaluationContext context, Object target, String name) {
+            return target instanceof Map<?, ?> map && map.containsKey(name);
+        }
+
+        @Override
+        public TypedValue read(EvaluationContext context, Object target, String name) throws AccessException {
+            if (!(target instanceof Map<?, ?> map) || !map.containsKey(name)) {
+                throw new AccessException("대표 렌더 문맥에 필드가 없습니다: " + name);
+            }
+            return new TypedValue(map.get(name));
+        }
+
+        @Override
+        public boolean canWrite(EvaluationContext context, Object target, String name) {
+            return false;
+        }
+
+        @Override
+        public void write(EvaluationContext context, Object target, String name, Object newValue)
+                throws AccessException {
+            throw new AccessException("대표 렌더 문맥은 읽기 전용입니다.");
+        }
+    };
     private static final int MAX_WIDTH_DESKTOP = 1440;
     private static final int MAX_WIDTH_TABLET = 768;
     private static final int MAX_WIDTH_MOBILE = 390;
@@ -96,6 +141,29 @@ public class ValidationGateExecutor {
         return new ValidationReport(screenId, results, blocked, sha256Hex(composedHtml), Instant.now());
     }
 
+    /**
+     * WP6/WP8 Gate 자동 연결용 진입점. 영속된 Binding Contract에서 화면 역할별 예상 바인딩과
+     * 실제 렌더 대표 문맥을 도출해 parse/render/binding/route/overflow Gate를 한 번에 실행한다.
+     */
+    public ValidationReport runThymeleafGates(
+            ThymeleafBindingContract contract, String composedHtml) {
+        if (contract == null) {
+            throw new IllegalArgumentException("bindingContract는 필수입니다.");
+        }
+        List<ValidationGateResult> results = new ArrayList<>();
+        results.add(validateThymeleafParse(composedHtml));
+        results.add(validateTemplateEngineRender(
+                renderProbeTemplate(composedHtml), renderContext(contract)));
+        results.add(validateBindingContract(composedHtml, expectedBindings(contract)));
+        results.add(validateRouteParity(contract.route().route(), composedHtml));
+        results.add(validateNoOverflow(composedHtml));
+
+        boolean blocked = results.stream()
+                .anyMatch(result -> !result.passed() && severityOf(result.gateType()) == GateSeverity.BLOCK);
+        return new ValidationReport(
+                contract.screenId(), results, blocked, sha256Hex(composedHtml), Instant.now());
+    }
+
     private String sha256Hex(String content) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -130,6 +198,14 @@ public class ValidationGateExecutor {
             if (contextVariables != null) {
                 contextVariables.forEach(context::setVariable);
             }
+            EvaluationContext evaluationContext = SimpleEvaluationContext
+                    .forPropertyAccessors(
+                            MAP_PROPERTY_ACCESSOR, DataBindingPropertyAccessor.forReadOnlyAccess())
+                    .withInstanceMethods()
+                    .build();
+            context.setVariable(
+                    ThymeleafEvaluationContext.THYMELEAF_EVALUATION_CONTEXT_CONTEXT_VARIABLE_NAME,
+                    evaluationContext);
             templateEngine.process(contentFragment, context);
         } catch (TemplateProcessingException exception) {
             issues.add("실제 렌더 실패: " + exception.getMessage());
@@ -213,10 +289,9 @@ public class ValidationGateExecutor {
             // form action이 원본 route와 일치하는지 확인. th:action="@{route}"(Thymeleaf 링크
             // 표현식 — WP6 BindingComposer가 실제로 만드는 형태)와 래핑 없는 th:action="route"/
             // action="route" 둘 다 인정한다.
-            if (!thymeleafTemplate.contains("th:action=\"" + originalRoute + "\"") &&
-                !thymeleafTemplate.contains("th:action=\"@{" + originalRoute + "}\"") &&
-                !thymeleafTemplate.contains("action=\"" + originalRoute + "\"")) {
-                issues.add("폼 액션이 원본 route와 일치하지 않음: " + originalRoute);
+            if (!containsRoute(thymeleafTemplate, "action", originalRoute)
+                    && !containsRoute(thymeleafTemplate, "href", originalRoute)) {
+                issues.add("액션/링크가 원본 route와 일치하지 않음: " + originalRoute);
             }
         } catch (Exception e) {
             issues.add("라우트 검증 오류: " + e.getMessage());
@@ -328,6 +403,76 @@ public class ValidationGateExecutor {
             bindings.add(matcher.group());
         }
         return bindings;
+    }
+
+    private boolean containsRoute(String template, String attribute, String route) {
+        return template.contains("th:" + attribute + "=\"" + route + "\"")
+                || template.contains("th:" + attribute + "=\"@{" + route + "}\"")
+                || template.contains(attribute + "=\"" + route + "\"");
+    }
+
+    private Set<String> expectedBindings(ThymeleafBindingContract contract) {
+        Set<String> expected = new LinkedHashSet<>();
+        if (contract.screenRole() == LegacyScreenRole.FORM) {
+            contract.fields().forEach(field ->
+                    expected.add("th:field=\"*{" + field.fieldName() + "}\""));
+            return expected;
+        }
+        if (contract.primaryDisplayAttributeName() != null) {
+            String item = contract.screenRole() == LegacyScreenRole.LIST ? "item"
+                    : contract.primaryDisplayAttributeName();
+            contract.displayFieldNames().forEach(field ->
+                    expected.add("${" + item + "." + field + "}"));
+        }
+        contract.secondaryDisplayFieldNames().forEach(field ->
+                expected.add("${item." + field + "}"));
+        return expected;
+    }
+
+    private Map<String, Object> renderContext(ThymeleafBindingContract contract) {
+        Map<String, Object> variables = new LinkedHashMap<>();
+        Map<String, Object> primary = values(contract.displayFieldNames());
+        Map<String, Object> allFields = values(contract.fields().stream()
+                .map(field -> field.fieldName()).toList());
+
+        if (contract.screenRole() == LegacyScreenRole.FORM) {
+            String modelAttribute = contract.route().modelAttributeName();
+            if (modelAttribute != null && !modelAttribute.isBlank()) {
+                variables.put(modelAttribute, allFields);
+            }
+        } else if (contract.primaryDisplayAttributeName() != null) {
+            Object value = contract.screenRole() == LegacyScreenRole.LIST
+                    ? List.of(primary) : primary;
+            variables.put(contract.primaryDisplayAttributeName(), value);
+        }
+        if (contract.secondaryDisplayAttributeName() != null) {
+            variables.put(contract.secondaryDisplayAttributeName(),
+                    List.of(values(contract.secondaryDisplayFieldNames())));
+        }
+        variables.put("message", null);
+        variables.put("param", Map.of("searchKeyword", ""));
+        variables.put("_csrf", null);
+        return variables;
+    }
+
+    private Map<String, Object> values(List<String> fieldNames) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        fieldNames.forEach(field -> values.put(field, "validation-value"));
+        return values;
+    }
+
+    /**
+     * 비-web Context에서 처리할 수 없는 URL/폼 전용 processor만 계약 기반 Gate가 별도로 검증하는
+     * 동등한 표준 속성으로 바꾼다. 나머지 템플릿은 실제 SpringTemplateEngine이 그대로 처리한다.
+     */
+    private String renderProbeTemplate(String html) {
+        return WEB_LINK_ATTRIBUTE.matcher(html).replaceAll("$1=\"$2\"")
+                .replace("th:field=\"*{", "th:value=\"*{")
+                .replaceAll("\\s+th:errors=\"\\*\\{[^}]+}\"", "")
+                .replaceAll(FIELD_ERROR_CONDITION.pattern(),
+                        Matcher.quoteReplacement("th:if=\"${false}\""))
+                .replace("th:name=\"${_csrf.parameterName}\"", "name=\"_csrf\"")
+                .replace("th:value=\"${_csrf.token}\"", "value=\"\"");
     }
 
     private int countOccurrences(String text, String pattern) {
