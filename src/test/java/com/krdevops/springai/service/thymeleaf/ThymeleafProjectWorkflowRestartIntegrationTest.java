@@ -2,6 +2,7 @@ package com.krdevops.springai.service.thymeleaf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.mapper.ThymeleafProjectOperationRepository;
+import com.krdevops.springai.model.thymeleaf.LegacySourceManifest;
 import com.krdevops.springai.model.thymeleaf.ProjectOperationStatus;
 import com.krdevops.springai.service.contract.OperationHashFactory;
 import org.junit.jupiter.api.Test;
@@ -10,6 +11,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -61,5 +64,38 @@ class ThymeleafProjectWorkflowRestartIntegrationTest {
         var applied = afterRestart.apply(preview.operation().operationId());
         assertThat(applied.operation().status()).isEqualTo(ProjectOperationStatus.APPLIED);
         assertThat(projectRoot.resolve(relative)).hasContent(html);
+    }
+
+    @Test
+    void legacyManifestSurvivesRestartAndChangedSourceBlocksApply() throws Exception {
+        String relative = "src/main/resources/templates/users/drift.html";
+        Path legacy = Files.writeString(projectRoot.resolve("legacy.jsp"), "<main>original legacy</main>");
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        LegacySourceInventoryService inventory = new LegacySourceInventoryService(
+                new OperationHashFactory(mapper));
+        LegacySourceManifest manifest = inventory.sourceManifest(List.of(
+                inventory.readSourceFile(projectRoot, "legacy.jsp", SourceReadBudget.defaultBudget())));
+        String generated = "<main>generated " + UUID.randomUUID() + "</main>";
+
+        ThymeleafProjectWorkflowService beforeRestart = newServiceInstance();
+        var preview = beforeRestart.preview(projectRoot,
+                Map.of(relative, generated), null, manifest);
+        beforeRestart.approve(preview.operation().operationId(), preview.previewHash());
+
+        Files.writeString(legacy, "<main>changed after approval</main>");
+        ThymeleafProjectWorkflowService afterRestart = newServiceInstance();
+        var recoveredSnapshot = new ThymeleafProjectOperationRepository(
+                new JdbcTemplate(new DriverManagerDataSource(
+                        "jdbc:mysql://localhost:3306/ebt?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8",
+                        System.getenv().getOrDefault("DB_USERNAME", "ebt"),
+                        System.getenv().getOrDefault("DB_PASSWORD", "ebt01"))), mapper)
+                .findLatest(preview.operation().operationId()).orElseThrow();
+        assertThat(recoveredSnapshot.legacySourceManifest()).isEqualTo(manifest);
+
+        var result = afterRestart.apply(preview.operation().operationId());
+
+        assertThat(result.operation().status()).isEqualTo(ProjectOperationStatus.CONFLICT);
+        assertThat(result.operation().conflictingFiles()).containsExactly("LEGACY_SOURCE:legacy.jsp");
+        assertThat(projectRoot.resolve(relative)).doesNotExist();
     }
 }

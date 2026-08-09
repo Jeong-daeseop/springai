@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.config.ArtifactStoreProperties;
 import com.krdevops.springai.controller.ThymeleafOperationsController;
 import com.krdevops.springai.model.thymeleaf.ProjectOperationStatus;
+import com.krdevops.springai.model.thymeleaf.LegacySourceManifest;
 import com.krdevops.springai.service.artifact.ArtifactService;
 import com.krdevops.springai.service.artifact.FilesystemArtifactStore;
 import com.krdevops.springai.service.artifact.RecordingArtifactCatalog;
@@ -13,7 +14,9 @@ import com.krdevops.springai.service.operation.NoopOperationLockPort;
 import com.krdevops.springai.service.thymeleaf.BaselineApprovalService;
 import com.krdevops.springai.service.thymeleaf.BrowserGateDirectoryResolver;
 import com.krdevops.springai.service.thymeleaf.InMemoryThymeleafOperationStore;
+import com.krdevops.springai.service.thymeleaf.LegacySourceInventoryService;
 import com.krdevops.springai.service.thymeleaf.ProjectOperationStateService;
+import com.krdevops.springai.service.thymeleaf.SourceReadBudget;
 import com.krdevops.springai.service.thymeleaf.ThymeleafOperationStore;
 import com.krdevops.springai.service.thymeleaf.ThymeleafProjectWorkflowService;
 import com.krdevops.springai.service.thymeleaf.ThymeleafToolAuthorizationService;
@@ -255,6 +258,29 @@ class RestMcpWorkflowCrossE2ETest {
         assertThat(rest.report(preview.operation().operationId()).getBody().operation().status())
                 .isEqualTo(ProjectOperationStatus.CONFLICT);
         assertThat(Files.readString(projectRoot.resolve(relative))).isEqualTo("<main>user-changed-after-approval</main>");
+    }
+
+    /** WP6 5차 pass: REST 승인 뒤 legacy 입력이 바뀌면 MCP Apply도 같은 원장에서 CONFLICT를 본다. */
+    @Test
+    void legacySourceDriftAfterRestApprovalBlocksMcpApplyThroughReport() throws Exception {
+        wire();
+        String relative = "src/main/resources/templates/users/legacy-drift.html";
+        Files.writeString(projectRoot.resolve("legacy.jsp"), "<main>legacy original</main>");
+        OperationHashFactory hashFactory = new OperationHashFactory(objectMapper);
+        LegacySourceInventoryService inventory = new LegacySourceInventoryService(hashFactory);
+        LegacySourceManifest manifest = inventory.sourceManifest(List.of(
+                inventory.readSourceFile(projectRoot, "legacy.jsp", SourceReadBudget.defaultBudget())));
+        var preview = workflow.preview(projectRoot, Map.of(relative, "<main>generated</main>"), null, manifest);
+        rest.approve(preview.operation().operationId(),
+                new ThymeleafOperationsController.ApprovalRequest(preview.previewHash()));
+        Files.writeString(projectRoot.resolve("legacy.jsp"), "<main>legacy changed</main>");
+
+        mcp.applyThymeleafProject("shared", preview.operation().operationId());
+
+        var report = rest.report(preview.operation().operationId()).getBody();
+        assertThat(report.operation().status()).isEqualTo(ProjectOperationStatus.CONFLICT);
+        assertThat(report.operation().conflictingFiles()).containsExactly("LEGACY_SOURCE:legacy.jsp");
+        assertThat(projectRoot.resolve(relative)).doesNotExist();
     }
 
     /** ARCH-0815: MCP Apply 두 건이 동시에 들어와도 하나만 성공하고 나머지는 락으로 막힌다. */

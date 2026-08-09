@@ -1,5 +1,6 @@
 package com.krdevops.springai.service.thymeleaf;
 
+import com.krdevops.springai.model.thymeleaf.LegacySourceManifest;
 import com.krdevops.springai.service.contract.OperationHashFactory;
 import org.springframework.stereotype.Service;
 
@@ -9,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import java.util.Comparator;
 import java.util.Locale;
 import java.util.Set;
 
@@ -163,6 +165,27 @@ public class LegacySourceInventoryService {
         }
         String joined = String.join("|", fileHashesInDeterministicOrder);
         return operationHashFactory.sha256Hex(joined.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 경로와 hash를 함께 묶어 결정적 manifest를 만든다. 내용 hash만 이어 붙이면 두 파일의 내용이
+     * 서로 바뀌어도 같은 fingerprint가 될 수 있으므로 상대경로도 canonical 입력에 포함한다.
+     */
+    public LegacySourceManifest sourceManifest(List<ReadSourceFile> sources) {
+        if (sources == null || sources.isEmpty()) {
+            throw new IllegalArgumentException("legacy source manifest는 최소 1개 파일이 필요합니다.");
+        }
+        List<LegacySourceManifest.SourceFile> files = sources.stream()
+                .map(source -> new LegacySourceManifest.SourceFile(
+                        source.relativePath(), source.sha256Hex()))
+                .sorted(Comparator.comparing(LegacySourceManifest.SourceFile::relativePath))
+                .toList();
+        String canonical = files.stream()
+                .map(file -> file.relativePath() + "\u0000" + file.sha256Hex())
+                .reduce((left, right) -> left + "\n" + right)
+                .orElseThrow();
+        return new LegacySourceManifest(files,
+                operationHashFactory.sha256Hex(canonical.getBytes(StandardCharsets.UTF_8)));
     }
 
     private Path toRealPath(Path path, String errorCode) {

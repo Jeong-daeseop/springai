@@ -5,6 +5,7 @@ import com.krdevops.springai.model.contract.SourceRevisionRef;
 import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenAnalysis;
+import com.krdevops.springai.model.thymeleaf.LegacySourceManifest;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingContract;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingPreviewRequest;
 import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult;
@@ -47,25 +48,26 @@ public class ThymeleafBindingGenerationService {
         }
         Path projectRoot = Path.of(request.projectRootPath());
         SourceReadBudget budget = SourceReadBudget.defaultBudget();
-        List<String> sourceHashes = new ArrayList<>();
+        List<LegacySourceInventoryService.ReadSourceFile> legacySources = new ArrayList<>();
 
         LegacySourceInventoryService.ReadSourceFile jsp = read(
-                projectRoot, request.jspRelativePath(), budget, sourceHashes);
+                projectRoot, request.jspRelativePath(), budget, legacySources);
         LegacySourceInventoryService.ReadSourceFile controller = read(
-                projectRoot, request.controllerRelativePath(), budget, sourceHashes);
+                projectRoot, request.controllerRelativePath(), budget, legacySources);
         LegacySourceInventoryService.ReadSourceFile vo = read(
-                projectRoot, request.voRelativePath(), budget, sourceHashes);
+                projectRoot, request.voRelativePath(), budget, legacySources);
         LegacySourceInventoryService.ReadSourceFile voSuperclass = readOptional(
-                projectRoot, request.voSuperclassRelativePath(), budget, sourceHashes);
+                projectRoot, request.voSuperclassRelativePath(), budget, legacySources);
         LegacySourceInventoryService.ReadSourceFile secondaryVo = readOptional(
-                projectRoot, request.secondaryVoRelativePath(), budget, sourceHashes);
+                projectRoot, request.secondaryVoRelativePath(), budget, legacySources);
 
         VoEvidence primaryVoEvidence = voSourceReader.read(
                 vo.relativePath(), vo.content(), voSuperclass == null ? null : voSuperclass.content());
         VoEvidence secondaryVoEvidence = secondaryVo == null ? null
                 : voSourceReader.read(secondaryVo.relativePath(), secondaryVo.content());
+        LegacySourceManifest sourceManifest = inventoryService.sourceManifest(legacySources);
         SourceRevisionRef sourceRevision = new SourceRevisionRef(
-                request.screenId(), inventoryService.projectFingerprint(sourceHashes), Instant.now());
+                request.screenId(), sourceManifest.fingerprint(), Instant.now());
         LegacyScreenAnalysis analysis = new LegacyScreenAnalysis(
                 request.screenId(), request.screenRole(),
                 jspSourceReader.read(jsp.relativePath(), jsp.content()),
@@ -89,22 +91,25 @@ public class ThymeleafBindingGenerationService {
         }
 
         ThymeleafProjectWorkflowService.WorkflowResult workflow = workflowService.preview(
-                projectRoot, Map.of(request.outputRelativePath(), composeResult.value()));
+                projectRoot, Map.of(request.outputRelativePath(), composeResult.value()),
+                contractResult.value(), sourceManifest);
         return new BindingPreviewResult(true, PREVIEW_STAGE, request.outputRelativePath(),
                 contractResult.value(), composeResult.issues(), workflow);
     }
 
     private LegacySourceInventoryService.ReadSourceFile read(
-            Path root, String relativePath, SourceReadBudget budget, List<String> sourceHashes) {
+            Path root, String relativePath, SourceReadBudget budget,
+            List<LegacySourceInventoryService.ReadSourceFile> legacySources) {
         LegacySourceInventoryService.ReadSourceFile source =
                 inventoryService.readSourceFile(root, relativePath, budget);
-        sourceHashes.add(source.sha256Hex());
+        legacySources.add(source);
         return source;
     }
 
     private LegacySourceInventoryService.ReadSourceFile readOptional(
-            Path root, String relativePath, SourceReadBudget budget, List<String> sourceHashes) {
-        return relativePath == null ? null : read(root, relativePath, budget, sourceHashes);
+            Path root, String relativePath, SourceReadBudget budget,
+            List<LegacySourceInventoryService.ReadSourceFile> legacySources) {
+        return relativePath == null ? null : read(root, relativePath, budget, legacySources);
     }
 
     private ScreenSpecification approvedSpecification(String specificationId) {

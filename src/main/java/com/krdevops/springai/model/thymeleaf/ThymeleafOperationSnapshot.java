@@ -5,7 +5,8 @@ import java.util.Map;
 /**
  * ARCH-0402: {@code ThymeleafProjectOperation}(공개 계약)에 저장소가 필요로 하는 revision과
  * Apply 재검증에 필요한 원본 문맥(project root, 파일별 source hash, DESIGN.md revision,
- * preview hash)을 더한 영속화 단위. {@link com.krdevops.springai.service.thymeleaf.ThymeleafOperationStore}
+ * preview hash, legacy source manifest/Binding Contract)을 더한 영속화 단위.
+ * {@link com.krdevops.springai.service.thymeleaf.ThymeleafOperationStore}
  * 구현체가 이 레코드 전체를 저장·조회한다.
  *
  * <p>{@code ThymeleafProjectOperation} 자체에 revision을 넣지 않은 이유: 그 record는 REST/MCP
@@ -18,10 +19,22 @@ public record ThymeleafOperationSnapshot(
         String projectRoot,
         Map<String, String> sourceHashes,
         String designRevision,
-        String previewHash) {
+        String previewHash,
+        LegacySourceManifest legacySourceManifest,
+        ThymeleafBindingContract bindingContract) {
 
     public ThymeleafOperationSnapshot {
         sourceHashes = sourceHashes == null ? Map.of() : Map.copyOf(sourceHashes);
+        legacySourceManifest = legacySourceManifest == null
+                ? LegacySourceManifest.empty() : legacySourceManifest;
+    }
+
+    /** legacy source 추적 도입 전 snapshot 생성자 호환. */
+    public ThymeleafOperationSnapshot(
+            int revision, ThymeleafProjectOperation operation, String projectRoot,
+            Map<String, String> sourceHashes, String designRevision, String previewHash) {
+        this(revision, operation, projectRoot, sourceHashes, designRevision, previewHash,
+                LegacySourceManifest.empty(), null);
     }
 
     public String operationId() {

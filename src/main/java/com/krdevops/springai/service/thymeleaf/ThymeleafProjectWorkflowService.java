@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.model.thymeleaf.BrowserValidationReport;
 import com.krdevops.springai.model.thymeleaf.BrowserValidationRequest;
 import com.krdevops.springai.model.thymeleaf.GateSeverity;
+import com.krdevops.springai.model.thymeleaf.LegacySourceManifest;
 import com.krdevops.springai.model.thymeleaf.ProjectOperationStatus;
+import com.krdevops.springai.model.thymeleaf.ThymeleafBindingContract;
 import com.krdevops.springai.model.thymeleaf.ThymeleafOperationSnapshot;
 import com.krdevops.springai.model.thymeleaf.ThymeleafProjectOperation;
 import com.krdevops.springai.model.thymeleaf.ValidationGateResult;
@@ -60,6 +62,7 @@ public class ThymeleafProjectWorkflowService {
     private final ProjectOperationStateService stateService;
     private final ValidationGateExecutor validationGate;
     private final OperationHashFactory hashFactory;
+    private final LegacySourceInventoryService legacySourceInventory;
     private final DesignMdRuleLoader designRuleLoader;
     private final ThymeleafOperationStore store;
     private final OperationEventPort eventPort;
@@ -76,6 +79,7 @@ public class ThymeleafProjectWorkflowService {
             ProjectOperationStateService stateService,
             ValidationGateExecutor validationGate,
             OperationHashFactory hashFactory,
+            LegacySourceInventoryService legacySourceInventory,
             DesignMdRuleLoader designRuleLoader,
             ThymeleafOperationStore store,
             OperationEventPort eventPort,
@@ -88,6 +92,7 @@ public class ThymeleafProjectWorkflowService {
         this.stateService = stateService;
         this.validationGate = validationGate;
         this.hashFactory = hashFactory;
+        this.legacySourceInventory = legacySourceInventory;
         this.designRuleLoader = designRuleLoader;
         this.store = store;
         this.eventPort = eventPort;
@@ -97,6 +102,25 @@ public class ThymeleafProjectWorkflowService {
         this.writePort = writePort;
         this.browserValidationGate = browserValidationGate;
         this.browserGateDirectories = browserGateDirectories;
+    }
+
+    /** legacy source manifest 도입 전 직접 생성 호출부 호환. */
+    public ThymeleafProjectWorkflowService(
+            ProjectOperationStateService stateService,
+            ValidationGateExecutor validationGate,
+            OperationHashFactory hashFactory,
+            DesignMdRuleLoader designRuleLoader,
+            ThymeleafOperationStore store,
+            OperationEventPort eventPort,
+            OperationLockPort lockPort,
+            ArtifactService artifactService,
+            SafePathResolver pathResolver,
+            ApprovedProjectWritePort writePort,
+            BrowserValidationGateExecutor browserValidationGate,
+            BrowserGateDirectoryResolver browserGateDirectories) {
+        this(stateService, validationGate, hashFactory, new LegacySourceInventoryService(hashFactory),
+                designRuleLoader, store, eventPort, lockPort, artifactService, pathResolver, writePort,
+                browserValidationGate, browserGateDirectories);
     }
 
     public ThymeleafProjectWorkflowService(ProjectOperationStateService stateService,
@@ -126,8 +150,19 @@ public class ThymeleafProjectWorkflowService {
     }
 
     public WorkflowResult preview(Path projectRoot, Map<String, String> generatedFiles) {
+        return preview(projectRoot, generatedFiles, null, LegacySourceManifest.empty());
+    }
+
+    /** WP6 Binding 생성 전용 Preview: 원본 manifest와 계약 snapshot을 Operation에 함께 영속한다. */
+    public WorkflowResult preview(
+            Path projectRoot,
+            Map<String, String> generatedFiles,
+            ThymeleafBindingContract bindingContract,
+            LegacySourceManifest legacySourceManifest) {
         Path root = pathResolver.realDirectory(projectRoot);
         String designRevision = currentDesignRevision(root);
+        LegacySourceManifest manifest = legacySourceManifest == null
+                ? LegacySourceManifest.empty() : legacySourceManifest;
         if (generatedFiles == null || generatedFiles.isEmpty()) {
             throw new IllegalArgumentException("generatedFiles는 최소 1개 이상이어야 합니다.");
         }
@@ -154,18 +189,24 @@ public class ThymeleafProjectWorkflowService {
         operation = copy(operation, ProjectOperationStatus.CONTRACT_READY, files,
                 List.copyOf(files.keySet()), null, List.of(), validationErrors, false, null);
         operation = stateService.transitionState(operation, ProjectOperationStatus.PREVIEW_READY);
-        String previewHash = hashFactory.canonicalHash(Map.of(
-                "generatedFiles", files,
-                "designMdRevision", designRevision));
+        Map<String, Object> previewBasis = new LinkedHashMap<>();
+        previewBasis.put("generatedFiles", files);
+        previewBasis.put("designMdRevision", designRevision);
+        if (manifest.tracked()) {
+            previewBasis.put("legacySourceFingerprint", manifest.fingerprint());
+        }
+        String previewHash = hashFactory.canonicalHash(previewBasis);
 
         ThymeleafOperationSnapshot initial = new ThymeleafOperationSnapshot(
-                1, operation, root.toString(), sourceHashes, designRevision, previewHash);
+                1, operation, root.toString(), sourceHashes, designRevision, previewHash,
+                manifest, bindingContract);
         ThymeleafOperationSnapshot saved = store.createOrReuse(initial);
         recordEvent(saved, null, saved.operation().status(), "PREVIEW_CREATED");
         if (artifactService != null) {
             files.forEach((name, content) -> artifactService.ingestAndLink(
                     content.getBytes(StandardCharsets.UTF_8), mediaType(name), "THYMELEAF_PREVIEW",
                     designRevision, saved.operation().operationId(), "THYMELEAF_PROJECT"));
+            persistBindingContract(saved);
         }
         return new WorkflowResult(saved.operation(), saved.previewHash());
     }
@@ -213,6 +254,11 @@ public class ThymeleafProjectWorkflowService {
         // 곧바로 CONFLICT로 전이한다.
         if (!snapshot.designRevision().equals(currentDesignRevision(root))) {
             return toConflict(snapshot, operation, List.of("DESIGN.md"));
+        }
+
+        List<String> legacySourceConflicts = legacySourceConflicts(root, snapshot.legacySourceManifest());
+        if (!legacySourceConflicts.isEmpty()) {
+            return toConflict(snapshot, operation, legacySourceConflicts);
         }
 
         ProjectChangeSet changeSet = new ProjectChangeSet(
@@ -273,6 +319,25 @@ public class ThymeleafProjectWorkflowService {
                     entry.getKey(), sourceHashes.get(entry.getKey()), entry.getValue(), null));
         }
         return changes;
+    }
+
+    private List<String> legacySourceConflicts(Path root, LegacySourceManifest manifest) {
+        if (manifest == null || !manifest.tracked()) {
+            return List.of();
+        }
+        SourceReadBudget budget = SourceReadBudget.defaultBudget();
+        List<String> conflicts = new ArrayList<>();
+        for (LegacySourceManifest.SourceFile source : manifest.files()) {
+            try {
+                var current = legacySourceInventory.readSourceFile(root, source.relativePath(), budget);
+                if (!source.sha256Hex().equals(current.sha256Hex())) {
+                    conflicts.add("LEGACY_SOURCE:" + source.relativePath());
+                }
+            } catch (RuntimeException unavailableOrUnsafe) {
+                conflicts.add("LEGACY_SOURCE:" + source.relativePath());
+            }
+        }
+        return List.copyOf(conflicts);
     }
 
     public WorkflowResult revalidate(String operationId) {
@@ -380,6 +445,20 @@ public class ThymeleafProjectWorkflowService {
         }
     }
 
+    private void persistBindingContract(ThymeleafOperationSnapshot snapshot) {
+        if (artifactService == null || snapshot.bindingContract() == null) return;
+        String sourceRevision = snapshot.legacySourceManifest().tracked()
+                ? snapshot.legacySourceManifest().fingerprint() : snapshot.designRevision();
+        try {
+            artifactService.ingestAndLink(reportMapper.writeValueAsBytes(snapshot.bindingContract()),
+                    "application/json", "THYMELEAF_BINDING_CONTRACT",
+                    sourceRevision, snapshot.operation().operationId(),
+                    "THYMELEAF_PROJECT");
+        } catch (IOException exception) {
+            throw new IllegalStateException("THYMELEAF_BINDING_CONTRACT_SERIALIZATION_FAILED", exception);
+        }
+    }
+
     public Optional<WorkflowResult> find(String operationId) {
         return store.findLatest(operationId).map(s -> new WorkflowResult(s.operation(), s.previewHash()));
     }
@@ -393,7 +472,8 @@ public class ThymeleafProjectWorkflowService {
     private ThymeleafOperationSnapshot nextRevision(ThymeleafOperationSnapshot previous, ThymeleafProjectOperation operation) {
         return store.save(new ThymeleafOperationSnapshot(
                 previous.revision() + 1, operation, previous.projectRoot(),
-                previous.sourceHashes(), previous.designRevision(), previous.previewHash()));
+                previous.sourceHashes(), previous.designRevision(), previous.previewHash(),
+                previous.legacySourceManifest(), previous.bindingContract()));
     }
 
     private void recordEvent(ThymeleafOperationSnapshot snapshot, ProjectOperationStatus from,

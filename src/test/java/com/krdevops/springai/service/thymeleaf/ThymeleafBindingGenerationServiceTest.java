@@ -29,11 +29,7 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** WP6 생성 진입점이 실제 Reader→Assembler→Composer→승인 Workflow를 한 흐름으로 잇는지 검증한다. */
@@ -46,6 +42,8 @@ class ThymeleafBindingGenerationServiceTest {
 
     private OperationHashFactory hashFactory;
     private RecordingArtifactCatalog artifactCatalog;
+    private ThymeleafOperationStore operationStore;
+    private ThymeleafProjectWorkflowService workflow;
     private ThymeleafBindingGenerationService service;
 
     @BeforeEach
@@ -57,9 +55,10 @@ class ThymeleafBindingGenerationServiceTest {
         ArtifactService artifactService = new ArtifactService(
                 new FilesystemArtifactStore(properties), artifactCatalog);
         SafePathResolver pathResolver = new SafePathResolver();
-        ThymeleafProjectWorkflowService workflow = new ThymeleafProjectWorkflowService(
+        operationStore = new InMemoryThymeleafOperationStore();
+        workflow = new ThymeleafProjectWorkflowService(
                 new ProjectOperationStateService(), new ValidationGateExecutor(), hashFactory, null,
-                new InMemoryThymeleafOperationStore(), new NoopOperationEventPort(),
+                operationStore, new NoopOperationEventPort(),
                 new NoopOperationLockPort(), artifactService, pathResolver,
                 new FileSystemApprovedProjectWritePort(pathResolver, hashFactory), null, null);
         service = serviceWith(workflow);
@@ -83,6 +82,59 @@ class ThymeleafBindingGenerationServiceTest {
                 .contains("th:action=\"@{/emp/employerList.do}\"");
         assertThat(projectRoot.resolve(result.outputRelativePath())).doesNotExist();
         assertThat(artifactCatalog.ofType("THYMELEAF_PREVIEW")).hasSize(1);
+        assertThat(artifactCatalog.ofType("THYMELEAF_BINDING_CONTRACT")).hasSize(1);
+        var snapshot = operationStore.findLatest(result.workflow().operation().operationId()).orElseThrow();
+        assertThat(snapshot.bindingContract()).isEqualTo(result.bindingContract());
+        assertThat(snapshot.legacySourceManifest().files()).extracting("relativePath")
+                .containsExactly("legacy/EgovEmployerController.java", "legacy/EgovEmployerList.jsp",
+                        "legacy/EmployerVO.java");
+        assertThat(snapshot.legacySourceManifest().fingerprint())
+                .isEqualTo(result.bindingContract().sourceRevision().revisionToken());
+    }
+
+    @Test
+    void changedLegacySourceAfterApprovalProducesConflictWithoutWritingGeneratedFile() throws Exception {
+        var preview = service.preview(validRequest());
+        workflow.approve(preview.workflow().operation().operationId(), preview.workflow().previewHash());
+        Files.writeString(projectRoot.resolve("legacy/EgovEmployerController.java"),
+                Files.readString(projectRoot.resolve("legacy/EgovEmployerController.java"))
+                        + "\n// changed after approval\n");
+
+        var applied = workflow.apply(preview.workflow().operation().operationId());
+
+        assertThat(applied.operation().status()).isEqualTo(ProjectOperationStatus.CONFLICT);
+        assertThat(applied.operation().conflictingFiles())
+                .containsExactly("LEGACY_SOURCE:legacy/EgovEmployerController.java");
+        assertThat(projectRoot.resolve(preview.outputRelativePath())).doesNotExist();
+    }
+
+    @Test
+    void deletedLegacySourceAfterApprovalProducesConflictWithoutWritingGeneratedFile() throws Exception {
+        var preview = service.preview(validRequest());
+        workflow.approve(preview.workflow().operation().operationId(), preview.workflow().previewHash());
+        Files.delete(projectRoot.resolve("legacy/EmployerVO.java"));
+
+        var applied = workflow.apply(preview.workflow().operation().operationId());
+
+        assertThat(applied.operation().status()).isEqualTo(ProjectOperationStatus.CONFLICT);
+        assertThat(applied.operation().conflictingFiles())
+                .containsExactly("LEGACY_SOURCE:legacy/EmployerVO.java");
+        assertThat(projectRoot.resolve(preview.outputRelativePath())).doesNotExist();
+    }
+
+    @Test
+    void changedLegacyFingerprintDoesNotReuseOperationEvenWhenGeneratedHtmlIsSame() throws Exception {
+        var first = service.preview(validRequest());
+        Path controller = projectRoot.resolve("legacy/EgovEmployerController.java");
+        Files.writeString(controller, Files.readString(controller) + "\n// hash-only change\n");
+
+        var second = service.preview(validRequest());
+
+        assertThat(second.workflow().operation().previewArtifacts())
+                .isEqualTo(first.workflow().operation().previewArtifacts());
+        assertThat(second.workflow().previewHash()).isNotEqualTo(first.workflow().previewHash());
+        assertThat(second.workflow().operation().operationId())
+                .isNotEqualTo(first.workflow().operation().operationId());
     }
 
     @Test
@@ -112,7 +164,7 @@ class ThymeleafBindingGenerationServiceTest {
         assertThat(result.completedStage()).isEqualTo("BINDING_COMPOSE");
         assertThat(result.issues()).extracting("code")
                 .contains("BINDING_REVIEW_REQUIRED_BLOCKS_COMPOSE");
-        verify(workflow, never()).preview(any(Path.class), anyMap());
+        org.mockito.Mockito.verifyNoInteractions(workflow);
     }
 
     @Test
@@ -134,7 +186,7 @@ class ThymeleafBindingGenerationServiceTest {
         assertThatThrownBy(() -> guardedService.preview(request))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("APPROVED 화면명세만");
-        verify(workflow, never()).preview(any(Path.class), anyMap());
+        org.mockito.Mockito.verifyNoInteractions(workflow);
     }
 
     private ThymeleafBindingGenerationService serviceWith(ThymeleafProjectWorkflowService workflow) {
