@@ -130,6 +130,7 @@ public class EgovBbsController {
             populateLayoutModel(model, "board-regist", "등록", bbsVO.getBbsId());
             return "bbs/EgovBbsRegist";
         }
+        bbsVO.setFrstRegistPnttm(java.time.LocalDateTime.now().toString());
         bbsService.insertBbs(bbsVO);
         return redirectToList(bbsVO.getBbsId());
     }

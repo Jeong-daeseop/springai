@@ -87,7 +87,7 @@ class VoSourceReaderTest {
                 "BbsVO.java", Files.readString(BBS_VO), Files.readString(BBS_SEARCH_VO));
 
         var bbsId = evidence.field("bbsId").orElseThrow();
-        assertThat(bbsId.validationAnnotations()).anyMatch(a -> a.startsWith("@NotBlank"));
+        assertThat(bbsId.validationAnnotations()).anyMatch(a -> a.startsWith("@Size"));
         assertThat(evidence.fields().stream().filter(f -> f.fieldName().equals("bbsId")).count()).isEqualTo(1);
     }
 }

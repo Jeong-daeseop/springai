@@ -26,10 +26,11 @@ public class ${domain}VO extends ${domain}SearchVO {
 
 <#list fields as f>
     /** ${f.comment} */
-<#-- nttId는 Service의 ID 생성기가 등록 시 채우므로 요청 Bean Validation 대상에서 제외한다. -->
-<#if f.required && f.javaName != nttId.javaName && f.stringType>
+<#-- nttId는 Service의 ID 생성기가 등록 시 채우므로, formFields에 없는 필드는 화면에서 입력받지
+     않으므로(컨트롤러가 서버측 기본값을 채움) 요청 Bean Validation 대상에서 제외한다. -->
+<#if f.required && f.javaName != nttId.javaName && formFields?seq_contains(f) && f.stringType>
     @NotBlank
-<#elseif f.required && f.javaName != nttId.javaName && !f.stringType>
+<#elseif f.required && f.javaName != nttId.javaName && formFields?seq_contains(f) && !f.stringType>
     @NotNull
 </#if>
 <#if f.maxLength??>

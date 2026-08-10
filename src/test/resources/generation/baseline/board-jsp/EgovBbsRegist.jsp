@@ -36,10 +36,6 @@
             <th>첨부파일ID</th>
             <td><input type="text" name="atchFileId" value="${bbsVO.atchFileId}"/></td>
         </tr>
-        <tr>
-            <th>최초등록시점</th>
-            <td><input type="text" name="frstRegistPnttm" value="${bbsVO.frstRegistPnttm}"/></td>
-        </tr>
     </table>
     <a href="/bbs/bbsList.do?bbsId=${bbsVO.bbsId}">취소</a>
     <button type="submit">저장</button>

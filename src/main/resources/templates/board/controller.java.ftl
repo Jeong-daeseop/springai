@@ -146,6 +146,15 @@ public class Egov${domain}Controller {
             populateLayoutModel(model, "board-regist", "등록", ${domainLc}VO.getBbsId());
             return "${domainLc}/Egov${domain}Regist";
         }
+<#list fields as f>
+<#if f.javaName == "frstRegistPnttm">
+        ${domainLc}VO.setFrstRegistPnttm(java.time.LocalDateTime.now().toString());
+<#elseif f.javaName == "frstRegisterId">
+        ${domainLc}VO.setFrstRegisterId("system");
+<#elseif f.javaName == "useAt" && !formFields?seq_contains(f)>
+        ${domainLc}VO.setUseAt("Y");
+</#if>
+</#list>
         ${domainLc}Service.insert${domain}(${domainLc}VO);
         return redirectToList(${domainLc}VO.getBbsId());
     }

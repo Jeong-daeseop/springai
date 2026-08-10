@@ -85,8 +85,7 @@
             NTT_CN = #{nttCn, jdbcType=VARCHAR},
             NTCR_NM = #{ntcrNm, jdbcType=VARCHAR},
             NOTICE_AT = #{noticeAt, jdbcType=VARCHAR},
-            ATCH_FILE_ID = #{atchFileId, jdbcType=VARCHAR},
-            FRST_REGIST_PNTTM = #{frstRegistPnttm, jdbcType=TIMESTAMP}
+            ATCH_FILE_ID = #{atchFileId, jdbcType=VARCHAR}
         </set>
         WHERE BBS_ID = #{bbsId}
           AND NTT_ID = #{nttId}

@@ -261,7 +261,11 @@ public class BoardModelFactory {
      * (BBS_ID/NTT_ID/RDCNT 등 내부관리 컬럼만 제외한 전체 컬럼)으로 폴백한다.
      */
     private List<FieldModel> buildFormFields(List<FieldModel> fields, ScreenSpecification screenSpecification) {
-        List<String> excludeForm = List.of("bbsId", "nttId", "rdcnt", "answerAt", "answerLc", "sortOrdr");
+        // frstRegistPnttm/frstRegisterId/lastUpdtPnttm/lastUpdusrId는 CrudModelFactory와 동일하게
+        // eGovFrame 표준 감사(audit) 컬럼이라 화면 입력을 받지 않는다 — 값은 controller.java.ftl이
+        // 서버측에서 채운다(사용자가 직접 타이핑하는 텍스트 필드로 노출하면 안 됨).
+        List<String> excludeForm = List.of("bbsId", "nttId", "rdcnt", "answerAt", "answerLc", "sortOrdr",
+                "frstRegistPnttm", "frstRegisterId", "lastUpdtPnttm", "lastUpdusrId");
         if (screenSpecification != null) {
             List<String> columns = screenSpecification.pages().stream()
                     .filter(page -> "regist".equalsIgnoreCase(page.id()))

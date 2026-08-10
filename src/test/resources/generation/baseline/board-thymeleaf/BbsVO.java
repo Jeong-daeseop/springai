@@ -19,7 +19,6 @@ public class BbsVO extends BbsSearchVO {
     private static final long serialVersionUID = 1L;
 
     /** 게시판ID */
-    @NotBlank
     @Size(max = 20)
     private String bbsId;
 
