@@ -25,7 +25,9 @@ public class ${domain}VO {
 
 <#list fields as f>
     // ${f.comment}
-<#if !f.pk && f.required>
+<#-- formFields에 없는 필드는 화면에서 입력받지 않으므로(컨트롤러가 서버측 기본값을 채움)
+     요청 Bean Validation 대상에서 제외한다. -->
+<#if !f.pk && f.required && formFields?seq_contains(f)>
 <#if f.stringType>
     @NotBlank
 <#else>
