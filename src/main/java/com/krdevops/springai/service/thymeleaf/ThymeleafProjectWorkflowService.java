@@ -293,6 +293,7 @@ public class ThymeleafProjectWorkflowService {
         applied = copy(applied, applied.status(), applied.previewArtifacts(), applied.targetFiles(),
                 outcome.backupPath(), List.of(), applied.validationErrors(), true, applied.appliedAt());
         ThymeleafOperationSnapshot saved = nextRevision(snapshot, applied);
+        indexScreenOperationIfBound(root, saved);
         recordEvent(saved, operation.status(), applied.status(), "APPLIED");
         return new WorkflowResult(saved.operation(), saved.previewHash());
         } finally {
@@ -468,6 +469,28 @@ public class ThymeleafProjectWorkflowService {
 
     public Optional<WorkflowResult> find(String operationId) {
         return store.findLatest(operationId).map(s -> new WorkflowResult(s.operation(), s.previewHash()));
+    }
+
+    /**
+     * Regeneration diff: 같은 프로젝트·화면에 대해 마지막으로 실제 적용됐던(APPLIED) Operation의
+     * snapshot을 돌려준다. draft preview는 포함하지 않는다({@link #indexScreenOperationIfBound}가
+     * apply 성공 시에만 색인하기 때문).
+     */
+    public Optional<ThymeleafOperationSnapshot> findLatestByScreen(Path projectRoot, String screenId) {
+        return store.findLatestByScreen(projectRootHash(projectRoot), screenId);
+    }
+
+    private void indexScreenOperationIfBound(Path root, ThymeleafOperationSnapshot saved) {
+        ThymeleafBindingContract contract = saved.bindingContract();
+        if (contract == null) {
+            return;
+        }
+        store.indexScreenOperation(projectRootHash(root), contract.screenId(), saved.operation().operationId());
+    }
+
+    private String projectRootHash(Path projectRoot) {
+        Path root = pathResolver.realDirectory(projectRoot);
+        return hashFactory.sha256Hex(pathResolver.canonicalKey(root).getBytes(StandardCharsets.UTF_8));
     }
 
     private ThymeleafOperationSnapshot required(String id) {

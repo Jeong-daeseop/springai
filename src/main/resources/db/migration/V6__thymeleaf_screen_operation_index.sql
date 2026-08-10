@@ -1,0 +1,12 @@
+-- Regeneration diff: 같은 프로젝트·화면을 다시 생성할 때 마지막으로 적용된(APPLIED) Binding
+-- Contract를 조회하기 위한 자연키(PROJECT_ROOT_HASH, SCREEN_ID) 색인. 기존
+-- AI_THYMELEAF_PROJECT_OPERATION_IDEMPOTENCY와 동일한 "자연키 -> operationId" 패턴을 따른다.
+-- PROJECT_ROOT_HASH는 대상 프로젝트의 실제 경로를 노출하지 않도록 SHA-256 해시로 저장한다.
+
+CREATE TABLE AI_THYMELEAF_SCREEN_OPERATION_INDEX (
+    PROJECT_ROOT_HASH VARCHAR(64)  NOT NULL,
+    SCREEN_ID         VARCHAR(120) NOT NULL,
+    OPERATION_ID      VARCHAR(64)  NOT NULL,
+    UPDATED_AT        DATETIME     DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (PROJECT_ROOT_HASH, SCREEN_ID)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

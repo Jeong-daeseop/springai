@@ -99,6 +99,27 @@ public class ThymeleafProjectOperationRepository implements ThymeleafOperationSt
         return new IllegalStateException("THYMELEAF_OPERATION_IDEMPOTENCY_INDEX_CORRUPT: " + previewHash);
     }
 
+    @Override
+    public Optional<ThymeleafOperationSnapshot> findLatestByScreen(String projectRootHash, String screenId) {
+        List<String> ids = jdbcTemplate.queryForList("""
+            SELECT OPERATION_ID FROM AI_THYMELEAF_SCREEN_OPERATION_INDEX
+             WHERE PROJECT_ROOT_HASH = ? AND SCREEN_ID = ?
+            """, String.class, projectRootHash, screenId);
+        if (ids.isEmpty()) {
+            return Optional.empty();
+        }
+        return findLatest(ids.get(0));
+    }
+
+    @Override
+    public void indexScreenOperation(String projectRootHash, String screenId, String operationId) {
+        jdbcTemplate.update("""
+            INSERT INTO AI_THYMELEAF_SCREEN_OPERATION_INDEX (PROJECT_ROOT_HASH, SCREEN_ID, OPERATION_ID)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE OPERATION_ID = VALUES(OPERATION_ID), UPDATED_AT = CURRENT_TIMESTAMP
+            """, projectRootHash, screenId, operationId);
+    }
+
     private String toJson(ThymeleafOperationSnapshot snapshot) {
         try {
             return objectMapper.writeValueAsString(snapshot);

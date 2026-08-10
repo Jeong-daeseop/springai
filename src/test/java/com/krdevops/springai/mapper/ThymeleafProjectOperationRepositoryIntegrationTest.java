@@ -135,4 +135,42 @@ class ThymeleafProjectOperationRepositoryIntegrationTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("THYMELEAF_OPERATION_REVISION_CONFLICT");
     }
+
+    @Test
+    void indexScreenOperation_findLatestByScreen_roundTripsThroughRealMysql() {
+        String projectRootHash = "hash-" + UUID.randomUUID();
+        String screenId = "employer-list";
+        String operationId = "thymop-screen-" + UUID.randomUUID();
+        ThymeleafProjectOperationRepository repository = newRepository();
+        repository.createOrReuse(
+                snapshot(1, operationId, ProjectOperationStatus.APPLIED, "hash-" + operationId));
+
+        assertThat(repository.findLatestByScreen(projectRootHash, screenId)).isEmpty();
+
+        repository.indexScreenOperation(projectRootHash, screenId, operationId);
+
+        assertThat(repository.findLatestByScreen(projectRootHash, screenId))
+                .map(ThymeleafOperationSnapshot::operationId)
+                .contains(operationId);
+    }
+
+    @Test
+    void indexScreenOperation_reindexingSameScreen_overwritesPreviousOperationId() {
+        String projectRootHash = "hash-" + UUID.randomUUID();
+        String screenId = "employer-list";
+        ThymeleafProjectOperationRepository repository = newRepository();
+        String firstOperationId = "thymop-screen-first-" + UUID.randomUUID();
+        String secondOperationId = "thymop-screen-second-" + UUID.randomUUID();
+        repository.createOrReuse(
+                snapshot(1, firstOperationId, ProjectOperationStatus.APPLIED, "hash-" + firstOperationId));
+        repository.createOrReuse(
+                snapshot(1, secondOperationId, ProjectOperationStatus.APPLIED, "hash-" + secondOperationId));
+
+        repository.indexScreenOperation(projectRootHash, screenId, firstOperationId);
+        repository.indexScreenOperation(projectRootHash, screenId, secondOperationId);
+
+        assertThat(repository.findLatestByScreen(projectRootHash, screenId))
+                .map(ThymeleafOperationSnapshot::operationId)
+                .contains(secondOperationId);
+    }
 }

@@ -21,6 +21,7 @@ public class InMemoryThymeleafOperationStore implements ThymeleafOperationStore 
 
     private final ConcurrentHashMap<String, ThymeleafOperationSnapshot> snapshots = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> previewHashIndex = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> screenIndex = new ConcurrentHashMap<>();
 
     @Override
     public Optional<ThymeleafOperationSnapshot> findLatest(String operationId) {
@@ -61,5 +62,20 @@ public class InMemoryThymeleafOperationStore implements ThymeleafOperationStore 
                     "THYMELEAF_OPERATION_REVISION_CONFLICT: " + snapshot.operationId() + "/" + snapshot.revision());
         }
         return saved.get();
+    }
+
+    @Override
+    public Optional<ThymeleafOperationSnapshot> findLatestByScreen(String projectRootHash, String screenId) {
+        String operationId = screenIndex.get(screenKey(projectRootHash, screenId));
+        return operationId == null ? Optional.empty() : findLatest(operationId);
+    }
+
+    @Override
+    public void indexScreenOperation(String projectRootHash, String screenId, String operationId) {
+        screenIndex.put(screenKey(projectRootHash, screenId), operationId);
+    }
+
+    private String screenKey(String projectRootHash, String screenId) {
+        return projectRootHash + ":" + screenId;
     }
 }

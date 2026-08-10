@@ -30,4 +30,17 @@ public interface ThymeleafOperationStore {
      * @throws IllegalStateException revision 충돌 시 {@code THYMELEAF_OPERATION_REVISION_CONFLICT}
      */
     ThymeleafOperationSnapshot save(ThymeleafOperationSnapshot snapshot);
+
+    /**
+     * Regeneration diff: 같은 프로젝트({@code projectRootHash})·화면({@code screenId})에 대해
+     * 마지막으로 색인된(=실제 apply된) Operation을 조회한다. 승인 안 된 draft preview는 색인되지
+     * 않으므로 이 조회는 항상 "실제로 적용됐던 이전 상태"만 돌려준다.
+     */
+    Optional<ThymeleafOperationSnapshot> findLatestByScreen(String projectRootHash, String screenId);
+
+    /**
+     * apply 성공 직후에만 호출한다 — 같은 (projectRootHash, screenId)에 대해 이후 재생성 시
+     * {@link #findLatestByScreen}의 비교 기준이 이 operationId로 갱신된다(멱등, upsert).
+     */
+    void indexScreenOperation(String projectRootHash, String screenId, String operationId);
 }

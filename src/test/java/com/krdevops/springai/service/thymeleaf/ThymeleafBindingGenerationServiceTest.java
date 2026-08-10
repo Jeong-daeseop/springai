@@ -144,6 +144,40 @@ class ThymeleafBindingGenerationServiceTest {
     }
 
     @Test
+    void regenerationWithoutChangeAfterApplyDoesNotRequireReview() throws Exception {
+        var first = service.preview(validRequest());
+        workflow.approve(first.workflow().operation().operationId(), first.workflow().previewHash());
+        workflow.apply(first.workflow().operation().operationId());
+
+        var second = service.preview(validRequest());
+
+        assertThat(second.successful()).isTrue();
+        assertThat(second.completedStage()).isEqualTo("PREVIEW_READY");
+    }
+
+    @Test
+    void regenerationWithNewPermissionAnnotationIsBlockedForReview() throws Exception {
+        var first = service.preview(validRequest());
+        workflow.approve(first.workflow().operation().operationId(), first.workflow().previewHash());
+        workflow.apply(first.workflow().operation().operationId());
+
+        Path controller = projectRoot.resolve("legacy/EgovEmployerController.java");
+        Files.writeString(controller, Files.readString(controller)
+                .replace("import org.springframework.web.bind.annotation.GetMapping;",
+                        "import org.springframework.web.bind.annotation.GetMapping;\n"
+                                + "import org.springframework.security.access.prepost.PreAuthorize;")
+                .replace("@GetMapping(\"/emp/employerList.do\")",
+                        "@PreAuthorize(\"hasRole('ADMIN')\")\n    @GetMapping(\"/emp/employerList.do\")"));
+
+        var second = service.preview(validRequest());
+
+        assertThat(second.successful()).isFalse();
+        assertThat(second.completedStage()).isEqualTo("REGENERATION_DIFF");
+        assertThat(second.issues()).extracting("code")
+                .contains("REGENERATION_PERMISSION_OR_CSRF_CHANGED");
+    }
+
+    @Test
     void revalidateAutomaticallyRunsContractAndTemplateEngineGates() throws Exception {
         var preview = service.preview(validRequest());
         String operationId = preview.workflow().operation().operationId();
@@ -259,7 +293,7 @@ class ThymeleafBindingGenerationServiceTest {
                 new LegacySourceInventoryService(hashFactory), new JspSourceReader(),
                 new ControllerSourceReader(), new VoSourceReader(),
                 new BindingContractAssembler(issueFactory), new BindingComposer(configuration, issueFactory),
-                specifications, workflow);
+                specifications, workflow, new RegenerationDiffService());
     }
 
     private ThymeleafBindingPreviewRequest validRequest() {
