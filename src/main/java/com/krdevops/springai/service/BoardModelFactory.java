@@ -5,6 +5,8 @@ import com.krdevops.springai.model.board.BoardDisplayModel;
 import com.krdevops.springai.model.board.BoardProgramMetadata;
 import com.krdevops.springai.model.board.BoardRouteModel;
 import com.krdevops.springai.model.crud.FieldModel;
+import com.krdevops.springai.model.design.FieldSelectionSource;
+import com.krdevops.springai.model.design.FieldSourceType;
 import com.krdevops.springai.model.design.GenerationQueryContract;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.util.CrudMappingUtils;
@@ -82,9 +84,14 @@ public class BoardModelFactory {
         String resolvedFileDetailTable = !schemas.getOrDefault("fileDetail", List.of()).isEmpty()
                 ? fileDetailTable : null;
 
-        // listFields: 공지여부, 게시글번호, 제목, 작성자명, 등록일시 우선
-        List<String> preferredList = List.of("noticeAt", "nttId", "nttSj", "ntcrNm", "frstRegistPnttm");
-        List<FieldModel> listFields = buildPreferredFields(fields, preferredList, 6);
+        // listFields: screenSpecification의 list 페이지가 명시적으로 선택한 COLUMN을 우선 사용한다
+        // (CrudModelFactory.buildListFields와 동일 계약). 스펙이 없거나 유효한 선택이 없으면
+        // 기존 하드코딩 우선순위(공지여부, 게시글번호, 제목, 작성자명, 등록일시)로 폴백한다.
+        List<FieldModel> listFields = buildListFieldsFromSpec(fields, bbsId, nttId, screenSpecification);
+        if (listFields == null) {
+            List<String> preferredList = List.of("noticeAt", "nttId", "nttSj", "ntcrNm", "frstRegistPnttm");
+            listFields = buildPreferredFields(fields, preferredList, 6);
+        }
         GenerationQueryContract queryContract = queryContractFactory.create(
                 screenSpecification, fields, "b", java.util.Set.of("b", "m"));
         if (!queryContract.displayFields().isEmpty()) {
@@ -167,6 +174,48 @@ public class BoardModelFactory {
                 "String".equals(javaType), maxLength,
                 CrudMappingUtils.mapJdbcType(dataType)
         );
+    }
+
+    /**
+     * CrudModelFactory.buildListFields와 동일한 계약: screenSpecification의 list 페이지가
+     * selectionSource() != DEFAULT로 명시한 COLUMN 소스 필드만 신뢰하고, 복합 PK(BBS_ID, NTT_ID)를
+     * 항상 포함해 최대 6개로 제한한다. 스펙이 없거나 유효한 선택이 없으면 null을 돌려줘 호출부가
+     * 기존 preferredList 폴백을 쓰게 한다.
+     */
+    private List<FieldModel> buildListFieldsFromSpec(
+            List<FieldModel> fields, FieldModel bbsId, FieldModel nttId,
+            ScreenSpecification screenSpecification) {
+        if (screenSpecification == null) {
+            return null;
+        }
+        List<String> columns = screenSpecification.pages().stream()
+                .filter(page -> "list".equalsIgnoreCase(page.id()))
+                .filter(page -> page.selectionSource() != FieldSelectionSource.DEFAULT)
+                .flatMap(page -> page.fields().stream())
+                .filter(field -> field.visible() && field.source() != null)
+                .filter(field -> field.source().type() == FieldSourceType.COLUMN)
+                .map(field -> field.source().column())
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (columns.isEmpty()) {
+            return null;
+        }
+
+        var selected = new java.util.ArrayList<FieldModel>();
+        addFieldIfAbsent(selected, bbsId);
+        addFieldIfAbsent(selected, nttId);
+        for (String column : columns) {
+            fields.stream().filter(field -> field.columnName().equalsIgnoreCase(column))
+                    .findFirst().ifPresent(field -> addFieldIfAbsent(selected, field));
+            if (selected.size() >= 6) break;
+        }
+        return selected.size() > 2 ? List.copyOf(selected) : null;
+    }
+
+    private static void addFieldIfAbsent(List<FieldModel> selected, FieldModel field) {
+        if (selected.stream().noneMatch(f -> f.javaName().equals(field.javaName()))) {
+            selected.add(field);
+        }
     }
 
     private List<FieldModel> buildPreferredFields(List<FieldModel> fields, List<String> preferred, int max) {
