@@ -9,6 +9,7 @@ import com.krdevops.springai.model.design.FieldSelectionSource;
 import com.krdevops.springai.model.design.FieldSourceType;
 import com.krdevops.springai.model.design.GenerationQueryContract;
 import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.policy.SensitiveFieldPolicy;
 import com.krdevops.springai.util.CrudMappingUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -109,11 +110,15 @@ public class BoardModelFactory {
                 .filter(f -> excludeInsert.stream().noneMatch(ex -> f.javaName().equalsIgnoreCase(ex)))
                 .toList();
 
-        // formFields: BBS_ID, NTT_ID, 내부관리 컬럼 제외 (UI 표시/입력용)
-        List<String> excludeForm = List.of("bbsId", "nttId", "rdcnt", "answerAt", "answerLc", "sortOrdr");
-        List<FieldModel> formFields = fields.stream()
-                .filter(f -> excludeForm.stream().noneMatch(ex -> f.javaName().equalsIgnoreCase(ex)))
-                .toList();
+        // detailFields: screenSpecification의 detail 페이지가 명시적으로 선택한 COLUMN을 우선 사용.
+        // 스펙이 없거나 유효한 선택이 없으면 기존 동작(민감 필드만 제외한 전체 컬럼)으로 폴백한다.
+        List<FieldModel> detailFields = buildDetailFields(fields, bbsId, nttId, screenSpecification);
+        detailFields = queryContractFactory.applyLabelOverrides(detailFields, screenSpecification, "detail");
+
+        // formFields: screenSpecification의 regist 페이지가 명시적으로 선택한 COLUMN을 우선 사용.
+        // 스펙이 없거나 유효한 선택이 없으면 기존 동작(BBS_ID/NTT_ID 등 내부관리 컬럼만 제외)으로 폴백한다.
+        List<FieldModel> formFields = buildFormFields(fields, screenSpecification);
+        formFields = queryContractFactory.applyLabelOverrides(formFields, screenSpecification, "regist");
 
         // searchFields: 제목, 내용, 작성자
         List<String> preferredSearch = List.of("nttSj", "nttCn", "ntcrNm");
@@ -150,7 +155,7 @@ public class BoardModelFactory {
                 egovVersion, jakartaValidation,
                 bbsId, nttId,
                 hasFile, atchFileId, resolvedFileDetailTable,
-                fields, listFields, insertFields, formFields, searchFields, noticeAtExists,
+                fields, listFields, detailFields, insertFields, formFields, searchFields, noticeAtExists,
                 display, route, queryContract
         );
     }
@@ -211,6 +216,79 @@ public class BoardModelFactory {
             if (selected.size() >= 6) break;
         }
         return selected.size() > 2 ? List.copyOf(selected) : null;
+    }
+
+    /**
+     * CrudModelFactory.buildDetailFields와 동일한 계약: screenSpecification의 detail 페이지가
+     * selectionSource() != DEFAULT로 명시한 COLUMN 소스 필드만 신뢰하고, 복합 PK(BBS_ID, NTT_ID)를
+     * 항상 포함한다. 스펙이 없거나 유효한 선택이 없으면 민감 필드(비밀번호 등)만 제외한 전체
+     * 컬럼을 반환한다(기존 동작과 동일, SensitiveFieldPolicy만 새로 적용).
+     */
+    private List<FieldModel> buildDetailFields(
+            List<FieldModel> fields, FieldModel bbsId, FieldModel nttId,
+            ScreenSpecification screenSpecification) {
+        List<String> columns = screenSpecification == null ? List.of()
+                : screenSpecification.pages().stream()
+                        .filter(page -> "detail".equalsIgnoreCase(page.id()))
+                        .filter(page -> page.selectionSource() != FieldSelectionSource.DEFAULT)
+                        .flatMap(page -> page.fields().stream())
+                        .filter(field -> field.visible() && field.source() != null)
+                        .filter(field -> field.source().type() == FieldSourceType.COLUMN)
+                        .map(field -> field.source().column())
+                        .filter(java.util.Objects::nonNull)
+                        .toList();
+        if (columns.isEmpty()) {
+            return SensitiveFieldPolicy.filterDisplayFields(fields);
+        }
+
+        var selected = new java.util.ArrayList<FieldModel>();
+        java.util.stream.Stream.of(bbsId, nttId)
+                .filter(field -> !SensitiveFieldPolicy.isSensitiveDisplayField(field))
+                .forEach(field -> addFieldIfAbsent(selected, field));
+        for (String column : columns) {
+            fields.stream()
+                    .filter(field -> field.columnName().equalsIgnoreCase(column))
+                    .filter(field -> !SensitiveFieldPolicy.isSensitiveDisplayField(field))
+                    .findFirst()
+                    .ifPresent(field -> addFieldIfAbsent(selected, field));
+        }
+        return List.copyOf(selected);
+    }
+
+    /**
+     * screenSpecification의 regist 페이지가 selectionSource() != DEFAULT로 명시한 COLUMN 소스
+     * 필드만 신뢰해 등록/수정 폼 필드를 구성한다. 스펙이 없거나 유효한 선택이 없으면 기존 동작
+     * (BBS_ID/NTT_ID/RDCNT 등 내부관리 컬럼만 제외한 전체 컬럼)으로 폴백한다.
+     */
+    private List<FieldModel> buildFormFields(List<FieldModel> fields, ScreenSpecification screenSpecification) {
+        List<String> excludeForm = List.of("bbsId", "nttId", "rdcnt", "answerAt", "answerLc", "sortOrdr");
+        if (screenSpecification != null) {
+            List<String> columns = screenSpecification.pages().stream()
+                    .filter(page -> "regist".equalsIgnoreCase(page.id()))
+                    .filter(page -> page.selectionSource() != FieldSelectionSource.DEFAULT)
+                    .flatMap(page -> page.fields().stream())
+                    .filter(field -> field.visible() && field.source() != null)
+                    .filter(field -> field.source().type() == FieldSourceType.COLUMN)
+                    .map(field -> field.source().column())
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            if (!columns.isEmpty()) {
+                var selected = new java.util.ArrayList<FieldModel>();
+                for (String column : columns) {
+                    fields.stream()
+                            .filter(field -> field.columnName().equalsIgnoreCase(column))
+                            .filter(field -> excludeForm.stream().noneMatch(ex -> field.javaName().equalsIgnoreCase(ex)))
+                            .findFirst()
+                            .ifPresent(field -> addFieldIfAbsent(selected, field));
+                }
+                if (!selected.isEmpty()) {
+                    return List.copyOf(selected);
+                }
+            }
+        }
+        return fields.stream()
+                .filter(f -> excludeForm.stream().noneMatch(ex -> f.javaName().equalsIgnoreCase(ex)))
+                .toList();
     }
 
     private static void addFieldIfAbsent(List<FieldModel> selected, FieldModel field) {

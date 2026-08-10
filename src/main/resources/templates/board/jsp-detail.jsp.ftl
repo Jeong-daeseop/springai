@@ -12,7 +12,7 @@
 <table>
     <caption>${displayName} 상세 정보</caption>
     <tbody>
-<#list fields as f>
+<#list detailFields as f>
         <tr>
             <th>${f.comment}</th>
             <td><c:out value="${r"${result."}${f.javaName}${r"}"}"/></td>

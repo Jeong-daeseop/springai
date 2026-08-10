@@ -52,7 +52,7 @@ class GenerationQueryTemplateIntegrationTest {
                 "egovframework.let.bbs", "Bbs", "bbs", "게시판", "EMPLOYEE",
                 "LETTNBBSMASTER", null, "/bbs/bbs", "2026-07-17", "5.0", true,
                 bbsId, nttId, false, null, null, boardFields,
-                contract.displayFields(), boardFields, List.of(), List.of(), false,
+                contract.displayFields(), boardFields, boardFields, List.of(), List.of(), false,
                 new BoardDisplayModel(null, "게시판", null),
                 new BoardRouteModel("/bbs/bbs", null, null, null), contract);
 

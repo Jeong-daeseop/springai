@@ -99,6 +99,76 @@ class BoardModelFactoryTest {
                 true, false, false, false, "TEXT", 1.0);
     }
 
+    private List<Map<String, Object>> qnaColumnsWithContentAndPassword() {
+        var columns = new java.util.ArrayList<>(qnaColumns());
+        columns.add(column("NTT_CN", "varchar", ""));
+        columns.add(column("PASSWORD", "varchar", ""));
+        return columns;
+    }
+
+    @Test
+    void fromSchemas_detailScreenSpecificationExplicitColumns_selectsDetailFields() {
+        ScreenFieldBinding title = binding("nttSj", "NTT_SJ");
+        ScreenFieldBinding content = binding("nttCn", "NTT_CN");
+        ScreenSpecification specification = new ScreenSpecification(
+                "spec", 1, ScreenSpecStatus.APPROVED, "질문과 답변", "board", "BOARD_LIST",
+                "com", "LETTNBBS", List.of(DataSourceSpec.primary("com", "LETTNBBS")),
+                List.of(new PageSpec("detail", "CRUD_DETAIL", List.of(title, content), List.of(),
+                        FieldSelectionSource.EXPLICIT)),
+                List.of(), LocalDateTime.now());
+
+        var model = factory.fromSchemas("LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE", null,
+                "Qna", "egovframework.let.qna", "5.0",
+                Map.of("main", qnaColumnsWithContentAndPassword(), "master", List.of()),
+                BoardProgramMetadata.fallback(null), specification);
+
+        assertThat(model.detailFields()).extracting("javaName")
+                .containsExactly("bbsId", "nttId", "nttSj", "nttCn");
+    }
+
+    @Test
+    void fromSchemas_noScreenSpecification_detailFieldsFallBackToAllFieldsExcludingSensitive() {
+        var model = factory.fromSchemas("LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE", null,
+                "Qna", "egovframework.let.qna", "5.0",
+                Map.of("main", qnaColumnsWithContentAndPassword(), "master", List.of()),
+                BoardProgramMetadata.fallback(null), null);
+
+        assertThat(model.detailFields()).extracting("javaName").contains("nttSj", "nttCn")
+                .doesNotContain("password");
+        assertThat(model.fields()).extracting("javaName").contains("password");
+    }
+
+    @Test
+    void fromSchemas_registScreenSpecificationExplicitColumns_selectsFormFields() {
+        ScreenFieldBinding title = binding("nttSj", "NTT_SJ");
+        ScreenFieldBinding content = binding("nttCn", "NTT_CN");
+        ScreenSpecification specification = new ScreenSpecification(
+                "spec", 1, ScreenSpecStatus.APPROVED, "질문과 답변", "board", "BOARD_LIST",
+                "com", "LETTNBBS", List.of(DataSourceSpec.primary("com", "LETTNBBS")),
+                List.of(new PageSpec("regist", "CRUD_FORM", List.of(title, content), List.of(),
+                        FieldSelectionSource.EXPLICIT)),
+                List.of(), LocalDateTime.now());
+
+        var model = factory.fromSchemas("LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE", null,
+                "Qna", "egovframework.let.qna", "5.0",
+                Map.of("main", qnaColumnsWithContentAndPassword(), "master", List.of()),
+                BoardProgramMetadata.fallback(null), specification);
+
+        assertThat(model.formFields()).extracting("javaName").containsExactly("nttSj", "nttCn");
+    }
+
+    @Test
+    void fromSchemas_noScreenSpecification_formFieldsFallBackToExcludeListBehavior() {
+        var model = factory.fromSchemas("LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE", null,
+                "Qna", "egovframework.let.qna", "5.0",
+                Map.of("main", qnaColumnsWithContentAndPassword(), "master", List.of()),
+                BoardProgramMetadata.fallback(null), null);
+
+        assertThat(model.formFields()).extracting("javaName")
+                .contains("nttSj", "nttCn", "password")
+                .doesNotContain("bbsId", "nttId", "answerAt");
+    }
+
     @Test
     void programMetadataOverridesDisplayButKeepsCanonicalRoute() {
         List<Map<String, Object>> columns = List.of(

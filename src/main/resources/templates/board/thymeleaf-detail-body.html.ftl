@@ -12,7 +12,7 @@
         <table class="tbl col egov-form-table">
             <caption>${displayName} 상세 정보</caption>
             <tbody>
-<#list fields as f>
+<#list detailFields as f>
             <tr>
                 <th scope="row">${f.comment}</th>
                 <td th:text="${r"${result."}${f.javaName}${r"}"}"></td>

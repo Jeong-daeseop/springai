@@ -187,6 +187,7 @@ public class BoardTemplateRenderer {
         data.put("fileDetailTableName", model.fileDetailTableName());
         data.put("fields",              model.fields());
         data.put("listFields",          model.listFields());
+        data.put("detailFields",        model.detailFields());
         data.put("insertFields",        model.insertFields());
         data.put("formFields",          model.formFields());
         data.put("searchFields",        model.searchFields());

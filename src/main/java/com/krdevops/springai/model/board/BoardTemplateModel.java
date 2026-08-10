@@ -35,6 +35,7 @@ public record BoardTemplateModel(
         // 필드
         List<FieldModel> fields,       // LETTNBBS 전체 필드
         List<FieldModel> listFields,   // 목록 화면 노출 필드
+        List<FieldModel> detailFields, // 상세 화면 노출 필드
         List<FieldModel> insertFields, // INSERT SQL용 (BBS_ID·NTT_ID 포함, 자동관리 컬럼 제외)
         List<FieldModel> formFields,   // 등록/수정 폼 필드 (복합PK 제외, UI 표시용)
         List<FieldModel> searchFields, // 검색 조건 필드
@@ -45,6 +46,7 @@ public record BoardTemplateModel(
 ) {
     public BoardTemplateModel {
         queryContract = queryContract == null ? GenerationQueryContract.empty() : queryContract;
+        detailFields = detailFields == null ? fields : detailFields;
     }
 
     /** queryContract 도입 전 canonical 생성자 호환. */
@@ -59,7 +61,7 @@ public record BoardTemplateModel(
             BoardDisplayModel display, BoardRouteModel route) {
         this(packageName, domain, domainLc, domainKr, tableName, masterTableName, useTableName,
                 urlPrefix, date, egovVersion, jakartaValidation, bbsId, nttId, hasFile,
-                atchFileId, fileDetailTableName, fields, listFields, insertFields, formFields,
+                atchFileId, fileDetailTableName, fields, listFields, null, insertFields, formFields,
                 searchFields, noticeAtExists, display, route, GenerationQueryContract.empty());
     }
 
@@ -74,7 +76,7 @@ public record BoardTemplateModel(
             List<FieldModel> searchFields, boolean noticeAtExists) {
         this(packageName, domain, domainLc, domainKr, tableName, masterTableName, useTableName,
                 urlPrefix, date, egovVersion, jakartaValidation, bbsId, nttId, hasFile,
-                atchFileId, fileDetailTableName, fields, listFields, insertFields, formFields,
+                atchFileId, fileDetailTableName, fields, listFields, null, insertFields, formFields,
                 searchFields, noticeAtExists,
                 new BoardDisplayModel(null, domainKr, null),
                 new BoardRouteModel(urlPrefix, null, null, null), GenerationQueryContract.empty());
