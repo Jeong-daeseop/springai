@@ -131,9 +131,8 @@ public class CrudModelFactory {
         List<FieldModel> nonPkFields = fields.stream()
                 .filter(f -> !pkJavaNames.contains(f.javaName()))
                 .toList();
-        List<FieldModel> formFields = nonPkFields.stream()
-                .filter(f -> !SYSTEM_MANAGED_FIELDS.contains(f.javaName()))
-                .toList();
+        List<FieldModel> formFields = buildFormFields(nonPkFields, screenSpecification);
+        formFields = queryContractFactory.applyLabelOverrides(formFields, screenSpecification, "regist");
         ScreenSpecification listSpec = resolvedSubsetMode == ScreenSubsetMode.NONE ? null : screenSpecification;
         ScreenSpecification detailSpec = resolvedSubsetMode == ScreenSubsetMode.LIST_AND_DETAIL
                 ? screenSpecification : null;
@@ -211,6 +210,41 @@ public class CrudModelFactory {
                 urlPrefix + "Delete.do",     md.registeredPath(CrudProgramMetadataService.ROLE_DELETE),
                 md.registeredListUrl()
         );
+    }
+
+    /**
+     * screenSpecification의 regist 페이지가 selectionSource() != DEFAULT로 명시한 COLUMN 소스
+     * 필드만 신뢰해 등록/수정 폼 필드를 구성한다. 스펙이 없거나 유효한 선택이 없으면 기존 동작
+     * (PK·SYSTEM_MANAGED_FIELDS만 제외한 전체 컬럼)으로 폴백한다.
+     */
+    private List<FieldModel> buildFormFields(List<FieldModel> nonPkFields, ScreenSpecification screenSpecification) {
+        if (screenSpecification != null) {
+            List<String> columns = screenSpecification.pages().stream()
+                    .filter(page -> "regist".equalsIgnoreCase(page.id()))
+                    .filter(page -> page.selectionSource() != FieldSelectionSource.DEFAULT)
+                    .flatMap(page -> page.fields().stream())
+                    .filter(field -> field.visible() && field.source() != null)
+                    .filter(field -> field.source().type() == FieldSourceType.COLUMN)
+                    .map(field -> field.source().column())
+                    .filter(java.util.Objects::nonNull)
+                    .toList();
+            if (!columns.isEmpty()) {
+                var selected = new java.util.ArrayList<FieldModel>();
+                for (String column : columns) {
+                    nonPkFields.stream()
+                            .filter(field -> field.columnName().equalsIgnoreCase(column))
+                            .filter(field -> !SYSTEM_MANAGED_FIELDS.contains(field.javaName()))
+                            .findFirst()
+                            .ifPresent(field -> addIfAbsent(selected, field));
+                }
+                if (!selected.isEmpty()) {
+                    return List.copyOf(selected);
+                }
+            }
+        }
+        return nonPkFields.stream()
+                .filter(f -> !SYSTEM_MANAGED_FIELDS.contains(f.javaName()))
+                .toList();
     }
 
     private List<FieldModel> buildListFields(List<FieldModel> fields, FieldModel pkField) {

@@ -295,6 +295,29 @@ class CrudModelFactoryTest {
     }
 
     @Test
+    void registScreenSpecificationExplicitColumns_selectsFormFields() {
+        ScreenFieldBinding userNmBinding = binding("userNm", "USER_NM");
+        ScreenSpecification specification = specification(
+                new PageSpec("regist", "CRUD_FORM", List.of(userNmBinding), List.of(),
+                        FieldSelectionSource.EXPLICIT));
+
+        CrudTemplateModel model = factory.fromSchema(
+                "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "5.0", sampleColumns(),
+                CrudProgramMetadata.fallback(null), CrudViewType.THYMELEAF,
+                ScreenSubsetMode.NONE, specification);
+
+        assertThat(model.formFields()).extracting("javaName").containsExactly("userNm");
+    }
+
+    @Test
+    void noRegistScreenSpecification_formFieldsFallBackToNonPkExcludingSystemManaged() {
+        CrudTemplateModel model = factory.fromSchema(
+                "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "5.0", sampleColumns());
+
+        assertThat(model.formFields()).extracting("javaName").containsExactly("userNm", "age");
+    }
+
+    @Test
     void subsetModeNoneUsesFallbackAndDoesNotReinjectQueryDisplayFields() {
         ScreenFieldBinding department = new ScreenFieldBinding(
                 "departmentName", "부서", UiFieldRole.DEPARTMENT,
