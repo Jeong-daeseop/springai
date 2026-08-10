@@ -270,6 +270,31 @@ class CrudModelFactoryTest {
     }
 
     @Test
+    void listAndDetailFieldLabelsUseSpecCustomLabelOverDbComment() {
+        ScreenFieldBinding listAge = new ScreenFieldBinding(
+                "age", "만 나이", UiFieldRole.GENERIC, FieldSource.column("t", "AGE"),
+                true, false, false, false, "NUMBER", 1.0);
+        ScreenFieldBinding detailUserNm = new ScreenFieldBinding(
+                "userNm", "담당자", UiFieldRole.GENERIC, FieldSource.column("t", "USER_NM"),
+                true, false, false, false, "TEXT", 1.0);
+        ScreenSpecification specification = specification(
+                new PageSpec("list", "CRUD_LIST", List.of(listAge), List.of(),
+                        FieldSelectionSource.EXPLICIT),
+                new PageSpec("detail", "CRUD_DETAIL", List.of(detailUserNm), List.of(),
+                        FieldSelectionSource.EXPLICIT));
+
+        CrudTemplateModel model = factory.fromSchema(
+                "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "5.0", sampleColumns(),
+                CrudProgramMetadata.fallback(null), CrudViewType.THYMELEAF,
+                ScreenSubsetMode.LIST_AND_DETAIL, specification);
+
+        assertThat(model.listFields()).filteredOn(f -> "age".equals(f.javaName()))
+                .extracting("comment").containsExactly("만 나이");
+        assertThat(model.detailFields()).filteredOn(f -> "userNm".equals(f.javaName()))
+                .extracting("comment").containsExactly("담당자");
+    }
+
+    @Test
     void subsetModeNoneUsesFallbackAndDoesNotReinjectQueryDisplayFields() {
         ScreenFieldBinding department = new ScreenFieldBinding(
                 "departmentName", "부서", UiFieldRole.DEPARTMENT,

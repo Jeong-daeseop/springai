@@ -71,6 +71,28 @@ class BoardModelFactoryTest {
                 .containsExactly("nttId", "nttSj", "ntcrNm", "frstRegistPnttm", "bbsId", "answerAt");
     }
 
+    @Test
+    void fromSchemas_screenSpecificationCustomLabel_overridesDbColumnComment() {
+        ScreenFieldBinding title = binding("nttSj", "NTT_SJ");
+        ScreenFieldBinding answerStatus = new ScreenFieldBinding(
+                "answerAt", "답변상태", UiFieldRole.STATUS, FieldSource.column("b", "ANSWER_AT"),
+                true, false, false, false, "SELECT", 1.0);
+        ScreenSpecification specification = new ScreenSpecification(
+                "spec", 1, ScreenSpecStatus.APPROVED, "질문과 답변", "board", "BOARD_LIST",
+                "com", "LETTNBBS", List.of(DataSourceSpec.primary("com", "LETTNBBS")),
+                List.of(new PageSpec("list", "BOARD_LIST", List.of(title, answerStatus), List.of(),
+                        FieldSelectionSource.EXPLICIT)),
+                List.of(), LocalDateTime.now());
+
+        var model = factory.fromSchemas("LETTNBBS", "LETTNBBSMASTER", "LETTNBBSUSE", null,
+                "Qna", "egovframework.let.qna", "5.0",
+                Map.of("main", qnaColumns(), "master", List.of()),
+                BoardProgramMetadata.fallback(null), specification);
+
+        assertThat(model.listFields()).filteredOn(f -> "answerAt".equals(f.javaName()))
+                .extracting("comment").containsExactly("답변상태");
+    }
+
     private ScreenFieldBinding binding(String id, String column) {
         return new ScreenFieldBinding(
                 id, id, UiFieldRole.GENERIC, FieldSource.column("b", column),

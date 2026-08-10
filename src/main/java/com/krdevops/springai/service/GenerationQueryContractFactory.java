@@ -15,7 +15,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /** 승인 화면명세를 결정론적 FTL SELECT/VO 모델로 변환한다. */
 @Service
@@ -80,6 +82,38 @@ public class GenerationQueryContractFactory {
             }
         }
         return new GenerationQueryContract(joins, projections);
+    }
+
+    /**
+     * screenSpecification의 pageId 페이지가 COLUMN 소스 필드에 부여한 커스텀 라벨(예: "답변상태")로
+     * pageFields의 comment(=화면 표시 라벨)를 덮어쓴다. 스펙이 없거나 해당 컬럼에 라벨이 없으면
+     * 원래 DB COLUMN_COMMENT를 그대로 유지한다.
+     */
+    public List<FieldModel> applyLabelOverrides(
+            List<FieldModel> pageFields, ScreenSpecification specification, String pageId) {
+        if (specification == null) return pageFields;
+        Map<String, String> labelByColumn = specification.pages().stream()
+                .filter(page -> pageId.equalsIgnoreCase(page.id()))
+                .flatMap(page -> page.fields().stream())
+                .filter(binding -> binding.source() != null
+                        && binding.source().type() == FieldSourceType.COLUMN
+                        && binding.source().column() != null)
+                .filter(binding -> binding.label() != null && !binding.label().isBlank())
+                .collect(Collectors.toMap(
+                        binding -> binding.source().column().toUpperCase(Locale.ROOT),
+                        ScreenFieldBinding::label,
+                        (first, second) -> first));
+        if (labelByColumn.isEmpty()) return pageFields;
+
+        return pageFields.stream()
+                .map(field -> {
+                    String label = labelByColumn.get(field.columnName().toUpperCase(Locale.ROOT));
+                    if (label == null || label.equals(field.comment())) return field;
+                    return new FieldModel(field.columnName(), field.javaName(), field.javaType(),
+                            label, field.pk(), field.required(), field.stringType(),
+                            field.maxLength(), field.jdbcType());
+                })
+                .toList();
     }
 
     private String replacePrimaryAlias(String expression, String primaryAlias) {

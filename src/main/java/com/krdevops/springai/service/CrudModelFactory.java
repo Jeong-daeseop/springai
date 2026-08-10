@@ -134,11 +134,14 @@ public class CrudModelFactory {
         List<FieldModel> formFields = nonPkFields.stream()
                 .filter(f -> !SYSTEM_MANAGED_FIELDS.contains(f.javaName()))
                 .toList();
-        List<FieldModel> listFields = buildListFields(
-                fields, effectivePkFields,
-                resolvedSubsetMode == ScreenSubsetMode.NONE ? null : screenSpecification);
+        ScreenSpecification listSpec = resolvedSubsetMode == ScreenSubsetMode.NONE ? null : screenSpecification;
+        ScreenSpecification detailSpec = resolvedSubsetMode == ScreenSubsetMode.LIST_AND_DETAIL
+                ? screenSpecification : null;
+        List<FieldModel> listFields = buildListFields(fields, effectivePkFields, listSpec);
+        listFields = queryContractFactory.applyLabelOverrides(listFields, listSpec, "list");
         List<FieldModel> detailFields = buildDetailFields(
                 fields, effectivePkFields, resolvedSubsetMode, screenSpecification);
+        detailFields = queryContractFactory.applyLabelOverrides(detailFields, detailSpec, "detail");
         GenerationQueryContract queryContract = queryContractFactory.create(screenSpecification, fields);
         if (resolvedSubsetMode != ScreenSubsetMode.NONE && !queryContract.displayFields().isEmpty()) {
             java.util.ArrayList<FieldModel> extended = new java.util.ArrayList<>(listFields);

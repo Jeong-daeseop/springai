@@ -92,6 +92,7 @@ public class BoardModelFactory {
             List<String> preferredList = List.of("noticeAt", "nttId", "nttSj", "ntcrNm", "frstRegistPnttm");
             listFields = buildPreferredFields(fields, preferredList, 6);
         }
+        listFields = queryContractFactory.applyLabelOverrides(listFields, screenSpecification, "list");
         GenerationQueryContract queryContract = queryContractFactory.create(
                 screenSpecification, fields, "b", java.util.Set.of("b", "m"));
         if (!queryContract.displayFields().isEmpty()) {

@@ -52,6 +52,51 @@ class GenerationQueryContractFactoryTest {
                 .hasMessageContaining("예약 alias");
     }
 
+    @Test
+    void applyLabelOverridesUsesSpecLabelForColumnSourcedField() {
+        ScreenFieldBinding answerStatus = new ScreenFieldBinding(
+                "answerAt", "답변상태", UiFieldRole.STATUS,
+                FieldSource.column("t", "ANSWER_AT"), true, false, false, false, "SELECT", 1.0);
+        ScreenSpecification specification = new ScreenSpecification(
+                "spec", 1, ScreenSpecStatus.APPROVED, "질문과 답변", "board", "BOARD_LIST",
+                "com", "LETTNBBS", List.of(DataSourceSpec.primary("com", "LETTNBBS")),
+                List.of(new PageSpec("list", "BOARD_LIST", List.of(answerStatus), List.of())),
+                List.of(), LocalDateTime.now());
+        List<FieldModel> fields = List.of(
+                new FieldModel("ANSWER_AT", "answerAt", "String", "댓글여부", false, false, true, 10, "VARCHAR"));
+
+        List<FieldModel> overridden = factory.applyLabelOverrides(fields, specification, "list");
+
+        assertThat(overridden).extracting("comment").containsExactly("답변상태");
+    }
+
+    @Test
+    void applyLabelOverridesLeavesFieldsUnchangedWhenSpecificationIsNull() {
+        List<FieldModel> fields = physicalFields();
+
+        List<FieldModel> overridden = factory.applyLabelOverrides(fields, null, "list");
+
+        assertThat(overridden).isEqualTo(fields);
+    }
+
+    @Test
+    void applyLabelOverridesIgnoresBindingsFromOtherPages() {
+        ScreenFieldBinding detailOnlyLabel = new ScreenFieldBinding(
+                "answerAt", "댓글위치상세", UiFieldRole.GENERIC,
+                FieldSource.column("t", "ANSWER_AT"), true, false, false, false, "TEXT", 1.0);
+        ScreenSpecification specification = new ScreenSpecification(
+                "spec", 1, ScreenSpecStatus.APPROVED, "질문과 답변", "board", "BOARD_LIST",
+                "com", "LETTNBBS", List.of(DataSourceSpec.primary("com", "LETTNBBS")),
+                List.of(new PageSpec("detail", "CRUD_DETAIL", List.of(detailOnlyLabel), List.of())),
+                List.of(), LocalDateTime.now());
+        List<FieldModel> fields = List.of(
+                new FieldModel("ANSWER_AT", "answerAt", "String", "댓글여부", false, false, true, 10, "VARCHAR"));
+
+        List<FieldModel> overridden = factory.applyLabelOverrides(fields, specification, "list");
+
+        assertThat(overridden).extracting("comment").containsExactly("댓글여부");
+    }
+
     static ScreenSpecification specification() {
         ScreenFieldBinding department = new ScreenFieldBinding(
                 "department", "부서", UiFieldRole.DEPARTMENT,
