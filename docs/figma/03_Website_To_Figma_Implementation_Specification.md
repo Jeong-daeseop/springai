@@ -102,9 +102,9 @@ RenderedDesignPackage `.figpack`
 
 ### 4.1 포함
 
-- `LOCAL_JSP` capture profile
+- `LOCAL_WEB` capture profile
 - `http://localhost`와 명시적으로 허용한 개발 origin
-- 서버가 이미 실행 중인 JSP/eGovFrame 화면
+- 서버가 이미 실행 중인 JSP/Thymeleaf 등 서버 렌더링 화면
 - Chromium 단일 브라우저 엔진
 - 데스크톱 단일 viewport
 - 비인증 페이지 또는 인증을 우회한 고정 테스트 fixture
@@ -401,7 +401,7 @@ X-Extractor-Key: ********
   "captureId": "UUID",
   "documentKey": "HMAC-SHA-256",
   "targetUrl": "http://localhost:8080/sample.do",
-  "profile": "LOCAL_JSP",
+  "profile": "LOCAL_WEB",
   "featureType": "crud",
   "viewport": {
     "name": "desktop",
@@ -555,7 +555,7 @@ app:
     mapper-version: ${WEB_CAPTURE_MAPPER_VERSION:rendered-design-mapper-v2}
     document-key-secret: ${WEB_CAPTURE_DOCUMENT_KEY_SECRET:}
     enabled-profiles:
-      - LOCAL_JSP
+      - LOCAL_WEB
     allowed-origins:
       - http://127.0.0.1:8080
       - http://localhost:8080
@@ -626,10 +626,11 @@ JSON 계약을 정확하게 제어하기 위해 외부 Tool 요청과 저장 모
 
 ```java
 @Tool(description = """
-    허용된 로컬 또는 개발 JSP 화면 URL을 브라우저로 분석하여
-    Figma import와 화면명세 생성에 사용할 Design Artifact를 만듭니다.
-    1차에서는 LOCAL_JSP profile과 단일 desktop viewport만 지원합니다.
-    서버는 미리 실행되어 있어야 하며 인증정보를 인자로 전달하지 마세요.
+    허용된 로컬 또는 개발 화면 URL을 Chromium으로 분석하여 Figma import와
+    화면명세 생성에 사용할 Design Artifact를 만듭니다. JSP/Thymeleaf 등 서버 템플릿
+    엔진을 구분하지 않고 렌더링된 최종 HTML을 캡처합니다. Release 1은 LOCAL_WEB,
+    단일 desktop viewport와 비인증 화면만 지원하며 서버는 미리 실행되어 있어야 합니다.
+    인증정보, 쿠키 또는 토큰을 인자로 전달하지 마세요.
     """)
 public CaptureArtifactSummary captureWebPage(CaptureWebPageRequest request)
 ```
@@ -766,7 +767,7 @@ Release 1은 로컬 파일 저장소를 사용한다.
 3. 페이지 title, heading, action 의미
 4. 불명확하면 `CRUD_LIST`와 uncertainty 기록
 
-`applicationKind`는 HTML에서 신뢰성 있게 탐지하지 않는다. Release 1에서는 승인된 `LOCAL_JSP` profile의 힌트로 `JSP`를 기록하고, 일반 profile에서 확인할 수 없으면 `UNKNOWN`을 사용한다.
+`applicationKind`는 HTML에서 신뢰성 있게 탐지하지 않는다. `LOCAL_WEB` profile은 JSP/Thymeleaf 등 서버 템플릿 엔진을 구분하지 않으므로 Release 1은 profile과 무관하게 `UNKNOWN`을 기록한다.
 
 ### 9.2 레이아웃
 
@@ -1154,7 +1155,7 @@ fixture 서버 실행
 - Figma 출력 경로 ADR에서 전용 Plugin의 결정론·실행 주체·복구 경계를 승인한다.
 - `DesignSourceMetadata` 공통 모델과 legacy adapter를 WEB_CAPTURE 코드보다 먼저 병합하고 기존 FILE/Figma JSON 호환 테스트를 통과한다.
 - document schema는 `contentHash`를 최상위에 한 번만 가지며 `source.contentHash`를 거부한다.
-- `LOCAL_JSP` 외 profile이 거부된다.
+- `LOCAL_WEB` 외 profile이 거부된다.
 - `springai` 또는 extractor가 loopback이 아니면 enabled 기동이 거부된다.
 - 허용된 JSP URL 네 유형을 반복 캡처할 수 있다.
 - 동일 fixture, browser/analyzer version과 환경에서 baseline이 정한 반복 횟수만큼 `contentHash`가 유지된다.

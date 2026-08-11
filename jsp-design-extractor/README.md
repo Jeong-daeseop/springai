@@ -1,6 +1,6 @@
 # jsp-design-extractor
 
-Playwright/Chromium으로 허용된 로컬 JSP 화면을 캡처해 `figpack-v1`을 반환합니다.
+Playwright/Chromium으로 허용된 로컬 화면(JSP/Thymeleaf 등 템플릿 엔진 무관)을 캡처해 `figpack-v1`을 반환합니다.
 
 ```bash
 npm install

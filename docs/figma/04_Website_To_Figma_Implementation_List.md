@@ -186,7 +186,7 @@ Release 1은 R0~R5를 포함한다. R6~R9는 각각 독립적인 승인 게이�
 - [x] 민감 query 이름과 selector 기본값 확정 (`application.yaml`의 `sensitive-selectors`, extractor의 기본 민감 query 목록)
 - [x] artifact 보존 및 수동 삭제 절차 확정 (런북 §5, `DesignArtifactRetentionTest`)
 - [x] Release 1 WEB_CAPTURE RAG 미적재 원칙 확정 (구현·테스트 완료, R4-02/R5-03에서 검증)
-- [x] Release 1 인증 세션 제외 원칙 확정 (`enabled-profiles: [LOCAL_JSP]`만 허용, 03번 §12.1)
+- [x] Release 1 인증 세션 제외 원칙 확정 (`enabled-profiles: [LOCAL_WEB]`만 허용, 03번 §12.1)
 - [x] 운영 사이트 기능 비활성 기본값 확정 (`WebCaptureDeploymentGuard`가 `AUTHORIZED_PRODUCTION_WEBSITE` 활성화를 기동 시점에 거부)
 
 완료 조건:
@@ -234,7 +234,7 @@ src/test/java/com/krdevops/springai/config/WebCapturePropertiesTest.java
 - [x] 압축 해제 크기와 ZIP entry 상한 검증 (`maxUncompressedArtifactMb`, `RenderedDesignPackageValidator`)
 - [x] artifact base path 검증
 - [x] retention 설정과 만료 정리 정책 검증 (`retentionHours`, `DesignArtifactRetentionTest`)
-- [x] enabled profile 검증 (LOCAL_JSP 외 값 거부)
+- [x] enabled profile 검증 (LOCAL_WEB 외 값 거부)
 - [x] allowed origin 정규화와 중복 제거 (`WebCaptureUrlValidator`가 scheme/host 소문자화 후 `Set`으로 비교)
 - [x] 운영 profile 활성화 거부 (`WebCaptureDeploymentGuard`)
 - [x] `WebCaptureDeploymentGuard`로 `springai`와 extractor loopback 조건 검사 (`WebCaptureDeploymentGuardTest`)
@@ -550,7 +550,7 @@ src/test/java/com/krdevops/springai/tools/DesignArtifactToolTest.java
 ### R2-02 입력과 URL 정책 — P0
 
 - [x] request schema 검증 (`validateRequest` allowedKeys 화이트리스트)
-- [x] `LOCAL_JSP`만 허용
+- [x] `LOCAL_WEB`만 허용
 - [x] main origin allowlist 적용
 - [x] resource origin allowlist 적용
 - [x] 빈 resource allowlist는 main origin만 허용
@@ -894,7 +894,7 @@ src/test/java/com/krdevops/springai/tools/DesignArtifactToolTest.java
 - [x] retention 만료 정리 확인
 - [x] health check 문서 확인
 - [x] 장애·timeout·브라우저 미설치 안내 확인 (`CAPTURE_BROWSER_UNAVAILABLE`/`CAPTURE_READY_TIMEOUT`, `getWebCaptureStatus()`의 `chromiumReady`)
-- [x] 운영·SPA·다중 viewport 비지원 표시 확인 (schema `viewportWidth/viewportHeight`가 `const` 고정, `enabledProfiles`가 `LOCAL_JSP`만 허용)
+- [x] 운영·SPA·다중 viewport 비지원 표시 확인 (schema `viewportWidth/viewportHeight`가 `const` 고정, `enabledProfiles`가 `LOCAL_WEB`만 허용)
 - [x] Release 1 로그인·세션 비지원 표시 확인 (`storageStateRef` 등 인증 관련 필드 자체가 Release 1 계약에 없음)
 - [x] WEB_CAPTURE RAG 미적재 확인
 

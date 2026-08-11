@@ -22,7 +22,7 @@ public class WebCaptureProperties {
     private Path artifactBasePath = Path.of(System.getProperty("java.io.tmpdir"), "springai-design-artifacts");
     private int retentionHours = 24;
     private String mapperVersion = "rendered-design-mapper-v2";
-    private List<String> enabledProfiles = new ArrayList<>(List.of("LOCAL_JSP"));
+    private List<String> enabledProfiles = new ArrayList<>(List.of("LOCAL_WEB"));
     private List<String> allowedOrigins = new ArrayList<>();
     private List<String> allowedResourceOrigins = new ArrayList<>();
     private List<String> sensitiveSelectors = new ArrayList<>(List.of("input[type=password]"));
@@ -45,8 +45,8 @@ public class WebCaptureProperties {
                 throw new IllegalStateException("Release 1 extractor-base-url은 loopback HTTP만 허용합니다.");
             }
         }
-        if (enabledProfiles.stream().anyMatch(value -> !"LOCAL_JSP".equals(value))) {
-            throw new IllegalStateException("Release 1은 LOCAL_JSP profile만 허용합니다.");
+        if (enabledProfiles.stream().anyMatch(value -> !"LOCAL_WEB".equals(value))) {
+            throw new IllegalStateException("Release 1은 LOCAL_WEB profile만 허용합니다.");
         }
     }
 

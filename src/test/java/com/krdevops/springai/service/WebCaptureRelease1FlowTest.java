@@ -39,7 +39,7 @@ class WebCaptureRelease1FlowTest {
                 new WebCaptureUrlValidator(properties), client, packageValidator, artifacts);
 
         CaptureArtifactSummary captured = orchestration.capture(new CaptureWebPageRequest(
-                "http://localhost:8080/list.do?token=secret", CaptureProfile.LOCAL_JSP,
+                "http://localhost:8080/list.do?token=secret", CaptureProfile.LOCAL_WEB,
                 ViewportSpec.desktop(), null, "crud"));
 
         DesignAnalysisRepository repository = mock(DesignAnalysisRepository.class);
@@ -83,7 +83,7 @@ class WebCaptureRelease1FlowTest {
                         true, bounds, Map.of(), List.of()));
         RenderedDesignDocument base = new RenderedDesignDocument(RenderedDesignDocument.SCHEMA_VERSION,
                 captureId, documentKey, "a".repeat(64),
-                new RenderedDesignDocument.Source("RENDERED_WEB_PAGE", "JSP",
+                new RenderedDesignDocument.Source("RENDERED_WEB_PAGE", "UNKNOWN",
                         "http://localhost:8080/list.do?token=***", "http://localhost:8080/list.do?token=***",
                         "c".repeat(64), "2026-07-21T00:00:00Z"),
                 new RenderedDesignDocument.Environment("desktop", 1440, 1200, 1, "ko-KR",

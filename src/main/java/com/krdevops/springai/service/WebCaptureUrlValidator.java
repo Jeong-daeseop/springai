@@ -38,7 +38,7 @@ public class WebCaptureUrlValidator {
             if (!allowed.contains(origin)) throw new IllegalArgumentException("허용되지 않은 origin입니다.");
             for (InetAddress address : InetAddress.getAllByName(uri.getHost())) {
                 if (!address.isLoopbackAddress()) {
-                    throw new IllegalArgumentException("LOCAL_JSP는 loopback 주소만 허용합니다.");
+                    throw new IllegalArgumentException("LOCAL_WEB는 loopback 주소만 허용합니다.");
                 }
             }
             String path = uri.getPath() == null || uri.getPath().isBlank() ? "/" : uri.getPath();

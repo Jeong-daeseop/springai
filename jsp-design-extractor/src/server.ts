@@ -10,7 +10,7 @@ import Ajv2020Import from "ajv/dist/2020.js";
 import addFormatsImport from "ajv-formats";
 
 type CaptureRequest = {
-  requestId?: string; captureId: string; documentKey: string; url: string; profile: "LOCAL_JSP";
+  requestId?: string; captureId: string; documentKey: string; url: string; profile: "LOCAL_WEB";
   viewport: { name: string; width: number; height: number; deviceScaleFactor: number };
   readiness: { readySelector?: string; hiddenSelector?: string; timeoutMillis: number };
   sensitiveSelectors?: string[]; allowedOrigins: string[]; allowedResourceOrigins?: string[];
@@ -136,7 +136,7 @@ async function validateOrigin(rawUrl: string, allowedOrigins: string[]) {
 async function validateRequest(input: CaptureRequest) {
   const allowedKeys = new Set(["requestId","captureId","documentKey","url","profile","viewport","readiness","sensitiveSelectors","allowedOrigins","allowedResourceOrigins","storageStateRef"]);
   if (!input || typeof input !== "object" || Object.keys(input).some(key => !allowedKeys.has(key))) throw new Error("REQUEST_SCHEMA_INVALID");
-  if (input.profile !== "LOCAL_JSP") throw new Error("PROFILE_DENIED");
+  if (input.profile !== "LOCAL_WEB") throw new Error("PROFILE_DENIED");
   if (!/^[0-9a-f-]{36}$/i.test(input.captureId) || !/^[a-f0-9]{64}$/.test(input.documentKey)) throw new Error("INVALID_ID");
   if (input.storageStateRef !== undefined && !/^[0-9a-f-]{36}$/i.test(input.storageStateRef)) throw new Error("INVALID_ID");
   await validateOrigin(input.url, input.allowedOrigins);
@@ -310,7 +310,7 @@ async function capture(input: CaptureRequest): Promise<Buffer> {
     for(const inline of collected.inlineSvgs){try{const sanitized=inline.svg.replace(/<script[\s\S]*?<\/script>/gi,"").replace(/\son\w+\s*=\s*(['"])[\s\S]*?\1/gi,"").replace(/\s(?:href|xlink:href)\s*=\s*(['"])(?:https?:|\/\/)[\s\S]*?\1/gi,"");const bytes=Buffer.from(sanitized);if(bytes.length>1024*1024)throw new Error("size");const hash=sha256(bytes);const path=`assets/${hash}.svg`;assetFiles.set(path,bytes);assets.push({id:inline.id,path,mimeType:"image/svg+xml",byteLength:bytes.length,contentHash:hash});}catch{collected.warnings.push({code:"SVG_SANITIZE_FAILED",nodeId:inline.id,message:"SVG 자산을 안전하게 수집하지 못했습니다."});}}
     const now = new Date().toISOString();
     const document: any = { schemaVersion: "rendered-design-document-v1", captureId: input.captureId, documentKey: input.documentKey, contentHash: "",
-      source: { type: "RENDERED_WEB_PAGE", applicationKind: "JSP", requestedUrl: maskedUrl(input.url), finalUrl: maskedUrl(page.url()), urlFingerprint: sha256(maskedUrl(page.url())), capturedAt: now },
+      source: { type: "RENDERED_WEB_PAGE", applicationKind: "UNKNOWN", requestedUrl: maskedUrl(input.url), finalUrl: maskedUrl(page.url()), urlFingerprint: sha256(maskedUrl(page.url())), capturedAt: now },
       environment: { viewportName: input.viewport.name, viewportWidth: input.viewport.width, viewportHeight: input.viewport.height, deviceScaleFactor: input.viewport.deviceScaleFactor, locale: "ko-KR", timezone: "Asia/Seoul", colorScheme: "light", reducedMotion: true, browserEngine: "chromium" },
       page: collected.page, nodes: collected.nodes, assets, tokens: collected.tokens, componentCandidates: collected.candidates, interactions: [], warnings: collected.warnings,
       extractor: { name: "jsp-design-extractor", version: "0.1.0", browserVersion: browser.version(), schemaSha256, layoutAnalyzerVersion: LAYOUT_ANALYZER_VERSION, componentRecognizerVersion: COMPONENT_RECOGNIZER_VERSION } };

@@ -29,7 +29,7 @@
 권장 발전 경로는 다음과 같다.
 
 ```text
-1차 LOCAL_JSP
+1차 LOCAL_WEB
   └─ 단일 viewport, 서버 렌더링, 허용된 로컬·개발 URL
 
 2차 DEVELOPMENT_WEBSITE
@@ -407,7 +407,7 @@ prepareFigmaImport(artifactId)
 ### 9.3 Capture Profile
 
 ```text
-LOCAL_JSP
+LOCAL_WEB
 DEVELOPMENT_WEBSITE
 AUTHORIZED_PRODUCTION_WEBSITE
 ```

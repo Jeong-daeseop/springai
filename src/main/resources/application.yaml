@@ -174,7 +174,7 @@ app:
     retention-hours: ${WEB_CAPTURE_RETENTION_HOURS:24}
     mapper-version: ${WEB_CAPTURE_MAPPER_VERSION:rendered-design-mapper-v2}
     enabled-profiles:
-      - LOCAL_JSP
+      - LOCAL_WEB
     allowed-origins:
       - http://127.0.0.1:8080
       - http://localhost:8080
