@@ -27,10 +27,10 @@ class BusinessFigmaScreenBuilderTest {
     void userUpdateAndDetailReuseFormAndDetailBuilders() {
         PageSpec update = new PageSpec(
                 "user-form", "CRUD_FORM", List.of(field("userId", "사용자 ID")),
-                List.of("SAVE", "CANCEL"));
+                PageSpec.migrateActions("SAVE", "CANCEL"));
         PageSpec detail = new PageSpec(
                 "user-detail", "CRUD_DETAIL", List.of(field("userId", "사용자 ID")),
-                List.of("UPDATE", "LIST"));
+                PageSpec.migrateActions("UPDATE", "LIST"));
         ScreenSpecification spec = specification("CRUD_DETAIL", List.of(update, detail));
 
         FigmaNodeSpec updateRoot = new FormFigmaScreenBuilder().build(spec, update, ids);
@@ -52,9 +52,9 @@ class BusinessFigmaScreenBuilderTest {
                 "title", "제목", UiFieldRole.TITLE, FieldSource.column("B", "NTT_SJ"),
                 true, true, true, true, "TEXT", 1.0);
         PageSpec list = new PageSpec(
-                "board-list", "BOARD_LIST", List.of(title), List.of("SEARCH", "CREATE"));
+                "board-list", "BOARD_LIST", List.of(title), PageSpec.migrateActions("SEARCH", "CREATE"));
         PageSpec form = new PageSpec(
-                "board-form", "BOARD_FORM", List.of(title), List.of("SAVE", "CANCEL"));
+                "board-form", "BOARD_FORM", List.of(title), PageSpec.migrateActions("SAVE", "CANCEL"));
         ScreenSpecification spec = specification("BOARD_LIST", List.of(list, form));
 
         FigmaNodeSpec listRoot = new ListFigmaScreenBuilder().build(spec, list, ids);
@@ -70,10 +70,10 @@ class BusinessFigmaScreenBuilderTest {
     void masterDetailUsesIndependentScreenTypeAndLayoutPattern() {
         PageSpec master = new PageSpec(
                 "order-list", "MASTER_LIST", List.of(field("orderId", "주문 ID")),
-                List.of("SEARCH", "CREATE"));
+                PageSpec.migrateActions("SEARCH", "CREATE"));
         PageSpec detail = new PageSpec(
                 "order-detail", "MASTER_DETAIL", List.of(field("itemId", "품목 ID")),
-                List.of("UPDATE"));
+                PageSpec.migrateActions("UPDATE"));
         ScreenSpecification spec = specification("MASTER_DETAIL", List.of(master, detail));
 
         assertThat(resolver.resolveScreenType(master, spec)).isEqualTo(FigmaScreenType.LIST);

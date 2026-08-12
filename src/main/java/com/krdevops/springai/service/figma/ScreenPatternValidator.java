@@ -1,6 +1,8 @@
 package com.krdevops.springai.service.figma;
 
 import com.krdevops.springai.model.design.role.SemanticRole;
+import com.krdevops.springai.model.design.role.FieldMode;
+import com.krdevops.springai.model.design.role.ScreenPattern;
 import com.krdevops.springai.model.designsystem.DesignSystemIssue;
 import com.krdevops.springai.model.designsystem.ScreenPatternDefinition;
 import com.krdevops.springai.model.figma.FigmaNodeSpec;
@@ -74,6 +76,9 @@ public class ScreenPatternValidator {
             }
         }
 
+        validateFieldModes(definition.pattern(), occurrences, issues);
+        validateRequiredActions(definition.pattern(), counts, issues);
+
         int lastOrder = Integer.MIN_VALUE;
         SemanticRole lastRole = null;
         for (RoleOccurrence occurrence : occurrences) {
@@ -91,6 +96,53 @@ public class ScreenPatternValidator {
         return List.copyOf(issues);
     }
 
+    private void validateFieldModes(
+            ScreenPattern pattern,
+            List<RoleOccurrence> occurrences,
+            List<DesignSystemIssue> issues
+    ) {
+        List<RoleOccurrence> fields = occurrences.stream()
+                .filter(occurrence -> occurrence.role().code().startsWith("field."))
+                .toList();
+        boolean editableFound = false;
+        for (RoleOccurrence field : fields) {
+            Object rawMode = field.properties().get("mode");
+            FieldMode mode;
+            try {
+                mode = rawMode instanceof String value ? FieldMode.valueOf(value) : null;
+            } catch (IllegalArgumentException exception) {
+                mode = null;
+            }
+            if (mode == null) {
+                issues.add(issue("PATTERN_FIELD_MODE_MISSING", DesignSystemIssue.Severity.ERROR,
+                        "Field Role에는 유효한 mode가 필요합니다.", field.logicalNodeId()));
+                continue;
+            }
+            editableFound |= mode == FieldMode.EDITABLE;
+            if (pattern == ScreenPattern.CRUD_DETAIL && mode != FieldMode.READ_ONLY) {
+                issues.add(issue("PATTERN_FIELD_MODE_VIOLATION", DesignSystemIssue.Severity.ERROR,
+                        "DETAIL 화면의 Field는 READ_ONLY여야 합니다.", field.logicalNodeId()));
+            }
+        }
+        if ((pattern == ScreenPattern.CRUD_CREATE || pattern == ScreenPattern.CRUD_EDIT)
+                && !fields.isEmpty() && !editableFound) {
+            issues.add(issue("PATTERN_EDITABLE_FIELD_MISSING", DesignSystemIssue.Severity.ERROR,
+                    pattern.code() + " 화면에는 EDITABLE Field가 하나 이상 필요합니다.", null));
+        }
+    }
+
+    private void validateRequiredActions(
+            ScreenPattern pattern,
+            Map<SemanticRole, Integer> counts,
+            List<DesignSystemIssue> issues
+    ) {
+        if ((pattern == ScreenPattern.CRUD_CREATE || pattern == ScreenPattern.CRUD_EDIT)
+                && counts.getOrDefault(SemanticRole.ACTION_PRIMARY, 0) == 0) {
+            issues.add(issue("PATTERN_PRIMARY_ACTION_MISSING", DesignSystemIssue.Severity.ERROR,
+                    pattern.code() + " 화면에 저장 역할의 Primary Action이 필요합니다.", null));
+        }
+    }
+
     private void collect(
             FigmaNodeSpec node,
             SemanticRole parentRole,
@@ -102,7 +154,7 @@ public class ScreenPatternValidator {
         if (rawRole instanceof String roleCode) {
             try {
                 SemanticRole role = SemanticRole.fromCode(roleCode);
-                occurrences.add(new RoleOccurrence(role, parentRole, node.logicalNodeId()));
+                occurrences.add(new RoleOccurrence(role, parentRole, node.logicalNodeId(), node.properties()));
                 effectiveParent = role;
             } catch (IllegalArgumentException exception) {
                 issues.add(issue("PATTERN_UNKNOWN_ROLE", DesignSystemIssue.Severity.ERROR,
@@ -118,5 +170,10 @@ public class ScreenPatternValidator {
         return new DesignSystemIssue(code, severity, message, target);
     }
 
-    private record RoleOccurrence(SemanticRole role, SemanticRole parentRole, String logicalNodeId) {}
+    private record RoleOccurrence(
+            SemanticRole role,
+            SemanticRole parentRole,
+            String logicalNodeId,
+            Map<String, Object> properties
+    ) {}
 }

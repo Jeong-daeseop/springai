@@ -6,9 +6,10 @@ import {
   reconcile,
   registryFor,
   runAtomicApply,
+  sectionVisualRegression,
   validateBundle,
-  visualRegressionStatus,
 } from "./core";
+import type { SectionEvidence } from "./core";
 import type {
   ComponentRegistry,
   BundleContractMode,
@@ -38,6 +39,7 @@ const DATA_APPLY_STAGING = "figmaScreenSpec.applyStaging";
 const DATA_APPLY_BACKUP = "figmaScreenSpec.applyBackup";
 const DATA_COMPONENT_VARIANT_KEY = "figmaScreenSpec.componentVariantKey";
 const DATA_VISUAL_BASELINE_HASH = "figmaScreenSpec.visualBaselineHash";
+const DATA_VISUAL_BASELINE_SECTIONS = "figmaScreenSpec.visualBaselineSections";
 
 figma.showUI(__html__, { width: 440, height: 720 });
 
@@ -595,6 +597,9 @@ async function applyBundle(
       clearStagingMarker(staging.root);
       const visual = qualityGates.find(gate => gate.gate === "VISUAL_REGRESSION");
       if (visual?.evidenceHash) staging.root.setPluginData(DATA_VISUAL_BASELINE_HASH, visual.evidenceHash);
+      if (visual?.sectionEvidenceJson) {
+        staging.root.setPluginData(DATA_VISUAL_BASELINE_SECTIONS, visual.sectionEvidenceJson);
+      }
       staging.container.remove();
       backup.backupClone?.remove();
       if (findScreenRoot(screen.screenId) !== staging.root) {
@@ -650,6 +655,13 @@ async function applyBundle(
   };
 }
 
+/** KRV-064: 두 사각형이 epsilon(0.5px) 이상 겹치는지 검사한다. 경계에 딱 붙은 경우는 겹침으로 보지 않는다. */
+function rectsOverlap(a: Rect, b: Rect): boolean {
+  const epsilon = 0.5;
+  return a.x + epsilon < b.x + b.width && b.x + epsilon < a.x + a.width
+    && a.y + epsilon < b.y + b.height && b.y + epsilon < a.y + a.height;
+}
+
 async function validateQualityGates(
   root: FrameNode,
   spec: FigmaNodeSpec,
@@ -662,36 +674,91 @@ async function validateQualityGates(
   for (const node of root.findAll(child => child.type === "FRAME")) {
     if (node.type === "FRAME") wrappers.set(node.getPluginData(DATA_LOGICAL_ID), node);
   }
-  const visit = (node: FigmaNodeSpec) => {
+  const rootBounds = root.absoluteBoundingBox;
+
+  const visit = async (node: FigmaNodeSpec): Promise<void> => {
     const wrapper = wrappers.get(node.logicalNodeId);
     if (!wrapper) {
       layoutIssues.push(`NODE_MISSING:${node.logicalNodeId}`);
-    } else {
-      if (wrapper.layoutMode === "NONE") layoutIssues.push(`AUTO_LAYOUT_MISSING:${node.logicalNodeId}`);
-      if (wrapper.width <= 0 || wrapper.height <= 0) layoutIssues.push(`EMPTY_BOUNDS:${node.logicalNodeId}`);
-      if (node.componentResolution) {
-        const role = node.componentResolution.role;
-        const target = wrapper.children.find(child => child.type === "INSTANCE") as InstanceNode | undefined;
-        if (!target) accessibilityIssues.push(`INSTANCE_MISSING:${node.logicalNodeId}`);
-        if (target && (role.startsWith("action.") || role.startsWith("field."))
-            && (target.width < 44 || target.height < 44)) {
-          accessibilityIssues.push(`TARGET_SIZE:${node.logicalNodeId}`);
-        }
-        const state = Object.entries(node.componentResolution.variantProperties)
-          .find(([key]) => key.toLowerCase() === "state")?.[1];
-        if ((node.properties.disabled === true || node.properties.mode === "disabled")
-            && state?.toLowerCase() !== "disabled") {
-          accessibilityIssues.push(`DISABLED_STATE:${node.logicalNodeId}`);
-        }
-        if ((node.properties.mode === "view" || node.properties.mode === "readonly")
-            && !["view", "readonly", "read-only"].includes((state ?? "").toLowerCase())) {
-          accessibilityIssues.push(`READ_ONLY_STATE:${node.logicalNodeId}`);
+      return;
+    }
+    if (wrapper.layoutMode === "NONE") layoutIssues.push(`AUTO_LAYOUT_MISSING:${node.logicalNodeId}`);
+    if (wrapper.width <= 0 || wrapper.height <= 0) layoutIssues.push(`EMPTY_BOUNDS:${node.logicalNodeId}`);
+
+    // KRV-064: 화면 Bounding Box(root) 이탈 검사. root 자신은 제외한다.
+    const wrapperBounds = wrapper.absoluteBoundingBox;
+    if (wrapper !== root && rootBounds && wrapperBounds) {
+      const outOfBounds = wrapperBounds.x < rootBounds.x - 0.5
+        || wrapperBounds.y < rootBounds.y - 0.5
+        || wrapperBounds.x + wrapperBounds.width > rootBounds.x + rootBounds.width + 0.5
+        || wrapperBounds.y + wrapperBounds.height > rootBounds.y + rootBounds.height + 0.5;
+      if (outOfBounds) layoutIssues.push(`LAYOUT_OVERFLOW:${node.logicalNodeId}`);
+    }
+
+    if (node.componentResolution) {
+      const role = node.componentResolution.role;
+      const target = wrapper.children.find(child => child.type === "INSTANCE") as InstanceNode | undefined;
+      if (!target) accessibilityIssues.push(`INSTANCE_MISSING:${node.logicalNodeId}`);
+      const isInteractive = role.startsWith("action.") || role.startsWith("field.");
+      if (target && isInteractive && (target.width < 44 || target.height < 44)) {
+        accessibilityIssues.push(`TARGET_SIZE:${node.logicalNodeId}`);
+      }
+      const stateEntry = Object.entries(node.componentResolution.variantProperties)
+        .find(([key]) => key.toLowerCase() === "state");
+      const state = stateEntry?.[1];
+      if ((node.properties.disabled === true || node.properties.mode === "disabled")
+          && state?.toLowerCase() !== "disabled") {
+        accessibilityIssues.push(`DISABLED_STATE:${node.logicalNodeId}`);
+      }
+      if ((node.properties.mode === "view" || node.properties.mode === "readonly")
+          && !["view", "readonly", "read-only"].includes((state ?? "").toLowerCase())) {
+        accessibilityIssues.push(`READ_ONLY_STATE:${node.logicalNodeId}`);
+      }
+
+      // KRV-065: 노드에 적용된 현재 state 값만 보는 게 아니라, Published Component Set 자체에
+      // focus/error state Variant가 존재하는지 확인한다. state 축이 없는 role은 건너뛴다.
+      if (target && isInteractive && stateEntry) {
+        const [statePropertyName] = stateEntry;
+        try {
+          const mainComponent = await target.getMainComponentAsync();
+          const componentSet = mainComponent?.parent?.type === "COMPONENT_SET" ? mainComponent.parent : null;
+          const declaredValues = componentSet
+            ? Object.entries(componentSet.variantGroupProperties)
+                .find(([key]) => key.toLowerCase() === statePropertyName.toLowerCase())?.[1]?.values
+            : undefined;
+          if (declaredValues) {
+            const lowered = declaredValues.map(value => value.toLowerCase());
+            if (!lowered.includes("focus")) accessibilityIssues.push(`FOCUS_STATE_UNAVAILABLE:${node.logicalNodeId}`);
+            if (!lowered.includes("error")) accessibilityIssues.push(`ERROR_STATE_UNAVAILABLE:${node.logicalNodeId}`);
+          }
+        } catch {
+          // Component Set을 조회하지 못하면(예: 이미 local detach) 이 보강 검사만 건너뛴다.
+          // 나머지 Layout/Accessibility 판정에는 영향을 주지 않는다.
         }
       }
     }
-    node.children.forEach(visit);
+
+    for (const child of node.children) {
+      await visit(child);
+    }
+
+    // KRV-064: 같은 부모 아래 형제 노드끼리 서로 겹치는지 검사한다.
+    const siblingWrappers = node.children
+      .map(child => wrappers.get(child.logicalNodeId))
+      .filter((candidate): candidate is FrameNode => Boolean(candidate?.absoluteBoundingBox));
+    for (let i = 0; i < siblingWrappers.length; i++) {
+      for (let j = i + 1; j < siblingWrappers.length; j++) {
+        const boundsA = siblingWrappers[i].absoluteBoundingBox as Rect;
+        const boundsB = siblingWrappers[j].absoluteBoundingBox as Rect;
+        if (rectsOverlap(boundsA, boundsB)) {
+          const idA = siblingWrappers[i].getPluginData(DATA_LOGICAL_ID);
+          const idB = siblingWrappers[j].getPluginData(DATA_LOGICAL_ID);
+          layoutIssues.push(`LAYOUT_OVERLAP:${idA}+${idB}`);
+        }
+      }
+    }
   };
-  visit(spec);
+  await visit(spec);
 
   const image = await root.exportAsync({ format: "PNG", constraint: { type: "SCALE", value: 1 } });
   const evidenceHash = stableByteHash(image);
@@ -699,15 +766,45 @@ async function validateQualityGates(
     root.getPluginData(DATA_SCREEN_VERSION);
   const baselineHash = sameScreenVersion
     ? existingRoot?.getPluginData(DATA_VISUAL_BASELINE_HASH) || null : null;
-  const visualStatus = visualRegressionStatus(evidenceHash, baselineHash, sameScreenVersion);
+
+  // KRV-066: 화면 전체 단일 Hash 대신, root 직계 Section(Wrapper Frame) 단위로 비교해
+  // 0%/100% 이진 판정이 아닌 실제 변경 비율(diffRatio)을 계산한다.
+  const sectionWrappers = root.children.filter(
+    (child): child is FrameNode => child.type === "FRAME" && Boolean(child.getPluginData(DATA_LOGICAL_ID)),
+  );
+  const sectionEvidence: SectionEvidence[] = [];
+  for (const section of sectionWrappers) {
+    const sectionImage = await section.exportAsync({ format: "PNG", constraint: { type: "SCALE", value: 1 } });
+    sectionEvidence.push({
+      sectionId: section.getPluginData(DATA_LOGICAL_ID),
+      hash: stableByteHash(sectionImage),
+    });
+  }
+  let baselineSections: SectionEvidence[] | null = null;
+  if (sameScreenVersion) {
+    const stored = existingRoot?.getPluginData(DATA_VISUAL_BASELINE_SECTIONS);
+    if (stored) {
+      try {
+        baselineSections = JSON.parse(stored) as SectionEvidence[];
+      } catch {
+        baselineSections = null;
+      }
+    }
+  }
+  const sectionComparison = sectionVisualRegression(sectionEvidence, baselineSections, 0, sameScreenVersion);
+
   return [
     { gate: "LAYOUT", status: layoutIssues.length ? "FAILED" : "PASSED", issueCodes: layoutIssues },
     { gate: "ACCESSIBILITY", status: accessibilityIssues.length ? "FAILED" : "PASSED", issueCodes: accessibilityIssues },
     {
-      gate: "VISUAL_REGRESSION", status: visualStatus,
-      issueCodes: visualStatus === "FAILED"
-        ? [baselineHash == null ? "VISUAL_BASELINE_MISSING" : "PIXEL_HASH_MISMATCH"] : [],
-      evidenceHash, baselineHash, diffRatio: visualStatus === "FAILED" ? 1 : 0, threshold: 0,
+      gate: "VISUAL_REGRESSION", status: sectionComparison.status,
+      issueCodes: sectionComparison.status === "FAILED"
+        ? [baselineSections == null ? "VISUAL_BASELINE_MISSING" : "VISUAL_DIFF_THRESHOLD_EXCEEDED"]
+        : [],
+      evidenceHash, baselineHash,
+      diffRatio: sectionComparison.diffRatio, threshold: sectionComparison.threshold,
+      sectionEvidenceJson: JSON.stringify(sectionEvidence),
+      changedSections: sectionComparison.changedSections,
     },
   ];
 }

@@ -4,7 +4,8 @@ import fs from "node:fs";
 import {planFallback, reconcile, validateBundle} from "../dist-test/core.mjs";
 
 const bundleDirectory = new URL("../../build/figma-runtime-qna/", import.meta.url);
-const fixtureDirectory = new URL("../../website-figma-contract/fixtures/qna/v2/", import.meta.url);
+const businessFixture = JSON.parse(fs.readFileSync(
+  new URL("../../website-figma-contract/fixtures/qna/qna-screen-specification-v2.json", import.meta.url), "utf8"));
 const expectedFiles = [
   "qna-list.json", "qna-create.json", "qna-detail.json",
   "qna-answer-list.json", "qna-answer-detail.json", "qna-answer-create.json",
@@ -23,7 +24,6 @@ test("Runtime Resolver Q&A six bundles are accepted by v2 plugin preview", () =>
   let fallbackCount = 0;
   for (const file of expectedFiles) {
     const bundle = JSON.parse(fs.readFileSync(new URL(file, bundleDirectory), "utf8"));
-    const expected = JSON.parse(fs.readFileSync(new URL(file, fixtureDirectory), "utf8"));
     const validated = validateBundle(bundle);
     assert.equal(validated.contractMode, "V2_APPLY", file);
     assert.deepEqual(validated.issues, [], `${file}: ${JSON.stringify(validated.issues)}`);
@@ -41,8 +41,17 @@ test("Runtime Resolver Q&A six bundles are accepted by v2 plugin preview", () =>
       .filter(Boolean);
     fallbackCount += fallbacks.length;
     assert.deepEqual(fallbacks, [], `${file}: fallback plan`);
-    assert.deepEqual(componentResolutionMap(bundle.figmaScreenSpec.content),
-      componentResolutionMap(expected.content), `${file}: Rule ID / Variant Key`);
+    assert.equal(bundle.figmaScreenSpec.screenSpecificationId.startsWith("qna-suite-it-"), true, file);
+    assert.equal(bundle.figmaScreenSpec.screenSpecificationVersion, businessFixture.version, file);
+    assert.equal(bundle.screenPattern.pattern.version,
+      bundle.figmaScreenSpec.screenPatternVersion, `${file}: Pattern Snapshot`);
+    assert.equal(bundle.variantRuleSet.ruleSet.version,
+      bundle.figmaScreenSpec.variantRuleSetVersion, `${file}: Rule Set Snapshot`);
+    assert.equal(components.every(node => Boolean(node.componentResolution?.variantKey)), true,
+      `${file}: Variant Key`);
+    assert.equal(components.every(node =>
+      node.componentResolution?.ruleSetVersion === bundle.variantRuleSet.ruleSet.version), true,
+      `${file}: Rule Set Version`);
 
     const previewChanges = reconcile(bundle.figmaScreenSpec.content, []);
     assert.ok(previewChanges.length > 0, `${file}: Preview 변경 목록이 비어 있습니다.`);

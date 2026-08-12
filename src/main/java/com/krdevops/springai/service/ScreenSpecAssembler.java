@@ -9,6 +9,7 @@ import com.krdevops.springai.model.design.LayoutDensity;
 import com.krdevops.springai.model.design.SearchPanelPlacement;
 import com.krdevops.springai.model.design.PageSpec;
 import com.krdevops.springai.model.design.ScreenFieldBinding;
+import com.krdevops.springai.model.design.ScreenActionSpec;
 import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.SpecIssue;
@@ -196,19 +197,23 @@ public class ScreenSpecAssembler {
             List<String> listColumns,
             List<String> detailColumns) {
         List<String> actionNames = actions.stream().map(UiDesignSpec.ActionSpec::type).toList();
-        List<String> resolvedActions = actionNames.isEmpty()
-                ? List.of("SEARCH", "CREATE", "VIEW_DETAIL", "UPDATE", "DELETE") : actionNames;
+        List<ScreenActionSpec> resolvedActions = semanticActions(actionNames.isEmpty()
+                ? List.of("SEARCH", "CREATE", "VIEW_DETAIL", "UPDATE", "DELETE") : actionNames);
         String base = archetype == null ? "CRUD" : archetype.replaceAll("_(LIST|DETAIL|FORM)$", "");
         PageSelection list = selectPageBindings("list", archetype, bindings, listColumns);
         PageSelection detail = selectPageBindings("detail", archetype, bindings, detailColumns);
         return List.of(
                 new PageSpec("list", base + "_LIST", list.fields(), resolvedActions, list.source()),
                 new PageSpec("detail", base + "_DETAIL", detail.fields(),
-                        List.of("UPDATE", "DELETE", "BACK"), detail.source()),
+                        semanticActions(List.of("UPDATE", "DELETE", "BACK")), detail.source()),
                 new PageSpec("regist", base + "_FORM", bindings.schemaBindings(),
-                        List.of("SAVE", "CANCEL"), FieldSelectionSource.DEFAULT),
+                        semanticActions(List.of("SAVE", "CANCEL")), FieldSelectionSource.DEFAULT),
                 new PageSpec("updt", base + "_FORM", bindings.schemaBindings(),
-                        List.of("UPDATE", "CANCEL"), FieldSelectionSource.DEFAULT));
+                        semanticActions(List.of("UPDATE", "CANCEL")), FieldSelectionSource.DEFAULT));
+    }
+
+    private List<ScreenActionSpec> semanticActions(List<String> commands) {
+        return commands.stream().map(ScreenActionSpec::fromLegacyCommand).toList();
     }
 
     private PageSelection selectPageBindings(

@@ -5,9 +5,11 @@ import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
 import com.krdevops.springai.mapper.ComponentRegistryRepository;
 import com.krdevops.springai.mapper.FigmaScreenSpecRepository;
 import com.krdevops.springai.mapper.ScreenPatternRepository;
+import com.krdevops.springai.mapper.ScreenSpecRepository;
 import com.krdevops.springai.mapper.VariantRuleSetRepository;
 import com.krdevops.springai.model.design.LayoutDensity;
 import com.krdevops.springai.model.design.PageSpec;
+import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.role.ScreenPattern;
 import com.krdevops.springai.model.designsystem.ComponentRegistry;
 import com.krdevops.springai.model.designsystem.DesignSystemProfile;
@@ -19,6 +21,9 @@ import com.krdevops.springai.model.figma.FigmaScreenSpec;
 import com.krdevops.springai.service.designsystem.ComponentRoleResolver;
 import com.krdevops.springai.service.designsystem.KrdsRuntimeContractImportService;
 import com.krdevops.springai.service.designsystem.VariantRuleResolver;
+import com.krdevops.springai.service.figma.builder.DetailFigmaScreenBuilder;
+import com.krdevops.springai.service.figma.builder.FormFigmaScreenBuilder;
+import com.krdevops.springai.service.figma.builder.ListFigmaScreenBuilder;
 import com.krdevops.springai.service.observability.OperationalTelemetry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
@@ -39,10 +44,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** 실제 계약 Fixture → MySQL Repository → Resolver → v2 Bundle의 6화면 실행 경로를 검증한다. */
 class KrdsQnaRuntimeResolverIntegrationTest {
 
-    private static final List<String> SCREEN_FILES = List.of(
-            "qna-list.json", "qna-create.json", "qna-detail.json",
-            "qna-answer-list.json", "qna-answer-detail.json", "qna-answer-create.json");
-
     private final DriverManagerDataSource dataSource = new DriverManagerDataSource(
             "jdbc:mysql://localhost:3306/ebt?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8",
             System.getenv().getOrDefault("DB_USERNAME", "ebt"),
@@ -58,6 +59,8 @@ class KrdsQnaRuntimeResolverIntegrationTest {
             new VariantRuleSetRepository(jdbcTemplate, objectMapper, ddlProperties);
     private final FigmaScreenSpecRepository screenSpecRepository =
             new FigmaScreenSpecRepository(jdbcTemplate, objectMapper, ddlProperties);
+    private final ScreenSpecRepository businessSpecRepository =
+            new ScreenSpecRepository(jdbcTemplate, objectMapper, ddlProperties);
 
     @Test
     void importsContractsResolvesSixScreensAndProducesPluginBundles() throws Exception {
@@ -65,6 +68,7 @@ class KrdsQnaRuntimeResolverIntegrationTest {
         patternRepository.createTableIfNotExists();
         ruleSetRepository.createTableIfNotExists();
         screenSpecRepository.createTableIfNotExists();
+        businessSpecRepository.createTableIfNotExists();
 
         KrdsRuntimeContractImportService importer = new KrdsRuntimeContractImportService(
                 registryRepository, patternRepository, ruleSetRepository, objectMapper);
@@ -90,11 +94,14 @@ class KrdsQnaRuntimeResolverIntegrationTest {
                 new KrdsRuntimeContractImportService.ContractSet(patterns, registry, publishedRules);
 
         List<String> storedScreenIds = new ArrayList<>();
+        String businessSpecId = "qna-suite-it-" + suffix;
         try {
             KrdsRuntimeContractImportService.ImportResult imported = importer.importContracts(runtimeContracts);
             assertThat(imported.patternCount()).isEqualTo(4);
             assertThat(registryRepository.findVersion(profileId, registryVersion)).contains(registry);
             assertThat(ruleSetRepository.findPublished(profileId, registryVersion)).contains(publishedRules);
+            assertThat(ruleSetRepository.findPublishedVersion(
+                    profileId, registryVersion, ruleSetVersion)).contains(publishedRules);
 
             KrdsComponentResolutionService resolver = new KrdsComponentResolutionService(
                     ruleSetRepository, patternRepository, new ScreenSemanticNormalizer(),
@@ -103,6 +110,22 @@ class KrdsQnaRuntimeResolverIntegrationTest {
             FigmaExportBundleAssembler assembler = new FigmaExportBundleAssembler();
             FigmaScreenSpecSerializer serializer = new FigmaScreenSpecSerializer(objectMapper);
             FigmaScreenSpecValidator validator = new FigmaScreenSpecValidator();
+            FigmaScreenBuilderRegistry builders = new FigmaScreenBuilderRegistry(List.of(
+                    new ListFigmaScreenBuilder(), new FormFigmaScreenBuilder(), new DetailFigmaScreenBuilder()));
+            FigmaScreenTypeResolver screenTypeResolver = new FigmaScreenTypeResolver();
+            LogicalNodeIdFactory logicalNodeIdFactory = new LogicalNodeIdFactory();
+            ScreenSpecification sourceBusinessSpec = readBusinessSpecification();
+            ScreenSpecification businessSpec = new ScreenSpecification(
+                    businessSpecId, sourceBusinessSpec.version(), sourceBusinessSpec.status(),
+                    sourceBusinessSpec.screenName(), sourceBusinessSpec.featureType(), sourceBusinessSpec.archetype(),
+                    sourceBusinessSpec.database(), sourceBusinessSpec.primaryTable(), sourceBusinessSpec.dataSources(),
+                    sourceBusinessSpec.pages(), sourceBusinessSpec.issues(), sourceBusinessSpec.layoutDensity(),
+                    sourceBusinessSpec.formColumnLayout(), sourceBusinessSpec.actionPlacement(),
+                    sourceBusinessSpec.searchPanelPlacement(), sourceBusinessSpec.createdAt());
+            businessSpecRepository.save(businessSpec);
+            assertThat(businessSpecRepository.findVersion(businessSpecId, businessSpec.version()))
+                    .contains(businessSpec);
+            assertThat(businessSpec.pages()).hasSize(6);
             DesignSystemProfile profile = new DesignSystemProfile(
                     profileId, "KRDS Q&A Integration", profileVersion, registryVersion,
                     registry.library().fileKey(), DesignSystemProfile.Status.PUBLISHED, Map.of(), Map.of());
@@ -118,33 +141,33 @@ class KrdsQnaRuntimeResolverIntegrationTest {
 
             int resolverSuccessCount = 0;
             int unresolvedCount = 0;
-            for (String file : SCREEN_FILES) {
-                FigmaScreenSpec expected = readScreen(file);
-                FigmaNodeSpec semanticRoot = withoutResolution(expected.content());
-                PageSpec page = pageFor(expected);
+            for (PageSpec page : businessSpec.pages()) {
+                var screenType = screenTypeResolver.resolveScreenType(page, businessSpec);
+                FigmaNodeSpec semanticRoot = builders.builderFor(screenType)
+                        .build(businessSpec, page, logicalNodeIdFactory);
                 KrdsComponentResolutionService.ResolutionResult result = resolver.resolve(
-                        profileId, registry, page, expected.screenType(), LayoutDensity.STANDARD,
-                        expected.viewport(), semanticRoot);
+                        profileId, registry, page, screenType, businessSpec.layoutDensity(),
+                        "DESKTOP", semanticRoot);
                 KrdsComponentResolutionService.ResolutionResult repeated = resolver.resolve(
-                        profileId, registry, page, expected.screenType(), LayoutDensity.STANDARD,
-                        expected.viewport(), semanticRoot);
+                        profileId, registry, page, screenType, businessSpec.layoutDensity(),
+                        "DESKTOP", semanticRoot);
                 resolverSuccessCount++;
 
                 assertThat(componentResolutions(result.content()))
-                        .as("Runtime Rule ID / Variant Key: %s", expected.screenId())
-                        .containsExactlyInAnyOrderEntriesOf(componentResolutions(expected.content()));
+                        .as("Runtime Rule ID / Variant Key 결정성: %s", page.id())
+                        .containsExactlyInAnyOrderEntriesOf(componentResolutions(repeated.content()));
                 assertThat(componentContextHashes(result.content()))
-                        .as("결정형 Context Hash: %s", expected.screenId())
+                        .as("결정형 Context Hash: %s", page.id())
                         .containsExactlyInAnyOrderEntriesOf(componentContextHashes(repeated.content()));
                 assertThat(result.componentContractVersion())
-                        .as("Registry version과 독립적인 Entry contractVersion: %s", expected.screenId())
+                        .as("Registry version과 독립적인 Entry contractVersion: %s", page.id())
                         .isEqualTo("2.1.0")
                         .isNotEqualTo(registryVersion);
                 List<String> unresolved = unresolvedComponentIds(result.content());
                 unresolvedCount += unresolved.size();
-                assertThat(unresolved).as("Unresolved Component: %s", expected.screenId()).isEmpty();
+                assertThat(unresolved).as("Unresolved Component: %s", page.id()).isEmpty();
                 List<FigmaNodeSpec> searchPanels = nodesWithRole(result.content(), "search.panel");
-                if (expected.semanticPattern() == ScreenPattern.CRUD_LIST) {
+                if (result.pattern() == ScreenPattern.CRUD_LIST) {
                     assertThat(searchPanels).singleElement().satisfies(searchPanel -> {
                         assertThat(searchPanel.nodeType()).isEqualTo(FigmaNodeSpec.NodeType.COMPONENT);
                         assertThat(searchPanel.type()).isEqualTo("krds.searchPanel");
@@ -155,25 +178,37 @@ class KrdsQnaRuntimeResolverIntegrationTest {
                     assertThat(searchPanels).isEmpty();
                 }
 
-                String runtimeScreenId = expected.screenId() + "-it-" + suffix;
+                String runtimeScreenId = page.id() + "-it-" + suffix;
                 storedScreenIds.add(runtimeScreenId);
                 FigmaScreenSpec resolvedSpec = new FigmaScreenSpec(
-                        runtimeScreenId, 1, "qna-suite-it-" + suffix, 1,
-                        expected.screenType(), expected.layoutPattern(), expected.name(), expected.route(),
-                        expected.viewport(), "APPROVED",
+                        runtimeScreenId, 1, businessSpecId, businessSpec.version(),
+                        screenType, screenTypeResolver.resolveLayoutPattern(businessSpec),
+                        businessSpec.screenName(), null, "DESKTOP", "APPROVED",
                         new FigmaScreenSpec.DesignSystemRef(profileId, profileVersion, registryVersion),
                         result.content(), List.of(), result.pattern(), result.screenPatternVersion(),
                         result.variantRuleSetVersion(), result.componentContractVersion());
                 assertThat(validator.validate(resolvedSpec)).isEmpty();
                 screenSpecRepository.save(resolvedSpec);
-                assertThat(screenSpecRepository.findVersion(runtimeScreenId, 1)).contains(resolvedSpec);
+                assertThat(screenSpecRepository.findVersion(runtimeScreenId, 1))
+                        .hasValueSatisfying(stored -> {
+                            assertThat(stored.screenId()).isEqualTo(resolvedSpec.screenId());
+                            assertThat(stored.semanticPattern()).isEqualTo(resolvedSpec.semanticPattern());
+                            assertThat(componentResolutions(stored.content()))
+                                    .containsExactlyInAnyOrderEntriesOf(componentResolutions(resolvedSpec.content()));
+                        });
 
-                FigmaExportBundle bundle = assembler.assemble(resolvedSpec, profile, registry);
+                ScreenPatternDefinition resolvedPattern = patterns.stream()
+                        .filter(candidate -> candidate.pattern() == result.pattern()
+                                && candidate.version().equals(result.screenPatternVersion()))
+                        .findFirst().orElseThrow();
+                FigmaExportBundle bundle = assembler.assemble(
+                        resolvedSpec, profile, registry, resolvedPattern, publishedRules);
                 String bundleJson = serializer.toJson(bundle);
                 assertThat(bundle.metadata().figmaScreenSpecSchemaVersion())
                         .isEqualTo(FigmaScreenSpec.SCHEMA_VERSION_V2);
-                assertThat(bundleJson).contains("\"componentResolution\"", "\"figma-screen-spec-v2\"");
-                Files.writeString(outputDirectory.resolve(expected.screenId() + ".json"), bundleJson);
+                assertThat(bundleJson).contains("\"componentResolution\"", "\"figma-screen-spec-v2\"",
+                        "\"screenPattern\"", "\"variantRuleSet\"");
+                Files.writeString(outputDirectory.resolve(page.id() + ".json"), bundleJson);
             }
             assertThat(resolverSuccessCount).isEqualTo(6);
             assertThat(unresolvedCount).isZero();
@@ -186,6 +221,7 @@ class KrdsQnaRuntimeResolverIntegrationTest {
         } finally {
             storedScreenIds.forEach(screenId -> jdbcTemplate.update(
                     "DELETE FROM AI_FIGMA_SCREEN_SPEC WHERE SCREEN_ID = ?", screenId));
+            jdbcTemplate.update("DELETE FROM AI_SCREEN_SPECIFICATION WHERE SPEC_ID = ?", businessSpecId);
             jdbcTemplate.update("DELETE FROM AI_VARIANT_RULE_SET WHERE RULE_SET_ID = ? AND RULE_SET_VERSION = ?",
                     ruleSetId, ruleSetVersion);
             jdbcTemplate.update("DELETE FROM AI_COMPONENT_REGISTRY WHERE PROFILE_ID = ? AND REGISTRY_VERSION = ?",
@@ -196,32 +232,12 @@ class KrdsQnaRuntimeResolverIntegrationTest {
         }
     }
 
-    private FigmaScreenSpec readScreen(String file) throws Exception {
-        ClassPathResource resource = new ClassPathResource("figma/contracts/qna/v2/" + file);
+    private ScreenSpecification readBusinessSpecification() throws Exception {
+        ClassPathResource resource = new ClassPathResource(
+                "figma/contracts/qna/qna-screen-specification-v2.json");
         try (var input = resource.getInputStream()) {
-            return objectMapper.readValue(input, FigmaScreenSpec.class);
+            return objectMapper.readValue(input, ScreenSpecification.class);
         }
-    }
-
-    private PageSpec pageFor(FigmaScreenSpec screen) {
-        String template = switch (screen.semanticPattern()) {
-            case CRUD_LIST -> "QNA_LIST";
-            case CRUD_DETAIL -> "QNA_DETAIL";
-            case CRUD_CREATE -> "QNA_CREATE";
-            case CRUD_EDIT -> "QNA_EDIT";
-        };
-        List<String> actions = switch (screen.semanticPattern()) {
-            case CRUD_LIST -> List.of("SEARCH");
-            case CRUD_DETAIL -> List.of("LIST");
-            case CRUD_CREATE -> List.of("CREATE", "LIST");
-            case CRUD_EDIT -> List.of("UPDATE", "LIST");
-        };
-        return new PageSpec(screen.screenId(), template, List.of(), actions);
-    }
-
-    private FigmaNodeSpec withoutResolution(FigmaNodeSpec node) {
-        return new FigmaNodeSpec(node.logicalNodeId(), node.nodeType(), node.type(), node.properties(),
-                node.children().stream().map(this::withoutResolution).toList());
     }
 
     private Map<String, ResolutionExpectation> componentResolutions(FigmaNodeSpec root) {

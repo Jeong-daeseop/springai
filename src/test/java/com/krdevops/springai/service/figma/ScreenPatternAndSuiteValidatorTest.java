@@ -75,6 +75,56 @@ class ScreenPatternAndSuiteValidatorTest {
                 .extracting(issue -> issue.code()).contains("REQUIRED_SCREEN_MISSING");
     }
 
+    @Test
+    void qnaSuiteAdditionalScreenIsBlocked() {
+        ScreenSuiteManifest manifest = qnaManifest();
+        List<ScreenSuiteManifestValidator.ActualScreen> seven = new java.util.ArrayList<>(manifest.screens().stream()
+                .map(screen -> new ScreenSuiteManifestValidator.ActualScreen(screen.screenId(), screen.pattern()))
+                .toList());
+        seven.add(new ScreenSuiteManifestValidator.ActualScreen("qna-update", ScreenPattern.CRUD_EDIT));
+
+        assertThat(new ScreenSuiteManifestValidator().validate(manifest, seven))
+                .extracting(issue -> issue.code())
+                .contains("UNEXPECTED_SCREEN_ID", "SCREEN_SUITE_COUNT_MISMATCH");
+    }
+
+    @Test
+    void detailEditableFieldIsBlocked() {
+        ScreenPatternDefinition detail = new ScreenPatternDefinition(ScreenPattern.CRUD_DETAIL, "1.0.0", List.of(
+                new ScreenPatternDefinition.SlotDefinition(SemanticRole.PAGE_HEADER, 1, 1, List.of(), 0),
+                new ScreenPatternDefinition.SlotDefinition(SemanticRole.FIELD_TEXT, 1, 2, List.of(), 1),
+                new ScreenPatternDefinition.SlotDefinition(SemanticRole.ACTION_SECONDARY, 0, 2, List.of(), 2)));
+        FigmaNodeSpec editable = new FigmaNodeSpec("field", FigmaNodeSpec.NodeType.COMPONENT, "krds.textField",
+                Map.of("semanticRole", "field.text", "mode", "EDITABLE"), List.of());
+
+        assertThat(new ScreenPatternValidator().validate(detail, page(
+                roleNode("header", "page.header"), editable)))
+                .extracting(issue -> issue.code())
+                .contains("PATTERN_FIELD_MODE_VIOLATION");
+    }
+
+    @Test
+    void createWithoutPrimaryActionIsBlocked() {
+        ScreenPatternDefinition create = new ScreenPatternDefinition(ScreenPattern.CRUD_CREATE, "1.0.0", List.of(
+                new ScreenPatternDefinition.SlotDefinition(SemanticRole.PAGE_HEADER, 1, 1, List.of(), 0),
+                new ScreenPatternDefinition.SlotDefinition(SemanticRole.FIELD_TEXT, 1, 2, List.of(), 1),
+                new ScreenPatternDefinition.SlotDefinition(SemanticRole.ACTION_PRIMARY, 0, 1, List.of(), 2)));
+        FigmaNodeSpec editable = new FigmaNodeSpec("field", FigmaNodeSpec.NodeType.COMPONENT, "krds.textField",
+                Map.of("semanticRole", "field.text", "mode", "EDITABLE"), List.of());
+
+        assertThat(new ScreenPatternValidator().validate(create, page(
+                roleNode("header", "page.header"), editable)))
+                .extracting(issue -> issue.code())
+                .contains("PATTERN_PRIMARY_ACTION_MISSING");
+    }
+
+    private ScreenSuiteManifest qnaManifest() {
+        return new ScreenSuiteManifest("qna", "1.0.0", List.of(
+                expected("qna-list", ScreenPattern.CRUD_LIST), expected("qna-create", ScreenPattern.CRUD_CREATE),
+                expected("qna-detail", ScreenPattern.CRUD_DETAIL), expected("qna-answer-list", ScreenPattern.CRUD_LIST),
+                expected("qna-answer-detail", ScreenPattern.CRUD_DETAIL), expected("qna-answer-create", ScreenPattern.CRUD_CREATE)));
+    }
+
     private ScreenSuiteManifest.ExpectedScreen expected(String id, ScreenPattern pattern) {
         return new ScreenSuiteManifest.ExpectedScreen(id, pattern, true);
     }

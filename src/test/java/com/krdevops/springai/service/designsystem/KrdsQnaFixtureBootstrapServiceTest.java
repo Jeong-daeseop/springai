@@ -6,10 +6,27 @@ import com.krdevops.springai.mapper.DesignSystemProfileRepository;
 import com.krdevops.springai.mapper.FigmaLibraryInventoryRepository;
 import com.krdevops.springai.mapper.FigmaScreenSpecRepository;
 import com.krdevops.springai.mapper.ScreenPatternRepository;
+import com.krdevops.springai.mapper.ScreenSpecRepository;
 import com.krdevops.springai.mapper.VariantRuleSetRepository;
 import com.krdevops.springai.model.designsystem.VariantRuleSet;
+import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.figma.FigmaNodeSpec;
 import com.krdevops.springai.model.figma.FigmaScreenSpec;
+import com.krdevops.springai.service.ScreenSpecValidator;
+import com.krdevops.springai.service.designsystem.ComponentRoleResolver;
+import com.krdevops.springai.service.designsystem.VariantRuleResolver;
+import com.krdevops.springai.service.figma.FigmaScreenBuilderRegistry;
+import com.krdevops.springai.service.figma.FigmaScreenSpecValidator;
+import com.krdevops.springai.service.figma.FigmaScreenTypeResolver;
+import com.krdevops.springai.service.figma.KrdsComponentResolutionService;
+import com.krdevops.springai.service.figma.LogicalNodeIdFactory;
+import com.krdevops.springai.service.figma.ScreenPatternValidator;
+import com.krdevops.springai.service.figma.ScreenSemanticNormalizer;
+import com.krdevops.springai.service.figma.builder.DetailFigmaScreenBuilder;
+import com.krdevops.springai.service.figma.builder.FormFigmaScreenBuilder;
+import com.krdevops.springai.service.figma.builder.ListFigmaScreenBuilder;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -32,6 +49,7 @@ class KrdsQnaFixtureBootstrapServiceTest {
         DesignSystemProfileRepository profiles = mock(DesignSystemProfileRepository.class);
         FigmaScreenSpecRepository screens = mock(FigmaScreenSpecRepository.class);
         FigmaLibraryInventoryRepository inventories = mock(FigmaLibraryInventoryRepository.class);
+        ScreenSpecRepository screenSpecifications = mock(ScreenSpecRepository.class);
         when(registries.findVersion("krds", "2.1.0")).thenReturn(Optional.empty());
         when(profiles.findVersion("krds", "2.0.0")).thenReturn(Optional.empty());
         when(inventories.findVersion("krds", "2.1.0",
@@ -39,8 +57,26 @@ class KrdsQnaFixtureBootstrapServiceTest {
 
         KrdsRuntimeContractImportService reader = new KrdsRuntimeContractImportService(
                 registries, patterns, rules, mapper);
+        var contracts = reader.readDefaultQnaContracts();
+        VariantRuleSet publishedRules = new VariantRuleSet(
+                contracts.ruleSet().id(), contracts.ruleSet().version(), contracts.ruleSet().profileId(),
+                contracts.ruleSet().registryVersion(), VariantRuleSet.Status.PUBLISHED, contracts.ruleSet().rules());
+        when(rules.findPublished("krds", "2.1.0")).thenReturn(Optional.of(publishedRules));
+        contracts.patterns().forEach(pattern -> when(patterns.findVersion(pattern.pattern(), pattern.version()))
+                .thenReturn(Optional.of(pattern)));
+        contracts.patterns().forEach(pattern -> when(patterns.findLatest(pattern.pattern()))
+                .thenReturn(Optional.of(pattern)));
+        KrdsComponentResolutionService resolver = new KrdsComponentResolutionService(
+                rules, patterns, new ScreenSemanticNormalizer(), new ScreenPatternValidator(),
+                new ComponentRoleResolver(), new VariantRuleResolver(),
+                new OperationalTelemetry(new SimpleMeterRegistry()));
         KrdsQnaFixtureBootstrapService service = new KrdsQnaFixtureBootstrapService(
-                reader, registries, patterns, rules, profiles, screens, inventories, mapper);
+                reader, registries, patterns, rules, profiles, screens, inventories,
+                screenSpecifications,
+                new FigmaScreenBuilderRegistry(java.util.List.of(
+                        new ListFigmaScreenBuilder(), new FormFigmaScreenBuilder(), new DetailFigmaScreenBuilder())),
+                new FigmaScreenTypeResolver(), new LogicalNodeIdFactory(), resolver,
+                new FigmaScreenSpecValidator(), new ScreenSpecValidator(), mapper);
 
         var result = service.bootstrap();
 
@@ -48,6 +84,11 @@ class KrdsQnaFixtureBootstrapServiceTest {
                 "qna-list", "qna-create", "qna-detail",
                 "qna-answer-list", "qna-answer-detail", "qna-answer-create");
         assertThat(result.patternCount()).isEqualTo(4);
+        ArgumentCaptor<ScreenSpecification> specificationCaptor =
+                ArgumentCaptor.forClass(ScreenSpecification.class);
+        verify(screenSpecifications).save(specificationCaptor.capture());
+        assertThat(specificationCaptor.getValue().id()).isEqualTo("qna-suite");
+        assertThat(specificationCaptor.getValue().pages()).hasSize(6);
         ArgumentCaptor<VariantRuleSet> ruleCaptor = ArgumentCaptor.forClass(VariantRuleSet.class);
         verify(rules).saveImmutable(ruleCaptor.capture());
         assertThat(ruleCaptor.getValue().status()).isEqualTo(VariantRuleSet.Status.PUBLISHED);
@@ -65,17 +106,18 @@ class KrdsQnaFixtureBootstrapServiceTest {
                 .filter(screen -> screen.screenId().equals("qna-list"))
                 .findFirst()
                 .orElseThrow();
-        assertThat(list.screenVersion()).isEqualTo(6);
+        assertThat(list.screenVersion()).isEqualTo(KrdsQnaFixtureBootstrapService.GENERATED_SCREEN_VERSION);
         assertThat(list.content().properties())
                 .containsEntry("layoutRecipe", "krds.listPage.v1")
                 .containsEntry("contentMaxWidth", 1280)
+                .containsEntry("contentMinWidth", 960)
                 .containsEntry("sectionGap", 40);
         assertThat(list.content().children()).extracting(FigmaNodeSpec::type)
-                .containsExactly("krds.pageHeader", "krds.searchPanel", "krds.dataTable",
+                .containsExactly("krds.pageHeader", "krds.searchPanel", "egov.resultToolbar", "krds.dataTable",
                         "krds.pagination", "egov.actionArea");
         assertThat(list.content().children().get(1).properties())
                 .containsEntry("componentMaxWidth", 960);
-        FigmaNodeSpec table = list.content().children().get(2);
+        FigmaNodeSpec table = list.content().children().get(3);
         assertThat(table.properties())
                 .containsEntry("layoutRecipe", "krds.dataTable.v1")
                 .containsEntry("columnCount", 6)
@@ -87,7 +129,7 @@ class KrdsQnaFixtureBootstrapServiceTest {
             assertThat(row.children().get(1).properties()).containsEntry("columnWidthPercent", 32);
             assertThat(row.children().get(2).properties()).containsEntry("columnWidthPercent", 15);
         });
-        FigmaNodeSpec actionArea = list.content().children().get(4);
+        FigmaNodeSpec actionArea = list.content().children().get(5);
         assertThat(actionArea.properties()).containsEntry("placement", "BOTTOM_RIGHT");
         assertThat(actionArea.children()).hasSize(1);
         verify(inventories).saveImmutable(any());

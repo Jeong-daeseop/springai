@@ -25,12 +25,12 @@ public final class FigmaBuilderTestFixtures {
                 field("userId", "사용자ID", UiFieldRole.ID, true, false, false, false, "TEXT"),
                 field("userName", "사용자명", UiFieldRole.TITLE, true, false, true, true, "TEXT"),
                 field("userStatus", "사용 상태", UiFieldRole.STATUS, true, false, true, false, "SELECT")
-        ), List.of("SEARCH", "CREATE", "VIEW_DETAIL", "UPDATE", "DELETE"), FieldSelectionSource.DEFAULT);
+        ), PageSpec.migrateActions("SEARCH", "CREATE", "VIEW_DETAIL", "UPDATE", "DELETE"), FieldSelectionSource.DEFAULT);
 
         PageSpec registPage = new PageSpec("regist", "CRUD_FORM", List.of(
                 field("userName", "사용자명", UiFieldRole.TITLE, true, true, false, false, "TEXT"),
                 field("userStatus", "사용 상태", UiFieldRole.STATUS, true, true, false, false, "SELECT")
-        ), List.of("SAVE", "CANCEL"), FieldSelectionSource.DEFAULT);
+        ), PageSpec.migrateActions("SAVE", "CANCEL"), FieldSelectionSource.DEFAULT);
 
         return new ScreenSpecification(
                 "spec-user-management", 3, ScreenSpecStatus.APPROVED,

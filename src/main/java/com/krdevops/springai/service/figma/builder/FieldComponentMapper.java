@@ -33,7 +33,7 @@ final class FieldComponentMapper {
     }
 
     static Map<String, Object> properties(ScreenFieldBinding field) {
-        return properties(field, FieldMode.EDITABLE);
+        return properties(field, field.mode() == null ? FieldMode.EDITABLE : field.mode());
     }
 
     static Map<String, Object> properties(ScreenFieldBinding field, FieldMode mode) {

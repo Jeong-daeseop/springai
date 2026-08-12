@@ -8,14 +8,23 @@ import java.util.List;
 public record ScreenPatternDefinition(
         ScreenPattern pattern,
         String version,
+        Status status,
         List<SlotDefinition> slots
 ) {
     public ScreenPatternDefinition {
         if (pattern == null || version == null || version.isBlank()) {
             throw new IllegalArgumentException("Pattern과 version은 필수입니다.");
         }
+        status = status == null ? Status.DRAFT : status;
         slots = slots == null ? List.of() : List.copyOf(slots);
     }
+
+    /** 승인 Workflow 도입 전 계약은 운영 중인 Published Pattern으로 해석한다. */
+    public ScreenPatternDefinition(ScreenPattern pattern, String version, List<SlotDefinition> slots) {
+        this(pattern, version, Status.PUBLISHED, slots);
+    }
+
+    public enum Status { DRAFT, APPROVED, PUBLISHED, SUPERSEDED }
 
     public record SlotDefinition(
             SemanticRole role,

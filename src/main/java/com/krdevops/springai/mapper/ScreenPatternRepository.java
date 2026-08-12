@@ -32,6 +32,7 @@ public class ScreenPatternRepository {
             CREATE TABLE IF NOT EXISTS AI_SCREEN_PATTERN (
                 PATTERN_ID VARCHAR(64) NOT NULL,
                 PATTERN_VERSION VARCHAR(32) NOT NULL,
+                PATTERN_STATUS VARCHAR(32) NOT NULL DEFAULT 'PUBLISHED',
                 PATTERN_JSON LONGTEXT NOT NULL,
                 CREATED_AT DATETIME(6) DEFAULT CURRENT_TIMESTAMP(6),
                 PRIMARY KEY (PATTERN_ID, PATTERN_VERSION)
@@ -47,13 +48,16 @@ public class ScreenPatternRepository {
                     + pattern.pattern().code() + "/" + pattern.version());
         }
         jdbcTemplate.update("""
-            INSERT INTO AI_SCREEN_PATTERN (PATTERN_ID, PATTERN_VERSION, PATTERN_JSON) VALUES (?, ?, ?)
-            """, pattern.pattern().code(), pattern.version(), toJson(pattern));
+            INSERT INTO AI_SCREEN_PATTERN (PATTERN_ID, PATTERN_VERSION, PATTERN_STATUS, PATTERN_JSON)
+            VALUES (?, ?, ?, ?)
+            """, pattern.pattern().code(), pattern.version(), pattern.status().name(), toJson(pattern));
     }
 
     public Optional<ScreenPatternDefinition> findLatest(ScreenPattern pattern) {
         List<String> values = jdbcTemplate.queryForList("""
-            SELECT PATTERN_JSON FROM AI_SCREEN_PATTERN WHERE PATTERN_ID = ? ORDER BY CREATED_AT DESC LIMIT 1
+            SELECT PATTERN_JSON FROM AI_SCREEN_PATTERN
+             WHERE PATTERN_ID = ? AND PATTERN_STATUS = 'PUBLISHED'
+             ORDER BY CREATED_AT DESC LIMIT 1
             """, String.class, pattern.code());
         return values.isEmpty() ? Optional.empty() : Optional.of(fromJson(values.get(0)));
     }
@@ -63,6 +67,23 @@ public class ScreenPatternRepository {
             SELECT PATTERN_JSON FROM AI_SCREEN_PATTERN WHERE PATTERN_ID = ? AND PATTERN_VERSION = ?
             """, String.class, pattern.code(), version);
         return values.isEmpty() ? Optional.empty() : Optional.of(fromJson(values.get(0)));
+    }
+
+    public ScreenPatternDefinition transition(
+            ScreenPattern pattern, String version,
+            ScreenPatternDefinition.Status expected, ScreenPatternDefinition.Status target) {
+        ScreenPatternDefinition current = findVersion(pattern, version)
+                .orElseThrow(() -> new IllegalArgumentException("Screen Pattern 버전을 찾을 수 없습니다: " + pattern.code() + "/" + version));
+        if (current.status() != expected) {
+            throw new IllegalStateException("SCREEN_PATTERN_INVALID_TRANSITION: " + current.status() + " -> " + target);
+        }
+        ScreenPatternDefinition changed = new ScreenPatternDefinition(current.pattern(), current.version(), target, current.slots());
+        int updated = jdbcTemplate.update("""
+            UPDATE AI_SCREEN_PATTERN SET PATTERN_STATUS = ?, PATTERN_JSON = ?
+             WHERE PATTERN_ID = ? AND PATTERN_VERSION = ? AND PATTERN_STATUS = ?
+            """, target.name(), toJson(changed), pattern.code(), version, expected.name());
+        if (updated != 1) throw new IllegalStateException("SCREEN_PATTERN_CONCURRENT_TRANSITION");
+        return changed;
     }
 
     private String toJson(ScreenPatternDefinition value) {

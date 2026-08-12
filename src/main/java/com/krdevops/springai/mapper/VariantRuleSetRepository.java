@@ -72,6 +72,35 @@ public class VariantRuleSetRepository {
         return values.isEmpty() ? Optional.empty() : Optional.of(fromJson(values.get(0)));
     }
 
+    public VariantRuleSet transition(
+            String id, String version, VariantRuleSet.Status expected, VariantRuleSet.Status target) {
+        VariantRuleSet current = findVersion(id, version)
+                .orElseThrow(() -> new IllegalArgumentException("Variant Rule Set 버전을 찾을 수 없습니다: " + id + "/" + version));
+        if (current.status() != expected) {
+            throw new IllegalStateException("VARIANT_RULE_SET_INVALID_TRANSITION: " + current.status() + " -> " + target);
+        }
+        VariantRuleSet changed = new VariantRuleSet(current.id(), current.version(), current.profileId(),
+                current.registryVersion(), target, current.rules());
+        int updated = jdbcTemplate.update("""
+            UPDATE AI_VARIANT_RULE_SET SET RULE_SET_STATUS = ?, RULE_SET_JSON = ?
+             WHERE RULE_SET_ID = ? AND RULE_SET_VERSION = ? AND RULE_SET_STATUS = ?
+            """, target.name(), toJson(changed), id, version, expected.name());
+        if (updated != 1) throw new IllegalStateException("VARIANT_RULE_SET_CONCURRENT_TRANSITION");
+        return changed;
+    }
+
+    /** Spec이 기록한 정확한 버전의 Published Rule Set을 Profile/Registry 범위에서 조회한다. */
+    public Optional<VariantRuleSet> findPublishedVersion(
+            String profileId, String registryVersion, String ruleSetVersion) {
+        List<String> values = jdbcTemplate.queryForList("""
+            SELECT RULE_SET_JSON FROM AI_VARIANT_RULE_SET
+             WHERE PROFILE_ID = ? AND REGISTRY_VERSION = ? AND RULE_SET_VERSION = ?
+               AND RULE_SET_STATUS = 'PUBLISHED'
+             ORDER BY CREATED_AT DESC LIMIT 1
+            """, String.class, profileId, registryVersion, ruleSetVersion);
+        return values.isEmpty() ? Optional.empty() : Optional.of(fromJson(values.get(0)));
+    }
+
     private String toJson(VariantRuleSet value) {
         try { return objectMapper.writeValueAsString(value); }
         catch (Exception exception) { throw new IllegalStateException("VariantRuleSet JSON 직렬화 실패", exception); }

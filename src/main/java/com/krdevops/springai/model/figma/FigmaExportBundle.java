@@ -9,6 +9,8 @@ public record FigmaExportBundle(
         FigmaScreenSpec figmaScreenSpec,
         DesignSystemProfileSnapshot designSystemProfile,
         ComponentRegistrySnapshot componentRegistry,
+        ScreenPatternSnapshot screenPattern,
+        VariantRuleSetSnapshot variantRuleSet,
         FigmaExportMetadata metadata
 ) {
     public static final String SCHEMA_VERSION = "figma-export-bundle-v1";
@@ -26,5 +28,19 @@ public record FigmaExportBundle(
         if (metadata == null) {
             throw new IllegalArgumentException("metadata는 필수입니다.");
         }
+        if (FigmaScreenSpec.SCHEMA_VERSION_V2.equals(metadata.figmaScreenSpecSchemaVersion())
+                && (screenPattern == null || variantRuleSet == null)) {
+            throw new IllegalArgumentException("v2 Bundle에는 Pattern과 Variant Rule Set Snapshot이 필수입니다.");
+        }
+    }
+
+    /** Role·Variant v2 도입 전 Bundle Java 호출자 호환. */
+    public FigmaExportBundle(
+            FigmaScreenSpec figmaScreenSpec,
+            DesignSystemProfileSnapshot designSystemProfile,
+            ComponentRegistrySnapshot componentRegistry,
+            FigmaExportMetadata metadata
+    ) {
+        this(figmaScreenSpec, designSystemProfile, componentRegistry, null, null, metadata);
     }
 }

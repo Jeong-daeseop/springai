@@ -5,6 +5,7 @@ import {
   describeLayoutAnnotations,
   generationStatus,
   visualRegressionStatus,
+  sectionVisualRegression,
   mappedProperties,
   planFallback,
   previewLegacyMigration,
@@ -13,6 +14,66 @@ import {
   selectVariantName,
   validateBundle
 } from "../dist-test/core.mjs";
+
+test("section visual regression creates baseline on first run", () => {
+  const evidence = [{ sectionId: "header", hash: "h1" }, { sectionId: "table", hash: "h2" }];
+  const result = sectionVisualRegression(evidence, null);
+  assert.equal(result.status, "BASELINE_CREATED");
+  assert.equal(result.diffRatio, 0);
+  assert.deepEqual(result.changedSections, []);
+});
+
+test("section visual regression requires baseline when flagged", () => {
+  const evidence = [{ sectionId: "header", hash: "h1" }];
+  assert.equal(sectionVisualRegression(evidence, null, 0, true).status, "FAILED");
+});
+
+test("section visual regression reports a real diffRatio instead of only 0 or 1", () => {
+  const baseline = [
+    { sectionId: "header", hash: "h1" },
+    { sectionId: "search", hash: "h2" },
+    { sectionId: "table", hash: "h3" },
+    { sectionId: "action", hash: "h4" },
+  ];
+  const evidence = [
+    { sectionId: "header", hash: "h1" },
+    { sectionId: "search", hash: "h2" },
+    { sectionId: "table", hash: "h3-changed" },
+    { sectionId: "action", hash: "h4" },
+  ];
+  const result = sectionVisualRegression(evidence, baseline);
+  assert.equal(result.status, "FAILED");
+  assert.equal(result.diffRatio, 0.25);
+  assert.deepEqual(result.changedSections, ["table"]);
+});
+
+test("section visual regression counts added and removed sections as changed", () => {
+  const baseline = [{ sectionId: "header", hash: "h1" }, { sectionId: "footer", hash: "h9" }];
+  const evidence = [{ sectionId: "header", hash: "h1" }, { sectionId: "table", hash: "h3" }];
+  const result = sectionVisualRegression(evidence, baseline);
+  assert.equal(result.diffRatio, 2 / 3);
+  assert.deepEqual(result.changedSections, ["footer", "table"]);
+});
+
+test("section visual regression passes when nothing changed", () => {
+  const sections = [{ sectionId: "header", hash: "h1" }, { sectionId: "table", hash: "h2" }];
+  const result = sectionVisualRegression(sections, sections);
+  assert.equal(result.status, "PASSED");
+  assert.equal(result.diffRatio, 0);
+});
+
+test("section visual regression respects a nonzero threshold", () => {
+  const baseline = [
+    { sectionId: "a", hash: "1" }, { sectionId: "b", hash: "2" },
+    { sectionId: "c", hash: "3" }, { sectionId: "d", hash: "4" },
+  ];
+  const evidence = [
+    { sectionId: "a", hash: "1" }, { sectionId: "b", hash: "2-changed" },
+    { sectionId: "c", hash: "3" }, { sectionId: "d", hash: "4" },
+  ];
+  assert.equal(sectionVisualRegression(evidence, baseline, 0).status, "FAILED");
+  assert.equal(sectionVisualRegression(evidence, baseline, 0.25).status, "PASSED");
+});
 
 test("visual regression creates first baseline then blocks changed pixel evidence", () => {
   assert.equal(visualRegressionStatus("hash-a", null), "BASELINE_CREATED");
@@ -146,6 +207,17 @@ function validBundle() {
       },
       snapshotAt:"2026-07-27T00:00:00Z"
     },
+    screenPattern: {
+      pattern:{pattern:"crud.list", version:"1.0.0", status:"PUBLISHED", slots:[]},
+      snapshotAt:"2026-07-27T00:00:00Z"
+    },
+    variantRuleSet: {
+      ruleSet:{
+        id:"rules", version:"1.0.0", profileId:"ftc-krds", registryVersion:"registry-1",
+        status:"PUBLISHED", rules:[{ruleId:"button-primary"}]
+      },
+      snapshotAt:"2026-07-27T00:00:00Z"
+    },
     metadata:{
       exportedAt:"2026-07-27T00:00:00Z", figmaScreenSpecSchemaVersion:"figma-screen-spec-v2",
       screenSpecificationVersion:3, designSystemProfileVersion:"1.0.0", registryVersion:"registry-1",
@@ -164,6 +236,8 @@ function legacyV1Bundle() {
   delete bundle.figmaScreenSpec.screenPatternVersion;
   delete bundle.figmaScreenSpec.variantRuleSetVersion;
   delete bundle.figmaScreenSpec.componentContractVersion;
+  delete bundle.screenPattern;
+  delete bundle.variantRuleSet;
   for (const {node: current} of flattenForTest(bundle.figmaScreenSpec.content)) {
     delete current.componentResolution;
   }
@@ -185,6 +259,30 @@ test("valid published bundle passes validation", () => {
   assert.ok(result.parsed);
   assert.equal(result.contractMode, "V2_APPLY");
   assert.deepEqual(result.issues, []);
+});
+
+test("v2 bundle requires pattern and rule set snapshots", () => {
+  const bundle = validBundle();
+  delete bundle.screenPattern;
+  delete bundle.variantRuleSet;
+
+  const result = validateBundle(bundle);
+
+  assert.deepEqual(result.issues.map(issue => issue.code), [
+    "SCREEN_PATTERN_SNAPSHOT_MISSING", "VARIANT_RULE_SET_SNAPSHOT_MISSING"
+  ]);
+});
+
+test("v2 bundle rejects mismatched or unpublished snapshots", () => {
+  const bundle = validBundle();
+  bundle.screenPattern.pattern.version = "9.9.9";
+  bundle.variantRuleSet.ruleSet.status = "DRAFT";
+
+  const result = validateBundle(bundle);
+
+  assert.deepEqual(result.issues.map(issue => issue.code), [
+    "SCREEN_PATTERN_SNAPSHOT_MISMATCH", "VARIANT_RULE_SET_NOT_PUBLISHED"
+  ]);
 });
 
 test("v1 bundle is accepted only for legacy migration preview", () => {
@@ -215,6 +313,7 @@ test("unknown schema version is rejected", () => {
 test("Q&A six runtime v2 bundles pass plugin validation and preview reconciliation", () => {
   const fixtureRoot = new URL("../../website-figma-contract/fixtures/qna/", import.meta.url);
   const registry = JSON.parse(fs.readFileSync(new URL("krds-component-registry-v2.json", fixtureRoot), "utf8"));
+  const ruleSet = JSON.parse(fs.readFileSync(new URL("variant-rule-set-krds-v2-candidate.json", fixtureRoot), "utf8"));
   const files = [
     "qna-list.json", "qna-create.json", "qna-detail.json",
     "qna-answer-list.json", "qna-answer-detail.json", "qna-answer-create.json",
@@ -232,6 +331,11 @@ test("Q&A six runtime v2 bundles pass plugin validation and preview reconciliati
         snapshotAt:"2026-08-12T00:00:00Z",
       },
       componentRegistry:{registry, snapshotAt:"2026-08-12T00:00:00Z"},
+      screenPattern:{
+        pattern:{pattern:screen.semanticPattern, version:screen.screenPatternVersion, status:"PUBLISHED", slots:[]},
+        snapshotAt:"2026-08-12T00:00:00Z",
+      },
+      variantRuleSet:{ruleSet:{...ruleSet, status:"PUBLISHED"}, snapshotAt:"2026-08-12T00:00:00Z"},
       metadata:{
         exportedAt:"2026-08-12T00:00:00Z",
         figmaScreenSpecSchemaVersion:"figma-screen-spec-v2",

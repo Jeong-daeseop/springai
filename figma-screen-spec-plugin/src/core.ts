@@ -41,6 +41,8 @@ export function validateBundle(bundle: unknown): {
   const screen = candidate.figmaScreenSpec;
   const profile = candidate.designSystemProfile?.profile;
   const registry = candidate.componentRegistry?.registry;
+  const pattern = candidate.screenPattern?.pattern;
+  const ruleSet = candidate.variantRuleSet?.ruleSet;
   const metadata = candidate.metadata;
   if (!screen?.screenId || !screen.content) issues.push(fatal("SCREEN_SPEC_MISSING", "FigmaScreenSpec이 없습니다."));
   if (!profile?.id || !profile.version) issues.push(fatal("PROFILE_MISSING", "DesignSystemProfile Snapshot이 없습니다."));
@@ -65,6 +67,30 @@ export function validateBundle(bundle: unknown): {
   if (contractMode === "V2_APPLY" && (!screen.semanticPattern || !screen.screenPatternVersion
       || !screen.variantRuleSetVersion || !screen.componentContractVersion)) {
     issues.push(fatal("SCREEN_SPEC_V2_REQUIRED", "Role·Variant v2 실행 명세가 필요합니다."));
+  }
+  if (contractMode === "V2_APPLY" && !pattern) {
+    issues.push(fatal("SCREEN_PATTERN_SNAPSHOT_MISSING", "Screen Pattern Snapshot이 없습니다."));
+  }
+  if (contractMode === "V2_APPLY" && !ruleSet) {
+    issues.push(fatal("VARIANT_RULE_SET_SNAPSHOT_MISSING", "Variant Rule Set Snapshot이 없습니다."));
+  }
+  if (contractMode === "V2_APPLY" && pattern) {
+    if (pattern.status !== "PUBLISHED") {
+      issues.push(fatal("SCREEN_PATTERN_NOT_PUBLISHED", `Pattern 상태가 PUBLISHED가 아닙니다: ${pattern.status ?? "UNKNOWN"}`));
+    }
+    if (pattern.pattern !== screen.semanticPattern || pattern.version !== screen.screenPatternVersion) {
+      issues.push(fatal("SCREEN_PATTERN_SNAPSHOT_MISMATCH", "Screen Spec과 Pattern Snapshot 버전이 다릅니다."));
+    }
+  }
+  if (contractMode === "V2_APPLY" && ruleSet) {
+    if (ruleSet.status !== "PUBLISHED") {
+      issues.push(fatal("VARIANT_RULE_SET_NOT_PUBLISHED", `Rule Set 상태가 PUBLISHED가 아닙니다: ${ruleSet.status}`));
+    }
+    if (ruleSet.version !== screen.variantRuleSetVersion
+        || ruleSet.profileId !== screen.designSystem.profileId
+        || ruleSet.registryVersion !== screen.designSystem.registryVersion) {
+      issues.push(fatal("VARIANT_RULE_SET_SNAPSHOT_MISMATCH", "Screen Spec과 Rule Set Snapshot 버전이 다릅니다."));
+    }
   }
   if (profile.status !== "PUBLISHED") {
     issues.push(fatal("PROFILE_NOT_PUBLISHED", `Profile 상태가 PUBLISHED가 아닙니다: ${profile.status ?? "UNKNOWN"}`));
@@ -233,6 +259,55 @@ export function visualRegressionStatus(
 ): "PASSED" | "FAILED" | "BASELINE_CREATED" {
   if (!baselineHash) return baselineRequired ? "FAILED" : "BASELINE_CREATED";
   return evidenceHash === baselineHash ? "PASSED" : "FAILED";
+}
+
+export type SectionEvidence = { sectionId: string; hash: string };
+
+export type SectionVisualComparison = {
+  status: "PASSED" | "FAILED" | "BASELINE_CREATED";
+  diffRatio: number;
+  threshold: number;
+  changedSections: string[];
+};
+
+/**
+ * KRV-066: 화면 전체를 단일 Hash로 묶어 0%/100%로만 비교하는 대신, 화면을 구성하는 주요
+ * Section(예: header/action/table 같은 최상위 Wrapper Frame) 단위로 Hash를 비교해 실제
+ * 변경 비율(diffRatio = 변경된 Section 수 / 전체 Section 수)을 계산한다. 새 Section이
+ * 추가되거나 기존 Section이 사라진 경우도 변경으로 집계한다.
+ */
+export function sectionVisualRegression(
+  evidence: SectionEvidence[],
+  baseline: SectionEvidence[] | null | undefined,
+  threshold = 0,
+  baselineRequired = false,
+): SectionVisualComparison {
+  if (!baseline || baseline.length === 0) {
+    return {
+      status: baselineRequired ? "FAILED" : "BASELINE_CREATED",
+      diffRatio: 0,
+      threshold,
+      changedSections: [],
+    };
+  }
+  const baselineBySection = new Map(baseline.map(entry => [entry.sectionId, entry.hash]));
+  const evidenceIds = new Set(evidence.map(entry => entry.sectionId));
+  const changed = new Set<string>();
+  for (const entry of evidence) {
+    const baselineHash = baselineBySection.get(entry.sectionId);
+    if (baselineHash === undefined || baselineHash !== entry.hash) changed.add(entry.sectionId);
+  }
+  for (const entry of baseline) {
+    if (!evidenceIds.has(entry.sectionId)) changed.add(entry.sectionId);
+  }
+  const totalSections = new Set([...baselineBySection.keys(), ...evidenceIds]).size;
+  const diffRatio = totalSections === 0 ? 0 : changed.size / totalSections;
+  return {
+    status: diffRatio <= threshold ? "PASSED" : "FAILED",
+    diffRatio,
+    threshold,
+    changedSections: Array.from(changed).sort(),
+  };
 }
 
 export type AtomicApplyHooks<Backup, Staging, Result> = {

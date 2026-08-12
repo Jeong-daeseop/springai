@@ -87,10 +87,18 @@ public record FigmaGenerationReport(
             String evidenceHash,
             String baselineHash,
             Double diffRatio,
-            Double threshold
+            Double threshold,
+            String sectionEvidenceJson,
+            List<String> changedSections
     ) {
         public QualityGateResult {
             issueCodes = issueCodes == null ? List.of() : List.copyOf(issueCodes);
+            changedSections = changedSections == null ? List.of() : List.copyOf(changedSections);
+        }
+
+        public QualityGateResult(Gate gate, GateStatus status, List<String> issueCodes,
+                String evidenceHash, String baselineHash, Double diffRatio, Double threshold) {
+            this(gate, status, issueCodes, evidenceHash, baselineHash, diffRatio, threshold, null, List.of());
         }
     }
 

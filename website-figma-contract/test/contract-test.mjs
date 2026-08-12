@@ -29,6 +29,7 @@ const schemaNames = [
   "legacy-conversion-request-v1.schema.json",
   "legacy-screen-analysis-v1.schema.json",
   "thymeleaf-binding-contract-v1.schema.json",
+  "qna-screen-specification-v2.schema.json",
 ];
 const schemas = schemaNames.map(read);
 const ajv = new Ajv2020({allErrors:true, strict:true});
@@ -58,6 +59,7 @@ const validateDesignOperation = validator("figma-design-operation-v1.schema.json
 const validateLegacyConversionRequest = validator("legacy-conversion-request-v1.schema.json");
 const validateLegacyScreenAnalysis = validator("legacy-screen-analysis-v1.schema.json");
 const validateBindingContract = validator("thymeleaf-binding-contract-v1.schema.json");
+const validateQnaBusinessSpec = validator("qna-screen-specification-v2.schema.json");
 
 function expectValid(validate, fixture) {
   assert.equal(validate(read(`fixtures/${fixture}`)), true,
@@ -92,6 +94,11 @@ expectInvalid(validateScreen, "invalid-figma-screen-id.json");
 expectInvalid(validateScreen, "invalid-screen-version.json");
 expectInvalid(validateScreen, "invalid-logical-node-id.json");
 expectValid(validateScreenV2, "valid-figma-screen-spec-v2.json");
+const qnaBusinessSpec = read("fixtures/qna/qna-screen-specification-v2.json");
+assert.equal(validateQnaBusinessSpec(qnaBusinessSpec), true,
+  `Q&A 업무 ScreenSpecification: ${JSON.stringify(validateQnaBusinessSpec.errors)}`);
+assert.equal(new Set(qnaBusinessSpec.pages.map(page => page.id)).size, 6,
+  "Q&A 업무 ScreenSpecification Page ID는 정확히 6개이며 중복될 수 없습니다.");
 expectValid(validateDesignSystemSpec, "valid-design-system-spec.json");
 expectValid(validateProfile, "valid-design-system-profile.json");
 expectValid(validateRegistry, "valid-krds-component-registry.json");
@@ -170,6 +177,20 @@ const bundleV2 = {
     snapshotAt:"2026-08-11T00:00:00Z"
   },
   componentRegistry: {registry:registryV2, snapshotAt:"2026-08-11T00:00:00Z"},
+  screenPattern: {
+    pattern: {pattern:"crud.list", version:"1.0.0", slots:[]},
+    snapshotAt:"2026-08-11T00:00:00Z"
+  },
+  variantRuleSet: {
+    ruleSet: {
+      id:"krds-v2", version:"1.0.0", profileId:"krds", registryVersion:"2.0.0",
+      status:"PUBLISHED", rules:[{
+        ruleId:"list-primary", priority:100, role:"action.primary",
+        when:{pattern:"crud.list"}, result:{type:"Primary"}
+      }]
+    },
+    snapshotAt:"2026-08-11T00:00:00Z"
+  },
   metadata: {
     exportedAt:"2026-08-11T00:00:00Z", figmaScreenSpecSchemaVersion:"figma-screen-spec-v2",
     screenSpecificationVersion:1, designSystemProfileVersion:"2.0.0", registryVersion:"2.0.0",
@@ -178,6 +199,14 @@ const bundleV2 = {
 };
 assert.equal(validateBundleV2(bundleV2), true,
   `v2 bundle: ${JSON.stringify(validateBundleV2.errors)}`);
+assert.deepEqual(bundleConsistencyIssues(bundleV2), []);
+const mismatchedSnapshotBundle = structuredClone(bundleV2);
+mismatchedSnapshotBundle.screenPattern.pattern.version = "9.9.9";
+mismatchedSnapshotBundle.variantRuleSet.ruleSet.registryVersion = "registry-other";
+assert.deepEqual(bundleConsistencyIssues(mismatchedSnapshotBundle), [
+  "SCREEN_PATTERN_SNAPSHOT_VERSION_MISMATCH",
+  "RULE_SET_REGISTRY_VERSION_MISMATCH",
+]);
 
 for (const name of [
   "valid-figma-design-request-text.json",
@@ -271,6 +300,21 @@ function bundleConsistencyIssues(bundle) {
     [registry.registryVersion, metadata.registryVersion,
       "METADATA_REGISTRY_VERSION_MISMATCH"],
   ];
+  if (bundle.screenPattern?.pattern) {
+    checks.push(
+      [screen.semanticPattern, bundle.screenPattern.pattern.pattern, "SCREEN_PATTERN_SNAPSHOT_MISMATCH"],
+      [screen.screenPatternVersion, bundle.screenPattern.pattern.version,
+        "SCREEN_PATTERN_SNAPSHOT_VERSION_MISMATCH"]);
+  }
+  if (bundle.variantRuleSet?.ruleSet) {
+    checks.push(
+      [screen.variantRuleSetVersion, bundle.variantRuleSet.ruleSet.version,
+        "RULE_SET_SNAPSHOT_VERSION_MISMATCH"],
+      [screen.designSystem.profileId, bundle.variantRuleSet.ruleSet.profileId,
+        "RULE_SET_PROFILE_ID_MISMATCH"],
+      [screen.designSystem.registryVersion, bundle.variantRuleSet.ruleSet.registryVersion,
+        "RULE_SET_REGISTRY_VERSION_MISMATCH"]);
+  }
   return [...new Set(checks.filter(([left, right]) => left !== right)
     .map(([, , code]) => code))];
 }

@@ -36,6 +36,16 @@ public class ScreenSpecificationMigrationPreviewService {
                 specification.id(), specification.version(), List.copyOf(pages), List.copyOf(reviewItems));
     }
 
+    /** 저장 전 v1 원본 문자열 Action을 검토하는 명시적 Migration Preview 경계. */
+    public LegacyActionMigrationPreview previewLegacyActions(String pageId, List<String> legacyActions) {
+        List<ReviewItem> reviewItems = new ArrayList<>();
+        List<ActionPreview> actions = new ArrayList<>();
+        for (String action : legacyActions == null ? List.<String>of() : legacyActions) {
+            actions.add(previewAction(pageId, action, reviewItems));
+        }
+        return new LegacyActionMigrationPreview(List.copyOf(actions), List.copyOf(reviewItems));
+    }
+
     private PagePreview previewPage(PageSpec page, List<ReviewItem> reviewItems) {
         ScreenPattern pattern = null;
         try {
@@ -51,8 +61,8 @@ public class ScreenSpecificationMigrationPreviewService {
         }
 
         List<ActionPreview> actions = new ArrayList<>();
-        for (String action : page.actions()) {
-            actions.add(previewAction(page.id(), action, reviewItems));
+        for (ScreenActionSpec action : page.actions()) {
+            actions.add(new ActionPreview(action.command(), action));
         }
 
         return new PagePreview(page.id(), page.template(), pattern, List.copyOf(fields), List.copyOf(actions));
@@ -102,6 +112,12 @@ public class ScreenSpecificationMigrationPreviewService {
     public record MigrationPreviewResult(
             String specificationId, int specificationVersion,
             List<PagePreview> pages, List<ReviewItem> reviewItems) {
+        public boolean readyForMigration() {
+            return reviewItems.isEmpty();
+        }
+    }
+
+    public record LegacyActionMigrationPreview(List<ActionPreview> actions, List<ReviewItem> reviewItems) {
         public boolean readyForMigration() {
             return reviewItems.isEmpty();
         }

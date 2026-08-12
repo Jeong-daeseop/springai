@@ -132,6 +132,8 @@ tasks.register('prodBootJarSmoke', Exec) {
 
 tasks.named('check') {
     dependsOn tasks.named('figmaContractTest')
+    dependsOn tasks.named('qnaRuntimeResolverTest')
+    dependsOn tasks.named('figmaRuntimeBundlePluginTest')
 }
 
 tasks.named('bootJar') {
@@ -154,6 +156,7 @@ tasks.named('processResources') {
     from('website-figma-contract/fixtures/qna') {
         include 'krds-component-registry-v2.json'
         include 'variant-rule-set-krds-v2-candidate.json'
+        include 'qna-screen-specification-v2.json'
         into 'figma/contracts/qna'
     }
     from('website-figma-contract/fixtures/qna/v2') {

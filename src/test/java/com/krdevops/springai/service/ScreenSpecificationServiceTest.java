@@ -129,7 +129,7 @@ class ScreenSpecificationServiceTest {
         return new ScreenSpecification(
                 "spec-1", version, ScreenSpecStatus.REVIEW_REQUIRED, "공지", "board", "BOARD",
                 "com", "LETTNBBS", List.of(DataSourceSpec.primary("com", "LETTNBBS")),
-                List.of(new PageSpec("list", "BOARD_LIST", List.of(title), List.of("SEARCH"))),
+                List.of(new PageSpec("list", "BOARD_LIST", List.of(title), PageSpec.migrateActions("SEARCH"))),
                 List.of(), density, formColumnLayout, actionPlacement, searchPanelPlacement, LocalDateTime.now());
     }
 }

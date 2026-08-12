@@ -2176,6 +2176,12 @@
   "name" : "reviseScreenSpecification",
   "description" : "REVIEW_REQUIRED 화면명세의 미매핑 필드·JOIN·Action을 수정한 전체 명세를 새 버전으로 저장합니다.\n주 데이터베이스와 주 테이블은 변경할 수 없으며, COLUMN 출처는 실제 스키마에 존재하는지 다시 검증합니다.\n반환 상태가 APPROVED일 때만 코드 생성 Tool의 screenSpecificationId로 전달하세요.\n",
   "inputSchema" : {
+    "$defs" : {
+      "SemanticRole" : {
+        "enum" : [ "PAGE_HEADER", "SEARCH_PANEL", "DATA_TABLE", "DATA_TABLE_CELL", "DATA_PAGINATION", "FORM_CONTAINER", "FORM_SECTION", "FIELD_TEXT", "FIELD_TEXTAREA", "FIELD_SELECT", "FIELD_CHECKBOX", "ACTION_PRIMARY", "ACTION_SECONDARY", "ACTION_DESTRUCTIVE" ],
+        "type" : "string"
+      }
+    },
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
@@ -2269,7 +2275,27 @@
               "properties" : {
                 "actions" : {
                   "items" : {
-                    "type" : "string"
+                    "additionalProperties" : false,
+                    "properties" : {
+                      "command" : {
+                        "type" : "string"
+                      },
+                      "id" : {
+                        "type" : "string"
+                      },
+                      "label" : {
+                        "type" : "string"
+                      },
+                      "role" : {
+                        "$ref" : "#/$defs/SemanticRole"
+                      },
+                      "state" : {
+                        "enum" : [ "DEFAULT", "FOCUS", "ERROR", "DISABLED", "READ_ONLY" ],
+                        "type" : "string"
+                      }
+                    },
+                    "required" : [ "command", "id", "label", "role", "state" ],
+                    "type" : "object"
                   },
                   "type" : "array"
                 },
@@ -2305,8 +2331,7 @@
                         "type" : "boolean"
                       },
                       "semanticRole" : {
-                        "enum" : [ "PAGE_HEADER", "SEARCH_PANEL", "DATA_TABLE", "DATA_TABLE_CELL", "DATA_PAGINATION", "FORM_CONTAINER", "FORM_SECTION", "FIELD_TEXT", "FIELD_TEXTAREA", "FIELD_SELECT", "FIELD_CHECKBOX", "ACTION_PRIMARY", "ACTION_SECONDARY", "ACTION_DESTRUCTIVE" ],
-                        "type" : "string"
+                        "$ref" : "#/$defs/SemanticRole"
                       },
                       "sortable" : {
                         "type" : "boolean"

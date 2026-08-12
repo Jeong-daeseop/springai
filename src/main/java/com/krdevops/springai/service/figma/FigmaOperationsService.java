@@ -77,6 +77,9 @@ public class FigmaOperationsService {
                 || visual.diffRatio() > visual.threshold()) {
             throw new IllegalArgumentException("Visual Regression 임계값을 통과하지 못했습니다.");
         }
+        if (visual.sectionEvidenceJson() == null || visual.sectionEvidenceJson().isBlank()) {
+            throw new IllegalArgumentException("Visual Regression Section Diff Artifact가 없습니다.");
+        }
     }
 
     public List<FigmaGenerationReport> reports(String screenId) {

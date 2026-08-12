@@ -1,0 +1,99 @@
+{
+  "id": "qna-suite",
+  "version": 2,
+  "status": "APPROVED",
+  "screenName": "Q&A 관리",
+  "featureType": "QNA",
+  "archetype": "CRUD",
+  "database": "ebt",
+  "primaryTable": "QNA",
+  "dataSources": [
+    {"id":"primary","schema":"ebt","table":"QNA","alias":"q","primary":true,"joinType":null,"joinExpression":null}
+  ],
+  "pages": [
+    {
+      "id":"qna-list","template":"QNA_LIST","selectionSource":"EXPLICIT",
+      "fields":[
+        {"id":"number","label":"번호","dataRole":"ROW_NUMBER","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"DERIVED","tableAlias":null,"column":null,"expression":"PAGE_ROW_NUMBER","codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"NUMBER","confidence":1.0},
+        {"id":"title","label":"제목","dataRole":"TITLE","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"TITLE","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":true,"sortable":true,"control":"TEXT","confidence":1.0},
+        {"id":"writer","label":"작성자","dataRole":"AUTHOR","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"WRITER","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":true,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"createdAt","label":"등록일","dataRole":"CREATED_AT","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"CREATED_AT","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":true,"control":"DATE","confidence":1.0},
+        {"id":"status","label":"처리상태","dataRole":"STATUS","semanticRole":"field.select","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"STATUS","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":true,"sortable":false,"control":"SELECT","confidence":1.0},
+        {"id":"answerStatus","label":"답변상태","dataRole":"STATUS","semanticRole":"field.select","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"ANSWER_STATUS","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":true,"sortable":false,"control":"SELECT","confidence":1.0}
+      ],
+      "actions":[
+        {"id":"search","command":"SEARCH","role":"action.primary","label":"검색","state":"DEFAULT"},
+        {"id":"create","command":"CREATE","role":"action.primary","label":"등록","state":"DEFAULT"}
+      ]
+    },
+    {
+      "id":"qna-create","template":"QNA_FORM","selectionSource":"EXPLICIT",
+      "fields":[
+        {"id":"writer","label":"작성자","dataRole":"AUTHOR","semanticRole":"field.text","mode":"EDITABLE","source":{"type":"COLUMN","tableAlias":"q","column":"WRITER","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"title","label":"질문 제목","dataRole":"TITLE","semanticRole":"field.text","mode":"EDITABLE","source":{"type":"COLUMN","tableAlias":"q","column":"TITLE","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"content","label":"질문 내용","dataRole":"CONTENT","semanticRole":"field.textarea","mode":"EDITABLE","source":{"type":"COLUMN","tableAlias":"q","column":"CONTENT","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":false,"sortable":false,"control":"TEXTAREA","confidence":1.0},
+        {"id":"privateYn","label":"비공개 여부","dataRole":"STATUS","semanticRole":"field.checkbox","mode":"EDITABLE","source":{"type":"COLUMN","tableAlias":"q","column":"PRIVATE_YN","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"CHECKBOX","confidence":1.0}
+      ],
+      "actions":[
+        {"id":"save","command":"SAVE","role":"action.primary","label":"저장","state":"DEFAULT"},
+        {"id":"cancel","command":"CANCEL","role":"action.secondary","label":"취소","state":"DEFAULT"}
+      ]
+    },
+    {
+      "id":"qna-detail","template":"QNA_DETAIL","selectionSource":"EXPLICIT",
+      "fields":[
+        {"id":"writer","label":"작성자","dataRole":"AUTHOR","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"WRITER","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"title","label":"질문 제목","dataRole":"TITLE","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"TITLE","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"content","label":"질문 내용","dataRole":"CONTENT","semanticRole":"field.textarea","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"CONTENT","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXTAREA","confidence":1.0}
+      ],
+      "actions":[
+        {"id":"update","command":"UPDATE","role":"action.primary","label":"수정","state":"DEFAULT"},
+        {"id":"delete","command":"DELETE","role":"action.destructive","label":"삭제","state":"DEFAULT"},
+        {"id":"list","command":"LIST","role":"action.secondary","label":"목록","state":"DEFAULT"}
+      ]
+    },
+    {
+      "id":"qna-answer-list","template":"QNA_ANSWER_LIST","selectionSource":"EXPLICIT",
+      "fields":[
+        {"id":"number","label":"번호","dataRole":"ROW_NUMBER","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"DERIVED","tableAlias":null,"column":null,"expression":"PAGE_ROW_NUMBER","codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"NUMBER","confidence":1.0},
+        {"id":"title","label":"질문 제목","dataRole":"TITLE","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"TITLE","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":true,"sortable":true,"control":"TEXT","confidence":1.0},
+        {"id":"writer","label":"작성자","dataRole":"AUTHOR","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"WRITER","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":true,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"createdAt","label":"등록일","dataRole":"CREATED_AT","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"CREATED_AT","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":true,"control":"DATE","confidence":1.0},
+        {"id":"status","label":"처리상태","dataRole":"STATUS","semanticRole":"field.select","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"STATUS","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":true,"sortable":false,"control":"SELECT","confidence":1.0},
+        {"id":"answerStatus","label":"답변상태","dataRole":"STATUS","semanticRole":"field.select","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"ANSWER_STATUS","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":true,"sortable":false,"control":"SELECT","confidence":1.0}
+      ],
+      "actions":[{"id":"search","command":"SEARCH","role":"action.primary","label":"검색","state":"DEFAULT"}]
+    },
+    {
+      "id":"qna-answer-detail","template":"QNA_ANSWER_DETAIL","selectionSource":"EXPLICIT",
+      "fields":[
+        {"id":"question","label":"질문 제목","dataRole":"TITLE","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"TITLE","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"answerWriter","label":"답변자","dataRole":"AUTHOR","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"ANSWER_WRITER","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"answerContent","label":"답변 내용","dataRole":"CONTENT","semanticRole":"field.textarea","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"ANSWER_CONTENT","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXTAREA","confidence":1.0}
+      ],
+      "actions":[
+        {"id":"reply","command":"CREATE","role":"action.primary","label":"답변 등록","state":"DEFAULT"},
+        {"id":"list","command":"LIST","role":"action.secondary","label":"목록","state":"DEFAULT"}
+      ]
+    },
+    {
+      "id":"qna-answer-create","template":"QNA_ANSWER_FORM","selectionSource":"EXPLICIT",
+      "fields":[
+        {"id":"question","label":"질문 제목","dataRole":"TITLE","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"TITLE","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"answerWriter","label":"답변자","dataRole":"AUTHOR","semanticRole":"field.text","mode":"EDITABLE","source":{"type":"COLUMN","tableAlias":"q","column":"ANSWER_WRITER","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"status","label":"처리 상태","dataRole":"STATUS","semanticRole":"field.select","mode":"EDITABLE","source":{"type":"COLUMN","tableAlias":"q","column":"STATUS","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":false,"sortable":false,"control":"SELECT","confidence":1.0},
+        {"id":"answerContent","label":"답변 내용","dataRole":"CONTENT","semanticRole":"field.textarea","mode":"EDITABLE","source":{"type":"COLUMN","tableAlias":"q","column":"ANSWER_CONTENT","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":false,"sortable":false,"control":"TEXTAREA","confidence":1.0}
+      ],
+      "actions":[
+        {"id":"save","command":"SAVE","role":"action.primary","label":"저장","state":"DEFAULT"},
+        {"id":"cancel","command":"CANCEL","role":"action.secondary","label":"취소","state":"DEFAULT"}
+      ]
+    }
+  ],
+  "issues":[],
+  "layoutDensity":"STANDARD",
+  "formColumnLayout":"SINGLE_COLUMN",
+  "actionPlacement":"BOTTOM_RIGHT",
+  "searchPanelPlacement":"ABOVE_TABLE",
+  "createdAt":"2026-08-13T00:00:00"
+}

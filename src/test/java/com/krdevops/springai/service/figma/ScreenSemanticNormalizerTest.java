@@ -121,7 +121,8 @@ class ScreenSemanticNormalizerTest {
     }
 
     private PageSpec page(String template, List<String> actions) {
-        return new PageSpec("p", template, List.of(), actions);
+        return new PageSpec("p", template, List.of(),
+                actions.stream().map(com.krdevops.springai.model.design.ScreenActionSpec::fromLegacyCommand).toList());
     }
 
     private ScreenFieldBinding fieldWithControl(String control) {

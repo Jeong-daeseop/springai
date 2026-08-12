@@ -27,7 +27,9 @@ public record FigmaReviewEvent(
         occurredAt = occurredAt == null ? LocalDateTime.now() : occurredAt;
     }
 
-    public enum TargetType { DESIGN_SYSTEM_PROFILE, FIGMA_SCREEN_SPEC }
+    public enum TargetType {
+        DESIGN_SYSTEM_PROFILE, COMPONENT_REGISTRY, SCREEN_PATTERN, VARIANT_RULE_SET, FIGMA_SCREEN_SPEC
+    }
 
     public enum EventType { REVIEW, APPROVAL, REJECTION, PUBLISH, REGISTRY_SYNC }
 }

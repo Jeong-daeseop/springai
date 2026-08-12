@@ -1,12 +1,13 @@
 package com.krdevops.springai.model.design;
 
 import java.util.List;
+import java.util.Arrays;
 
 public record PageSpec(
         String id,
         String template,
         List<ScreenFieldBinding> fields,
-        List<String> actions,
+        List<ScreenActionSpec> actions,
         FieldSelectionSource selectionSource
 ) {
     public PageSpec {
@@ -16,7 +17,13 @@ public record PageSpec(
     }
 
     /** selectionSource 도입 전 Java 호출자와 저장 명세 호환. */
-    public PageSpec(String id, String template, List<ScreenFieldBinding> fields, List<String> actions) {
+    public PageSpec(String id, String template, List<ScreenFieldBinding> fields, List<ScreenActionSpec> actions) {
         this(id, template, fields, actions, FieldSelectionSource.DEFAULT);
+    }
+
+    /** v1 Java 호출부를 명시적으로 Migration할 때만 사용하는 변환 Factory. */
+    public static List<ScreenActionSpec> migrateActions(String... legacyActions) {
+        return legacyActions == null ? List.of()
+                : Arrays.stream(legacyActions).map(ScreenActionSpec::fromLegacyCommand).toList();
     }
 }

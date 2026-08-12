@@ -156,7 +156,8 @@ class FigmaOperationsServiceTest {
                 new FigmaGenerationReport.QualityGateResult(
                         FigmaGenerationReport.Gate.VISUAL_REGRESSION,
                         FigmaGenerationReport.GateStatus.PASSED, List.of(),
-                        "same", "same", 0.0, 0.0));
+                        "same", "same", 0.0, 0.0,
+                        "[{\"sectionId\":\"content\",\"hash\":\"same\"}]", List.of()));
     }
 
     private FigmaGenerationReport.QualityGateResult passed(FigmaGenerationReport.Gate gate) {

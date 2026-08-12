@@ -2,6 +2,7 @@ package com.krdevops.springai.service.designsystem;
 
 import com.krdevops.springai.mapper.ComponentRegistryRepository;
 import com.krdevops.springai.mapper.DesignSystemProfileRepository;
+import com.krdevops.springai.mapper.FigmaLibraryInventoryRepository;
 import com.krdevops.springai.model.designsystem.ComponentBinding;
 import com.krdevops.springai.model.designsystem.ComponentRegistry;
 import com.krdevops.springai.model.designsystem.ComponentRegistryDiff;
@@ -11,12 +12,14 @@ import com.krdevops.springai.model.designsystem.DesignSystemIssue;
 import com.krdevops.springai.model.designsystem.DesignSystemProfile;
 import com.krdevops.springai.model.designsystem.VariableBinding;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * R4: Author Plugin이 내보낸 Published Registry 후보를 검증하고, 이전 버전과 비교한 뒤
@@ -28,15 +31,30 @@ public class ComponentRegistrySyncService {
     private final ComponentRegistryRepository registryRepository;
     private final DesignSystemProfileRepository profileRepository;
     private final ComponentRegistryValidator validator;
+    private final FigmaLibraryInventoryRepository inventoryRepository;
+    private final FigmaPropertyDriftValidator driftValidator;
 
     public ComponentRegistrySyncService(
             ComponentRegistryRepository registryRepository,
             DesignSystemProfileRepository profileRepository,
             ComponentRegistryValidator validator
     ) {
+        this(registryRepository, profileRepository, validator, null, null);
+    }
+
+    @Autowired
+    public ComponentRegistrySyncService(
+            ComponentRegistryRepository registryRepository,
+            DesignSystemProfileRepository profileRepository,
+            ComponentRegistryValidator validator,
+            FigmaLibraryInventoryRepository inventoryRepository,
+            FigmaPropertyDriftValidator driftValidator
+    ) {
         this.registryRepository = registryRepository;
         this.profileRepository = profileRepository;
         this.validator = validator;
+        this.inventoryRepository = inventoryRepository;
+        this.driftValidator = driftValidator;
     }
 
     public ComponentRegistrySyncResult preview(ComponentRegistry candidate) {
@@ -48,6 +66,7 @@ public class ComponentRegistrySyncService {
 
         ComponentRegistry previous = registryRepository.findLatest(candidate.profileId()).orElse(null);
         issues.addAll(validator.validateNewEntryLifecycle(candidate, previous));
+        validateActualFigmaInventory(candidate, issues);
         List<ComponentRegistryDiff.Change> changes = calculateChanges(previous, candidate, issues);
         boolean valid = issues.stream().noneMatch(issue ->
                 issue.severity() == DesignSystemIssue.Severity.FATAL
@@ -61,6 +80,46 @@ public class ComponentRegistrySyncService {
                 changes);
         return new ComponentRegistrySyncResult(
                 ComponentRegistrySyncResult.Status.PREVIEW, diff, candidate, profile);
+    }
+
+    /** KRV-065: Registry 승인 시 계약 JSON뿐 아니라 실제 Published Figma Inventory의 State Variant도 검사한다. */
+    private void validateActualFigmaInventory(ComponentRegistry candidate, List<DesignSystemIssue> issues) {
+        if (inventoryRepository == null || driftValidator == null) return; // 단위 테스트용 레거시 생성자
+        var inventory = inventoryRepository.findLatest(candidate.profileId(), candidate.registryVersion()).orElse(null);
+        if (inventory == null) {
+            issues.add(issue("FIGMA_INVENTORY_SNAPSHOT_MISSING",
+                    "Registry 승인 전에 실제 Figma Library Inventory Snapshot이 필요합니다.", candidate.registryVersion()));
+            return;
+        }
+        candidate.components().forEach((logicalType, contract) -> {
+            var actual = inventory.components().get(logicalType);
+            issues.addAll(driftValidator.validate(logicalType, contract, actual));
+            contract.variantAxes().values().stream()
+                    .filter(axis -> "state".equalsIgnoreCase(axis.logicalName()))
+                    .findFirst().ifPresent(axis -> {
+                        var property = actual == null ? null : actual.properties().get(axis.figmaProperty());
+                        Set<String> values = property == null ? Set.of() : property.values().stream()
+                                .map(value -> value.toLowerCase(java.util.Locale.ROOT))
+                                .collect(java.util.stream.Collectors.toSet());
+                        if (!values.contains("focus")) {
+                            issues.add(issue("ACCESSIBILITY_FOCUS_STATE_MISSING",
+                                    logicalType + "에 Focus State Variant가 없습니다.", logicalType));
+                        }
+                        if (!values.contains("disabled")) {
+                            issues.add(issue("ACCESSIBILITY_DISABLED_STATE_MISSING",
+                                    logicalType + "에 Disabled State Variant가 없습니다.", logicalType));
+                        }
+                        boolean field = contract.roles().stream().anyMatch(role -> role.code().startsWith("field."));
+                        if (field && !values.contains("error")) {
+                            issues.add(issue("ACCESSIBILITY_ERROR_STATE_MISSING",
+                                    logicalType + "에 Error State Variant가 없습니다.", logicalType));
+                        }
+                        if (field && !(values.contains("readonly") || values.contains("read-only") || values.contains("view"))) {
+                            issues.add(issue("ACCESSIBILITY_READ_ONLY_STATE_MISSING",
+                                    logicalType + "에 Read-only State Variant가 없습니다.", logicalType));
+                        }
+                    });
+        });
     }
 
     @Transactional

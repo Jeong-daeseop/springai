@@ -27,7 +27,7 @@ class ScreenSpecificationMigrationPreviewServiceTest {
     void fullyConvertibleSpecificationIsReadyForMigrationWithNoReviewItems() {
         ScreenFieldBinding title = new ScreenFieldBinding("title", "제목", UiFieldRole.TITLE,
                 FieldSource.column("t", "TITLE"), true, true, true, true, "TEXT", 1.0);
-        PageSpec list = new PageSpec("list", "CRUD_LIST", List.of(title), List.of("SEARCH", "CREATE"));
+        PageSpec list = new PageSpec("list", "CRUD_LIST", List.of(title), PageSpec.migrateActions("SEARCH", "CREATE"));
         ScreenSpecification specification = specification(List.of(list));
 
         ScreenSpecificationMigrationPreviewService.MigrationPreviewResult result = service.preview(specification);
@@ -45,7 +45,7 @@ class ScreenSpecificationMigrationPreviewServiceTest {
     void unsupportedControlIsReportedAsReviewItemNotSilentlyConverted() {
         ScreenFieldBinding richText = new ScreenFieldBinding("body", "본문", UiFieldRole.CONTENT,
                 FieldSource.column("t", "BODY"), true, true, false, false, "RICH_TEXT", 1.0);
-        PageSpec detail = new PageSpec("detail", "CRUD_DETAIL", List.of(richText), List.of("LIST"));
+        PageSpec detail = new PageSpec("detail", "CRUD_DETAIL", List.of(richText), PageSpec.migrateActions("LIST"));
         ScreenSpecification specification = specification(List.of(detail));
 
         ScreenSpecificationMigrationPreviewService.MigrationPreviewResult result = service.preview(specification);
@@ -59,16 +59,14 @@ class ScreenSpecificationMigrationPreviewServiceTest {
     }
 
     @Test
-    void unsupportedActionIsReportedAsReviewItemNotSilentlyConverted() {
-        PageSpec list = new PageSpec("list", "CRUD_LIST", List.of(), List.of("EXPORT_EXCEL"));
-        ScreenSpecification specification = specification(List.of(list));
-
-        ScreenSpecificationMigrationPreviewService.MigrationPreviewResult result = service.preview(specification);
+    void unsupportedActionIsReportedAtExplicitLegacyPreviewBoundary() {
+        ScreenSpecificationMigrationPreviewService.LegacyActionMigrationPreview result =
+                service.previewLegacyActions("list", List.of("EXPORT_EXCEL"));
 
         assertThat(result.readyForMigration()).isFalse();
         assertThat(result.reviewItems()).extracting(ScreenSpecificationMigrationPreviewService.ReviewItem::category)
                 .containsExactly(ScreenSpecificationMigrationPreviewService.ReviewCategory.ACTION);
-        assertThat(result.pages().get(0).actions().get(0).needsReview()).isTrue();
+        assertThat(result.actions().get(0).needsReview()).isTrue();
     }
 
     @Test

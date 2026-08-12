@@ -76,10 +76,28 @@ export type DesignSystemProfile = {
   libraryFileKey?: string | null;
 };
 
+export type ScreenPatternDefinition = {
+  pattern: "crud.list" | "crud.detail" | "crud.create" | "crud.edit";
+  version: string;
+  status?: "DRAFT" | "APPROVED" | "PUBLISHED" | "SUPERSEDED";
+  slots: Array<Record<string, unknown>>;
+};
+
+export type VariantRuleSet = {
+  id: string;
+  version: string;
+  profileId: string;
+  registryVersion: string;
+  status: "DRAFT" | "APPROVED" | "PUBLISHED" | "SUPERSEDED";
+  rules: Array<Record<string, unknown>>;
+};
+
 export type FigmaExportBundle = {
   figmaScreenSpec: FigmaScreenSpec;
   designSystemProfile: { profile: DesignSystemProfile; snapshotAt: string };
   componentRegistry: { registry: ComponentRegistry; snapshotAt: string };
+  screenPattern: { pattern: ScreenPatternDefinition; snapshotAt: string };
+  variantRuleSet: { ruleSet: VariantRuleSet; snapshotAt: string };
   metadata: {
     exportedAt: string;
     figmaScreenSpecSchemaVersion: string;
@@ -142,6 +160,10 @@ export type QualityGateResult = {
   baselineHash?: string | null;
   diffRatio?: number | null;
   threshold?: number | null;
+  /** KRV-066: Section 단위 baseline으로 저장할 JSON(SectionEvidence[]). VISUAL_REGRESSION Gate에서만 채워진다. */
+  sectionEvidenceJson?: string | null;
+  /** KRV-066: 기준선 대비 변경된 Section의 logicalNodeId 목록. */
+  changedSections?: string[] | null;
 };
 
 export type LegacyFrameNode = {

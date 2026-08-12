@@ -1,6 +1,7 @@
 package com.krdevops.springai.service.figma.builder;
 
 import com.krdevops.springai.model.design.PageSpec;
+import com.krdevops.springai.model.design.ScreenActionSpec;
 import com.krdevops.springai.model.design.ScreenFieldBinding;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.role.SemanticRole;
@@ -42,12 +43,15 @@ public class ListFigmaScreenBuilder implements FigmaScreenBuilder {
         // SEARCH는 searchPanel의 검색 버튼으로 이미 표현되고, VIEW_DETAIL/UPDATE/DELETE는
         // 행을 선택해야 의미가 있는 행 단위 동작이라 목록 화면의 actionArea에는 CREATE만 둔다
         // (ActionPlacement가 "등록 버튼(주요 액션)의 배치 위치"만 표현하는 것과 일치).
-        List<String> pageLevelActions = page.actions().stream().filter("CREATE"::equals).toList();
+        List<ScreenActionSpec> pageLevelActions = page.actions().stream()
+                .filter(action -> "CREATE".equals(action.command())).toList();
         children.add(BuilderSupport.actionArea(pageId, screenSpecification, pageLevelActions, idFactory));
 
         return new FigmaNodeSpec(
                 idFactory.page(pageId), FigmaNodeSpec.NodeType.PAGE, "egov.listPage",
-                Map.of("density", screenSpecification.layoutDensity().name()), children);
+                Map.of("density", screenSpecification.layoutDensity().name(),
+                        "layoutRecipe", "krds.listPage.v1", "contentMaxWidth", 1280,
+                        "contentMinWidth", 960, "sectionGap", 40), children);
     }
 
     private FigmaNodeSpec searchPanel(
@@ -73,11 +77,15 @@ public class ListFigmaScreenBuilder implements FigmaScreenBuilder {
     private FigmaNodeSpec dataTable(String pageId, List<ScreenFieldBinding> fields, LogicalNodeIdFactory idFactory) {
         List<ScreenFieldBinding> visible = fields.stream().filter(ScreenFieldBinding::visible).toList();
         List<ScreenFieldBinding> visibleFields = visible.size() >= 5 ? visible : fields.stream().limit(5).toList();
-        List<FigmaNodeSpec> mappedColumns = visibleFields.stream()
-                .map(field -> new FigmaNodeSpec(
+        List<FigmaNodeSpec> mappedColumns = java.util.stream.IntStream.range(0, visibleFields.size())
+                .mapToObj(index -> {
+                    ScreenFieldBinding field = visibleFields.get(index);
+                    return new FigmaNodeSpec(
                         idFactory.field(pageId, "table", field.id()), FigmaNodeSpec.NodeType.COMPONENT, "krds.tableCell",
                         Map.of("semanticRole", SemanticRole.DATA_TABLE_CELL.code(),
-                                "label", field.label(), "sortable", field.sortable()), List.of()))
+                                "label", field.label(), "sortable", field.sortable(),
+                                "columnWidthPercent", columnWidthPercent(index)), List.of());
+                })
                 .toList();
         List<FigmaNodeSpec> columns = new ArrayList<>(mappedColumns);
         for (int index = columns.size(); !columns.isEmpty() && index < 5; index++) {
@@ -85,7 +93,8 @@ public class ListFigmaScreenBuilder implements FigmaScreenBuilder {
                     idFactory.field(pageId, "table", "column-" + (index + 1)),
                     FigmaNodeSpec.NodeType.COMPONENT, "krds.tableCell",
                     Map.of("semanticRole", SemanticRole.DATA_TABLE_CELL.code(),
-                            "label", "컬럼 " + (index + 1), "sortable", false), List.of()));
+                            "label", "컬럼 " + (index + 1), "sortable", false,
+                            "columnWidthPercent", columnWidthPercent(index)), List.of()));
         }
         FigmaNodeSpec header = new FigmaNodeSpec(
                 idFactory.section(pageId, "table/header"), FigmaNodeSpec.NodeType.SECTION, "krds.dataTable.header",
@@ -120,5 +129,13 @@ public class ListFigmaScreenBuilder implements FigmaScreenBuilder {
                     return new FigmaNodeSpec(pageId + "/table/" + rowId + "/cell-" + (index + 1),
                             source.nodeType(), source.type(), source.properties(), source.children());
                 }).toList();
+    }
+
+    private int columnWidthPercent(int index) {
+        return switch (index) {
+            case 0 -> 8;
+            case 1 -> 32;
+            default -> 15;
+        };
     }
 }

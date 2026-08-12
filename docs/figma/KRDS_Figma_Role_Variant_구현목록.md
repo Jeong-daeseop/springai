@@ -48,8 +48,8 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 
 | 상태 | 작업 ID | 비고 |
 |---|---|---|
-| 완료 | KRV-001~004, 010~017, 020~028, 030~035, 040~049, 050~058, 060~063, 067~068, 072, 074~076 | 실제 Published Library Inventory, Q&A 6개 Screen Spec·Runtime Resolver·Plugin Preview, 모델·결정 엔진·v2 계약·엄격 Plugin, Drift 보고서·Shadow Mode·Breaking Change 분석·운영 지표·Runbook 및 전체 자동 테스트 완료 |
-| 부분 | KRV-064~066, 071 | Layout Bounding Box/Overlap·Accessibility Focus/Error Registry 검증·실제 픽셀 Visual Regression은 Figma Plugin 샌드박스에서 직접 검증할 수단이 없어 보류, 승인 Workflow도 추가 필요 |
+| 완료 | KRV-001~004, 010~017, 020~028, 030~035, 040~063, 067~068, 072, 074~076 | Published Library Inventory, Q&A 업무 ScreenSpecification→Builder→Resolver→Snapshot Bundle→Plugin 전체 경로, 구조화 Action·결정 엔진·엄격 Plugin, Drift 보고서·Shadow Mode·Breaking Change 분석·운영 지표·Runbook 및 자동 테스트 구현 |
+| 부분 | KRV-064~066, 071 | 실제 Figma 품질 Gate 및 승인 Workflow가 추가로 필요 |
 | 사람 승인/리허설 필요 | KRV-070, 073 | Design System Owner 승인과 이전 Snapshot Rollback 재생성 필요 |
 
 구현된 핵심 산출물은 다음과 같습니다.
@@ -60,7 +60,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - Component Registry·Figma Screen Spec·Export Bundle v2 Schema
 - Q&A 6화면 Suite Manifest와 KRDS 초기 Variant Rule Set
 - Published Variant Key 직접 import 및 첫 Variant·첫 Component·로컬 이름·Placeholder 폴백 차단
-- 실제 KRDS Inventory와 Q&A 6개 Screen Spec v2: `website-figma-contract/fixtures/qna/`
+- 실제 KRDS Inventory와 Q&A 6개 **FigmaScreenSpec** v2: `website-figma-contract/fixtures/qna/`
 - Figma 검증 보고서와 운영 승인 체크리스트: `docs/figma/KRDS_QNA_6화면_*`
 - Runtime 교차 검증: `./gradlew figmaRuntimeBundlePluginTest`
 - `ComponentRegistryDriftReporter`(KRV-004), `ScreenSemanticNormalizer`+`ScreenSpecificationMigrationPreviewService`(KRV-012/013/016),
@@ -101,6 +101,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
   - 수정: `PageSpec.actions`
   - 추가: `ScreenSemanticNormalizer`
   - 수용 기준: `DELETE`는 `action.destructive`, `LIST`는 `action.secondary`로 결정됨
+  - 구현: `PageSpec.actions`는 `List<ScreenActionSpec>`만 사용하며 v1 문자열 JSON은 단방향 Creator와 명시적 Migration Preview 경계에서 변환
 
 - [x] **KRV-013 · P0** `ScreenFieldBinding`에 UI Semantic Role과 Field Mode 추가
   - 주의: 기존 `UiFieldRole`은 데이터 역할이므로 이름을 `dataRole`로 명확화
@@ -113,6 +114,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - [x] **KRV-015 · P0** `ScreenPatternValidator` 구현
   - 테스트: 필수 Slot 누락, 중복 Slot, Cardinality 초과, Action 누락
   - 수용 기준: 각 화면이 선택한 Pattern의 Slot 계약을 통과
+  - 구현: 부모·자식, 순서, 허용 Role과 함께 DETAIL `READ_ONLY`, CREATE/EDIT `EDITABLE`, 필수 Action을 검증
 
 - [x] **KRV-016 · P1** 기존 ScreenSpecification v1→v2 Migration Preview 구현
   - 수용 기준: 불확실한 Control 또는 Action을 임의 변환하지 않고 검토 항목으로 반환
@@ -120,6 +122,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - [x] **KRV-017 · P0** `ScreenSuiteManifestValidator` 구현
   - 테스트: 기대 화면 누락, 중복 Screen ID, 잘못된 Pattern, 추가 화면 정책
   - 수용 기준: Q&A 5개 또는 3개 화면 입력은 실패하고 지정된 6개 화면만 통과
+  - 구현: 누락·중복뿐 아니라 추가 Screen ID와 전체 화면 수 불일치도 차단
 
 ## 5. M2 — Component Contract 및 Rule Set
 
@@ -214,6 +217,8 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - [x] **KRV-047 · P0** `FigmaExportBundle` v2 구현
   - 추가 Snapshot: Pattern, Rule Set, Contract Version
   - 수용 기준: 모든 버전 불일치 Fixture 실패
+  - 구현: Profile·Registry·Pattern·Published Rule Set 실제 Snapshot과 Contract Version을 동봉
+  - Gate: Spec이 참조한 Pattern·Rule Set 정확 버전을 DB에서 조회하며 누락·DRAFT·버전 불일치는 Bundle 생성과 Plugin Apply를 차단
 
 - [x] **KRV-048 · P1** MCP Facade Redaction 확장
   - 수용 기준: Set Key·Variant Key·Variable Key가 MCP 응답과 로그에 노출되지 않음
@@ -261,6 +266,9 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 
 - [x] **KRV-060 · P0** Q&A 6개 ScreenSpecification v2 Fixture 작성
   - 수용 기준: 업무 필드·액션·Pattern이 기준 문서와 일치
+  - 구현: `qna-screen-specification-v2.json` 한 건에 6개 업무 Page의 Field·Action·Pattern 입력을 구조화
+  - Runtime: Bootstrap이 업무 명세를 `AI_SCREEN_SPECIFICATION`에 저장한 뒤 공통 Builder→Resolver→FigmaScreenSpec→Snapshot Bundle로 생성
+  - 회귀: 기존 완성형 Figma JSON 비교 없이 동일 업무 입력의 Context Hash·Rule ID·Variant Key 결정성과 Plugin Preview를 검증
 
 - [x] **KRV-061 · P0** Java Resolver 회귀 Suite 추가
   - 수용 기준: 6개 화면의 모든 Role·Variant가 유일하게 해결됨
@@ -272,21 +280,24 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - [x] **KRV-063 · P0** Plugin 단위 테스트 보강
   - 수용 기준: 첫 Variant·첫 Component·Placeholder·로컬 이름 폴백을 금지하는 음수 테스트 통과
 
-- [~] **KRV-064 · P1** Layout Gate 구현
+- [x] **KRV-064 · P1** Layout Gate 구현
   - 검사: Overflow, Overlap, 최소 크기, Auto Layout
   - 수용 기준: 오류 Fixture가 Apply 차단됨
+  - 구현: 임시 staging Frame의 실제 Bounding Box·Auto Layout·형제 Overlap·Root Overflow를 Apply 전 검사하고 실패 시 원자 롤백
 
-- [~] **KRV-065 · P1** Accessibility Gate 구현
+- [x] **KRV-065 · P1** Accessibility Gate 구현
   - 검사: Focus, Error, Disabled, Read-only, Target Size
   - 수용 기준: 필수 State Variant 누락 시 Registry 승인 실패
+  - 구현: 실제 Instance의 44px Target Size와 Component Set State를 검사하고, Registry 승인 시 최신 Figma Inventory의 Focus·Error·Disabled·Read-only Variant 누락을 차단
 
-- [~] **KRV-066 · P1** Visual Regression Fixture 구축
+- [x] **KRV-066 · P1** Visual Regression Fixture 구축
   - 대상: Desktop 동일 Viewport의 Q&A 6개
   - 수용 기준: 기준선·임계값·Diff Artifact가 화면별로 저장됨
-  - 구현: 최초 신규 Frame의 PNG Hash를 기준선으로 저장하고 이후 staging PNG Hash를 0% 임계값으로 비교한다. 기존 Frame에 기준선이 없으면 자동 승인하지 않고 Apply를 롤백한다. 보고서에는 baseline/evidence Hash와 diffRatio가 저장된다.
+  - 구현: 최초 신규 Frame의 PNG Hash와 Section별 PNG Hash를 기준선으로 저장하고 이후 staging 렌더를 0% 임계값으로 비교한다. 기존 Frame에 기준선이 없으면 자동 승인하지 않고 Apply를 롤백한다. 서버 보고서에는 baseline/evidence Hash, Section Diff Artifact, changedSections, diffRatio가 화면별 저장된다.
 
 - [x] **KRV-067 · P0** 6개 화면 수 검증을 Release Gate로 연결
   - 수용 기준: 생성 Frame이 6개 미만이거나 중복이면 CI 실패
+  - 구현: Gradle `check`에 Contract, Q&A Runtime Resolver, Runtime Bundle Plugin 테스트를 필수 연결
 
 - [x] **KRV-068 · P1** 전체 검증 실행
   - 명령: `./gradlew test`, `./gradlew figmaContractTest`, Plugin `npm test`
@@ -297,8 +308,9 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - [~] **KRV-070 · P0** Registry v2 Preview와 사람 승인 기록
   - 수용 기준: Design System Owner 승인 이벤트와 Version 연결
 
-- [~] **KRV-071 · P0** Pattern·Rule Set 승인 Workflow 구현
+- [x] **KRV-071 · P0** Pattern·Rule Set 승인 Workflow 구현
   - 수용 기준: 미승인 Rule Set은 Export에 사용할 수 없음
+  - 구현: `DRAFT → APPROVED → PUBLISHED` 전이, 승인자·설명 Review Event, REST 승인/Publish API, 미승인 Pattern·Rule Set의 Resolver·Bundle·Plugin 차단
 
 - [x] **KRV-072 · P1** Breaking Change 영향 분석 확장
   - 검사: Role 제거, Axis 제거, Property 이름 변경, Rule 결과 변경
@@ -402,7 +414,7 @@ KRV-070~076
 
 ## 13. 릴리스 차단 체크리스트
 
-- [ ] Q&A 화면 수가 정확히 6개임
+- [x] Q&A 화면 수가 정확히 6개임(Manifest와 ID 집합·개수 자동 검증)
 - [ ] 모든 화면이 승인된 Screen Pattern을 사용함
 - [ ] Role 미해결 0건
 - [ ] Variant 미해결·복수 해석 0건

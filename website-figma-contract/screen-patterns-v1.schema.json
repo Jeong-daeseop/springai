@@ -23,6 +23,7 @@
       "properties": {
         "pattern": {"enum": ["crud.list", "crud.detail", "crud.create", "crud.edit"]},
         "version": {"type": "string", "minLength": 1},
+        "status": {"enum": ["DRAFT", "APPROVED", "PUBLISHED", "SUPERSEDED"]},
         "slots": {"type": "array", "items": {"$ref": "#/$defs/slot"}}
       }
     },

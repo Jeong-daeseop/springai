@@ -26,7 +26,9 @@ public class ScreenSuiteManifestValidator {
             if (actual.putIfAbsent(screen.screenId(), screen.pattern()) != null) duplicates.add(screen.screenId());
         }
         duplicates.forEach(id -> issues.add(issue("DUPLICATE_SCREEN_ID", "Screen ID가 중복되었습니다: " + id, id)));
+        Set<String> expectedIds = new HashSet<>();
         for (ScreenSuiteManifest.ExpectedScreen expected : manifest.screens()) {
+            expectedIds.add(expected.screenId());
             ScreenPattern pattern = actual.get(expected.screenId());
             if (expected.required() && pattern == null) {
                 issues.add(issue("REQUIRED_SCREEN_MISSING", "필수 화면이 누락되었습니다: " + expected.screenId(),
@@ -35,6 +37,16 @@ public class ScreenSuiteManifestValidator {
                 issues.add(issue("SCREEN_PATTERN_MISMATCH",
                         expected.screenId() + "의 Pattern이 다릅니다: " + pattern.code(), expected.screenId()));
             }
+        }
+        actual.keySet().stream()
+                .filter(id -> !expectedIds.contains(id))
+                .sorted()
+                .forEach(id -> issues.add(issue("UNEXPECTED_SCREEN_ID",
+                        "Manifest에 정의되지 않은 화면입니다: " + id, id)));
+        if (actualScreens != null && actualScreens.size() != manifest.screens().size()) {
+            issues.add(issue("SCREEN_SUITE_COUNT_MISMATCH",
+                    "화면 수가 Manifest와 다릅니다: expected=" + manifest.screens().size()
+                            + ", actual=" + actualScreens.size(), null));
         }
         return List.copyOf(issues);
     }

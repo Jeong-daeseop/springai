@@ -7,6 +7,10 @@ import com.krdevops.springai.model.designsystem.FigmaReviewEvent;
 import com.krdevops.springai.model.designsystem.FigmaLibraryInventorySnapshot;
 import com.krdevops.springai.mapper.FigmaLibraryInventoryRepository;
 import com.krdevops.springai.service.designsystem.DesignSystemQueryService;
+import com.krdevops.springai.service.designsystem.FigmaContractApprovalService;
+import com.krdevops.springai.model.design.role.ScreenPattern;
+import com.krdevops.springai.model.designsystem.ScreenPatternDefinition;
+import com.krdevops.springai.model.designsystem.VariantRuleSet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,6 +30,31 @@ public class DesignSystemController {
 
     private final DesignSystemQueryService queryService;
     private final FigmaLibraryInventoryRepository inventoryRepository;
+    private final FigmaContractApprovalService contractApprovalService;
+
+    @PostMapping("/patterns/{pattern}/versions/{version}/approve")
+    public ScreenPatternDefinition approvePattern(@PathVariable ScreenPattern pattern, @PathVariable String version,
+            @RequestBody ApprovalRequest request) {
+        return contractApprovalService.approvePattern(pattern, version, request.actor(), request.comment());
+    }
+
+    @PostMapping("/patterns/{pattern}/versions/{version}/publish")
+    public ScreenPatternDefinition publishPattern(@PathVariable ScreenPattern pattern, @PathVariable String version,
+            @RequestBody ApprovalRequest request) {
+        return contractApprovalService.publishPattern(pattern, version, request.actor(), request.comment());
+    }
+
+    @PostMapping("/rule-sets/{id}/versions/{version}/approve")
+    public VariantRuleSet approveRuleSet(@PathVariable String id, @PathVariable String version,
+            @RequestBody ApprovalRequest request) {
+        return contractApprovalService.approveRuleSet(id, version, request.actor(), request.comment());
+    }
+
+    @PostMapping("/rule-sets/{id}/versions/{version}/publish")
+    public VariantRuleSet publishRuleSet(@PathVariable String id, @PathVariable String version,
+            @RequestBody ApprovalRequest request) {
+        return contractApprovalService.publishRuleSet(id, version, request.actor(), request.comment());
+    }
 
     /** Author Plugin/Figma 수집 결과를 불변 Inventory Snapshot으로 등록한다. */
     @PostMapping("/{profileId}/registries/{registryVersion}/inventory")
@@ -177,6 +206,8 @@ public class DesignSystemController {
             String registryVersion,
             List<String> requiredLogicalTypes
     ) {}
+
+    public record ApprovalRequest(String actor, String comment) {}
 
     private void requireSameProfile(String profileId, ComponentRegistry registry) {
         if (!profileId.equals(registry.profileId())) {

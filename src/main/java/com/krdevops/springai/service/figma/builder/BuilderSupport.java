@@ -1,11 +1,11 @@
 package com.krdevops.springai.service.figma.builder;
 
 import com.krdevops.springai.model.design.ScreenFieldBinding;
+import com.krdevops.springai.model.design.ScreenActionSpec;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.role.SemanticRole;
 import com.krdevops.springai.model.figma.FigmaNodeSpec;
 import com.krdevops.springai.service.figma.LogicalNodeIdFactory;
-import com.krdevops.springai.service.figma.ScreenSemanticNormalizer;
 
 import java.util.List;
 import java.util.Map;
@@ -25,7 +25,7 @@ final class BuilderSupport {
     }
 
     static FigmaNodeSpec actionArea(
-            String pageId, ScreenSpecification screenSpecification, List<String> actions, LogicalNodeIdFactory idFactory) {
+            String pageId, ScreenSpecification screenSpecification, List<ScreenActionSpec> actions, LogicalNodeIdFactory idFactory) {
         List<FigmaNodeSpec> buttons = actions.stream()
                 .map(action -> actionButton(pageId, action, idFactory))
                 .toList();
@@ -34,11 +34,9 @@ final class BuilderSupport {
                 Map.of("placement", screenSpecification.actionPlacement().name()), buttons);
     }
 
-    static FigmaNodeSpec actionButton(String pageId, String action, LogicalNodeIdFactory idFactory) {
-        com.krdevops.springai.model.design.ScreenActionSpec semanticAction =
-                new ScreenSemanticNormalizer().action(action);
+    static FigmaNodeSpec actionButton(String pageId, ScreenActionSpec semanticAction, LogicalNodeIdFactory idFactory) {
         return new FigmaNodeSpec(
-                idFactory.action(pageId, action), FigmaNodeSpec.NodeType.COMPONENT, "krds.button",
+                idFactory.action(pageId, semanticAction.command()), FigmaNodeSpec.NodeType.COMPONENT, "krds.button",
                 Map.of("semanticRole", semanticAction.role().code(),
                         "actionType", semanticAction.command(),
                         "label", semanticAction.label(),

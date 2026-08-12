@@ -94,7 +94,7 @@ class FigmaScreenExportArtifactIntegrationTest {
 
     private ScreenSpecification specification() {
         PageSpec page = new PageSpec(
-                "user-list", "CRUD_LIST", List.of(), List.of("CREATE"));
+                "user-list", "CRUD_LIST", List.of(), PageSpec.migrateActions("CREATE"));
         return new ScreenSpecification(
                 "spec-user", 1, ScreenSpecStatus.APPROVED,
                 "사용자 목록", "CRUD", "CRUD_LIST", "com", "USERS",

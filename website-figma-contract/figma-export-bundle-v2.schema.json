@@ -3,7 +3,7 @@
   "$id": "https://schemas.krdevops.local/figma-export-bundle-v2",
   "type": "object",
   "additionalProperties": false,
-  "required": ["figmaScreenSpec", "designSystemProfile", "componentRegistry", "metadata"],
+  "required": ["figmaScreenSpec", "designSystemProfile", "componentRegistry", "screenPattern", "variantRuleSet", "metadata"],
   "properties": {
     "figmaScreenSpec": {"$ref": "https://schemas.krdevops.local/figma-screen-spec-v2"},
     "designSystemProfile": {
@@ -17,6 +17,20 @@
       "type": "object", "additionalProperties": false, "required": ["registry", "snapshotAt"],
       "properties": {
         "registry": {"$ref": "https://schemas.krdevops.local/component-registry-v2"},
+        "snapshotAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "screenPattern": {
+      "type": "object", "additionalProperties": false, "required": ["pattern", "snapshotAt"],
+      "properties": {
+        "pattern": {"$ref": "https://schemas.krdevops.local/screen-patterns-v1#/$defs/pattern"},
+        "snapshotAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "variantRuleSet": {
+      "type": "object", "additionalProperties": false, "required": ["ruleSet", "snapshotAt"],
+      "properties": {
+        "ruleSet": {"$ref": "https://schemas.krdevops.local/variant-rule-set-v1"},
         "snapshotAt": {"type": "string", "format": "date-time"}
       }
     },
