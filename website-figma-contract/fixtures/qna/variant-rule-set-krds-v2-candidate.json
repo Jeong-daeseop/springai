@@ -1,0 +1,24 @@
+{
+  "id": "krds-role-variant",
+  "version": "2.0.0-candidate",
+  "profileId": "krds",
+  "registryVersion": "2.1.0",
+  "status": "DRAFT",
+  "rules": [
+    {"ruleId":"search-panel-default","priority":100,"role":"search.panel","when":{"pattern":"crud.list","platform":"DESKTOP"},"result":{"size":"Medium","state":"Default"}},
+    {"ruleId":"table-cell-body","priority":100,"role":"data.table.cell","when":{"pattern":"crud.list","platform":"DESKTOP"},"result":{"type":"Body"}},
+
+    {"ruleId":"text-editable","priority":100,"role":"field.text","when":{"mode":"EDITABLE","platform":"DESKTOP"},"result":{"size":"Medium","state":"Default"}},
+    {"ruleId":"text-readonly","priority":100,"role":"field.text","when":{"mode":"READ_ONLY","platform":"DESKTOP"},"result":{"size":"Medium","state":"ReadOnly"}},
+    {"ruleId":"textarea-editable","priority":100,"role":"field.textarea","when":{"mode":"EDITABLE","platform":"DESKTOP"},"result":{"state":"Default"}},
+    {"ruleId":"textarea-readonly","priority":100,"role":"field.textarea","when":{"mode":"READ_ONLY","platform":"DESKTOP"},"result":{"state":"ReadOnly"}},
+    {"ruleId":"select-editable","priority":100,"role":"field.select","when":{"mode":"EDITABLE","platform":"DESKTOP"},"result":{"size":"Medium","state":"Default"}},
+    {"ruleId":"select-readonly","priority":100,"role":"field.select","when":{"mode":"READ_ONLY","platform":"DESKTOP"},"result":{"size":"Medium","state":"ReadOnly"}},
+    {"ruleId":"checkbox-editable","priority":100,"role":"field.checkbox","when":{"mode":"EDITABLE","platform":"DESKTOP"},"result":{"size":"Medium","check":"Off","state":"Default"}},
+    {"ruleId":"checkbox-readonly","priority":100,"role":"field.checkbox","when":{"mode":"READ_ONLY","platform":"DESKTOP"},"result":{"size":"Medium","check":"Off","state":"ReadOnly"}},
+
+    {"ruleId":"action-primary","priority":100,"role":"action.primary","when":{"state":"DEFAULT","platform":"DESKTOP"},"result":{"type":"Primary","size":"Medium","state":"Default"}},
+    {"ruleId":"action-secondary","priority":100,"role":"action.secondary","when":{"state":"DEFAULT","platform":"DESKTOP"},"result":{"type":"Secondary","size":"Medium","state":"Default"}},
+    {"ruleId":"action-destructive","priority":100,"role":"action.destructive","when":{"state":"DEFAULT","platform":"DESKTOP"},"result":{"type":"Tertiary","size":"Medium","state":"Default"}}
+  ]
+}

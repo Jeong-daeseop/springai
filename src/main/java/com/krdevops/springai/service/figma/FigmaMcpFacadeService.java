@@ -31,7 +31,7 @@ public class FigmaMcpFacadeService {
 
     public String generateScreen(FigmaScreenExportRequest request) {
         FigmaExportResult result = exportService.export(request);
-        return toJson(result);
+        return toRedactedJson(result);
     }
 
     public String validateScreen(String screenId, Integer version) {
@@ -70,6 +70,29 @@ public class FigmaMcpFacadeService {
             return objectMapper.writeValueAsString(value);
         } catch (Exception exception) {
             throw new IllegalStateException("Figma MCP 응답 직렬화에 실패했습니다.", exception);
+        }
+    }
+
+    /** MCP 채널에서는 Published Component/Variant/Variable Key를 구조적으로 제거한다. */
+    private String toRedactedJson(Object value) {
+        try {
+            com.fasterxml.jackson.databind.JsonNode root = objectMapper.valueToTree(value);
+            redactKeys(root);
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Figma MCP 응답 정제에 실패했습니다.", exception);
+        }
+    }
+
+    private void redactKeys(com.fasterxml.jackson.databind.JsonNode node) {
+        if (node == null) return;
+        if (node.isObject()) {
+            com.fasterxml.jackson.databind.node.ObjectNode object =
+                    (com.fasterxml.jackson.databind.node.ObjectNode) node;
+            object.remove(java.util.List.of("componentSetKey", "variantKey", "variableKey"));
+            object.elements().forEachRemaining(this::redactKeys);
+        } else if (node.isArray()) {
+            node.elements().forEachRemaining(this::redactKeys);
         }
     }
 

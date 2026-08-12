@@ -1,0 +1,11 @@
+{
+  "suiteId": "qna-six-screens", "version": "1.0.0",
+  "screens": [
+    {"screenId":"qna-list","pattern":"crud.list","required":true,"viewport":"DESKTOP","requiredRoles":["page.header","search.panel","data.table","data.pagination","action.primary"],"fields":["number","title","writer","createdAt","status","answerStatus"],"actions":["SEARCH","CREATE"]},
+    {"screenId":"qna-create","pattern":"crud.create","required":true,"viewport":"DESKTOP","requiredRoles":["page.header","form.container","form.section","field.text","field.textarea","field.checkbox","action.primary"],"fields":["contact","email","private","title","content"],"actions":["CREATE","LIST"]},
+    {"screenId":"qna-detail","pattern":"crud.detail","required":true,"viewport":"DESKTOP","requiredRoles":["page.header","form.section","field.text","action.secondary","action.destructive"],"fields":["writer","contact","email","title","content","createdAt"],"actions":["UPDATE","DELETE","LIST"]},
+    {"screenId":"qna-answer-list","pattern":"crud.list","required":true,"viewport":"DESKTOP","requiredRoles":["page.header","search.panel","data.table","data.pagination"],"fields":["number","title","writer","createdAt","status","answerStatus"],"actions":["SEARCH"]},
+    {"screenId":"qna-answer-detail","pattern":"crud.detail","required":true,"viewport":"DESKTOP","requiredRoles":["page.header","form.section","field.text","action.secondary"],"fields":["question","writer","title","content","status"],"actions":["CREATE","LIST"]},
+    {"screenId":"qna-answer-create","pattern":"crud.create","required":true,"viewport":"DESKTOP","requiredRoles":["page.header","form.container","form.section","field.text","field.select","field.textarea","action.primary"],"fields":["question","writer","status","answer"],"actions":["CREATE","LIST"]}
+  ]
+}

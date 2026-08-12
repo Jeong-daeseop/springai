@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/figma-screen-spec-v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["screenId", "screenVersion", "screenSpecificationId", "screenSpecificationVersion", "screenType", "layoutPattern", "name", "viewport", "status", "designSystem", "content", "issues", "semanticPattern", "screenPatternVersion", "variantRuleSetVersion", "componentContractVersion"],
+  "properties": {
+    "screenId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "screenVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/positiveVersion"},
+    "screenSpecificationId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "screenSpecificationVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/positiveVersion"},
+    "screenType": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/screenType"},
+    "layoutPattern": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/layoutPattern"},
+    "name": {"type": "string", "minLength": 1},
+    "route": {"type": ["string", "null"]},
+    "viewport": {"type": "string", "minLength": 1},
+    "status": {"enum": ["DRAFT", "REVIEW_REQUIRED", "APPROVED", "SUPERSEDED"]},
+    "semanticPattern": {"enum": ["crud.list", "crud.detail", "crud.create", "crud.edit"]},
+    "screenPatternVersion": {"type": "string", "minLength": 1},
+    "variantRuleSetVersion": {"type": "string", "minLength": 1},
+    "componentContractVersion": {"type": "string", "minLength": 1},
+    "designSystem": {"$ref": "#/$defs/designSystem"},
+    "content": {"$ref": "#/$defs/node"},
+    "issues": {"type": "array", "items": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/figmaIssue"}}
+  },
+  "$defs": {
+    "designSystem": {
+      "type": "object", "additionalProperties": false,
+      "required": ["profileId", "profileVersion", "registryVersion"],
+      "properties": {
+        "profileId": {"type": "string", "minLength": 1},
+        "profileVersion": {"type": "string", "minLength": 1},
+        "registryVersion": {"type": "string", "minLength": 1}
+      }
+    },
+    "node": {
+      "type": "object", "additionalProperties": false,
+      "required": ["logicalNodeId", "nodeType", "type", "properties", "children"],
+      "properties": {
+        "logicalNodeId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/logicalNodeId"},
+        "nodeType": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/nodeType"},
+        "type": {"type": "string", "minLength": 1},
+        "properties": {"type": "object"},
+        "componentResolution": {"$ref": "#/$defs/resolution"},
+        "children": {"type": "array", "items": {"$ref": "#/$defs/node"}}
+      }
+    },
+    "resolution": {
+      "type": "object", "additionalProperties": false,
+      "required": ["role", "logicalType", "componentSetKey", "variantKey", "variantProperties", "componentProperties", "contractVersion", "ruleSetVersion", "contextHash"],
+      "properties": {
+        "role": {"type": "string", "pattern": "^[a-z]+\\.[a-z.]+$"},
+        "logicalType": {"type": "string", "minLength": 1},
+        "componentSetKey": {"type": "string", "minLength": 1},
+        "variantKey": {"type": "string", "minLength": 1},
+        "variantProperties": {"type": "object", "additionalProperties": {"type": "string"}},
+        "componentProperties": {"type": "object"},
+        "contractVersion": {"type": "string", "minLength": 1},
+        "ruleSetVersion": {"type": "string", "minLength": 1},
+        "ruleId": {"type": ["string", "null"]},
+        "contextHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    }
+  }
+}

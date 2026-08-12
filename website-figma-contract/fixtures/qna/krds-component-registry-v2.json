@@ -1,0 +1,202 @@
+{
+  "profileId": "krds",
+  "profileVersion": "2.0.0",
+  "registryVersion": "2.1.0",
+  "library": {"fileKey": "KRDS_PUBLISHED_LIBRARY", "name": "KRDS v1.0.0 Community"},
+  "components": {
+    "krds.pageHeader": {
+      "componentSetKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980",
+      "componentName": "Page Header",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["egov.pageHeader"],
+      "variants": {"Default": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980"},
+      "properties": {"title": {"figmaProperty": "Title#259:4", "type": "TEXT", "values": {}}},
+      "roles": ["page.header"], "supportedPlatforms": ["DESKTOP"], "variantAxes": {},
+      "requiredProperties": ["title"], "codeComponent": "PageHeader", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    },
+    "krds.searchPanel": {
+      "componentSetKey": "53fbd1d332750b3f631bdd7330ebc0a73f389afe",
+      "componentName": "search__pc",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["egov.searchPanel", "search__pc"],
+      "variants": {"Size=medium, State=default": "f2ca6ba8381fa38c0a6bdc24bea228cf55623bec"},
+      "properties": {
+        "size": {"figmaProperty": "Size", "type": "VARIANT", "values": {"Medium": "medium"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default"}},
+        "label": {"figmaProperty": "Lable#723:0", "type": "TEXT", "values": {}},
+        "placeholder": {"figmaProperty": "↪️Hint#1275:39", "type": "TEXT", "values": {}}
+      },
+      "roles": ["search.panel"], "supportedPlatforms": ["DESKTOP"],
+      "variantAxes": {
+        "size": {"logicalName": "size", "figmaProperty": "Size", "allowedValues": ["medium"], "required": true},
+        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default"], "required": true}
+      },
+      "requiredProperties": ["size", "state"], "codeComponent": "KrdsSearch", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    },
+    "krds.tableHeader": {
+      "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+      "componentName": "table",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["egov.dataTable"],
+      "variants": {"Type=title": "967bbe40067ab6cc457fd7dc6c94abe7f44d063e"},
+      "properties": {
+        "type": {"figmaProperty": "Type", "type": "VARIANT", "values": {"Title": "title"}},
+        "label": {"figmaProperty": "Title#288:19", "type": "TEXT", "values": {}}
+      },
+      "roles": ["data.table"], "supportedPlatforms": ["DESKTOP"],
+      "variantAxes": {"type": {"logicalName": "type", "figmaProperty": "Type", "allowedValues": ["title"], "required": true}},
+      "requiredProperties": ["type"], "codeComponent": "KrdsTable", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    },
+    "krds.tableCell": {
+      "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+      "componentName": "table",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["table.body"],
+      "variants": {"Type=body": "5e56406b21518d3ae03b4f77f69e4c8849da290b"},
+      "properties": {
+        "type": {"figmaProperty": "Type", "type": "VARIANT", "values": {"Body": "body"}},
+        "label": {"figmaProperty": "Body#288:22", "type": "TEXT", "values": {}}
+      },
+      "roles": ["data.table.cell"], "supportedPlatforms": ["DESKTOP"],
+      "variantAxes": {"type": {"logicalName": "type", "figmaProperty": "Type", "allowedValues": ["body"], "required": true}},
+      "requiredProperties": ["type", "label"], "codeComponent": "KrdsTableCell", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    },
+    "krds.pagination": {
+      "componentSetKey": "0bd34989017991e94c73147e823ef53a6aaac39f",
+      "componentName": "pagination__pc",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["pagination"],
+      "variants": {"Default": "0bd34989017991e94c73147e823ef53a6aaac39f"},
+      "properties": {}, "roles": ["data.pagination"], "supportedPlatforms": ["DESKTOP"],
+      "variantAxes": {}, "requiredProperties": [], "codeComponent": "KrdsPagination", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    },
+    "krds.textField": {
+      "componentSetKey": "e2643d821fe50580f30fd5d0378ad7e486543da6",
+      "componentName": "text_input",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["text_input"],
+      "variants": {
+        "Size=medium, State=default": "f5e5a8b6e88dc45eb7357bd59c829c44bc47a198",
+        "Size=medium, State=view": "70b0b3a31a84cc0ddc9e7e25fb820fed829dcb51",
+        "Size=medium, State=disabled": "d89441c9a515df790068ceec3a555198ca17a980"
+      },
+      "properties": {
+        "size": {"figmaProperty": "Size", "type": "VARIANT", "values": {"Medium": "medium"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "ReadOnly": "view", "Disabled": "disabled"}},
+        "label": {"figmaProperty": "↪️Label#286:10", "type": "TEXT", "values": {}},
+        "placeholder": {"figmaProperty": "Placeholder#286:9", "type": "TEXT", "values": {}}
+      },
+      "roles": ["field.text"], "supportedPlatforms": ["DESKTOP"],
+      "variantAxes": {
+        "size": {"logicalName": "size", "figmaProperty": "Size", "allowedValues": ["medium"], "required": true},
+        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "view", "disabled"], "required": true}
+      },
+      "requiredProperties": ["size", "state", "label"], "codeComponent": "KrdsTextInput", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    },
+    "krds.textarea": {
+      "componentSetKey": "f49c48fc96dc5454fa59f17cc937a87a9f986ba6",
+      "componentName": "text_area",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["text_area"],
+      "variants": {
+        "State=default": "14b0380446ab18714fad10cfd534f5121db21961",
+        "State=view": "7f943e02f1d0ea140be2185ced5505b9eedb9d3b",
+        "State=disabled": "c197bf0b5d8369c570cdef83416fcbf9e55d593b"
+      },
+      "properties": {
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "ReadOnly": "view", "Disabled": "disabled"}},
+        "label": {"figmaProperty": "Label#286:10", "type": "TEXT", "values": {}},
+        "placeholder": {"figmaProperty": "Placeholder#286:9", "type": "TEXT", "values": {}}
+      },
+      "roles": ["field.textarea"], "supportedPlatforms": ["DESKTOP"],
+      "variantAxes": {"state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "view", "disabled"], "required": true}},
+      "requiredProperties": ["state", "label"], "codeComponent": "KrdsTextarea", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    },
+    "krds.select": {
+      "componentSetKey": "69ac27b250e29b249f408e70a7f72f6422206d66",
+      "componentName": "selectbox",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["selectbox"],
+      "variants": {
+        "Size=medium, State=default": "6639d03b0d456bdec58887cc6432fc87a4b71d3d",
+        "Size=medium, State=view": "60017aee674a2431ce9a5d4787d3b759ace45e0c",
+        "Size=medium, State=disabled": "b8ebc799019188f41b46c5a9cbb2784469d24414"
+      },
+      "properties": {
+        "size": {"figmaProperty": "Size", "type": "VARIANT", "values": {"Medium": "medium"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "ReadOnly": "view", "Disabled": "disabled"}},
+        "label": {"figmaProperty": "↪️Label#286:10", "type": "TEXT", "values": {}},
+        "placeholder": {"figmaProperty": "Placeholder#286:9", "type": "TEXT", "values": {}}
+      },
+      "roles": ["field.select"], "supportedPlatforms": ["DESKTOP"],
+      "variantAxes": {
+        "size": {"logicalName": "size", "figmaProperty": "Size", "allowedValues": ["medium"], "required": true},
+        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "view", "disabled"], "required": true}
+      },
+      "requiredProperties": ["size", "state", "label"], "codeComponent": "KrdsSelect", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    },
+    "krds.checkbox": {
+      "componentSetKey": "68dac165ea6ccd639de85b07d6b49aadc0705d63",
+      "componentName": "checkbox",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["checkbox"],
+      "variants": {
+        "Size=medium, Check=off, State=default": "d08d126d452337d136243acf20c098b6bca708d8",
+        "Size=medium, Check=on, State=default": "4d0fe9a3b0dc63a0e3754685b33b46ac369e0224",
+        "Size=medium, Check=off, State=disabled": "1ffa7a239c34f27dd331b63596bad846c473ef7b"
+      },
+      "properties": {
+        "size": {"figmaProperty": "Size", "type": "VARIANT", "values": {"Medium": "medium"}},
+        "check": {"figmaProperty": "Check", "type": "VARIANT", "values": {"Off": "off", "On": "on"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "ReadOnly": "disabled", "Disabled": "disabled"}},
+        "label": {"figmaProperty": "label#309:0", "type": "TEXT", "values": {}}
+      },
+      "roles": ["field.checkbox"], "supportedPlatforms": ["DESKTOP"],
+      "variantAxes": {
+        "size": {"logicalName": "size", "figmaProperty": "Size", "allowedValues": ["medium"], "required": true},
+        "check": {"logicalName": "check", "figmaProperty": "Check", "allowedValues": ["off", "on"], "required": true},
+        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "disabled"], "required": true}
+      },
+      "requiredProperties": ["size", "check", "state", "label"], "codeComponent": "KrdsCheckbox", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    },
+    "krds.button": {
+      "componentSetKey": "104d078e1895f788a91cfc8c42073fe6bc85e77a",
+      "componentName": "button",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["button"],
+      "variants": {
+        "Type=primary, Size=medium, State=default": "e280ccbaae3e95099a298e208126f5abbff2f730",
+        "Type=secondary, Size=medium, State=default": "189eeeae1c3236f83674729b1e2f6873e44e2386",
+        "Type=tertiary, Size=medium, State=default": "c256f2b3dec80952e543d62f93a892bb2c0cb2e7"
+      },
+      "properties": {
+        "type": {"figmaProperty": "Type", "type": "VARIANT", "values": {"Primary": "primary", "Secondary": "secondary", "Tertiary": "tertiary"}},
+        "size": {"figmaProperty": "Size", "type": "VARIANT", "values": {"Medium": "medium"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default"}},
+        "label": {"figmaProperty": "Label#300:3", "type": "TEXT", "values": {}}
+      },
+      "roles": ["action.primary", "action.secondary", "action.destructive"], "supportedPlatforms": ["DESKTOP"],
+      "variantAxes": {
+        "type": {"logicalName": "type", "figmaProperty": "Type", "allowedValues": ["primary", "secondary", "tertiary"], "required": true},
+        "size": {"logicalName": "size", "figmaProperty": "Size", "allowedValues": ["medium"], "required": true},
+        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default"], "required": true}
+      },
+      "requiredProperties": ["type", "size", "state", "label"], "codeComponent": "KrdsButton", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    }
+  },
+  "variables": {
+    "color.background": {"variableKey":"7c781ed87f97205faa6cdca62f0cd4379376b486","variableName":"color.background","collectionKey":null,"collectionName":null,"resolvedType":"COLOR","publishStatus":"CURRENT"},
+    "color.text.default": {"variableKey":"f89e2cd27f3998f3568d59faa7e756c268a34bea","variableName":"color.text.default","collectionKey":null,"collectionName":null,"resolvedType":"COLOR","publishStatus":"CURRENT"},
+    "radius.md": {"variableKey":"c9e65411233dca4e0b14c62b5e429e172c274830","variableName":"radius.md","collectionKey":null,"collectionName":null,"resolvedType":"FLOAT","publishStatus":"CURRENT"}
+  }
+}

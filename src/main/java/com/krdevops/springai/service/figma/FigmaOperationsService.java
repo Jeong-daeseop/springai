@@ -45,7 +45,38 @@ public class FigmaOperationsService {
             throw new IllegalArgumentException(
                     "보고서 화면 버전과 포함된 FigmaScreenSpec이 일치하지 않습니다.");
         }
+        validateQualityGates(report);
         return reportRepository.saveImmutable(report);
+    }
+
+    private void validateQualityGates(FigmaGenerationReport report) {
+        if (!report.success()) return; // 실패 보고서는 원인 증적 보존을 위해 그대로 저장한다.
+        java.util.Map<FigmaGenerationReport.Gate, FigmaGenerationReport.QualityGateResult> gates =
+                new java.util.EnumMap<>(FigmaGenerationReport.Gate.class);
+        for (var gate : report.qualityGates()) {
+            if (gates.put(gate.gate(), gate) != null) {
+                throw new IllegalArgumentException("중복 품질 Gate입니다: " + gate.gate());
+            }
+        }
+        for (var required : FigmaGenerationReport.Gate.values()) {
+            var result = gates.get(required);
+            if (result == null) throw new IllegalArgumentException("필수 품질 Gate가 없습니다: " + required);
+            if (result.status() == FigmaGenerationReport.GateStatus.FAILED) {
+                throw new IllegalArgumentException("품질 Gate 실패 보고서는 success일 수 없습니다: " + required);
+            }
+        }
+        var visual = gates.get(FigmaGenerationReport.Gate.VISUAL_REGRESSION);
+        if (visual.evidenceHash() == null || visual.evidenceHash().isBlank()) {
+            throw new IllegalArgumentException("Visual Regression evidenceHash가 없습니다.");
+        }
+        if (visual.status() == FigmaGenerationReport.GateStatus.PASSED
+                && (visual.baselineHash() == null || visual.baselineHash().isBlank())) {
+            throw new IllegalArgumentException("Visual Regression 기준선 Hash가 없습니다.");
+        }
+        if (visual.diffRatio() == null || visual.threshold() == null
+                || visual.diffRatio() > visual.threshold()) {
+            throw new IllegalArgumentException("Visual Regression 임계값을 통과하지 못했습니다.");
+        }
     }
 
     public List<FigmaGenerationReport> reports(String screenId) {

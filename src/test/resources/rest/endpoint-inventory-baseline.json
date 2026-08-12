@@ -33,6 +33,14 @@
 }, {
   "controller" : "DesignSystemController",
   "method" : "GET",
+  "path" : "/api/design-systems/{profileId}/registries/{registryVersion}/inventory"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/{profileId}/registries/{registryVersion}/inventory"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "GET",
   "path" : "/api/design-systems/{profileId}/registries/{version}"
 }, {
   "controller" : "DesignSystemController",

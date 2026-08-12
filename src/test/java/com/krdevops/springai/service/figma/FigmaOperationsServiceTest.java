@@ -1,6 +1,8 @@
 package com.krdevops.springai.service.figma;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.krdevops.springai.mapper.FigmaGenerationReportRepository;
@@ -88,6 +90,30 @@ class FigmaOperationsServiceTest {
         assertThat(impact.screens().get(0).screenType()).isEqualTo("LIST");
     }
 
+    @Test
+    void 성공보고서는LayoutAccessibilityVisualGate가모두필수다() {
+        FigmaGenerationReport report = report("quality-ok", true, 1, 1, 0, List.of(), passedGates());
+        when(reportRepository.saveImmutable(report)).thenReturn(report);
+
+        assertThat(service.record(report)).isSameAs(report);
+        verify(reportRepository).saveImmutable(report);
+    }
+
+    @Test
+    void VisualRegression기준선을초과한성공보고서는저장하지않는다() {
+        var failedVisual = new FigmaGenerationReport.QualityGateResult(
+                FigmaGenerationReport.Gate.VISUAL_REGRESSION,
+                FigmaGenerationReport.GateStatus.FAILED, List.of("PIXEL_HASH_MISMATCH"),
+                "current", "baseline", 1.0, 0.0);
+        FigmaGenerationReport report = report("quality-fail", true, 1, 1, 0, List.of(), List.of(
+                passed(FigmaGenerationReport.Gate.LAYOUT),
+                passed(FigmaGenerationReport.Gate.ACCESSIBILITY), failedVisual));
+
+        assertThatThrownBy(() -> service.record(report))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("품질 Gate 실패");
+    }
+
     private FigmaGenerationReport report(
             String id,
             boolean success,
@@ -95,6 +121,15 @@ class FigmaOperationsServiceTest {
             int created,
             int fallback,
             List<FigmaExportIssue> issues
+    ) {
+        return report(id, success, reused, created, fallback, issues,
+                success ? passedGates() : List.of());
+    }
+
+    private FigmaGenerationReport report(
+            String id, boolean success, int reused, int created, int fallback,
+            List<FigmaExportIssue> issues,
+            List<FigmaGenerationReport.QualityGateResult> qualityGates
     ) {
         Instant started = Instant.parse("2026-07-27T00:00:00Z");
         return new FigmaGenerationReport(
@@ -111,6 +146,21 @@ class FigmaOperationsServiceTest {
                         new FigmaGenerationReport.Change(
                                 "b", "krds.button",
                                 FigmaGenerationReport.Change.ChangeType.REUSE, "재사용")),
-                issues);
+                issues, qualityGates);
+    }
+
+    private List<FigmaGenerationReport.QualityGateResult> passedGates() {
+        return List.of(
+                passed(FigmaGenerationReport.Gate.LAYOUT),
+                passed(FigmaGenerationReport.Gate.ACCESSIBILITY),
+                new FigmaGenerationReport.QualityGateResult(
+                        FigmaGenerationReport.Gate.VISUAL_REGRESSION,
+                        FigmaGenerationReport.GateStatus.PASSED, List.of(),
+                        "same", "same", 0.0, 0.0));
+    }
+
+    private FigmaGenerationReport.QualityGateResult passed(FigmaGenerationReport.Gate gate) {
+        return new FigmaGenerationReport.QualityGateResult(
+                gate, FigmaGenerationReport.GateStatus.PASSED, List.of(), null, null, null, null);
     }
 }

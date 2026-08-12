@@ -3,6 +3,7 @@ package com.krdevops.springai.service.figma.builder;
 import com.krdevops.springai.model.design.PageSpec;
 import com.krdevops.springai.model.design.ScreenFieldBinding;
 import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.model.design.role.SemanticRole;
 import com.krdevops.springai.model.figma.FigmaNodeSpec;
 import com.krdevops.springai.model.figma.FigmaScreenType;
 import com.krdevops.springai.service.figma.LogicalNodeIdFactory;
@@ -51,14 +52,15 @@ public class ListFigmaScreenBuilder implements FigmaScreenBuilder {
 
     private FigmaNodeSpec searchPanel(
             String pageId, ScreenSpecification screenSpecification, List<ScreenFieldBinding> searchFields, LogicalNodeIdFactory idFactory) {
-        List<FigmaNodeSpec> children = new ArrayList<>();
-        for (ScreenFieldBinding field : searchFields) {
-            children.add(BuilderSupport.fieldComponent(pageId, "search", field, idFactory));
-        }
-        children.add(BuilderSupport.actionButton(pageId, "SEARCH", idFactory));
         return new FigmaNodeSpec(
-                idFactory.section(pageId, "search"), FigmaNodeSpec.NodeType.SECTION, "egov.searchPanel",
-                Map.of("placement", screenSpecification.searchPanelPlacement().name()), children);
+                idFactory.section(pageId, "search"), FigmaNodeSpec.NodeType.COMPONENT, "krds.searchPanel",
+                Map.of("semanticRole", SemanticRole.SEARCH_PANEL.code(),
+                        "placement", screenSpecification.searchPanelPlacement().name(),
+                        "fieldCount", searchFields.size(),
+                        "searchFieldIds", searchFields.stream().map(ScreenFieldBinding::id).toList(),
+                        "label", "검색어",
+                        "placeholder", "검색어를 입력하세요",
+                        "componentMaxWidth", 960), List.of());
     }
 
     private FigmaNodeSpec resultToolbar(String pageId, LogicalNodeIdFactory idFactory) {
@@ -67,27 +69,56 @@ public class ListFigmaScreenBuilder implements FigmaScreenBuilder {
                 Map.of(), List.of());
     }
 
-    /** R2-007: 반복 행은 REPEAT 노드 하나로 표현하고, 빈 상태 메시지를 속성으로 남긴다. */
+    /** 전체 Table은 Published Cell Instance를 조립하는 krds.dataTable Layout Recipe로 표현한다. */
     private FigmaNodeSpec dataTable(String pageId, List<ScreenFieldBinding> fields, LogicalNodeIdFactory idFactory) {
-        List<ScreenFieldBinding> visibleFields = fields.stream().filter(ScreenFieldBinding::visible).toList();
-        List<FigmaNodeSpec> columns = visibleFields.stream()
+        List<ScreenFieldBinding> visible = fields.stream().filter(ScreenFieldBinding::visible).toList();
+        List<ScreenFieldBinding> visibleFields = visible.size() >= 5 ? visible : fields.stream().limit(5).toList();
+        List<FigmaNodeSpec> mappedColumns = visibleFields.stream()
                 .map(field -> new FigmaNodeSpec(
-                        idFactory.field(pageId, "table", field.id()), FigmaNodeSpec.NodeType.TEXT, "krds.tableCell",
-                        Map.of("label", field.label(), "sortable", field.sortable()), List.of()))
+                        idFactory.field(pageId, "table", field.id()), FigmaNodeSpec.NodeType.COMPONENT, "krds.tableCell",
+                        Map.of("semanticRole", SemanticRole.DATA_TABLE_CELL.code(),
+                                "label", field.label(), "sortable", field.sortable()), List.of()))
                 .toList();
-        FigmaNodeSpec row = new FigmaNodeSpec(
-                idFactory.section(pageId, "table/row"), FigmaNodeSpec.NodeType.REPEAT, "egov.dataTable.row",
-                Map.of(), columns);
+        List<FigmaNodeSpec> columns = new ArrayList<>(mappedColumns);
+        for (int index = columns.size(); !columns.isEmpty() && index < 5; index++) {
+            columns.add(new FigmaNodeSpec(
+                    idFactory.field(pageId, "table", "column-" + (index + 1)),
+                    FigmaNodeSpec.NodeType.COMPONENT, "krds.tableCell",
+                    Map.of("semanticRole", SemanticRole.DATA_TABLE_CELL.code(),
+                            "label", "컬럼 " + (index + 1), "sortable", false), List.of()));
+        }
+        FigmaNodeSpec header = new FigmaNodeSpec(
+                idFactory.section(pageId, "table/header"), FigmaNodeSpec.NodeType.SECTION, "krds.dataTable.header",
+                Map.of("rowType", "HEADER"), cloneColumns(pageId, "header", columns));
+        List<FigmaNodeSpec> rows = java.util.stream.IntStream.rangeClosed(1, 3)
+                .mapToObj(index -> new FigmaNodeSpec(
+                        idFactory.section(pageId, "table/row-" + index), FigmaNodeSpec.NodeType.REPEAT,
+                        "krds.dataTable.row", Map.of("rowType", "BODY", "sampleRow", index),
+                        cloneColumns(pageId, "row-" + index, columns)))
+                .toList();
+        List<FigmaNodeSpec> tableChildren = new ArrayList<>();
+        tableChildren.add(header);
+        tableChildren.addAll(rows);
         return new FigmaNodeSpec(
-                idFactory.section(pageId, "table"), FigmaNodeSpec.NodeType.SECTION, "egov.dataTable",
-                Map.of("emptyStateMessage", "조회된 데이터가 없습니다.", "loadingStateSupported", true,
-                        "columnCount", visibleFields.size()),
-                List.of(row));
+                idFactory.section(pageId, "table"), FigmaNodeSpec.NodeType.SECTION, "krds.dataTable",
+                Map.of("semanticRole", SemanticRole.DATA_TABLE.code(),
+                        "emptyStateMessage", "조회된 데이터가 없습니다.", "loadingStateSupported", true,
+                        "columnCount", columns.size(), "sampleRowCount", 3,
+                        "layoutRecipe", "krds.dataTable.v1"), tableChildren);
     }
 
     private FigmaNodeSpec pagination(String pageId, LogicalNodeIdFactory idFactory) {
         return new FigmaNodeSpec(
                 idFactory.section(pageId, "pagination"), FigmaNodeSpec.NodeType.COMPONENT, "krds.pagination",
-                Map.of(), List.of());
+                Map.of("semanticRole", SemanticRole.DATA_PAGINATION.code()), List.of());
+    }
+
+    private List<FigmaNodeSpec> cloneColumns(String pageId, String rowId, List<FigmaNodeSpec> columns) {
+        return java.util.stream.IntStream.range(0, columns.size())
+                .mapToObj(index -> {
+                    FigmaNodeSpec source = columns.get(index);
+                    return new FigmaNodeSpec(pageId + "/table/" + rowId + "/cell-" + (index + 1),
+                            source.nodeType(), source.type(), source.properties(), source.children());
+                }).toList();
     }
 }

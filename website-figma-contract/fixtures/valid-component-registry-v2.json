@@ -1,0 +1,26 @@
+{
+  "profileId":"krds", "profileVersion":"2.0.0", "registryVersion":"2.0.0",
+  "library":{"fileKey":"KRDS_LIBRARY_FILE_KEY","name":"KRDS Library"},
+  "components": {
+    "krds.button": {
+      "componentSetKey":"BUTTON_SET_KEY", "componentName":"KRDS/Button",
+      "publishStatus":"CURRENT", "lifecycleStatus":"CURRENT", "replacementLogicalType":null,
+      "aliases":["button"],
+      "variants":{"Style=Primary, Size=Medium":"BUTTON_PRIMARY_MEDIUM_KEY","Style=Secondary, Size=Medium":"BUTTON_SECONDARY_MEDIUM_KEY","Style=Danger, Size=Medium":"BUTTON_DANGER_MEDIUM_KEY"},
+      "properties": {
+        "style":{"figmaProperty":"Style","type":"VARIANT","values":{"Primary":"Primary","Secondary":"Secondary","Danger":"Danger"}},
+        "size":{"figmaProperty":"Size","type":"VARIANT","values":{"Medium":"Medium"}},
+        "label":{"figmaProperty":"Label","type":"TEXT","values":{}}
+      },
+      "roles":["action.primary","action.secondary","action.destructive"],
+      "supportedPlatforms":["DESKTOP"],
+      "variantAxes": {
+        "style":{"logicalName":"style","figmaProperty":"Style","allowedValues":["Primary","Secondary","Danger"],"required":true},
+        "size":{"logicalName":"size","figmaProperty":"Size","allowedValues":["Medium"],"required":true}
+      },
+      "requiredProperties":["style","size","label"],
+      "codeComponent":"KrdsButton", "documentationUrl":null, "contractVersion":"2.0.0"
+    }
+  },
+  "variables": {}
+}

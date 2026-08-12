@@ -24,7 +24,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -49,6 +48,8 @@ public class FigmaScreenExportService {
     private final FigmaExportBundleAssembler bundleAssembler;
     private final FigmaScreenSpecSerializer serializer;
     private final com.krdevops.springai.service.DesignArtifactService artifactService;
+    private final KrdsComponentResolutionService componentResolutionService;
+    private final FigmaInventoryExportGate inventoryExportGate;
 
     @org.springframework.beans.factory.annotation.Autowired
     public FigmaScreenExportService(
@@ -62,7 +63,9 @@ public class FigmaScreenExportService {
             FigmaScreenSpecRepository figmaScreenSpecRepository,
             FigmaExportBundleAssembler bundleAssembler,
             FigmaScreenSpecSerializer serializer,
-            com.krdevops.springai.service.DesignArtifactService artifactService) {
+            com.krdevops.springai.service.DesignArtifactService artifactService,
+            KrdsComponentResolutionService componentResolutionService,
+            FigmaInventoryExportGate inventoryExportGate) {
         this.screenSpecRepository = screenSpecRepository;
         this.builderRegistry = builderRegistry;
         this.typeResolver = typeResolver;
@@ -74,6 +77,8 @@ public class FigmaScreenExportService {
         this.bundleAssembler = bundleAssembler;
         this.serializer = serializer;
         this.artifactService = artifactService;
+        this.componentResolutionService = componentResolutionService;
+        this.inventoryExportGate = inventoryExportGate;
     }
 
     /** 테스트와 기존 직접 생성 호출의 하위 호환 생성자. */
@@ -90,7 +95,25 @@ public class FigmaScreenExportService {
             FigmaScreenSpecSerializer serializer) {
         this(screenSpecRepository, builderRegistry, typeResolver, idFactory, specValidator,
                 profileRepository, registryRepository, figmaScreenSpecRepository,
-                bundleAssembler, serializer, null);
+                bundleAssembler, serializer, null, null, null);
+    }
+
+    /** 결정형 Resolution 서비스 도입 전 Artifact 저장 테스트 호환. */
+    public FigmaScreenExportService(
+            ScreenSpecRepository screenSpecRepository,
+            FigmaScreenBuilderRegistry builderRegistry,
+            FigmaScreenTypeResolver typeResolver,
+            LogicalNodeIdFactory idFactory,
+            FigmaScreenSpecValidator specValidator,
+            DesignSystemProfileRepository profileRepository,
+            ComponentRegistryRepository registryRepository,
+            FigmaScreenSpecRepository figmaScreenSpecRepository,
+            FigmaExportBundleAssembler bundleAssembler,
+            FigmaScreenSpecSerializer serializer,
+            com.krdevops.springai.service.DesignArtifactService artifactService) {
+        this(screenSpecRepository, builderRegistry, typeResolver, idFactory, specValidator,
+                profileRepository, registryRepository, figmaScreenSpecRepository,
+                bundleAssembler, serializer, artifactService, null, null);
     }
 
     public FigmaExportResult export(FigmaScreenExportRequest request) {
@@ -105,34 +128,70 @@ public class FigmaScreenExportService {
         FigmaScreenType screenType = typeResolver.resolveScreenType(page, screenSpecification);
         LayoutPattern layoutPattern = typeResolver.resolveLayoutPattern(screenSpecification);
         FigmaScreenBuilder builder = builderRegistry.builderFor(screenType);
-        FigmaNodeSpec content = builder.build(screenSpecification, page, idFactory);
-
         List<FigmaExportIssue> issues = new ArrayList<>();
-        DesignSystemProfile profile = resolveProfile(request.designSystemProfileId(), issues);
-        checkComponentRegistry(profile, content, issues);
-
         String screenId = page.id();
         int screenVersion = nextScreenVersion(screenId);
         String viewport = request.viewport() == null || request.viewport().isBlank() ? "DESKTOP" : request.viewport();
+        FigmaNodeSpec content = builder.build(screenSpecification, page, idFactory);
+        DesignSystemProfile profile;
+        ComponentRegistry registry;
+        KrdsComponentResolutionService.ResolutionResult resolution = null;
+        try {
+            profile = resolvePublishedProfile(request.designSystemProfileId());
+            registry = registryRepository.findVersion(profile.id(), profile.registryVersion())
+                    .orElseThrow(() -> new IllegalStateException(
+                            "REGISTRY_NOT_FOUND: " + profile.id() + "/" + profile.registryVersion()));
+            if (componentResolutionService == null) {
+                checkComponentRegistry(registry, content, issues);
+            } else {
+                resolution = componentResolutionService.resolve(
+                        profile.id(), registry, page, screenType,
+                        screenSpecification.layoutDensity(), viewport, content);
+                content = resolution.content();
+            }
+            if (inventoryExportGate != null) {
+                issues.addAll(inventoryExportGate.validate(registry, content, request.exportMode()));
+                if (hasBlockingIssues(issues)) {
+                    return failedResult(screenId, screenVersion, issues, LocalDateTime.now());
+                }
+            }
+        } catch (IllegalStateException | IllegalArgumentException exception) {
+            issues.add(new FigmaExportIssue(
+                    failureCode(exception), FigmaExportIssue.Severity.FATAL,
+                    exception.getMessage(), screenId, null, null));
+            return failedResult(screenId, screenVersion, issues, LocalDateTime.now());
+        }
 
-        FigmaScreenSpec spec = new FigmaScreenSpec(
-                screenId, screenVersion, screenSpecification.id(), screenSpecification.version(),
-                screenType, layoutPattern, screenSpecification.screenName(), null, viewport,
-                screenSpecification.status().name(),
-                new FigmaScreenSpec.DesignSystemRef(profile.id(), profile.version(), profile.registryVersion()),
-                content, List.of());
+        FigmaScreenSpec spec = resolution == null
+                ? new FigmaScreenSpec(
+                        screenId, screenVersion, screenSpecification.id(), screenSpecification.version(),
+                        screenType, layoutPattern, screenSpecification.screenName(), null, viewport,
+                        screenSpecification.status().name(),
+                        new FigmaScreenSpec.DesignSystemRef(profile.id(), profile.version(), profile.registryVersion()),
+                        content, List.of())
+                : new FigmaScreenSpec(
+                        screenId, screenVersion, screenSpecification.id(), screenSpecification.version(),
+                        screenType, layoutPattern, screenSpecification.screenName(), null, viewport,
+                        screenSpecification.status().name(),
+                        new FigmaScreenSpec.DesignSystemRef(profile.id(), profile.version(), profile.registryVersion()),
+                        content, List.of(), resolution.pattern(), resolution.screenPatternVersion(),
+                        resolution.variantRuleSetVersion(), resolution.componentContractVersion());
 
         issues.addAll(specValidator.validate(spec));
         FigmaScreenSpec finalSpec = new FigmaScreenSpec(
                 spec.screenId(), spec.screenVersion(), spec.screenSpecificationId(), spec.screenSpecificationVersion(),
                 spec.screenType(), spec.layoutPattern(), spec.name(), spec.route(), spec.viewport(), spec.status(),
-                spec.designSystem(), spec.content(), issues);
-
-        figmaScreenSpecRepository.save(finalSpec);
+                spec.designSystem(), spec.content(), issues, spec.semanticPattern(), spec.screenPatternVersion(),
+                spec.variantRuleSetVersion(), spec.componentContractVersion());
 
         FigmaExportResult.Status status = resultStatus(issues);
         LocalDateTime generatedAt = LocalDateTime.now();
         FigmaExportResult.ArtifactRef artifactRef = null;
+        if (hasBlockingIssues(issues)) {
+            return failedResult(finalSpec.screenId(), finalSpec.screenVersion(), issues, generatedAt);
+        }
+
+        figmaScreenSpecRepository.save(finalSpec);
         if (artifactService != null) {
             com.krdevops.springai.service.DesignArtifactService.FigmaExportArtifact artifact =
                     artifactService.saveFigmaExport(finalSpec, status, issues, generatedAt);
@@ -153,14 +212,21 @@ public class FigmaScreenExportService {
     /** R2-032: DEC-10=FILE 기본값 기준 다운로드용 FigmaExportBundle을 조립한다. */
     public FigmaExportBundle exportBundle(FigmaScreenExportRequest request) {
         FigmaExportResult result = export(request);
-        if (result.figmaScreenSpec() == null) {
+        if (result.status() != FigmaExportResult.Status.SUCCESS || result.figmaScreenSpec() == null) {
             throw new IllegalStateException(
                     "FigmaScreenSpec 생성에 실패해 Bundle을 만들 수 없습니다: " + result.issues());
         }
         FigmaScreenSpec.DesignSystemRef designSystem = result.figmaScreenSpec().designSystem();
-        DesignSystemProfile profile = profileRepository.findLatest(designSystem.profileId())
-                .orElseGet(() -> defaultProfile(designSystem.profileId()));
-        ComponentRegistry registry = registryRepository.findVersion(profile.id(), profile.registryVersion()).orElse(null);
+        DesignSystemProfile profile = profileRepository
+                .findVersion(designSystem.profileId(), designSystem.profileVersion())
+                .orElseThrow(() -> new IllegalStateException(
+                        "PROFILE_VERSION_NOT_FOUND: " + designSystem.profileId()
+                                + "/" + designSystem.profileVersion()));
+        ComponentRegistry registry = registryRepository
+                .findVersion(designSystem.profileId(), designSystem.registryVersion())
+                .orElseThrow(() -> new IllegalStateException(
+                        "REGISTRY_NOT_FOUND: " + designSystem.profileId()
+                                + "/" + designSystem.registryVersion()));
         return bundleAssembler.assemble(result.figmaScreenSpec(), profile, registry);
     }
 
@@ -244,28 +310,19 @@ public class FigmaScreenExportService {
                         "PageSpec을 찾을 수 없습니다: " + pageId + " (screen=" + screenSpecification.id() + ")"));
     }
 
-    /** R2-012: 요청한 DesignSystemProfile이 없으면 빈 기본 Profile로 대체하고 경고를 남긴다. */
-    private DesignSystemProfile resolveProfile(String requestedProfileId, List<FigmaExportIssue> issues) {
+    private DesignSystemProfile resolvePublishedProfile(String requestedProfileId) {
         String profileId = requestedProfileId == null || requestedProfileId.isBlank()
                 ? DEFAULT_PROFILE_ID : requestedProfileId;
-        return profileRepository.findLatest(profileId).orElseGet(() -> {
-            issues.add(new FigmaExportIssue("PROFILE_NOT_FOUND",
-                    FigmaExportIssue.Severity.WARNING,
-                    "DesignSystemProfile을 찾을 수 없어 기본값을 사용합니다: " + profileId,
-                    null, null, null));
-            return defaultProfile(profileId);
-        });
-    }
-
-    private DesignSystemProfile defaultProfile(String profileId) {
-        return new DesignSystemProfile(
-                profileId, profileId, "0.0-default", "0.0-default", null,
-                DesignSystemProfile.Status.DRAFT, Map.of(), Map.of());
+        DesignSystemProfile profile = profileRepository.findLatest(profileId)
+                .orElseThrow(() -> new IllegalStateException("PROFILE_NOT_FOUND: " + profileId));
+        if (profile.status() != DesignSystemProfile.Status.PUBLISHED) {
+            throw new IllegalStateException("PROFILE_NOT_PUBLISHED: " + profileId + "/" + profile.version());
+        }
+        return profile;
     }
 
     /** R2-013/R4-024: 화면 생성 전 논리 타입을 직접·alias·replacement 순으로 해석한다. */
-    private void checkComponentRegistry(DesignSystemProfile profile, FigmaNodeSpec content, List<FigmaExportIssue> issues) {
-        ComponentRegistry registry = registryRepository.findVersion(profile.id(), profile.registryVersion()).orElse(null);
+    private void checkComponentRegistry(ComponentRegistry registry, FigmaNodeSpec content, List<FigmaExportIssue> issues) {
         ComponentRegistryResolver resolver = new ComponentRegistryResolver();
         Set<String> usedTypes = new HashSet<>();
         collectComponentTypes(content, usedTypes);
@@ -276,8 +333,8 @@ public class FigmaScreenExportService {
             ComponentRegistryResolver.Resolution resolution = resolver.resolve(registry, type);
             if (!resolution.resolved()) {
                 issues.add(new FigmaExportIssue("COMPONENT_NOT_IN_REGISTRY",
-                        FigmaExportIssue.Severity.WARNING,
-                        "Registry에서 해석할 수 없는 컴포넌트 타입입니다(Plugin이 fallback 노드로 생성해야 함): " + type,
+                        FigmaExportIssue.Severity.FATAL,
+                        "Registry에서 해석할 수 없는 필수 컴포넌트 타입입니다: " + type,
                         null, null, null));
             } else if (resolution.kind() != ComponentRegistryResolver.ResolutionKind.DIRECT) {
                 issues.add(new FigmaExportIssue("COMPONENT_REGISTRY_REDIRECT",
@@ -304,11 +361,40 @@ public class FigmaScreenExportService {
     }
 
     private FigmaExportResult.Status resultStatus(List<FigmaExportIssue> issues) {
-        boolean hasFatal = issues.stream().anyMatch(i -> i.severity() == FigmaExportIssue.Severity.FATAL);
-        if (hasFatal) {
+        if (hasBlockingIssues(issues)) {
             return FigmaExportResult.Status.FAILED;
         }
-        boolean hasError = issues.stream().anyMatch(i -> i.severity() == FigmaExportIssue.Severity.ERROR);
-        return hasError ? FigmaExportResult.Status.PARTIAL : FigmaExportResult.Status.SUCCESS;
+        return FigmaExportResult.Status.SUCCESS;
+    }
+
+    private boolean hasBlockingIssues(List<FigmaExportIssue> issues) {
+        return issues.stream().anyMatch(issue -> issue.severity() == FigmaExportIssue.Severity.FATAL
+                || issue.severity() == FigmaExportIssue.Severity.ERROR);
+    }
+
+    private FigmaExportResult failedResult(
+            String screenId,
+            int screenVersion,
+            List<FigmaExportIssue> issues,
+            LocalDateTime generatedAt
+    ) {
+        FigmaExportResult.ArtifactRef artifactRef = null;
+        if (artifactService != null) {
+            com.krdevops.springai.service.DesignArtifactService.FigmaExportArtifact artifact =
+                    artifactService.saveFigmaExportFailureReport(
+                            screenId, screenVersion, issues, generatedAt);
+            artifactRef = new FigmaExportResult.ArtifactRef(
+                    artifact.artifactId(), artifact.relativePath());
+        }
+        return new FigmaExportResult(FigmaExportResult.Status.FAILED, null,
+                List.copyOf(issues), generatedAt, artifactRef);
+    }
+
+    private String failureCode(RuntimeException exception) {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) return "FIGMA_EXPORT_PREFLIGHT_FAILED";
+        String candidate = message.split(":", 2)[0].trim();
+        return candidate.matches("[A-Z][A-Z0-9_]*")
+                ? candidate : "FIGMA_EXPORT_PREFLIGHT_FAILED";
     }
 }

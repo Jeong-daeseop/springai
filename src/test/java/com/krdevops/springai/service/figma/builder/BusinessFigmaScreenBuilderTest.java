@@ -39,7 +39,7 @@ class BusinessFigmaScreenBuilderTest {
         assertThat(resolver.resolveScreenType(update, spec)).isEqualTo(FigmaScreenType.FORM);
         assertThat(updateRoot.type()).isEqualTo("egov.formPage");
         assertThat(updateRoot.children()).extracting(FigmaNodeSpec::type)
-                .contains("egov.formSection", "egov.validationSummary");
+                .contains("egov.formContainer", "egov.validationSummary");
         assertThat(resolver.resolveScreenType(detail, spec)).isEqualTo(FigmaScreenType.DETAIL);
         assertThat(detailRoot.type()).isEqualTo("egov.detailPage");
         assertThat(detailRoot.children()).extracting(FigmaNodeSpec::type)
@@ -61,9 +61,9 @@ class BusinessFigmaScreenBuilderTest {
         FigmaNodeSpec formRoot = new FormFigmaScreenBuilder().build(spec, form, ids);
 
         assertThat(listRoot.children()).extracting(FigmaNodeSpec::type)
-                .contains("egov.searchPanel", "egov.dataTable", "krds.pagination");
+                .contains("krds.searchPanel", "krds.dataTable", "krds.pagination");
         assertThat(formRoot.children()).extracting(FigmaNodeSpec::type)
-                .contains("egov.formSection", "egov.validationSummary");
+                .contains("egov.formContainer", "egov.validationSummary");
     }
 
     @Test

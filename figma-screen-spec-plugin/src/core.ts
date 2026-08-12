@@ -1,5 +1,6 @@
 import type {
   ComponentRegistry,
+  BundleContractMode,
   ExistingLogicalNode,
   ExportIssue,
   FigmaExportBundle,
@@ -9,6 +10,9 @@ import type {
   ReconciliationChange,
   RegistryEntry,
 } from "./types";
+
+export const FIGMA_SCREEN_SPEC_V1 = "figma-screen-spec-v1";
+export const FIGMA_SCREEN_SPEC_V2 = "figma-screen-spec-v2";
 
 export function flattenSpec(root: FigmaNodeSpec): Array<{
   node: FigmaNodeSpec;
@@ -24,7 +28,11 @@ export function flattenSpec(root: FigmaNodeSpec): Array<{
   return result;
 }
 
-export function validateBundle(bundle: unknown): { parsed?: FigmaExportBundle; issues: ExportIssue[] } {
+export function validateBundle(bundle: unknown): {
+  parsed?: FigmaExportBundle;
+  issues: ExportIssue[];
+  contractMode?: BundleContractMode;
+} {
   const issues: ExportIssue[] = [];
   if (!bundle || typeof bundle !== "object") {
     return { issues: [fatal("BUNDLE_INVALID", "최상위 값이 object가 아닙니다.")] };
@@ -40,11 +48,23 @@ export function validateBundle(bundle: unknown): { parsed?: FigmaExportBundle; i
   if (!metadata?.figmaScreenSpecSchemaVersion) issues.push(fatal("METADATA_MISSING", "Export Metadata가 없습니다."));
   if (issues.length || !screen || !profile || !registry || !metadata) return { issues };
 
-  if (metadata.figmaScreenSpecSchemaVersion !== "figma-screen-spec-v1") {
+  const schemaVersion = metadata.figmaScreenSpecSchemaVersion;
+  const contractMode: BundleContractMode | undefined = schemaVersion === FIGMA_SCREEN_SPEC_V2
+    ? "V2_APPLY"
+    : schemaVersion === FIGMA_SCREEN_SPEC_V1 ? "V1_MIGRATION_PREVIEW" : undefined;
+  if (!contractMode) {
     issues.push(fatal("SCHEMA_VERSION_UNSUPPORTED", `지원하지 않는 Schema입니다: ${metadata.figmaScreenSpecSchemaVersion}`));
   }
-  if (screen.screenType === "DETAIL") {
-    issues.push(fatal("SCREEN_TYPE_UNSUPPORTED", "1차 R5 Plugin은 LIST/FORM 화면만 지원합니다."));
+  if (contractMode === "V1_MIGRATION_PREVIEW") {
+    issues.push({
+      code: "LEGACY_SCHEMA_MIGRATION_PREVIEW_ONLY",
+      severity: "WARNING",
+      message: "figma-screen-spec-v1은 Legacy Migration Preview만 지원합니다. 일반 Apply는 v2 Bundle이 필요합니다.",
+    });
+  }
+  if (contractMode === "V2_APPLY" && (!screen.semanticPattern || !screen.screenPatternVersion
+      || !screen.variantRuleSetVersion || !screen.componentContractVersion)) {
+    issues.push(fatal("SCREEN_SPEC_V2_REQUIRED", "Role·Variant v2 실행 명세가 필요합니다."));
   }
   if (profile.status !== "PUBLISHED") {
     issues.push(fatal("PROFILE_NOT_PUBLISHED", `Profile 상태가 PUBLISHED가 아닙니다: ${profile.status ?? "UNKNOWN"}`));
@@ -62,6 +82,9 @@ export function validateBundle(bundle: unknown): { parsed?: FigmaExportBundle; i
     [metadata.registryVersion, registry.registryVersion, "METADATA_REGISTRY_VERSION_MISMATCH"],
     [metadata.designSystemProfileVersion, profile.version, "METADATA_PROFILE_VERSION_MISMATCH"],
     [metadata.screenSpecificationVersion, screen.screenSpecificationVersion, "SCREEN_SPEC_VERSION_MISMATCH"],
+    [metadata.screenPatternVersion, screen.screenPatternVersion, "SCREEN_PATTERN_VERSION_MISMATCH"],
+    [metadata.variantRuleSetVersion, screen.variantRuleSetVersion, "VARIANT_RULE_SET_VERSION_MISMATCH"],
+    [metadata.componentContractVersion, screen.componentContractVersion, "COMPONENT_CONTRACT_VERSION_MISMATCH"],
   ];
   for (const [left, right, code] of versions) {
     if (left !== right) issues.push(fatal(code, `${left} != ${right}`));
@@ -78,20 +101,44 @@ export function validateBundle(bundle: unknown): { parsed?: FigmaExportBundle; i
       issues.push(fatal("DUPLICATE_LOGICAL_NODE_ID", "logicalNodeId가 중복되었습니다.", node.logicalNodeId));
     }
     seen.add(node.logicalNodeId);
-    if (requiresPublishedComponent(node)) {
+    if (contractMode === "V2_APPLY" && requiresPublishedComponent(node)) {
       const entry = registry.components[node.type];
       if (!entry) issues.push(fatal("REQUIRED_COMPONENT_MISSING", `필수 Component가 Registry에 없습니다: ${node.type}`, node.logicalNodeId));
       else if (!entry.componentSetKey || entry.publishStatus !== "CURRENT") {
         issues.push(fatal("REQUIRED_COMPONENT_NOT_CURRENT", `${node.type}의 Publish 상태가 CURRENT가 아닙니다.`, node.logicalNodeId));
       }
     }
+    if (contractMode === "V2_APPLY"
+        && node.nodeType === "COMPONENT" && typeof node.properties.semanticRole === "string") {
+      const resolution = node.componentResolution;
+      if (!resolution) {
+        issues.push(fatal("ROLE_NOT_RESOLVED", "Semantic Role의 Component 해석 결과가 없습니다.", node.logicalNodeId));
+      } else if (!resolution.variantKey) {
+        issues.push(fatal("VARIANT_NOT_RESOLVED", "Published Variant Key가 없습니다.", node.logicalNodeId));
+      } else if (resolution.logicalType !== node.type) {
+        issues.push(fatal("RESOLVED_LOGICAL_TYPE_MISMATCH", `${resolution.logicalType} != ${node.type}`, node.logicalNodeId));
+      } else {
+        const entry = registry.components[node.type];
+        if (!entry || entry.componentSetKey !== resolution.componentSetKey) {
+          issues.push(fatal("RESOLVED_COMPONENT_SET_MISMATCH", "Registry와 해결된 Component Set이 다릅니다.", node.logicalNodeId));
+        } else if (Object.keys(entry.variants ?? {}).length > 0
+            && !Object.values(entry.variants ?? {}).includes(resolution.variantKey)) {
+          issues.push(fatal("RESOLVED_VARIANT_NOT_IN_REGISTRY", "해결된 Variant Key가 Registry에 없습니다.", node.logicalNodeId));
+        } else if (resolution.ruleSetVersion !== screen.variantRuleSetVersion
+            || resolution.contractVersion !== screen.componentContractVersion) {
+          issues.push(fatal("RESOLUTION_VERSION_MISMATCH", "노드 Resolution 버전이 화면 버전과 다릅니다.", node.logicalNodeId));
+        }
+      }
+    }
   }
-  return { parsed: candidate as FigmaExportBundle, issues };
+  return { parsed: candidate as FigmaExportBundle, issues, contractMode };
 }
 
 export function requiresPublishedComponent(node: FigmaNodeSpec): boolean {
+  if (node.nodeType !== "COMPONENT") return false;
   return new Set([
-    "krds.button", "krds.textField", "krds.select", "krds.checkbox", "krds.pagination",
+    "krds.button", "krds.textField", "krds.textarea", "krds.select", "krds.checkbox",
+    "krds.pagination", "krds.pageHeader", "krds.searchPanel", "krds.tableCell",
     "egov.pageHeader", "egov.searchPanel", "egov.dataTable", "egov.formSection", "egov.actionArea",
     "egov.listPage", "egov.formPage",
   ]).has(node.type);
@@ -175,7 +222,54 @@ export function generationStatus(
   fallbackCount: number,
 ): "SUCCESS" | "PARTIAL" | "FAILED" {
   if (fatal) return "FAILED";
-  return fallbackCount > 0 ? "PARTIAL" : "SUCCESS";
+  return fallbackCount > 0 ? "FAILED" : "SUCCESS";
+}
+
+/** 승인 기준선이 없으면 최초 기준선을 만들고, 이후에는 결정형 이미지 Hash를 엄격 비교한다. */
+export function visualRegressionStatus(
+  evidenceHash: string,
+  baselineHash?: string | null,
+  baselineRequired = false,
+): "PASSED" | "FAILED" | "BASELINE_CREATED" {
+  if (!baselineHash) return baselineRequired ? "FAILED" : "BASELINE_CREATED";
+  return evidenceHash === baselineHash ? "PASSED" : "FAILED";
+}
+
+export type AtomicApplyHooks<Backup, Staging, Result> = {
+  createBackup: () => Promise<Backup>;
+  createStaging: (backup: Backup) => Promise<Staging>;
+  populateStaging: (staging: Staging, backup: Backup) => Promise<void>;
+  validateStaging: (staging: Staging, backup: Backup) => Promise<void>;
+  commit: (staging: Staging, backup: Backup) => Promise<Result>;
+  rollback: (staging: Staging | undefined, backup: Backup | undefined, cause: unknown) => Promise<void>;
+};
+
+/**
+ * Apply의 부수 효과 순서를 고정한다. Staging 생성 이후 어느 단계에서 실패하더라도
+ * rollback이 실행되며, commit 전에는 기존 Root를 변경하지 않는 것이 Port의 계약이다.
+ */
+export async function runAtomicApply<Backup, Staging, Result>(
+  hooks: AtomicApplyHooks<Backup, Staging, Result>,
+): Promise<Result> {
+  let backup: Backup | undefined;
+  let staging: Staging | undefined;
+  try {
+    backup = await hooks.createBackup();
+    staging = await hooks.createStaging(backup);
+    await hooks.populateStaging(staging, backup);
+    await hooks.validateStaging(staging, backup);
+    return await hooks.commit(staging, backup);
+  } catch (error) {
+    try {
+      await hooks.rollback(staging, backup, error);
+    } catch (rollbackError) {
+      throw new Error(
+        `Apply 실패 후 Rollback에도 실패했습니다: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
+        { cause: error },
+      );
+    }
+    throw error;
+  }
 }
 
 export function reconcile(
@@ -259,9 +353,11 @@ export function selectVariantName(
       return value === undefined ? null : `${mapping.figmaProperty}=${String(value)}`;
     })
     .filter((value): value is string => value !== null);
-  if (variantParts.length === 0) return Object.keys(entry.variants ?? {})[0] ?? null;
-  return Object.keys(entry.variants ?? {}).find(name =>
-    variantParts.every(part => name.split(",").map(value => value.trim()).includes(part))) ?? null;
+  if (variantParts.length === 0) return null;
+  const matches = Object.keys(entry.variants ?? {}).filter(name =>
+    variantParts.length === name.split(",").length
+    && variantParts.every(part => name.split(",").map(value => value.trim()).includes(part)));
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function fatal(code: string, message: string, logicalNodeId?: string): ExportIssue {
@@ -353,7 +449,8 @@ export function previewLegacyMigration(
     screenId: screen.screenId,
     screenVersion: screen.screenVersion,
     backupRequired: true,
-    canApply: manual.length === 0
+    canApply: validated.contractMode === "V2_APPLY"
+      && manual.length === 0
       && !issues.some(issue => issue.severity === "FATAL" || issue.severity === "ERROR"),
     operations,
     issues,

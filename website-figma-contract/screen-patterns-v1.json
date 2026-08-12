@@ -1,0 +1,46 @@
+{
+  "version": "1.0.0",
+  "patterns": [
+    {
+      "pattern": "crud.list", "version": "1.0.0",
+      "slots": [
+        {"role":"page.header","minCount":1,"maxCount":1,"allowedChildren":[],"order":0},
+        {"role":"search.panel","minCount":0,"maxCount":1,"allowedChildren":[],"order":1},
+        {"role":"data.table","minCount":1,"maxCount":1,"allowedChildren":["data.table.cell"],"order":2},
+        {"role":"data.pagination","minCount":0,"maxCount":1,"allowedChildren":[],"order":3},
+        {"role":"action.primary","minCount":0,"maxCount":2,"allowedChildren":[],"order":4}
+      ]
+    },
+    {
+      "pattern": "crud.detail", "version": "1.0.0",
+      "slots": [
+        {"role":"page.header","minCount":1,"maxCount":1,"allowedChildren":[],"order":0},
+        {"role":"form.section","minCount":1,"maxCount":null,"allowedChildren":["field.text","field.textarea","field.select","field.checkbox"],"order":1},
+        {"role":"action.primary","minCount":0,"maxCount":1,"allowedChildren":[],"order":2},
+        {"role":"action.destructive","minCount":0,"maxCount":1,"allowedChildren":[],"order":3},
+        {"role":"action.secondary","minCount":1,"maxCount":null,"allowedChildren":[],"order":4}
+      ]
+    },
+    {
+      "pattern": "crud.create", "version": "1.0.0",
+      "slots": [
+        {"role":"page.header","minCount":1,"maxCount":1,"allowedChildren":[],"order":0},
+        {"role":"form.container","minCount":1,"maxCount":1,"allowedChildren":["form.section"],"order":1},
+        {"role":"form.section","minCount":1,"maxCount":null,"allowedChildren":["field.text","field.textarea","field.select","field.checkbox"],"order":2},
+        {"role":"action.primary","minCount":1,"maxCount":1,"allowedChildren":[],"order":3},
+        {"role":"action.secondary","minCount":0,"maxCount":1,"allowedChildren":[],"order":4}
+      ]
+    },
+    {
+      "pattern": "crud.edit", "version": "1.0.0",
+      "slots": [
+        {"role":"page.header","minCount":1,"maxCount":1,"allowedChildren":[],"order":0},
+        {"role":"form.container","minCount":1,"maxCount":1,"allowedChildren":["form.section"],"order":1},
+        {"role":"form.section","minCount":1,"maxCount":null,"allowedChildren":["field.text","field.textarea","field.select","field.checkbox"],"order":2},
+        {"role":"action.primary","minCount":1,"maxCount":1,"allowedChildren":[],"order":3},
+        {"role":"action.secondary","minCount":0,"maxCount":1,"allowedChildren":[],"order":4},
+        {"role":"action.destructive","minCount":0,"maxCount":1,"allowedChildren":[],"order":5}
+      ]
+    }
+  ]
+}

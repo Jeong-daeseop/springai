@@ -1,6 +1,6 @@
 package com.krdevops.springai.service.figma;
 
-import com.krdevops.springai.model.design.ScreenSpecStatus;
+import com.krdevops.springai.model.design.role.ScreenPattern;
 import com.krdevops.springai.model.figma.FigmaExportIssue;
 import com.krdevops.springai.model.figma.FigmaNodeSpec;
 import com.krdevops.springai.model.figma.FigmaScreenSpec;
@@ -60,6 +60,35 @@ class FigmaScreenSpecValidatorTest {
                     assertThat(issue.jsonPointer()).isEqualTo("/content/logicalNodeId");
                     assertThat(issue.logicalNodeId()).isEqualTo("list invalid");
                 });
+    }
+
+    @Test
+    void v2SemanticNodeWithoutResolutionIsFatal() {
+        FigmaNodeSpec unresolved = new FigmaNodeSpec(
+                "list/action/create", FigmaNodeSpec.NodeType.COMPONENT, "krds.button",
+                Map.of("semanticRole", "action.primary"), List.of());
+        FigmaScreenSpec v2 = new FigmaScreenSpec(
+                "list", 1, "spec-user-management", 1, FigmaScreenType.LIST, LayoutPattern.STANDARD,
+                "사용자 목록", null, "DESKTOP", "APPROVED",
+                new FigmaScreenSpec.DesignSystemRef("krds", "2.0.0", "2.0.0"), unresolved, List.of(),
+                ScreenPattern.CRUD_LIST, "1.0.0", "1.0.0", "2.0.0");
+
+        assertThat(validator.validate(v2)).extracting(FigmaExportIssue::code).contains("ROLE_NOT_RESOLVED");
+    }
+
+    @Test
+    void v2StructuralSemanticRoleDoesNotRequirePublishedComponentResolution() {
+        FigmaNodeSpec structuralRoot = new FigmaNodeSpec(
+                "list", FigmaNodeSpec.NodeType.PAGE, "egov.listPage",
+                Map.of("semanticRole", "form.container"), List.of());
+        FigmaScreenSpec v2 = new FigmaScreenSpec(
+                "list", 1, "spec-user-management", 1, FigmaScreenType.LIST, LayoutPattern.STANDARD,
+                "사용자 목록", null, "DESKTOP", "REVIEW_REQUIRED",
+                new FigmaScreenSpec.DesignSystemRef("krds", "2.0.0", "2.1.0"), structuralRoot, List.of(),
+                ScreenPattern.CRUD_LIST, "1.0.0", "2.0.0-candidate", "2.1.0");
+
+        assertThat(validator.validate(v2)).extracting(FigmaExportIssue::code)
+                .doesNotContain("ROLE_NOT_RESOLVED");
     }
 
     private FigmaScreenSpec spec(FigmaNodeSpec content) {

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/figma-export-bundle-v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["figmaScreenSpec", "designSystemProfile", "componentRegistry", "metadata"],
+  "properties": {
+    "figmaScreenSpec": {"$ref": "https://schemas.krdevops.local/figma-screen-spec-v2"},
+    "designSystemProfile": {
+      "type": "object", "additionalProperties": false, "required": ["profile", "snapshotAt"],
+      "properties": {
+        "profile": {"$ref": "https://schemas.krdevops.local/design-system-profile-v1"},
+        "snapshotAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "componentRegistry": {
+      "type": "object", "additionalProperties": false, "required": ["registry", "snapshotAt"],
+      "properties": {
+        "registry": {"$ref": "https://schemas.krdevops.local/component-registry-v2"},
+        "snapshotAt": {"type": "string", "format": "date-time"}
+      }
+    },
+    "metadata": {
+      "type": "object", "additionalProperties": false,
+      "required": ["exportedAt", "figmaScreenSpecSchemaVersion", "screenSpecificationVersion", "designSystemProfileVersion", "registryVersion", "screenPatternVersion", "variantRuleSetVersion", "componentContractVersion"],
+      "properties": {
+        "exportedAt": {"type": "string", "format": "date-time"},
+        "figmaScreenSpecSchemaVersion": {"const": "figma-screen-spec-v2"},
+        "screenSpecificationVersion": {"type": "integer", "minimum": 1},
+        "designSystemProfileVersion": {"type": "string", "minLength": 1},
+        "registryVersion": {"type": "string", "minLength": 1},
+        "screenPatternVersion": {"type": "string", "minLength": 1},
+        "variantRuleSetVersion": {"type": "string", "minLength": 1},
+        "componentContractVersion": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

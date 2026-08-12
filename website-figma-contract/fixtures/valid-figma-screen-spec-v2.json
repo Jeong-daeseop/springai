@@ -1,0 +1,23 @@
+{
+  "screenId":"qna-list", "screenVersion":1,
+  "screenSpecificationId":"qna-suite", "screenSpecificationVersion":1,
+  "screenType":"LIST", "layoutPattern":"STANDARD", "name":"Q&A 목록", "route":null,
+  "viewport":"DESKTOP", "status":"APPROVED",
+  "designSystem":{"profileId":"krds","profileVersion":"2.0.0","registryVersion":"2.0.0"},
+  "content": {
+    "logicalNodeId":"qna-list", "nodeType":"PAGE", "type":"egov.listPage", "properties":{},
+    "children":[{
+      "logicalNodeId":"qna-list/action/create", "nodeType":"COMPONENT", "type":"krds.button",
+      "properties":{"semanticRole":"action.primary","label":"등록","state":"DEFAULT"},
+      "componentResolution": {
+        "role":"action.primary", "logicalType":"krds.button", "componentSetKey":"BUTTON_SET_KEY",
+        "variantKey":"BUTTON_PRIMARY_MEDIUM_KEY", "variantProperties":{"Style":"Primary","Size":"Medium"},
+        "componentProperties":{"Label":"등록"}, "contractVersion":"2.0.0", "ruleSetVersion":"1.0.0",
+        "ruleId":"action-primary", "contextHash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "children":[]
+    }]
+  },
+  "issues":[], "semanticPattern":"crud.list", "screenPatternVersion":"1.0.0",
+  "variantRuleSetVersion":"1.0.0", "componentContractVersion":"2.0.0"
+}

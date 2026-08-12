@@ -12,12 +12,18 @@ const schemaNames = [
   "rendered-design-document-v1.schema.json",
   "figpack-v1.schema.json",
   "figma-screen-spec-v1.schema.json",
+  "figma-screen-spec-v2.schema.json",
   "design-system-spec-v1.schema.json",
   "design-system-profile-v1.schema.json",
   "component-registry-v1.schema.json",
+  "component-registry-v2.schema.json",
+  "screen-patterns-v1.schema.json",
+  "screen-suite-manifest-v1.schema.json",
+  "variant-rule-set-v1.schema.json",
   "component-catalog-v1.schema.json",
   "figma-generation-report-v1.schema.json",
   "figma-export-bundle-v1.schema.json",
+  "figma-export-bundle-v2.schema.json",
   "figma-design-request-v1.schema.json",
   "figma-design-operation-v1.schema.json",
   "legacy-conversion-request-v1.schema.json",
@@ -35,12 +41,18 @@ const validator = fileName => {
 const validateDocument = validator("rendered-design-document-v1.schema.json");
 const validateManifest = validator("figpack-v1.schema.json");
 const validateScreen = validator("figma-screen-spec-v1.schema.json");
+const validateScreenV2 = validator("figma-screen-spec-v2.schema.json");
 const validateDesignSystemSpec = validator("design-system-spec-v1.schema.json");
 const validateProfile = validator("design-system-profile-v1.schema.json");
 const validateRegistry = validator("component-registry-v1.schema.json");
+const validateRegistryV2 = validator("component-registry-v2.schema.json");
+const validatePatterns = validator("screen-patterns-v1.schema.json");
+const validateScreenSuite = validator("screen-suite-manifest-v1.schema.json");
+const validateVariantRules = validator("variant-rule-set-v1.schema.json");
 const validateCatalog = validator("component-catalog-v1.schema.json");
 const validateGenerationReport = validator("figma-generation-report-v1.schema.json");
 const validateBundle = validator("figma-export-bundle-v1.schema.json");
+const validateBundleV2 = validator("figma-export-bundle-v2.schema.json");
 const validateDesignRequest = validator("figma-design-request-v1.schema.json");
 const validateDesignOperation = validator("figma-design-operation-v1.schema.json");
 const validateLegacyConversionRequest = validator("legacy-conversion-request-v1.schema.json");
@@ -79,11 +91,93 @@ expectValid(validateScreen, "valid-boundary-figma-screen-spec.json");
 expectInvalid(validateScreen, "invalid-figma-screen-id.json");
 expectInvalid(validateScreen, "invalid-screen-version.json");
 expectInvalid(validateScreen, "invalid-logical-node-id.json");
+expectValid(validateScreenV2, "valid-figma-screen-spec-v2.json");
 expectValid(validateDesignSystemSpec, "valid-design-system-spec.json");
 expectValid(validateProfile, "valid-design-system-profile.json");
 expectValid(validateRegistry, "valid-krds-component-registry.json");
+expectValid(validateRegistryV2, "valid-component-registry-v2.json");
+expectInvalid(validateRegistryV2, "invalid-component-registry-v2-no-role.json");
+assert.equal(validatePatterns(read("screen-patterns-v1.json")), true,
+  `screen-patterns-v1.json: ${JSON.stringify(validatePatterns.errors)}`);
+assert.equal(validateVariantRules(read("variant-rule-set-krds-v1.json")), true,
+  `variant-rule-set-krds-v1.json: ${JSON.stringify(validateVariantRules.errors)}`);
+expectValid(validateScreenSuite, "qna/qna-screen-suite-v1.json");
+const qnaSuite = read("fixtures/qna/qna-screen-suite-v1.json");
+assert.equal(qnaSuite.screens.length, 6, "Q&A 회귀 Suite는 정확히 6개 화면이어야 한다");
+assert.equal(new Set(qnaSuite.screens.map(screen => screen.screenId)).size, 6,
+  "Q&A 회귀 Suite의 Screen ID는 중복될 수 없다");
+assert.equal(validateRegistryV2(read("fixtures/qna/krds-component-registry-v2.json")), true,
+  `Q&A KRDS registry: ${JSON.stringify(validateRegistryV2.errors)}`);
+const qnaVariantRules = read("fixtures/qna/variant-rule-set-krds-v2-candidate.json");
+assert.equal(validateVariantRules(qnaVariantRules), true,
+  `Q&A KRDS variant rules: ${JSON.stringify(validateVariantRules.errors)}`);
+assert.deepEqual(
+  qnaVariantRules.rules.filter(rule => rule.role === "search.panel"),
+  [{
+    ruleId: "search-panel-default", priority: 100, role: "search.panel",
+    when: {pattern: "crud.list", platform: "DESKTOP"},
+    result: {size: "Medium", state: "Default"},
+  }],
+  "search.panel은 정확히 하나의 결정형 Published Variant Rule을 가져야 한다",
+);
+const qnaV2ScreenFiles = [
+  "qna-list.json", "qna-create.json", "qna-detail.json",
+  "qna-answer-list.json", "qna-answer-detail.json", "qna-answer-create.json",
+];
+const qnaV2Screens = qnaV2ScreenFiles.map(name =>
+  read(`fixtures/qna/v2/${name}`));
+for (const [index, screen] of qnaV2Screens.entries()) {
+  assert.equal(validateScreenV2(screen), true,
+    `${qnaV2ScreenFiles[index]}: ${JSON.stringify(validateScreenV2.errors)}`);
+  const nodes = collectNodes(screen.content);
+  assert.equal(nodes.some(node => node.properties?.semanticRole === "search.region"), false,
+    `${qnaV2ScreenFiles[index]}: 비표준 search.region Role을 사용할 수 없다`);
+  for (const searchPanel of nodes.filter(node => node.properties?.semanticRole === "search.panel")) {
+    assert.equal(searchPanel.nodeType, "COMPONENT",
+      `${qnaV2ScreenFiles[index]}: search.panel은 COMPONENT여야 한다`);
+    assert.equal(searchPanel.type, "krds.searchPanel",
+      `${qnaV2ScreenFiles[index]}: search.panel은 Published krds.searchPanel을 사용해야 한다`);
+    assert.equal(searchPanel.children.length, 0,
+      `${qnaV2ScreenFiles[index]}: Published SearchPanel 내부를 개별 Field/Button으로 재구성할 수 없다`);
+    assert.equal(searchPanel.componentResolution?.ruleId, "search-panel-default",
+      `${qnaV2ScreenFiles[index]}: SearchPanel Variant Rule이 적용되어야 한다`);
+  }
+}
+assert.equal(new Set(qnaV2Screens.map(screen => screen.screenId)).size, 6,
+  "Q&A v2 Screen Spec은 정확히 6개의 고유 화면이어야 한다");
+assert.equal(qnaV2Screens.every(screen => screen.status === "REVIEW_REQUIRED"), true,
+  "사람의 승인 전 Q&A v2 Screen Spec 상태는 REVIEW_REQUIRED여야 한다");
+for (const expected of qnaSuite.screens) {
+  const screen = qnaV2Screens.find(candidate => candidate.screenId === expected.screenId);
+  assert.ok(screen, `Q&A v2 Screen Spec 누락: ${expected.screenId}`);
+  const actualRoles = collectSemanticRoles(screen.content);
+  for (const requiredRole of expected.requiredRoles) {
+    assert.equal(actualRoles.has(requiredRole), true,
+      `${expected.screenId}: 필수 Role 누락 ${requiredRole}`);
+  }
+}
 expectValid(validateGenerationReport, "valid-figma-generation-report.json");
 expectValid(validateBundle, "valid-figma-export-bundle.json");
+const screenV2 = read("fixtures/valid-figma-screen-spec-v2.json");
+const registryV2 = read("fixtures/valid-component-registry-v2.json");
+const bundleV2 = {
+  figmaScreenSpec: screenV2,
+  designSystemProfile: {
+    profile: {
+      id:"krds", name:"KRDS", version:"2.0.0", registryVersion:"2.0.0",
+      libraryFileKey:"KRDS_LIBRARY_FILE_KEY", status:"PUBLISHED", components:{}, variables:{}
+    },
+    snapshotAt:"2026-08-11T00:00:00Z"
+  },
+  componentRegistry: {registry:registryV2, snapshotAt:"2026-08-11T00:00:00Z"},
+  metadata: {
+    exportedAt:"2026-08-11T00:00:00Z", figmaScreenSpecSchemaVersion:"figma-screen-spec-v2",
+    screenSpecificationVersion:1, designSystemProfileVersion:"2.0.0", registryVersion:"2.0.0",
+    screenPatternVersion:"1.0.0", variantRuleSetVersion:"1.0.0", componentContractVersion:"2.0.0"
+  }
+};
+assert.equal(validateBundleV2(bundleV2), true,
+  `v2 bundle: ${JSON.stringify(validateBundleV2.errors)}`);
 
 for (const name of [
   "valid-figma-design-request-text.json",
@@ -144,7 +238,7 @@ const requiredLogicalTypes = new Set(
   catalog.requiredComponents.map(component => component.logicalType));
 for (const required of [
   "krds.button", "krds.textField", "krds.select", "krds.checkbox", "krds.pagination",
-  "egov.pageHeader", "egov.searchPanel", "egov.dataTable", "egov.formSection",
+  "krds.searchPanel", "egov.pageHeader", "egov.dataTable", "egov.formSection",
   "egov.actionArea", "egov.listPage", "egov.formPage",
 ]) {
   assert.equal(requiredLogicalTypes.has(required), true,
@@ -179,6 +273,20 @@ function bundleConsistencyIssues(bundle) {
   ];
   return [...new Set(checks.filter(([left, right]) => left !== right)
     .map(([, , code]) => code))];
+}
+
+function collectSemanticRoles(node, roles = new Set()) {
+  if (typeof node.properties?.semanticRole === "string") {
+    roles.add(node.properties.semanticRole);
+  }
+  for (const child of node.children ?? []) collectSemanticRoles(child, roles);
+  return roles;
+}
+
+function collectNodes(node, nodes = []) {
+  nodes.push(node);
+  for (const child of node.children ?? []) collectNodes(child, nodes);
+  return nodes;
 }
 
 function catalogIssues(value) {

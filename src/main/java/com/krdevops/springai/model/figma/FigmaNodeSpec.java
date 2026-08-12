@@ -22,6 +22,10 @@ public record FigmaNodeSpec(
         @JsonProperty("properties")
         Map<String, Object> properties,
 
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        @JsonProperty("componentResolution")
+        ResolvedComponentRef componentResolution,
+
         @JsonProperty("children")
         List<FigmaNodeSpec> children
 ) {
@@ -41,5 +45,18 @@ public record FigmaNodeSpec(
         if (nodeType == null) {
             throw new IllegalArgumentException("nodeType은 필수입니다");
         }
+        properties = properties == null ? Map.of() : Map.copyOf(properties);
+        children = children == null ? List.of() : List.copyOf(children);
+    }
+
+    /** componentResolution 도입 전 호출자와 v1 Builder 호환. */
+    public FigmaNodeSpec(
+            String logicalNodeId,
+            NodeType nodeType,
+            String type,
+            Map<String, Object> properties,
+            List<FigmaNodeSpec> children
+    ) {
+        this(logicalNodeId, nodeType, type, properties, null, children);
     }
 }

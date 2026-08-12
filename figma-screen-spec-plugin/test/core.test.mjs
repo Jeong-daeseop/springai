@@ -1,20 +1,94 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
   describeLayoutAnnotations,
   generationStatus,
+  visualRegressionStatus,
   mappedProperties,
   planFallback,
   previewLegacyMigration,
   reconcile,
+  runAtomicApply,
   selectVariantName,
   validateBundle
 } from "../dist-test/core.mjs";
 
-test("Desktop fallback is reported as PARTIAL instead of SUCCESS", () => {
-  assert.equal(generationStatus(false, 1), "PARTIAL");
+test("visual regression creates first baseline then blocks changed pixel evidence", () => {
+  assert.equal(visualRegressionStatus("hash-a", null), "BASELINE_CREATED");
+  assert.equal(visualRegressionStatus("hash-a", null, true), "FAILED");
+  assert.equal(visualRegressionStatus("hash-a", "hash-a"), "PASSED");
+  assert.equal(visualRegressionStatus("hash-b", "hash-a"), "FAILED");
+});
+
+test("fallback is a failed generation instead of partial success", () => {
+  assert.equal(generationStatus(false, 1), "FAILED");
   assert.equal(generationStatus(false, 0), "SUCCESS");
   assert.equal(generationStatus(true, 0), "FAILED");
+});
+
+test("atomic apply commits only after staging population and post-validation", async () => {
+  const events = [];
+  const result = await runAtomicApply({
+    createBackup: async () => { events.push("backup"); return {id:"backup"}; },
+    createStaging: async () => { events.push("staging"); return {id:"staging"}; },
+    populateStaging: async () => { events.push("populate"); },
+    validateStaging: async () => { events.push("validate"); },
+    commit: async () => { events.push("commit"); return "success"; },
+    rollback: async () => { events.push("rollback"); },
+  });
+  assert.equal(result, "success");
+  assert.deepEqual(events, ["backup", "staging", "populate", "validate", "commit"]);
+});
+
+test("atomic apply rolls back staging when property application fails", async () => {
+  const state = {existing:"original", staging:false, committed:false};
+  await assert.rejects(() => runAtomicApply({
+    createBackup: async () => ({existing:state.existing}),
+    createStaging: async () => { state.staging = true; return {id:"staging"}; },
+    populateStaging: async () => { throw new Error("PROPERTY_APPLY_FAILED"); },
+    validateStaging: async () => { throw new Error("must not run"); },
+    commit: async () => { state.committed = true; },
+    rollback: async () => { state.staging = false; state.existing = "original"; },
+  }), /PROPERTY_APPLY_FAILED/);
+  assert.deepEqual(state, {existing:"original", staging:false, committed:false});
+});
+
+test("atomic apply restores existing root when post-validation fails", async () => {
+  const state = {existing:"original", staging:false, committed:false};
+  await assert.rejects(() => runAtomicApply({
+    createBackup: async () => ({existing:state.existing}),
+    createStaging: async () => { state.staging = true; return {id:"staging"}; },
+    populateStaging: async () => {},
+    validateStaging: async () => { throw new Error("POST_VALIDATION_FAILED"); },
+    commit: async () => { state.existing = "archived"; state.committed = true; },
+    rollback: async (_staging, backup) => {
+      state.staging = false;
+      state.existing = backup?.existing ?? "missing";
+    },
+  }), /POST_VALIDATION_FAILED/);
+  assert.deepEqual(state, {existing:"original", staging:false, committed:false});
+});
+
+test("atomic apply restores archived root when commit fails midway", async () => {
+  const state = {existing:"original", staging:false, activeRoot:"original"};
+  await assert.rejects(() => runAtomicApply({
+    createBackup: async () => ({existing:state.existing}),
+    createStaging: async () => { state.staging = true; return {id:"staging"}; },
+    populateStaging: async () => {},
+    validateStaging: async () => {},
+    commit: async () => {
+      state.existing = "archived";
+      state.activeRoot = "staging";
+      throw new Error("COMMIT_INTERRUPTED");
+    },
+    rollback: async (_staging, backup) => {
+      state.staging = false;
+      state.existing = backup?.existing ?? "missing";
+      state.activeRoot = backup?.existing ?? "missing";
+    },
+  }), /COMMIT_INTERRUPTED/);
+  assert.deepEqual(state, {existing:"original", staging:false, activeRoot:"original"});
 });
 
 const registryEntry = {
@@ -38,14 +112,25 @@ function node(logicalNodeId, type, properties = {}, children = [], nodeType = "C
 
 function validBundle() {
   const content = node("user-list", "egov.listPage", {}, [
-    node("user-list/action/create", "krds.button", {style:"primary", size:"medium", label:"등록"})
+    {
+      ...node("user-list/action/create", "krds.button", {
+        semanticRole:"action.primary", label:"등록", state:"DEFAULT"
+      }),
+      componentResolution: {
+        role:"action.primary", logicalType:"krds.button", componentSetKey:"BUTTON_SET_KEY",
+        variantKey:"BUTTON_PRIMARY_KEY", variantProperties:{Style:"Primary", Size:"Medium"},
+        componentProperties:{Label:"등록"}, contractVersion:"2.0.0", ruleSetVersion:"1.0.0",
+        ruleId:"button-primary", contextHash:"a".repeat(64)
+      }
+    }
   ], "PAGE");
   return {
     figmaScreenSpec: {
       screenId:"user-list", screenVersion:1, screenSpecificationId:"users", screenSpecificationVersion:3,
       screenType:"LIST", layoutPattern:"STANDARD", name:"사용자 목록", viewport:"DESKTOP", status:"APPROVED",
       designSystem:{profileId:"ftc-krds", profileVersion:"1.0.0", registryVersion:"registry-1"},
-      content, issues:[]
+      content, issues:[], semanticPattern:"crud.list", screenPatternVersion:"1.0.0",
+      variantRuleSetVersion:"1.0.0", componentContractVersion:"2.0.0"
     },
     designSystemProfile: {
       profile:{id:"ftc-krds", version:"1.0.0", registryVersion:"registry-1", status:"PUBLISHED"},
@@ -62,16 +147,126 @@ function validBundle() {
       snapshotAt:"2026-07-27T00:00:00Z"
     },
     metadata:{
-      exportedAt:"2026-07-27T00:00:00Z", figmaScreenSpecSchemaVersion:"figma-screen-spec-v1",
-      screenSpecificationVersion:3, designSystemProfileVersion:"1.0.0", registryVersion:"registry-1"
+      exportedAt:"2026-07-27T00:00:00Z", figmaScreenSpecSchemaVersion:"figma-screen-spec-v2",
+      screenSpecificationVersion:3, designSystemProfileVersion:"1.0.0", registryVersion:"registry-1",
+      screenPatternVersion:"1.0.0", variantRuleSetVersion:"1.0.0", componentContractVersion:"2.0.0"
     }
   };
+}
+
+function legacyV1Bundle() {
+  const bundle = validBundle();
+  bundle.metadata.figmaScreenSpecSchemaVersion = "figma-screen-spec-v1";
+  delete bundle.metadata.screenPatternVersion;
+  delete bundle.metadata.variantRuleSetVersion;
+  delete bundle.metadata.componentContractVersion;
+  delete bundle.figmaScreenSpec.semanticPattern;
+  delete bundle.figmaScreenSpec.screenPatternVersion;
+  delete bundle.figmaScreenSpec.variantRuleSetVersion;
+  delete bundle.figmaScreenSpec.componentContractVersion;
+  for (const {node: current} of flattenForTest(bundle.figmaScreenSpec.content)) {
+    delete current.componentResolution;
+  }
+  return bundle;
+}
+
+function flattenForTest(root) {
+  const result = [];
+  const visit = current => {
+    result.push({node: current});
+    for (const child of current.children ?? []) visit(child);
+  };
+  visit(root);
+  return result;
 }
 
 test("valid published bundle passes validation", () => {
   const result = validateBundle(validBundle());
   assert.ok(result.parsed);
+  assert.equal(result.contractMode, "V2_APPLY");
   assert.deepEqual(result.issues, []);
+});
+
+test("v1 bundle is accepted only for legacy migration preview", () => {
+  const result = validateBundle(legacyV1Bundle());
+  assert.ok(result.parsed);
+  assert.equal(result.contractMode, "V1_MIGRATION_PREVIEW");
+  assert.equal(result.issues.some(issue =>
+    issue.code === "LEGACY_SCHEMA_MIGRATION_PREVIEW_ONLY" && issue.severity === "WARNING"), true);
+  assert.equal(result.issues.some(issue => issue.severity === "FATAL" || issue.severity === "ERROR"), false);
+});
+
+test("v2 bundle requires Role and Variant contract fields", () => {
+  const bundle = validBundle();
+  delete bundle.figmaScreenSpec.variantRuleSetVersion;
+  const result = validateBundle(bundle);
+  assert.equal(result.contractMode, "V2_APPLY");
+  assert.equal(result.issues.some(issue => issue.code === "SCREEN_SPEC_V2_REQUIRED"), true);
+});
+
+test("unknown schema version is rejected", () => {
+  const bundle = validBundle();
+  bundle.metadata.figmaScreenSpecSchemaVersion = "figma-screen-spec-v3";
+  const result = validateBundle(bundle);
+  assert.equal(result.contractMode, undefined);
+  assert.equal(result.issues.some(issue => issue.code === "SCHEMA_VERSION_UNSUPPORTED"), true);
+});
+
+test("Q&A six runtime v2 bundles pass plugin validation and preview reconciliation", () => {
+  const fixtureRoot = new URL("../../website-figma-contract/fixtures/qna/", import.meta.url);
+  const registry = JSON.parse(fs.readFileSync(new URL("krds-component-registry-v2.json", fixtureRoot), "utf8"));
+  const files = [
+    "qna-list.json", "qna-create.json", "qna-detail.json",
+    "qna-answer-list.json", "qna-answer-detail.json", "qna-answer-create.json",
+  ];
+  for (const file of files) {
+    const screen = JSON.parse(fs.readFileSync(new URL(`v2/${file}`, fixtureRoot), "utf8"));
+    const bundle = {
+      figmaScreenSpec: {...screen, status:"APPROVED"},
+      designSystemProfile: {
+        profile:{
+          id:registry.profileId, version:registry.profileVersion,
+          registryVersion:registry.registryVersion, status:"PUBLISHED",
+          libraryFileKey:registry.library.fileKey,
+        },
+        snapshotAt:"2026-08-12T00:00:00Z",
+      },
+      componentRegistry:{registry, snapshotAt:"2026-08-12T00:00:00Z"},
+      metadata:{
+        exportedAt:"2026-08-12T00:00:00Z",
+        figmaScreenSpecSchemaVersion:"figma-screen-spec-v2",
+        screenSpecificationVersion:screen.screenSpecificationVersion,
+        designSystemProfileVersion:registry.profileVersion,
+        registryVersion:registry.registryVersion,
+        screenPatternVersion:screen.screenPatternVersion,
+        variantRuleSetVersion:screen.variantRuleSetVersion,
+        componentContractVersion:screen.componentContractVersion,
+      },
+    };
+    const validated = validateBundle(bundle);
+    assert.equal(validated.contractMode, "V2_APPLY", file);
+    assert.deepEqual(validated.issues, [], `${file}: ${JSON.stringify(validated.issues)}`);
+    const changes = reconcile(screen.content, []);
+    assert.ok(changes.length > 0, `${file}: Preview 변경 목록이 비어 있습니다.`);
+    assert.equal(changes.every(change => change.changeType === "ADD"), true, file);
+  }
+});
+
+test("v1 legacy migration computes mappings but never enables migration apply", () => {
+  const preview = previewLegacyMigration(legacyV1Bundle(), [
+    {nodeId:"1:1", name:"user-list egov listPage", nodeType:"FRAME", logicalNodeId:null, hasLocalInstance:false},
+    {nodeId:"1:2", name:"create 등록 button", nodeType:"FRAME", logicalNodeId:null, hasLocalInstance:true}
+  ]);
+  assert.equal(preview.operations.length > 0, true);
+  assert.equal(preview.canApply, false);
+  assert.equal(preview.issues.some(issue => issue.code === "LEGACY_SCHEMA_MIGRATION_PREVIEW_ONLY"), true);
+});
+
+test("structural semantic role does not require a published component resolution", () => {
+  const bundle = validBundle();
+  bundle.figmaScreenSpec.content.properties.semanticRole = "form.container";
+  const result = validateBundle(bundle);
+  assert.equal(result.issues.some(issue => issue.code === "ROLE_NOT_RESOLVED"), false);
 });
 
 test("missing required registry component is fatal", () => {
@@ -114,6 +309,19 @@ test("logical properties map to figma properties and select published variant", 
   );
   assert.deepEqual(properties, {Style:"Primary", Size:"Medium", Label:"저장", Disabled:true});
   assert.equal(selectVariantName(properties, registryEntry), "Style=Primary, Size=Medium");
+});
+
+test("variant selection never falls back to the first published variant", () => {
+  assert.equal(selectVariantName({}, registryEntry), null);
+  assert.equal(selectVariantName({Style:"Unknown", Size:"Medium"}, registryEntry), null);
+});
+
+test("DETAIL v2 bundle is supported", () => {
+  const bundle = validBundle();
+  bundle.figmaScreenSpec.screenType = "DETAIL";
+  bundle.figmaScreenSpec.semanticPattern = "crud.detail";
+  const result = validateBundle(bundle);
+  assert.equal(result.issues.some(issue => issue.code === "SCREEN_TYPE_UNSUPPORTED"), false);
 });
 
 test("R5-014: instance swap property resolves logical value to componentKey via values table", () => {

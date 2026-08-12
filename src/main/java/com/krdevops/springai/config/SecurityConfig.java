@@ -97,11 +97,13 @@ public class SecurityConfig {
         if (!allowedOrigins.isEmpty()) {
             CorsConfiguration configuration = new CorsConfiguration();
             configuration.setAllowedOrigins(allowedOrigins);
-            configuration.setAllowedMethods(List.of("GET"));
-            configuration.setAllowedHeaders(List.of("Authorization", "X-API-Key", "If-None-Match"));
+            configuration.setAllowedMethods(List.of("GET", "POST"));
+            configuration.setAllowedHeaders(List.of(
+                    "Authorization", "X-API-Key", "If-None-Match", "Content-Type"));
             configuration.setExposedHeaders(List.of("ETag"));
             configuration.setMaxAge(600L);
             source.registerCorsConfiguration("/api/figma/screens/**", configuration);
+            source.registerCorsConfiguration("/api/figma/operations/reports", configuration);
         }
         return source;
     }
@@ -116,6 +118,11 @@ public class SecurityConfig {
                     throws ServletException, IOException {
 
                 String path = request.getRequestURI();
+                // CORS preflight에는 API Key가 없으므로 인증 필터보다 CorsFilter가 응답하게 한다.
+                if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 if (!path.startsWith("/api/")
                         || path.startsWith("/api/chat/")
                         || path.startsWith("/api/ollama/")

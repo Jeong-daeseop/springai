@@ -81,11 +81,14 @@
       "codeProperties": {"title": "h1.text"}
     },
     {
-      "logicalType": "egov.searchPanel",
-      "aliases": ["searchForm"],
+      "logicalType": "krds.searchPanel",
+      "aliases": ["egov.searchPanel", "searchForm"],
       "replacement": null,
-      "figmaProperties": {},
-      "codeProperties": {"fields": "form.searchFields"}
+      "figmaProperties": {
+        "label": {"figmaProperty": "Lable#723:0", "type": "TEXT", "values": {}},
+        "placeholder": {"figmaProperty": "↪️Hint#1275:39", "type": "TEXT", "values": {}}
+      },
+      "codeProperties": {"fields": "form.searchFields", "action": "form.search"}
     },
     {
       "logicalType": "egov.dataTable",

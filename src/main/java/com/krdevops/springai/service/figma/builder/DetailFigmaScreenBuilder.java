@@ -3,6 +3,8 @@ package com.krdevops.springai.service.figma.builder;
 import com.krdevops.springai.model.design.PageSpec;
 import com.krdevops.springai.model.design.ScreenFieldBinding;
 import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.model.design.role.FieldMode;
+import com.krdevops.springai.model.design.role.SemanticRole;
 import com.krdevops.springai.model.figma.FigmaNodeSpec;
 import com.krdevops.springai.model.figma.FigmaScreenType;
 import com.krdevops.springai.service.figma.LogicalNodeIdFactory;
@@ -41,11 +43,12 @@ public class DetailFigmaScreenBuilder implements FigmaScreenBuilder {
         List<FigmaNodeSpec> children = fields.stream()
                 .filter(ScreenFieldBinding::visible)
                 .map(field -> new FigmaNodeSpec(
-                        idFactory.field(pageId, "detail", field.id()), FigmaNodeSpec.NodeType.COMPONENT, "egov.detailField",
-                        Map.of("label", field.label()), List.of()))
+                        idFactory.field(pageId, "detail", field.id()), FigmaNodeSpec.NodeType.COMPONENT,
+                        FieldComponentMapper.logicalType(field),
+                        FieldComponentMapper.properties(field, FieldMode.READ_ONLY), List.of()))
                 .toList();
         return new FigmaNodeSpec(
                 idFactory.section(pageId, "detail"), FigmaNodeSpec.NodeType.SECTION, "egov.detailSection",
-                Map.of(), children);
+                Map.of("semanticRole", SemanticRole.FORM_SECTION.code()), children);
     }
 }

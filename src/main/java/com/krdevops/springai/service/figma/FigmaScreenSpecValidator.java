@@ -49,6 +49,9 @@ public class FigmaScreenSpecValidator {
 
         Set<String> seenIds = new HashSet<>();
         checkNode(spec.content(), seenIds, issues, "/content");
+        if (spec.semanticPattern() != null) {
+            issues.addAll(new ComponentResolutionValidator().validate(spec.content()));
+        }
         return issues;
     }
 
@@ -66,6 +69,9 @@ public class FigmaScreenSpecValidator {
             issues.add(warning("UNSUPPORTED_CONTROL",
                     "지원하지 않는 Control이라 기본 krds.textField로 대체되었습니다: "
                             + node.logicalNodeId(),
+                    node.logicalNodeId(), pointer + "/properties/unsupportedControl"));
+            issues.add(fatal("UNAPPROVED_COMPONENT_FALLBACK",
+                    "지원하지 않는 Control의 자동 Fallback은 허용되지 않습니다.",
                     node.logicalNodeId(), pointer + "/properties/unsupportedControl"));
         }
         for (int index = 0; index < node.children().size(); index++) {

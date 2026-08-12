@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/screen-patterns-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "patterns"],
+  "properties": {
+    "version": {"type": "string", "minLength": 1},
+    "patterns": {
+      "type": "array",
+      "minItems": 4,
+      "items": {"$ref": "#/$defs/pattern"}
+    }
+  },
+  "$defs": {
+    "role": {
+      "enum": ["page.header", "search.panel", "data.table", "data.table.cell", "data.pagination", "form.container", "form.section", "field.text", "field.textarea", "field.select", "field.checkbox", "action.primary", "action.secondary", "action.destructive"]
+    },
+    "pattern": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pattern", "version", "slots"],
+      "properties": {
+        "pattern": {"enum": ["crud.list", "crud.detail", "crud.create", "crud.edit"]},
+        "version": {"type": "string", "minLength": 1},
+        "slots": {"type": "array", "items": {"$ref": "#/$defs/slot"}}
+      }
+    },
+    "slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "minCount", "maxCount", "allowedChildren", "order"],
+      "properties": {
+        "role": {"$ref": "#/$defs/role"},
+        "minCount": {"type": "integer", "minimum": 0},
+        "maxCount": {"type": ["integer", "null"], "minimum": 0},
+        "allowedChildren": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/role"}},
+        "order": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}

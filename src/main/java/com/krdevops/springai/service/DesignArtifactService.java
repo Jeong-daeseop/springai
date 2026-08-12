@@ -125,6 +125,55 @@ public class DesignArtifactService {
         }
     }
 
+    /** 검증에서 차단된 Export는 Screen Spec 없이 실패 Generation Report만 보존한다. */
+    public FigmaExportArtifact saveFigmaExportFailureReport(
+            String screenId,
+            int attemptedScreenVersion,
+            List<com.krdevops.springai.model.figma.FigmaExportIssue> issues,
+            LocalDateTime generatedAt) {
+        if (screenId == null || !screenId.matches("[a-z0-9][a-z0-9._-]{0,63}")) {
+            throw new IllegalArgumentException("Figma failure report screenId 형식이 올바르지 않습니다: " + screenId);
+        }
+        if (attemptedScreenVersion < 1) {
+            throw new IllegalArgumentException("attemptedScreenVersion은 1 이상이어야 합니다.");
+        }
+        String failureId = UUID.randomUUID().toString();
+        Path artifactRoot = root().resolve("figma-export-failures").normalize();
+        Path target = artifactRoot.resolve(screenId)
+                .resolve("v" + attemptedScreenVersion + "-" + failureId).normalize();
+        Path temporary = artifactRoot.resolve("." + screenId + "-v" + attemptedScreenVersion
+                + ".tmp-" + failureId).normalize();
+        if (!target.startsWith(artifactRoot) || !temporary.startsWith(artifactRoot)) {
+            throw new IllegalStateException("Figma failure report 경로 이탈입니다.");
+        }
+        LocalDateTime createdAt = generatedAt == null ? LocalDateTime.now() : generatedAt;
+        try {
+            Files.createDirectories(artifactRoot);
+            if (Files.isSymbolicLink(artifactRoot)) {
+                throw new IllegalStateException("Figma failure report root는 symbolic link일 수 없습니다.");
+            }
+            Files.createDirectory(temporary);
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(
+                    temporary.resolve("figma-generation-report.json").toFile(),
+                    java.util.Map.of(
+                            "status", com.krdevops.springai.model.figma.FigmaExportResult.Status.FAILED,
+                            "screenId", screenId,
+                            "attemptedScreenVersion", attemptedScreenVersion,
+                            "issues", issues == null ? List.of() : issues,
+                            "generatedAt", createdAt));
+            FigmaExportArtifact artifact = new FigmaExportArtifact(
+                    screenId + "-v" + attemptedScreenVersion + "-failed-" + failureId,
+                    root().relativize(target).toString(), screenId, attemptedScreenVersion, createdAt);
+            Files.createDirectories(target.getParent());
+            Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
+            return artifact;
+        } catch (Exception exception) {
+            deleteQuietly(temporary);
+            if (exception instanceof RuntimeException runtime) throw runtime;
+            throw new IllegalStateException("Figma failure report 저장 실패", exception);
+        }
+    }
+
     /** 승인된 ScreenSpecification에서 생성된 Plugin 입력 Bundle을 불변 Artifact로 원자 저장한다. */
     public FigmaBundleArtifact saveFigmaExportBundle(
             com.krdevops.springai.model.figma.FigmaExportBundle bundle) {

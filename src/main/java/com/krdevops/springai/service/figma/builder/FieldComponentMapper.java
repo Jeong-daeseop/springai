@@ -1,6 +1,8 @@
 package com.krdevops.springai.service.figma.builder;
 
 import com.krdevops.springai.model.design.ScreenFieldBinding;
+import com.krdevops.springai.model.design.role.FieldMode;
+import com.krdevops.springai.model.design.role.SemanticRole;
 
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -19,7 +21,10 @@ final class FieldComponentMapper {
         return switch (normalizedControl(field)) {
             case "SELECT" -> "krds.select";
             case "CHECKBOX" -> "krds.checkbox";
-            default -> "krds.textField";
+            case "TEXTAREA" -> "krds.textarea";
+            case "TEXT", "NUMBER", "DATE" -> "krds.textField";
+            default -> throw new IllegalArgumentException(
+                    "SEMANTIC_ROLE_NOT_DERIVED: 지원하지 않는 Control입니다: " + field.control());
         };
     }
 
@@ -28,13 +33,25 @@ final class FieldComponentMapper {
     }
 
     static Map<String, Object> properties(ScreenFieldBinding field) {
+        return properties(field, FieldMode.EDITABLE);
+    }
+
+    static Map<String, Object> properties(ScreenFieldBinding field, FieldMode mode) {
         Map<String, Object> properties = new LinkedHashMap<>();
+        SemanticRole role = switch (normalizedControl(field)) {
+            case "SELECT" -> SemanticRole.FIELD_SELECT;
+            case "CHECKBOX" -> SemanticRole.FIELD_CHECKBOX;
+            case "TEXTAREA" -> SemanticRole.FIELD_TEXTAREA;
+            case "TEXT", "NUMBER", "DATE" -> SemanticRole.FIELD_TEXT;
+            default -> throw new IllegalArgumentException(
+                    "SEMANTIC_ROLE_NOT_DERIVED: 지원하지 않는 Control입니다: " + field.control());
+        };
+        properties.put("semanticRole", role.code());
         properties.put("label", field.label());
         properties.put("required", field.required());
         properties.put("control", field.control());
-        if (!isSupportedControl(field)) {
-            properties.put("unsupportedControl", true);
-        }
+        properties.put("mode", mode.name());
+        properties.put("state", mode == FieldMode.READ_ONLY ? "READ_ONLY" : "DEFAULT");
         return properties;
     }
 

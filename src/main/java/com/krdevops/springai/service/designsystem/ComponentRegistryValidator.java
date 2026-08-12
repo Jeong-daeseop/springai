@@ -16,6 +16,8 @@ import java.util.HashSet;
 @Service
 public class ComponentRegistryValidator {
 
+    private final ComponentContractValidator contractValidator = new ComponentContractValidator();
+
     public List<DesignSystemIssue> validate(ComponentRegistry registry) {
         List<DesignSystemIssue> issues = new ArrayList<>();
         if (registry == null) {
@@ -35,6 +37,9 @@ public class ComponentRegistryValidator {
             }
             validatePropertyMappings(logicalType, value, issues);
             validateLifecycle(logicalType, value, registry, aliasOwners, issues);
+            if (!value.roles().isEmpty() || !value.variantAxes().isEmpty()) {
+                issues.addAll(contractValidator.validate(logicalType, value));
+            }
         }
         detectReplacementCycles(registry, issues);
         for (var entry : registry.variables().entrySet()) {

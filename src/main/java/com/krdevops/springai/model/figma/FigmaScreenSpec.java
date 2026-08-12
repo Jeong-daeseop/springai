@@ -1,6 +1,7 @@
 package com.krdevops.springai.model.figma;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.krdevops.springai.model.design.role.ScreenPattern;
 import java.util.List;
 
 /**
@@ -45,9 +46,26 @@ public record FigmaScreenSpec(
         FigmaNodeSpec content,
 
         @JsonProperty("issues")
-        List<FigmaExportIssue> issues
+        List<FigmaExportIssue> issues,
+
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        @JsonProperty("semanticPattern")
+        ScreenPattern semanticPattern,
+
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        @JsonProperty("screenPatternVersion")
+        String screenPatternVersion,
+
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        @JsonProperty("variantRuleSetVersion")
+        String variantRuleSetVersion,
+
+        @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
+        @JsonProperty("componentContractVersion")
+        String componentContractVersion
 ) {
     public static final String SCHEMA_VERSION = "1";
+    public static final String SCHEMA_VERSION_V2 = "figma-screen-spec-v2";
 
     public record DesignSystemRef(
             @JsonProperty("profileId")
@@ -83,5 +101,18 @@ public record FigmaScreenSpec(
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("name은 필수입니다");
         }
+        issues = issues == null ? List.of() : List.copyOf(issues);
+    }
+
+    /** Role·Variant v2 메타데이터 도입 전 호출자 호환. */
+    public FigmaScreenSpec(
+            String screenId, int screenVersion, String screenSpecificationId, int screenSpecificationVersion,
+            FigmaScreenType screenType, LayoutPattern layoutPattern, String name, String route,
+            String viewport, String status, DesignSystemRef designSystem, FigmaNodeSpec content,
+            List<FigmaExportIssue> issues
+    ) {
+        this(screenId, screenVersion, screenSpecificationId, screenSpecificationVersion, screenType,
+                layoutPattern, name, route, viewport, status, designSystem, content, issues,
+                null, null, null, null);
     }
 }

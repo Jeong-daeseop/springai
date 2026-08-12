@@ -1,0 +1,28 @@
+{
+  "id": "krds-role-variant", "version": "1.0.0", "profileId": "krds",
+  "registryVersion": "2.0.0", "status": "PUBLISHED",
+  "rules": [
+    {"ruleId":"header-list","priority":100,"role":"page.header","when":{"pattern":"crud.list","platform":"DESKTOP"},"result":{"screenType":"List","density":"Comfortable"}},
+    {"ruleId":"header-detail","priority":100,"role":"page.header","when":{"pattern":"crud.detail","platform":"DESKTOP"},"result":{"screenType":"Detail","density":"Comfortable"}},
+    {"ruleId":"header-create","priority":100,"role":"page.header","when":{"pattern":"crud.create","platform":"DESKTOP"},"result":{"screenType":"Create","density":"Comfortable"}},
+    {"ruleId":"header-edit","priority":100,"role":"page.header","when":{"pattern":"crud.edit","platform":"DESKTOP"},"result":{"screenType":"Edit","density":"Comfortable"}},
+    {"ruleId":"search-compact","priority":100,"role":"search.panel","when":{"pattern":"crud.list","platform":"DESKTOP"},"result":{"density":"Compact"}},
+    {"ruleId":"table-comfortable","priority":100,"role":"data.table","when":{"pattern":"crud.list","platform":"DESKTOP"},"result":{"density":"Comfortable"}},
+    {"ruleId":"cell-default","priority":100,"role":"data.table.cell","when":{"pattern":"crud.list","platform":"DESKTOP"},"result":{"state":"Default"}},
+    {"ruleId":"pagination-default","priority":100,"role":"data.pagination","when":{"pattern":"crud.list","platform":"DESKTOP"},"result":{"state":"Default"}},
+    {"ruleId":"form-create","priority":100,"role":"form.container","when":{"pattern":"crud.create","platform":"DESKTOP"},"result":{"screenType":"Create"}},
+    {"ruleId":"form-edit","priority":100,"role":"form.container","when":{"pattern":"crud.edit","platform":"DESKTOP"},"result":{"screenType":"Edit"}},
+    {"ruleId":"section-default","priority":100,"role":"form.section","when":{"platform":"DESKTOP"},"result":{"density":"Comfortable"}},
+    {"ruleId":"text-editable","priority":100,"role":"field.text","when":{"mode":"EDITABLE","platform":"DESKTOP"},"result":{"state":"Default"}},
+    {"ruleId":"text-readonly","priority":100,"role":"field.text","when":{"mode":"READ_ONLY","platform":"DESKTOP"},"result":{"state":"ReadOnly"}},
+    {"ruleId":"textarea-editable","priority":100,"role":"field.textarea","when":{"mode":"EDITABLE","platform":"DESKTOP"},"result":{"state":"Default"}},
+    {"ruleId":"textarea-readonly","priority":100,"role":"field.textarea","when":{"mode":"READ_ONLY","platform":"DESKTOP"},"result":{"state":"ReadOnly"}},
+    {"ruleId":"select-editable","priority":100,"role":"field.select","when":{"mode":"EDITABLE","platform":"DESKTOP"},"result":{"state":"Default"}},
+    {"ruleId":"select-readonly","priority":100,"role":"field.select","when":{"mode":"READ_ONLY","platform":"DESKTOP"},"result":{"state":"ReadOnly"}},
+    {"ruleId":"checkbox-editable","priority":100,"role":"field.checkbox","when":{"mode":"EDITABLE","platform":"DESKTOP"},"result":{"state":"Default"}},
+    {"ruleId":"checkbox-readonly","priority":100,"role":"field.checkbox","when":{"mode":"READ_ONLY","platform":"DESKTOP"},"result":{"state":"ReadOnly"}},
+    {"ruleId":"action-primary","priority":100,"role":"action.primary","when":{"state":"DEFAULT","platform":"DESKTOP"},"result":{"style":"Primary","size":"Medium"}},
+    {"ruleId":"action-secondary","priority":100,"role":"action.secondary","when":{"state":"DEFAULT","platform":"DESKTOP"},"result":{"style":"Secondary","size":"Medium"}},
+    {"ruleId":"action-danger","priority":100,"role":"action.destructive","when":{"state":"DEFAULT","platform":"DESKTOP"},"result":{"style":"Danger","size":"Medium"}}
+  ]
+}

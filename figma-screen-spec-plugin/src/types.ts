@@ -1,6 +1,7 @@
 export type ScreenStatus = "DRAFT" | "REVIEW_REQUIRED" | "APPROVED" | "SUPERSEDED";
 export type NodeType = "PAGE" | "SECTION" | "COMPONENT" | "TEXT" | "SLOT" | "REPEAT";
 export type SyncMode = "PREVIEW" | "MERGE" | "REPLACE";
+export type BundleContractMode = "V1_MIGRATION_PREVIEW" | "V2_APPLY";
 export type PublishStatus = "UNPUBLISHED" | "CURRENT" | "CHANGED";
 export type PropertyType = "TEXT" | "BOOLEAN" | "VARIANT" | "INSTANCE_SWAP";
 
@@ -9,7 +10,21 @@ export type FigmaNodeSpec = {
   nodeType: NodeType;
   type: string;
   properties: Record<string, unknown>;
+  componentResolution?: ComponentResolution | null;
   children: FigmaNodeSpec[];
+};
+
+export type ComponentResolution = {
+  role: string;
+  logicalType: string;
+  componentSetKey: string;
+  variantKey: string;
+  variantProperties: Record<string, string>;
+  componentProperties: Record<string, string | boolean>;
+  contractVersion: string;
+  ruleSetVersion: string;
+  ruleId?: string | null;
+  contextHash: string;
 };
 
 export type FigmaScreenSpec = {
@@ -26,6 +41,10 @@ export type FigmaScreenSpec = {
   designSystem: { profileId: string; profileVersion: string; registryVersion: string };
   content: FigmaNodeSpec;
   issues: ExportIssue[];
+  semanticPattern?: "crud.list" | "crud.detail" | "crud.create" | "crud.edit";
+  screenPatternVersion?: string;
+  variantRuleSetVersion?: string;
+  componentContractVersion?: string;
 };
 
 export type RegistryEntry = {
@@ -67,6 +86,9 @@ export type FigmaExportBundle = {
     screenSpecificationVersion: number;
     designSystemProfileVersion: string;
     registryVersion: string;
+    screenPatternVersion?: string | null;
+    variantRuleSetVersion?: string | null;
+    componentContractVersion?: string | null;
   };
 };
 
@@ -109,6 +131,17 @@ export type GenerationReport = {
   fallbackCount: number;
   changes: ReconciliationChange[];
   issues: ExportIssue[];
+  qualityGates: QualityGateResult[];
+};
+
+export type QualityGateResult = {
+  gate: "LAYOUT" | "ACCESSIBILITY" | "VISUAL_REGRESSION";
+  status: "PASSED" | "FAILED" | "BASELINE_CREATED";
+  issueCodes: string[];
+  evidenceHash?: string | null;
+  baselineHash?: string | null;
+  diffRatio?: number | null;
+  threshold?: number | null;
 };
 
 export type LegacyFrameNode = {

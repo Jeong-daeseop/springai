@@ -99,6 +99,23 @@ tasks.register('figmaContractTest', Exec) {
     commandLine 'npm', 'test'
 }
 
+tasks.register('qnaRuntimeResolverTest', Test) {
+    group = 'verification'
+    description = 'Q&A 6개 계약을 DB에 적재하고 Runtime Resolver Bundle을 생성합니다.'
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    include '**/KrdsQnaRuntimeResolverIntegrationTest.class'
+}
+
+tasks.register('figmaRuntimeBundlePluginTest', Exec) {
+    group = 'verification'
+    description = 'Runtime Resolver가 생성한 Q&A 6개 Bundle을 Figma Plugin Preview로 검증합니다.'
+    dependsOn tasks.named('qnaRuntimeResolverTest')
+    workingDir file('figma-screen-spec-plugin')
+    commandLine 'npm', 'run', 'test:runtime-bundles'
+}
+
 tasks.register('browserGateTest', Exec) {
     group = 'verification'
     description = 'WP8 Playwright 1440/768/390, axe, visual diff Gate를 실제 Chromium으로 검증합니다.'
@@ -129,5 +146,18 @@ tasks.named('processResources') {
     from('website-figma-contract') {
         include '*.schema.json'
         into 'contracts'
+    }
+    from('website-figma-contract') {
+        include 'screen-patterns-v1.json'
+        into 'figma/contracts'
+    }
+    from('website-figma-contract/fixtures/qna') {
+        include 'krds-component-registry-v2.json'
+        include 'variant-rule-set-krds-v2-candidate.json'
+        into 'figma/contracts/qna'
+    }
+    from('website-figma-contract/fixtures/qna/v2') {
+        include '*.json'
+        into 'figma/contracts/qna/v2'
     }
 }

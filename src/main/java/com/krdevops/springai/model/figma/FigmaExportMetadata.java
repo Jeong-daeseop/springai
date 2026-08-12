@@ -8,11 +8,26 @@ public record FigmaExportMetadata(
         String figmaScreenSpecSchemaVersion,
         int screenSpecificationVersion,
         String designSystemProfileVersion,
-        String registryVersion
+        String registryVersion,
+        String screenPatternVersion,
+        String variantRuleSetVersion,
+        String componentContractVersion
 ) {
     public FigmaExportMetadata {
         exportedAt = exportedAt == null ? LocalDateTime.now() : exportedAt;
         figmaScreenSpecSchemaVersion = figmaScreenSpecSchemaVersion == null
                 ? FigmaScreenSpec.SCHEMA_VERSION : figmaScreenSpecSchemaVersion;
+    }
+
+    /** Role·Variant v2 버전 도입 전 호출자 호환. */
+    public FigmaExportMetadata(
+            LocalDateTime exportedAt,
+            String figmaScreenSpecSchemaVersion,
+            int screenSpecificationVersion,
+            String designSystemProfileVersion,
+            String registryVersion
+    ) {
+        this(exportedAt, figmaScreenSpecSchemaVersion, screenSpecificationVersion,
+                designSystemProfileVersion, registryVersion, null, null, null);
     }
 }

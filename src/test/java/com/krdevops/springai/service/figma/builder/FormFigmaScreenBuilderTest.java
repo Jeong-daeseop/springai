@@ -24,9 +24,14 @@ class FormFigmaScreenBuilderTest {
 
         assertThat(root.type()).isEqualTo("egov.formPage");
         assertThat(root.children()).extracting(FigmaNodeSpec::type)
-                .containsExactly("egov.pageHeader", "egov.formSection", "egov.validationSummary", "egov.actionArea");
+                .containsExactly("krds.pageHeader", "egov.formContainer", "egov.validationSummary", "egov.actionArea");
+        assertThat(root.children().get(1).properties()).containsEntry("semanticRole", "form.container");
+        assertThat(root.children().get(1).children()).extracting(FigmaNodeSpec::type)
+                .containsExactly("egov.formSection");
+        assertThat(root.children().get(0).nodeType()).isEqualTo(FigmaNodeSpec.NodeType.COMPONENT);
+        assertThat(root.children().get(0).properties()).containsEntry("semanticRole", "page.header");
 
-        FigmaNodeSpec formSection = root.children().get(1);
+        FigmaNodeSpec formSection = root.children().get(1).children().get(0);
         assertThat(formSection.children()).hasSize(2);
         assertThat(formSection.children()).extracting(FigmaNodeSpec::type)
                 .containsExactly("krds.textField", "krds.select");

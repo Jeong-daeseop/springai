@@ -30,13 +30,17 @@ public class FigmaContractSchemaValidator {
     private static final String SCHEMA_ROOT = "/contracts/";
     private static final String SCREEN_SCHEMA_ID =
             "https://schemas.krdevops.local/figma-screen-spec-v1";
+    private static final String SCREEN_SCHEMA_V2_ID =
+            "https://schemas.krdevops.local/figma-screen-spec-v2";
     private static final List<String> SCHEMA_FILES = List.of(
             "figma-common-v1.schema.json",
-            "figma-screen-spec-v1.schema.json"
+            "figma-screen-spec-v1.schema.json",
+            "figma-screen-spec-v2.schema.json"
     );
 
     private final ObjectMapper objectMapper;
     private final Schema screenSchema;
+    private final Schema screenSchemaV2;
 
     public FigmaContractSchemaValidator(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper.copy().findAndRegisterModules();
@@ -48,13 +52,15 @@ public class FigmaContractSchemaValidator {
                 SpecificationVersion.DRAFT_2020_12,
                 builder -> builder.schemaRegistryConfig(config).schemas(schemas));
         this.screenSchema = registry.getSchema(SchemaLocation.of(SCREEN_SCHEMA_ID));
+        this.screenSchemaV2 = registry.getSchema(SchemaLocation.of(SCREEN_SCHEMA_V2_ID));
     }
 
     public List<SchemaViolation> validate(FigmaScreenSpec spec) {
         JsonNode document = objectMapper.valueToTree(spec);
         try {
             String json = objectMapper.writeValueAsString(spec);
-            return screenSchema.validate(json, InputFormat.JSON).stream()
+            Schema selectedSchema = spec.semanticPattern() == null ? screenSchema : screenSchemaV2;
+            return selectedSchema.validate(json, InputFormat.JSON).stream()
                     .map(error -> {
                         String pointer = error.getInstanceLocation().toString();
                         return new SchemaViolation(

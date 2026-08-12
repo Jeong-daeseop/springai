@@ -6,6 +6,7 @@ import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.figma.FigmaExportResult;
 import com.krdevops.springai.model.figma.FigmaExportBundle;
 import com.krdevops.springai.model.figma.FigmaExportMetadata;
+import com.krdevops.springai.model.figma.FigmaExportIssue;
 import com.krdevops.springai.model.figma.DesignSystemProfileSnapshot;
 import com.krdevops.springai.model.figma.ComponentRegistrySnapshot;
 import com.krdevops.springai.model.designsystem.DesignSystemProfile;
@@ -77,6 +78,26 @@ class DesignArtifactFigmaExportTest {
         assertThatThrownBy(() -> service.saveFigmaExportBundle(bundle("변경된 화면")))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("FIGMA_BUNDLE_ARTIFACT_VERSION_CONFLICT");
+    }
+
+    @Test
+    void failedExportStoresReportWithoutScreenSpec() {
+        WebCaptureProperties properties = new WebCaptureProperties();
+        properties.setArtifactBasePath(root);
+        DesignArtifactService service = new DesignArtifactService(
+                properties, new ObjectMapper().findAndRegisterModules());
+        FigmaExportIssue issue = new FigmaExportIssue(
+                "ROLE_NOT_RESOLVED", FigmaExportIssue.Severity.FATAL,
+                "Component Resolution 실패", "user-list/action", "/content", null);
+
+        var artifact = service.saveFigmaExportFailureReport(
+                "user-list", 1, List.of(issue), LocalDateTime.of(2026, 8, 12, 9, 0));
+
+        Path directory = root.resolve(artifact.relativePath());
+        assertThat(directory.resolve("figma-generation-report.json")).isRegularFile();
+        assertThat(directory.resolve("metadata.json")).doesNotExist();
+        assertThat(directory.resolve("figma-screen-spec.json")).doesNotExist();
+        assertThat(directory.resolve("figma-export-bundle.json")).doesNotExist();
     }
 
     private FigmaExportBundle bundle(String name) {

@@ -3,6 +3,7 @@ package com.krdevops.springai.service.figma.builder;
 import com.krdevops.springai.model.design.PageSpec;
 import com.krdevops.springai.model.design.ScreenFieldBinding;
 import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.model.design.role.SemanticRole;
 import com.krdevops.springai.model.figma.FigmaNodeSpec;
 import com.krdevops.springai.model.figma.FigmaScreenType;
 import com.krdevops.springai.service.figma.LogicalNodeIdFactory;
@@ -29,13 +30,22 @@ public class FormFigmaScreenBuilder implements FigmaScreenBuilder {
         String pageId = page.id();
         List<FigmaNodeSpec> children = new ArrayList<>();
         children.add(BuilderSupport.pageHeader(pageId, screenSpecification, idFactory));
-        children.add(formSection(pageId, screenSpecification, page.fields(), idFactory));
+        children.add(formContainer(pageId, screenSpecification, page.fields(), idFactory));
         children.add(validationSummary(pageId, page.fields(), idFactory));
         children.add(BuilderSupport.actionArea(pageId, screenSpecification, page.actions(), idFactory));
 
         return new FigmaNodeSpec(
                 idFactory.page(pageId), FigmaNodeSpec.NodeType.PAGE, "egov.formPage",
                 Map.of("density", screenSpecification.layoutDensity().name()), children);
+    }
+
+    private FigmaNodeSpec formContainer(
+            String pageId, ScreenSpecification screenSpecification, List<ScreenFieldBinding> fields,
+            LogicalNodeIdFactory idFactory) {
+        return new FigmaNodeSpec(
+                idFactory.section(pageId, "form-container"), FigmaNodeSpec.NodeType.SECTION, "egov.formContainer",
+                Map.of("semanticRole", SemanticRole.FORM_CONTAINER.code()),
+                List.of(formSection(pageId, screenSpecification, fields, idFactory)));
     }
 
     private FigmaNodeSpec formSection(
@@ -46,7 +56,8 @@ public class FormFigmaScreenBuilder implements FigmaScreenBuilder {
                 .toList();
         return new FigmaNodeSpec(
                 idFactory.section(pageId, "form"), FigmaNodeSpec.NodeType.SECTION, "egov.formSection",
-                Map.of("columnLayout", screenSpecification.formColumnLayout().name()), children);
+                Map.of("semanticRole", SemanticRole.FORM_SECTION.code(),
+                        "columnLayout", screenSpecification.formColumnLayout().name()), children);
     }
 
     private FigmaNodeSpec validationSummary(String pageId, List<ScreenFieldBinding> fields, LogicalNodeIdFactory idFactory) {

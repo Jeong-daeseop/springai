@@ -175,6 +175,10 @@ onmessage = ({data}) => {
     renderIssues(message.issues);
     preview.style.display = 'block';
     apply.disabled = !message.canApply;
+    mode.disabled = message.contractMode !== 'V2_APPLY';
+    previewMigration.textContent = message.contractMode === 'V1_MIGRATION_PREVIEW'
+      ? '선택한 기존 Frame Migration Preview (v1 전용)'
+      : '선택한 기존 Frame Migration Preview';
     return;
   }
   if (message.type === 'APPLY_RESULT') {
@@ -183,7 +187,8 @@ onmessage = ({data}) => {
       ? '<span class="ok">화면 동기화가 완료되었습니다.</span>'
       : '<span class="fatal">화면 동기화 중 오류가 발생했습니다.</span>';
     reportSummary.textContent =
-      `재사용 ${message.report.reusedInstanceCount}\n신규 ${message.report.createdInstanceCount}\nArchive ${message.report.archivedNodeCount}\nFallback ${message.report.fallbackCount}`;
+      `재사용 ${message.report.reusedInstanceCount}\n신규 ${message.report.createdInstanceCount}\nArchive ${message.report.archivedNodeCount}\nFallback ${message.report.fallbackCount}`
+      + `\n\n품질 Gate\n${(message.report.qualityGates || []).map(gate => `${gate.gate}: ${gate.status}`).join('\n')}`;
     renderIssues(message.report.issues);
     result.style.display = 'block';
     apply.disabled = false;

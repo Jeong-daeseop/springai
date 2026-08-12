@@ -25,7 +25,8 @@ public record FigmaGenerationReport(
         @jakarta.validation.constraints.PositiveOrZero int archivedNodeCount,
         @jakarta.validation.constraints.PositiveOrZero int fallbackCount,
         @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<Change> changes,
-        @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<FigmaExportIssue> issues
+        @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<FigmaExportIssue> issues,
+        @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<QualityGateResult> qualityGates
 ) {
     public FigmaGenerationReport {
         if (reportId == null || reportId.isBlank()) {
@@ -46,6 +47,7 @@ public record FigmaGenerationReport(
         fallbackCount = nonNegative(fallbackCount, "fallbackCount");
         changes = changes == null ? List.of() : List.copyOf(changes);
         issues = issues == null ? List.of() : List.copyOf(issues);
+        qualityGates = qualityGates == null ? List.of() : List.copyOf(qualityGates);
     }
 
     public long durationMillis() {
@@ -64,6 +66,36 @@ public record FigmaGenerationReport(
     }
 
     public enum Status { SUCCESS, PARTIAL, FAILED }
+
+    /** v2 품질 Gate 도입 전 Java 호출자 호환. 외부 성공 보고서는 Service에서 빈 Gate로 거부된다. */
+    public FigmaGenerationReport(
+            String reportId, Status status, FigmaScreenSpec figmaScreenSpec,
+            String screenId, int screenVersion, FigmaSyncMode mode,
+            Instant startedAt, Instant completedAt, boolean success,
+            int reusedInstanceCount, int createdInstanceCount, int archivedNodeCount, int fallbackCount,
+            List<Change> changes, List<FigmaExportIssue> issues
+    ) {
+        this(reportId, status, figmaScreenSpec, screenId, screenVersion, mode,
+                startedAt, completedAt, success, reusedInstanceCount, createdInstanceCount,
+                archivedNodeCount, fallbackCount, changes, issues, List.of());
+    }
+
+    public record QualityGateResult(
+            @jakarta.validation.constraints.NotNull Gate gate,
+            @jakarta.validation.constraints.NotNull GateStatus status,
+            @jakarta.validation.constraints.NotNull List<String> issueCodes,
+            String evidenceHash,
+            String baselineHash,
+            Double diffRatio,
+            Double threshold
+    ) {
+        public QualityGateResult {
+            issueCodes = issueCodes == null ? List.of() : List.copyOf(issueCodes);
+        }
+    }
+
+    public enum Gate { LAYOUT, ACCESSIBILITY, VISUAL_REGRESSION }
+    public enum GateStatus { PASSED, FAILED, BASELINE_CREATED }
 
     public record Change(
             String logicalNodeId,

@@ -1,0 +1,14 @@
+{
+  "profileId":"krds", "profileVersion":"2.0.0", "registryVersion":"2.0.0",
+  "library":null,
+  "components": {
+    "krds.button": {
+      "componentSetKey":"BUTTON_SET_KEY", "componentName":"KRDS/Button",
+      "publishStatus":"CURRENT", "lifecycleStatus":"CURRENT", "replacementLogicalType":null,
+      "aliases":[], "variants":{}, "properties":{}, "roles":[],
+      "supportedPlatforms":["DESKTOP"], "variantAxes":{}, "requiredProperties":[],
+      "codeComponent":null, "documentationUrl":null, "contractVersion":"2.0.0"
+    }
+  },
+  "variables": {}
+}

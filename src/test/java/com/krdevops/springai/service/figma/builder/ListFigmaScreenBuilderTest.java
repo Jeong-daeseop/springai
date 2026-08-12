@@ -26,19 +26,28 @@ class ListFigmaScreenBuilderTest {
         assertThat(root.nodeType()).isEqualTo(FigmaNodeSpec.NodeType.PAGE);
         assertThat(root.type()).isEqualTo("egov.listPage");
         assertThat(root.children()).extracting(FigmaNodeSpec::type)
-                .containsExactly("egov.pageHeader", "egov.searchPanel", "egov.resultToolbar",
-                        "egov.dataTable", "krds.pagination", "egov.actionArea");
+                .containsExactly("krds.pageHeader", "krds.searchPanel", "egov.resultToolbar",
+                        "krds.dataTable", "krds.pagination", "egov.actionArea");
+        assertThat(root.children().get(0).nodeType()).isEqualTo(FigmaNodeSpec.NodeType.COMPONENT);
+        assertThat(root.children().get(0).properties()).containsEntry("semanticRole", "page.header");
 
         FigmaNodeSpec searchPanel = root.children().get(1);
         assertThat(searchPanel.logicalNodeId()).isEqualTo("list/search");
-        assertThat(searchPanel.children()).extracting(FigmaNodeSpec::type)
-                .containsExactly("krds.textField", "krds.select", "krds.button");
+        assertThat(searchPanel.nodeType()).isEqualTo(FigmaNodeSpec.NodeType.COMPONENT);
+        assertThat(searchPanel.type()).isEqualTo("krds.searchPanel");
+        assertThat(searchPanel.properties())
+                .containsEntry("semanticRole", "search.panel")
+                .containsEntry("fieldCount", 2)
+                .containsEntry("label", "검색어")
+                .containsEntry("placeholder", "검색어를 입력하세요");
+        assertThat(searchPanel.children()).isEmpty();
 
         FigmaNodeSpec dataTable = root.children().get(3);
-        assertThat(dataTable.children()).hasSize(1);
-        FigmaNodeSpec row = dataTable.children().get(0);
+        assertThat(dataTable.children()).hasSize(4);
+        assertThat(dataTable.properties()).containsEntry("layoutRecipe", "krds.dataTable.v1");
+        FigmaNodeSpec row = dataTable.children().get(1);
         assertThat(row.nodeType()).isEqualTo(FigmaNodeSpec.NodeType.REPEAT);
-        assertThat(row.children()).hasSize(3);
+        assertThat(row.children()).hasSizeGreaterThanOrEqualTo(5);
 
         FigmaNodeSpec actionArea = root.children().get(5);
         assertThat(actionArea.children()).extracting(node -> node.properties().get("actionType"))

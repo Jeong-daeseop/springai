@@ -7,7 +7,8 @@
   "editorType": ["figma"],
   "documentAccess": "dynamic-page",
   "networkAccess": {
-    "allowedDomains": ["none"],
+    "allowedDomains": ["http://localhost:8080"],
+    "reasoning": "개발 환경의 SpringAI 서버에서 승인된 FigmaExportBundle과 Generation Report를 교환합니다.",
     "devAllowedDomains": ["http://localhost:8080"]
   }
 }

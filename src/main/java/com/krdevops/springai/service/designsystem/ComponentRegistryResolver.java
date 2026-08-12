@@ -51,6 +51,10 @@ public class ComponentRegistryResolver {
                         ResolutionKind.MISSING, List.copyOf(path));
             }
             if (entry.lifecycleStatus() != ComponentRegistryEntry.LifecycleStatus.DEPRECATED) {
+                if (entry.lifecycleStatus() == ComponentRegistryEntry.LifecycleStatus.REMOVED) {
+                    return new Resolution(requestedLogicalType, current, null,
+                            ResolutionKind.MISSING, List.copyOf(path));
+                }
                 ResolutionKind kind = replacementUsed
                         ? ResolutionKind.REPLACEMENT
                         : aliasUsed ? ResolutionKind.ALIAS : ResolutionKind.DIRECT;

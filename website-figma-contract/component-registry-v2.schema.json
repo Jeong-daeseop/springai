@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/component-registry-v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profileId", "profileVersion", "registryVersion", "components", "variables"],
+  "properties": {
+    "profileId": {"type": "string", "minLength": 1},
+    "profileVersion": {"type": "string", "minLength": 1},
+    "registryVersion": {"type": "string", "minLength": 1},
+    "library": {"type": ["object", "null"]},
+    "components": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/entry"}},
+    "variables": {"type": "object"}
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["componentSetKey", "publishStatus", "lifecycleStatus", "aliases", "variants", "properties", "roles", "supportedPlatforms", "variantAxes", "requiredProperties", "contractVersion"],
+      "properties": {
+        "componentSetKey": {"type": "string", "minLength": 1},
+        "componentName": {"type": ["string", "null"]},
+        "publishStatus": {"const": "CURRENT"},
+        "lifecycleStatus": {"const": "CURRENT"},
+        "replacementLogicalType": {"type": ["string", "null"]},
+        "aliases": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "variants": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+        "properties": {"type": "object", "additionalProperties": {"$ref": "#/$defs/property"}},
+        "roles": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z]+\\.[a-z.]+$"}},
+        "supportedPlatforms": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["DESKTOP", "TABLET", "MOBILE"]}},
+        "variantAxes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/axis"}},
+        "requiredProperties": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "codeComponent": {"type": ["string", "null"]},
+        "documentationUrl": {"type": ["string", "null"]},
+        "contractVersion": {"type": "string", "minLength": 1}
+      }
+    },
+    "property": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["figmaProperty", "type", "values"],
+      "properties": {
+        "figmaProperty": {"type": "string", "minLength": 1},
+        "type": {"enum": ["TEXT", "BOOLEAN", "VARIANT", "INSTANCE_SWAP"]},
+        "values": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "axis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logicalName", "figmaProperty", "allowedValues", "required"],
+      "properties": {
+        "logicalName": {"type": "string", "minLength": 1},
+        "figmaProperty": {"type": "string", "minLength": 1},
+        "allowedValues": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}},
+        "required": {"type": "boolean"}
+      }
+    }
+  }
+}
