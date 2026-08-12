@@ -20,6 +20,7 @@ import com.krdevops.springai.model.figma.FigmaScreenType;
 import com.krdevops.springai.model.figma.ResolvedComponentRef;
 import com.krdevops.springai.service.designsystem.ComponentRoleResolver;
 import com.krdevops.springai.service.designsystem.VariantRuleResolver;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -38,6 +39,7 @@ public class KrdsComponentResolutionService {
     private final ScreenPatternValidator patternValidator;
     private final ComponentRoleResolver roleResolver;
     private final VariantRuleResolver variantResolver;
+    private final OperationalTelemetry telemetry;
 
     public KrdsComponentResolutionService(
             VariantRuleSetRepository ruleSetRepository,
@@ -45,7 +47,8 @@ public class KrdsComponentResolutionService {
             ScreenSemanticNormalizer normalizer,
             ScreenPatternValidator patternValidator,
             ComponentRoleResolver roleResolver,
-            VariantRuleResolver variantResolver
+            VariantRuleResolver variantResolver,
+            OperationalTelemetry telemetry
     ) {
         this.ruleSetRepository = ruleSetRepository;
         this.patternRepository = patternRepository;
@@ -53,9 +56,44 @@ public class KrdsComponentResolutionService {
         this.patternValidator = patternValidator;
         this.roleResolver = roleResolver;
         this.variantResolver = variantResolver;
+        this.telemetry = telemetry;
     }
 
     public ResolutionResult resolve(
+            String profileId,
+            ComponentRegistry registry,
+            PageSpec page,
+            FigmaScreenType screenType,
+            LayoutDensity density,
+            String viewport,
+            FigmaNodeSpec semanticRoot
+    ) {
+        long start = System.nanoTime();
+        try {
+            ResolutionResult result = doResolve(
+                    profileId, registry, page, screenType, density, viewport, semanticRoot);
+            telemetry.figmaResolutionDuration("SUCCESS", System.nanoTime() - start);
+            return result;
+        } catch (IllegalStateException e) {
+            telemetry.figmaResolutionDuration("FAILURE", System.nanoTime() - start);
+            recordFailureMetric(e.getMessage());
+            throw e;
+        }
+    }
+
+    /** KRV-074: {@link #failure(String, String)}가 만든 "CODE: detail" 메시지에서 오류 코드를 추출해 분류한다. */
+    private void recordFailureMetric(String message) {
+        String code = message == null ? "" : message.split(":", 2)[0].trim();
+        if (OperationalTelemetry.ROLE_RESOLUTION_ERROR_CODES.contains(code)) {
+            telemetry.figmaRoleResolutionFailure(code);
+        } else if (OperationalTelemetry.VARIANT_RESOLUTION_ERROR_CODES.contains(code)) {
+            telemetry.figmaVariantResolutionFailure(code);
+        } else if (OperationalTelemetry.COMPONENT_PROPERTY_DRIFT_CODES.contains(code)) {
+            telemetry.figmaComponentPropertyDrift(code);
+        }
+    }
+
+    private ResolutionResult doResolve(
             String profileId,
             ComponentRegistry registry,
             PageSpec page,

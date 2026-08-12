@@ -38,7 +38,7 @@ public class ScreenSpecificationPromptFormatter {
             result.append("  page ").append(page.id()).append(" template=").append(page.template())
                     .append(" selectionSource=").append(page.selectionSource()).append('\n');
             for (ScreenFieldBinding field : page.fields()) {
-                result.append("    - ").append(field.label()).append(" [").append(field.role()).append("] -> ")
+                result.append("    - ").append(field.label()).append(" [").append(field.dataRole()).append("] -> ")
                         .append(field.source().type());
                 if (field.source().tableAlias() != null) result.append(' ').append(field.source().tableAlias()).append('.');
                 if (field.source().column() != null) result.append(field.source().column());

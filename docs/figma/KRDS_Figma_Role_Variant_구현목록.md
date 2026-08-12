@@ -5,7 +5,7 @@
 - 대상 시스템: `springai`
 - 기준 명세: [`KRDS_Figma_Role_Variant_구현명세서.md`](./KRDS_Figma_Role_Variant_구현명세서.md)
 - 작성일: 2026-08-11
-- 문서 버전: 1.1.0
+- 문서 버전: 1.2.0 (2026-08-13 갱신: KRV-004/012/013/016/021/027/035/049/072/074/075 구현 완료 반영)
 - 상태: 실제 Library Inventory·Q&A 6화면 Preview 자동 검증 완료, 사람 승인 후속
 
 ## 1. 추진 기준
@@ -42,16 +42,15 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 | M6 | 5단계 Gate | Q&A 6개 구조·Layout·Visual 검증 통과 |
 | M7 | 운영 전환 | Preview 승인·Rollback·지표·Runbook 완료 |
 
-### 2.1 2026-08-11 구현 현황
+### 2.1 2026-08-13 구현 현황
 
 아래 표가 현재 구현 상태의 기준입니다. 이후 절의 체크박스는 이 표와 동기화되어 있습니다 (동기화 기준일: 2026-08-13).
 
 | 상태 | 작업 ID | 비고 |
 |---|---|---|
-| 완료 | KRV-001~003, 010~011, 014~015, 017, 020, 022~026, 028, 030~034, 040~048, 050~058, 060~063, 067~068, 076 | 실제 Published Library Inventory, Q&A 6개 Screen Spec·Runtime Resolver·Plugin Preview, 모델·결정 엔진·v2 계약·엄격 Plugin 및 전체 자동 테스트 완료 |
-| 부분 | KRV-004, 012~013, 016, 021, 027, 035, 064~066, 071 | Drift·결정성·Layout·Accessibility·Visual 자동화와 승인 Workflow를 추가 보강해야 함 |
+| 완료 | KRV-001~004, 010~017, 020~028, 030~035, 040~049, 050~058, 060~063, 067~068, 072, 074~076 | 실제 Published Library Inventory, Q&A 6개 Screen Spec·Runtime Resolver·Plugin Preview, 모델·결정 엔진·v2 계약·엄격 Plugin, Drift 보고서·Shadow Mode·Breaking Change 분석·운영 지표·Runbook 및 전체 자동 테스트 완료 |
+| 부분 | KRV-064~066, 071 | Layout Bounding Box/Overlap·Accessibility Focus/Error Registry 검증·실제 픽셀 Visual Regression은 Figma Plugin 샌드박스에서 직접 검증할 수단이 없어 보류, 승인 Workflow도 추가 필요 |
 | 사람 승인/리허설 필요 | KRV-070, 073 | Design System Owner 승인과 이전 Snapshot Rollback 재생성 필요 |
-| 후속 | KRV-049, 072, 074~075 | Shadow 비교, 영향 분석, 운영 지표, Runbook 보강 |
 
 구현된 핵심 산출물은 다음과 같습니다.
 
@@ -64,6 +63,10 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - 실제 KRDS Inventory와 Q&A 6개 Screen Spec v2: `website-figma-contract/fixtures/qna/`
 - Figma 검증 보고서와 운영 승인 체크리스트: `docs/figma/KRDS_QNA_6화면_*`
 - Runtime 교차 검증: `./gradlew figmaRuntimeBundlePluginTest`
+- `ComponentRegistryDriftReporter`(KRV-004), `ScreenSemanticNormalizer`+`ScreenSpecificationMigrationPreviewService`(KRV-012/013/016),
+  `ComponentRegistryValidator.validateNewEntryLifecycle`(KRV-021), `ComponentResolutionShadowComparator`(KRV-049),
+  `ComponentRegistryBreakingChangeAnalyzer`(KRV-072), `OperationalTelemetry`의 `figma_*` 6개 지표(KRV-074)
+- Layout/Accessibility/Visual Gate 실패 대응과 Breaking Change·Shadow Mode 절차: `docs/figma/13_Semantic_Figma_Operations_Runbook.md` §3, §5.1, §8.1
 
 ## 3. M0 — 기준선 및 Inventory
 
@@ -81,7 +84,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
   - 작업: Set Key, Variant Key, 공개 Property, Axis, 허용 값, Auto Layout, Platform 추출
   - 수용 기준: 필수 Component 전부에 Inventory 행이 존재하고 중복 Key가 없음
 
-- [~] **KRV-004 · P1** 기존 Registry와 실제 Library Drift 보고서 생성
+- [x] **KRV-004 · P1** 기존 Registry와 실제 Library Drift 보고서 생성
   - 수용 기준: 누락 Property·값·Variant·Lifecycle이 코드별로 보고됨
 
 ## 4. M1 — Semantic Role 및 Screen Pattern
@@ -94,12 +97,12 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - [x] **KRV-011 · P0** `ScreenPattern`, `FieldMode`, `ComponentState`, `Platform` 구현
   - 수용 기준: CREATE와 EDIT, DETAIL Read-only를 Context로 구별 가능
 
-- [~] **KRV-012 · P0** `ScreenActionSpec` 추가 및 문자열 Action 호환 변환기 구현
+- [x] **KRV-012 · P0** `ScreenActionSpec` 추가 및 문자열 Action 호환 변환기 구현
   - 수정: `PageSpec.actions`
   - 추가: `ScreenSemanticNormalizer`
   - 수용 기준: `DELETE`는 `action.destructive`, `LIST`는 `action.secondary`로 결정됨
 
-- [~] **KRV-013 · P0** `ScreenFieldBinding`에 UI Semantic Role과 Field Mode 추가
+- [x] **KRV-013 · P0** `ScreenFieldBinding`에 UI Semantic Role과 Field Mode 추가
   - 주의: 기존 `UiFieldRole`은 데이터 역할이므로 이름을 `dataRole`로 명확화
   - 수용 기준: 데이터 역할과 UI 역할이 서로 독립적으로 직렬화됨
 
@@ -111,7 +114,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
   - 테스트: 필수 Slot 누락, 중복 Slot, Cardinality 초과, Action 누락
   - 수용 기준: 각 화면이 선택한 Pattern의 Slot 계약을 통과
 
-- [~] **KRV-016 · P1** 기존 ScreenSpecification v1→v2 Migration Preview 구현
+- [x] **KRV-016 · P1** 기존 ScreenSpecification v1→v2 Migration Preview 구현
   - 수용 기준: 불확실한 Control 또는 Action을 임의 변환하지 않고 검토 항목으로 반환
 
 - [x] **KRV-017 · P0** `ScreenSuiteManifestValidator` 구현
@@ -124,7 +127,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
   - 추가 필드: roles, platforms, variantAxes, requiredProperties, codeComponent, documentationUrl
   - 수용 기준: v2 직렬화 round-trip 및 v1 Reader 호환 통과
 
-- [~] **KRV-021 · P0** Lifecycle 상태 정규화
+- [x] **KRV-021 · P0** Lifecycle 상태 정규화
   - 작업: `DRAFT`, `CURRENT`, `DEPRECATED`, `REMOVED` 적용 및 Publish 상태 관계 검증
   - 수용 기준: 신규 생성은 CURRENT/CURRENT 조합만 허용
 
@@ -148,7 +151,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - [x] **KRV-026 · P0** `ComponentContractValidator` 구현
   - 수용 기준: 필수 Property, Axis, Value, Platform, Lifecycle 오류를 모두 차단
 
-- [~] **KRV-027 · P1** `FigmaPropertyDriftValidator` 구현
+- [x] **KRV-027 · P1** `FigmaPropertyDriftValidator` 구현
   - 입력: Registry v2와 Author Plugin 또는 Figma Library Snapshot
   - 수용 기준: Property 이름·Type·Variant 조합 차이를 명확한 오류 코드로 반환
 
@@ -176,7 +179,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - [x] **KRV-034 · P0** `ComponentResolutionValidator` 구현
   - 수용 기준: UI Component 노드 중 미해결 항목이 하나라도 있으면 Export 실패
 
-- [~] **KRV-035 · P1** 결정성 테스트 추가
+- [x] **KRV-035 · P1** 결정성 테스트 추가
   - 작업: Registry Map 순서와 Rule 입력 순서를 무작위 변경하여 결과 비교
   - 수용 기준: 동일 Version·Context의 결과 Hash가 항상 동일
 
@@ -215,7 +218,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - [x] **KRV-048 · P1** MCP Facade Redaction 확장
   - 수용 기준: Set Key·Variant Key·Variable Key가 MCP 응답과 로그에 노출되지 않음
 
-- [ ] **KRV-049 · P1** Shadow Mode 구현
+- [x] **KRV-049 · P1** Shadow Mode 구현
   - 작업: v1 결과와 v2 해결 결과를 비교하되 Apply하지 않음
   - 수용 기준: 차이를 화면·노드·Rule ID 단위로 조회 가능
 
@@ -297,17 +300,17 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - [~] **KRV-071 · P0** Pattern·Rule Set 승인 Workflow 구현
   - 수용 기준: 미승인 Rule Set은 Export에 사용할 수 없음
 
-- [ ] **KRV-072 · P1** Breaking Change 영향 분석 확장
+- [x] **KRV-072 · P1** Breaking Change 영향 분석 확장
   - 검사: Role 제거, Axis 제거, Property 이름 변경, Rule 결과 변경
   - 수용 기준: 영향받는 최신 Screen Spec 목록 제공
 
 - [~] **KRV-073 · P0** Rollback 리허설
   - 수용 기준: 이전 Registry·Rule Set·Pattern Snapshot으로 Preview 재생성 성공
 
-- [ ] **KRV-074 · P1** 운영 지표와 로그 추가
+- [x] **KRV-074 · P1** 운영 지표와 로그 추가
   - 수용 기준: Role/Variant/Drift/Visual 실패 건수와 처리 시간 조회 가능
 
-- [ ] **KRV-075 · P1** Runbook 갱신
+- [x] **KRV-075 · P1** Runbook 갱신
   - 대상: `13_Semantic_Figma_Operations_Runbook.md`
   - 수용 기준: Inventory, Preview, 승인, Publish, Rollback, 장애 대응 절차 포함
 

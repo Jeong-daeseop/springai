@@ -73,4 +73,48 @@ class ComponentRegistryValidatorTest {
 
         assertThat(issues).extracting(DesignSystemIssue::code).contains("VARIANT_PROPERTY_WITHOUT_VALUES");
     }
+
+    @Test
+    void newComponentMustBePublishStatusAndLifecycleStatusCurrent() {
+        ComponentRegistry candidate = new ComponentRegistry(
+                "krds", "1.0", "2026.08", null,
+                Map.of("krds.newButton", new ComponentRegistryEntry(
+                        "NEW_BUTTON_KEY", "NewButton", ComponentRegistryEntry.PublishStatus.CURRENT,
+                        ComponentRegistryEntry.LifecycleStatus.DRAFT, null,
+                        List.of(), Map.of(), Map.of())));
+
+        List<DesignSystemIssue> issues = validator.validateNewEntryLifecycle(candidate, null);
+
+        assertThat(issues).extracting(DesignSystemIssue::code).contains("NEW_COMPONENT_LIFECYCLE_INVALID");
+    }
+
+    @Test
+    void newComponentWithCurrentCurrentPassesLifecycleCheck() {
+        ComponentRegistry candidate = new ComponentRegistry(
+                "krds", "1.0", "2026.08", null,
+                Map.of("krds.newButton", new ComponentRegistryEntry(
+                        "NEW_BUTTON_KEY", "NewButton", ComponentRegistryEntry.PublishStatus.CURRENT,
+                        ComponentRegistryEntry.LifecycleStatus.CURRENT, null,
+                        List.of(), Map.of(), Map.of())));
+
+        List<DesignSystemIssue> issues = validator.validateNewEntryLifecycle(candidate, null);
+
+        assertThat(issues).extracting(DesignSystemIssue::code).doesNotContain("NEW_COMPONENT_LIFECYCLE_INVALID");
+    }
+
+    @Test
+    void existingDeprecatedComponentIsNotTreatedAsNewEntry() {
+        ComponentRegistryEntry deprecated = new ComponentRegistryEntry(
+                "OLD_KEY", "Old", ComponentRegistryEntry.PublishStatus.CURRENT,
+                ComponentRegistryEntry.LifecycleStatus.DEPRECATED, "krds.newButton",
+                List.of(), Map.of(), Map.of());
+        ComponentRegistry previous = new ComponentRegistry(
+                "krds", "1.0", "2026.07", null, Map.of("krds.oldButton", deprecated));
+        ComponentRegistry candidate = new ComponentRegistry(
+                "krds", "1.0", "2026.08", null, Map.of("krds.oldButton", deprecated));
+
+        List<DesignSystemIssue> issues = validator.validateNewEntryLifecycle(candidate, previous);
+
+        assertThat(issues).extracting(DesignSystemIssue::code).doesNotContain("NEW_COMPONENT_LIFECYCLE_INVALID");
+    }
 }

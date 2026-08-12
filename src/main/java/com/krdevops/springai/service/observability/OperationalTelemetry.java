@@ -36,6 +36,20 @@ public class OperationalTelemetry {
             "SUCCESS", "FAILURE", "DENIED", "REJECTED", "TIMEOUT", "CIRCUIT_OPEN", "BLOCKED", "WARN", "OTHER");
     private static final Set<String> OPERATION_OUTCOMES = Set.of(
             "CONFLICT", "REJECTED", "ROLLBACK", "ROLLBACK_FAILED");
+    /** KRV-074: 호출자가 오류 코드를 role/variant/drift 지표 중 어디로 보낼지 분류할 때 재사용하는 목록. */
+    public static final Set<String> ROLE_RESOLUTION_ERROR_CODES = Set.of("ROLE_NOT_RESOLVED", "ROLE_AMBIGUOUS");
+    public static final Set<String> VARIANT_RESOLUTION_ERROR_CODES = Set.of(
+            "VARIANT_RULE_NOT_FOUND", "VARIANT_RULE_AMBIGUOUS", "VARIANT_AXIS_NOT_DECLARED",
+            "VARIANT_VALUE_NOT_ALLOWED", "VARIANT_NOT_RESOLVED", "VARIANT_AMBIGUOUS",
+            "REQUIRED_VARIANT_AXIS_MISSING", "VARIANT_RULE_SET_NOT_PUBLISHED");
+    public static final Set<String> COMPONENT_PROPERTY_DRIFT_CODES = Set.of(
+            "COMPONENT_PROPERTY_DRIFT", "COMPONENT_VARIANT_DRIFT", "COMPONENT_VARIANT_NAME_DRIFT",
+            "COMPONENT_UNDECLARED_PROPERTY_DRIFT", "REQUIRED_COMPONENT_PROPERTY_MISSING");
+    private static final Set<String> FALLBACK_TYPES = Set.of(
+            "FIRST_VARIANT", "FIRST_COMPONENT", "PLACEHOLDER", "LOCAL_NAME");
+    private static final Set<String> VISUAL_GATE_FAILURE_REASONS = Set.of(
+            "LAYOUT", "ACCESSIBILITY", "VISUAL_DIFF_THRESHOLD_EXCEEDED", "VISUAL_BASELINE_MISSING");
+    private static final Set<String> RESOLUTION_STAGES = Set.of("SUCCESS", "FAILURE");
 
     private final MeterRegistry registry;
 
@@ -142,6 +156,42 @@ public class OperationalTelemetry {
                 .record(duration == null ? Duration.ZERO : duration);
         event("validation_gate", null, null,
                 "gate=" + gateType.name() + " severity=" + severity.name() + " outcome=" + outcome);
+    }
+
+    /** KRV-074: Semantic Role이 정확히 하나로 해석되지 않은 실패(ROLE_NOT_RESOLVED/ROLE_AMBIGUOUS)를 기록한다. */
+    public void figmaRoleResolutionFailure(String errorCode) {
+        counter("figma_role_resolution_failure_total",
+                "error_code", enumValue(errorCode, ROLE_RESOLUTION_ERROR_CODES)).increment();
+    }
+
+    /** KRV-074: Variant Rule이 정확히 하나로 해석되지 않은 실패를 기록한다. */
+    public void figmaVariantResolutionFailure(String errorCode) {
+        counter("figma_variant_resolution_failure_total",
+                "error_code", enumValue(errorCode, VARIANT_RESOLUTION_ERROR_CODES)).increment();
+    }
+
+    /** KRV-074: Registry Contract와 실제 Figma Library 사이의 Property/Variant Drift를 기록한다. */
+    public void figmaComponentPropertyDrift(String driftCode) {
+        counter("figma_component_property_drift_total",
+                "drift_code", enumValue(driftCode, COMPONENT_PROPERTY_DRIFT_CODES)).increment();
+    }
+
+    /** KRV-074: Plugin Apply 경로에서 금지된 폴백(첫 Variant/첫 Component/Placeholder/로컬 이름)이 시도된 횟수를 기록한다. */
+    public void figmaFallbackAttempt(String fallbackType) {
+        counter("figma_fallback_attempt_total",
+                "fallback_type", enumValue(fallbackType, FALLBACK_TYPES)).increment();
+    }
+
+    /** KRV-074: Layout/Accessibility/Visual Gate 실패를 기록한다. */
+    public void figmaVisualGateFailure(String reason) {
+        counter("figma_visual_gate_failure_total",
+                "reason", enumValue(reason, VISUAL_GATE_FAILURE_REASONS)).increment();
+    }
+
+    /** KRV-074: Role·Variant 전체 해석 파이프라인(KrdsComponentResolutionService.resolve) 처리 시간을 기록한다. */
+    public void figmaResolutionDuration(String outcome, long durationNanos) {
+        timer("figma_resolution_duration_seconds", "outcome", enumValue(outcome, RESOLUTION_STAGES))
+                .record(durationNanos, TimeUnit.NANOSECONDS);
     }
 
     public MeterRegistry registry() { return registry; }

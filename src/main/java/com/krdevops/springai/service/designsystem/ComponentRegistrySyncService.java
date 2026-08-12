@@ -47,6 +47,7 @@ public class ComponentRegistrySyncService {
         validateProfile(candidate, profile, issues);
 
         ComponentRegistry previous = registryRepository.findLatest(candidate.profileId()).orElse(null);
+        issues.addAll(validator.validateNewEntryLifecycle(candidate, previous));
         List<ComponentRegistryDiff.Change> changes = calculateChanges(previous, candidate, issues);
         boolean valid = issues.stream().noneMatch(issue ->
                 issue.severity() == DesignSystemIssue.Severity.FATAL

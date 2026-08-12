@@ -33,7 +33,7 @@ class ScreenSpecAssemblerTest {
                 .containsExactly("list", "detail", "regist", "updt");
         assertThat(result.pages().get(0).fields())
                 .anySatisfy(field -> {
-                    assertThat(field.role()).isEqualTo(UiFieldRole.TITLE);
+                    assertThat(field.dataRole()).isEqualTo(UiFieldRole.TITLE);
                     assertThat(field.source().column()).isEqualTo("NTT_SJ");
                 });
     }
@@ -68,7 +68,7 @@ class ScreenSpecAssemblerTest {
 
         assertThat(result.status()).isEqualTo(ScreenSpecStatus.APPROVED);
         assertThat(result.pages().get(0).fields())
-                .filteredOn(field -> field.role() == UiFieldRole.ROW_NUMBER)
+                .filteredOn(field -> field.dataRole() == UiFieldRole.ROW_NUMBER)
                 .singleElement()
                 .satisfies(field -> {
                     assertThat(field.source().type()).isEqualTo(FieldSourceType.DERIVED);

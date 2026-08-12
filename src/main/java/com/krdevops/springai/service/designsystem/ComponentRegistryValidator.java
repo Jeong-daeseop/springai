@@ -48,6 +48,32 @@ public class ComponentRegistryValidator {
         return issues;
     }
 
+    /**
+     * KRV-021: 신규(=이전 스냅샷에 없던) Component는 publishStatus/lifecycleStatus가
+     * 모두 CURRENT인 조합만 허용한다. 기존에 이미 등록된 항목의 DEPRECATED 전환 등은
+     * {@link #validate(ComponentRegistry)}의 {@code validateLifecycle}이 별도로 검증한다.
+     */
+    public List<DesignSystemIssue> validateNewEntryLifecycle(ComponentRegistry candidate, ComponentRegistry previous) {
+        List<DesignSystemIssue> issues = new ArrayList<>();
+        if (candidate == null) {
+            return issues;
+        }
+        Set<String> previousLogicalTypes = previous == null ? Set.of() : previous.components().keySet();
+        candidate.components().forEach((logicalType, entry) -> {
+            if (previousLogicalTypes.contains(logicalType)) {
+                return;
+            }
+            if (!entry.currentForGeneration()) {
+                issues.add(error("NEW_COMPONENT_LIFECYCLE_INVALID",
+                        logicalType + "는 신규 등록 시 publishStatus=CURRENT, lifecycleStatus=CURRENT 조합만 허용됩니다"
+                                + " (현재 publishStatus=" + entry.publishStatus()
+                                + ", lifecycleStatus=" + entry.lifecycleStatus() + ").",
+                        logicalType));
+            }
+        });
+        return issues;
+    }
+
     /** Publish Sync에서는 공개 Key가 실제 Library의 CURRENT 자산에서 왔는지까지 강제한다. */
     public List<DesignSystemIssue> validatePublished(ComponentRegistry registry) {
         List<DesignSystemIssue> issues = new ArrayList<>(validate(registry));

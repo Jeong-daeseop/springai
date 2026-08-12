@@ -1,8 +1,9 @@
 # Semantic Figma 운영·마이그레이션 Runbook
 
-> 문서 버전: 1.3  
+> 문서 버전: 1.4  
 > 작성일: 2026-07-27  
-> 적용 범위: R8 운영 안정화, Registry Rollback, Legacy Frame Migration, 장애 우회
+> 적용 범위: R8 운영 안정화, Registry Rollback, Legacy Frame Migration, 장애 우회,
+> KRDS Figma Role·Variant 품질 Gate·Breaking Change·Shadow Mode·Drift 보고서
 
 ---
 
@@ -53,6 +54,14 @@ GET /api/figma/operations/design-system-impact/{profileId}?profileVersion=...&re
 드리프트 발생 시 현재 Registry를 덮어쓰지 않는다. 새 Registry 버전으로 Preview하고,
 영향 화면 Migration이 끝난 뒤 Profile 연결 버전을 변경한다.
 
+Logical Type 개별 대조가 아니라 Registry 전체를 한 번에 훑어야 할 때는
+`ComponentRegistryDriftReporter`(`service/designsystem`)의 `report(registry, actualSnapshots)`를
+사용한다. `FigmaPropertyDriftValidator`를 Logical Type마다 반복 호출해 Property·Variant 이름
+Drift와 `publishStatus`/`lifecycleStatus`가 CURRENT 조합이 아닌 항목을 하나의 보고서
+(`DriftReport.perType()`)로 모은다. 실제 Figma Library Snapshot이 없는 Logical Type은
+`COMPONENT_SNAPSHOT_MISSING`으로 별도 표시되므로, 새 Registry를 Publish하기 전 실제 Snapshot이
+전체 Logical Type을 커버하는지 이 보고서로 먼저 확인한다.
+
 ---
 
 ## 4. 화면 생성·갱신·보고
@@ -96,6 +105,27 @@ POST /api/design-systems/{profileId}/rollback
 Rollback 후 Registry Audit, 영향 화면 조회, 대표 LIST/FORM 화면 MERGE Preview,
 생성 보고서의 Registry/Fallback/Conflict 지표를 순서대로 확인한다.
 `confirmed=false` 또는 누락 상태에서는 Rollback이 거부된다.
+
+### 5.1 전환·Rollback 전 사전 점검(KRV-049/072)
+
+새 Registry나 Rule Set을 `PUBLISHED`로 전환하기 전, 또는 이전 버전으로 Rollback하기 전에
+다음 두 도구로 영향을 먼저 확인한다. 둘 다 실제로 Apply하지 않고 결과만 조회하는 Preview 성격이다.
+
+- **Breaking Change 사전 점검** — `ComponentRegistryBreakingChangeAnalyzer`
+  (`service/designsystem`)의 `analyzeRegistry(previous, candidate)`/`analyzeRuleSet(previous, candidate)`가
+  Role 제거, Axis 제거, Property 이름 변경, Rule 결과/조건 변경을 감지한다. 이미 존재하는
+  `ComponentRegistrySyncService.preview()`의 `COMPONENT_PROPERTY_REMOVED`류 검사보다 상위
+  개념(Role/Axis/Rule 계약)을 다룬다. Breaking Change가 하나라도 나오면 3번 절의
+  `GET /api/figma/operations/design-system-impact/{profileId}?profileVersion=...&registryVersion=...`
+  로 같은 Registry Version에 바인딩된 최신 화면 전체(`DesignSystemImpact.screens`)를 함께 조회해,
+  Breaking Change 목록과 영향 화면 목록을 나란히 두고 검토한다.
+- **Shadow Mode 비교** — `ComponentResolutionShadowComparator`(`service/figma`)의
+  `compare(screenId, baseline, candidate)`가 동일 화면을 현재 Published 조합과 후보 조합으로
+  각각 `KrdsComponentResolutionService.resolve(...)`에 통과시킨 두 결과를 받아 화면·노드·Rule ID
+  단위로 차이(`PATTERN_CHANGED`/`NODE_STRUCTURE_CHANGED`/`COMPONENT_RESOLUTION_CHANGED`/
+  `RULE_ID_CHANGED`)를 반환한다. 두 `ResolutionResult`를 만드는 책임은 호출자에게 있으며,
+  candidate Rule Set이 아직 `PUBLISHED`가 아니면 `VariantRuleSetRepository` 조회가 실패하므로
+  이 비교는 candidate를 최소 `DRAFT` 상태로라도 저장한 뒤에만 가능하다.
 
 ---
 
@@ -176,6 +206,52 @@ REST/MCP 연결 장애 시 파일 경로를 사용한다.
 
 `.figpack`을 `FigmaScreenSpec`으로 해석하지 않는다. Reference는 `jsp-to-figma-plugin`,
 Semantic Bundle과 Migration은 `figma-screen-spec-plugin`에서 처리한다.
+
+### 8.1 품질 Gate 실패 대응(KRV-064~066)
+
+Generation Report의 `qualityGates`에는 `LAYOUT`/`ACCESSIBILITY`/`VISUAL_REGRESSION` 3개 Gate 결과가
+`issueCodes`와 함께 담긴다(`figma-screen-spec-plugin/src/code.ts`의 `validateQualityGates`). 담당자는
+`FAILED` 발생 시 Gate 종류에 따라 다음 순서로 대응한다.
+
+**LAYOUT** (`AUTO_LAYOUT_MISSING` / `EMPTY_BOUNDS` / `NODE_MISSING`)
+
+1. 실패한 `logicalNodeId`를 Generation Report에서 확인하고 대응하는 `FigmaScreenSpec` 노드를 조회한다.
+2. `AUTO_LAYOUT_MISSING`은 Builder(`service/figma/builder/*`)가 Auto Layout 없이 Wrapper를 만들었다는 뜻이므로
+   코드 결함으로 취급하고 Apply를 승인하지 않는다.
+3. `EMPTY_BOUNDS`는 Published Component import 실패나 잘못된 Variant 해석의 징후일 수 있으므로
+   `ResolvedComponentRef`의 `componentSetKey`/`variantKey`를 Library와 대조한다.
+
+**ACCESSIBILITY** (`INSTANCE_MISSING` / `TARGET_SIZE` / `DISABLED_STATE` / `READ_ONLY_STATE`)
+
+1. `TARGET_SIZE`는 44×44px 미만 Action/Field Instance를 가리키므로 KRDS Library 쪽 Variant 크기를 검토한다.
+2. `DISABLED_STATE`/`READ_ONLY_STATE`는 `ScreenFieldBinding.mode` 또는 Action 상태와 실제 Variant의
+   `state` Property가 불일치할 때 발생한다.
+3. **알려진 한계**: 현재 Gate는 노드에 이미 적용된 Variant 값만 검사하며, Registry Contract 자체에
+   `state=focus`/`state=error` Variant가 존재하는지(즉 KRDS Library가 Focus/Error 상태를 아예
+   제공하지 않는 경우)는 검사하지 않는다. 이 Registry 레벨 검증은 아직 구현되지 않았으므로
+   Focus/Error 상호작용 접근성은 Product Designer의 육안 검토로 보완해야 한다
+   (`KRDS_QNA_6화면_Figma_검증보고서_2026-08-11.md` §5.3 참고).
+
+**VISUAL_REGRESSION** (`VISUAL_BASELINE_MISSING` / `PIXEL_HASH_MISMATCH`)
+
+1. 현재 구현은 신규 Frame의 PNG를 FNV-1a 해시로 저장해 기준선으로 삼고, 이후 재생성 시 해시가
+   완전히 같은지(0% 임계값)만 비교한다(`figma-screen-spec-plugin/src/core.ts`의
+   `visualRegressionStatus`). 픽셀 단위 차이율(diffRatio)을 실제로 계산하지 않으므로
+   `threshold`는 항상 `0`, `diffRatio`는 실패 시 `1`·성공 시 `0`으로 이진 값만 기록된다.
+2. **알려진 한계**: `jsp-design-extractor`에는 `pixelmatch` 기반의 실제 퍼센트 diff 엔진
+   (`browser-gate-core.mjs`)이 이미 있지만 JSP/Thymeleaf HTML 스크린샷 비교 전용이며 Figma export
+   PNG와는 연결되어 있지 않다. Figma Plugin은 Figma의 격리된 Plugin 샌드박스(Node.js API 미제공)
+   안에서 실행되므로, 이 문서를 갱신한 세션은 실제 Figma 런타임에서 검증할 방법이 없어
+   `code.ts`에 픽셀 diff 로직을 직접 추가하지 않았다. 실제 퍼센트 기반 Visual Regression을
+   붙이려면 최소 한 번은 Figma 데스크톱 앱에서 Plugin을 구동해 결과를 눈으로 확인할 수 있는
+   담당자가 진행해야 한다.
+3. 그 전까지 `VISUAL_BASELINE_MISSING`은 최초 생성이므로 정상이며, `PIXEL_HASH_MISMATCH`는
+   Product Designer가 이전 승인 스크린샷과 육안 대조 후 재승인해야 Apply를 진행한다.
+
+**운영 지표(KRV-074)**: `figma_role_resolution_failure_total`, `figma_variant_resolution_failure_total`,
+`figma_component_property_drift_total`, `figma_visual_gate_failure_total`,
+`figma_resolution_duration_seconds`가 `OperationalTelemetry`(`service/observability`)에 등록되어
+있다. `error_code`/`reason` 태그는 유한 집합으로 정규화되며 알 수 없는 값은 `OTHER`로 묶인다.
 
 ---
 
@@ -270,6 +346,7 @@ DEC-07의 나머지 승인 조건("로그·산출물 redaction 감사")을 충�
 
 | 버전 | 일자 | 변경 내용 |
 |---|---|---|
+| 1.4 | 2026-08-13 | KRDS Figma Role·Variant 구현목록(KRV-004/049/072/074/075) 반영: §3에 `ComponentRegistryDriftReporter` 사용법, §5.1 신설(Breaking Change 사전 점검·Shadow Mode 비교), §8.1 신설(Layout/Accessibility/Visual Gate 실패 대응과 각 Gate의 알려진 한계 명시), 운영 지표(`figma_*_total`) 목록 추가 |
 | 1.3 | 2026-07-28 | DEC-10(FILE 기본·REST 선택) 운영 절차와 REST 활성화 조건, DEC-12(ARCHIVE 단일 정책) 및 사람에 의한 영구 삭제 경계를 §4에 반영 |
 | 1.2 | 2026-07-28 | §11 "DEC-07 Redaction 감사 결과" 신설: MCP Tool 응답·로그·저장 산출물·메시지 문자열·Plugin console.log 전수 점검 결과 실제 Key 노출 없음을 확인. REST 전용 Registry 검토 채널(원문 Key 포함)과 MCP 채널(redaction됨)이 코드 수준에서 이미 분리돼 있음을 근거로 명시. 경미한 발견(`FailureReport.retryToken`이 실제로는 비밀값이 아닌데 이름이 오해를 살 수 있음)에 대해 Javadoc 보강. 기존 §11 변경 이력은 §12로 번호만 이동 |
 | 1.1 | 2026-07-28 | §7을 "Plugin 배포 방식(DEC-08)"으로 확장: 개발용 manifest import(현재)/사내 공유 배포/Figma 조직 전용 Private Plugin(Organization·Enterprise 플랜 필요)/Community 공개 배포 4가지를 비교하고 단계별 권장안 추가. 기존 설치·권한 장애 대응은 §7.4로 이동(내용 변경 없음). Plugin 배포 방식 자체는 예산·조달이 걸린 조직 결정이라 이 문서가 대신 확정하지 않음 |

@@ -2284,21 +2284,29 @@
                       "control" : {
                         "type" : "string"
                       },
+                      "dataRole" : {
+                        "enum" : [ "ID", "ROW_NUMBER", "TITLE", "CONTENT", "CATEGORY", "STATUS", "AUTHOR", "DEPARTMENT", "CREATED_AT", "UPDATED_AT", "ATTACHMENT", "SORT_ORDER", "GENERIC" ],
+                        "type" : "string"
+                      },
                       "id" : {
                         "type" : "string"
                       },
                       "label" : {
                         "type" : "string"
                       },
+                      "mode" : {
+                        "enum" : [ "EDITABLE", "READ_ONLY" ],
+                        "type" : "string"
+                      },
                       "required" : {
                         "type" : "boolean"
                       },
-                      "role" : {
-                        "enum" : [ "ID", "ROW_NUMBER", "TITLE", "CONTENT", "CATEGORY", "STATUS", "AUTHOR", "DEPARTMENT", "CREATED_AT", "UPDATED_AT", "ATTACHMENT", "SORT_ORDER", "GENERIC" ],
-                        "type" : "string"
-                      },
                       "searchable" : {
                         "type" : "boolean"
+                      },
+                      "semanticRole" : {
+                        "enum" : [ "PAGE_HEADER", "SEARCH_PANEL", "DATA_TABLE", "DATA_TABLE_CELL", "DATA_PAGINATION", "FORM_CONTAINER", "FORM_SECTION", "FIELD_TEXT", "FIELD_TEXTAREA", "FIELD_SELECT", "FIELD_CHECKBOX", "ACTION_PRIMARY", "ACTION_SECONDARY", "ACTION_DESTRUCTIVE" ],
+                        "type" : "string"
                       },
                       "sortable" : {
                         "type" : "boolean"
@@ -2330,7 +2338,7 @@
                         "type" : "boolean"
                       }
                     },
-                    "required" : [ "confidence", "control", "id", "label", "required", "role", "searchable", "sortable", "source", "visible" ],
+                    "required" : [ "confidence", "control", "dataRole", "id", "label", "mode", "required", "searchable", "semanticRole", "sortable", "source", "visible" ],
                     "type" : "object"
                   },
                   "type" : "array"

@@ -19,7 +19,7 @@ public class ScreenSemanticNormalizer {
     private static final Map<String, String> ACTION_LABELS = Map.ofEntries(
             Map.entry("SEARCH", "검색"), Map.entry("CREATE", "등록"), Map.entry("SAVE", "저장"),
             Map.entry("UPDATE", "수정"), Map.entry("DELETE", "삭제"), Map.entry("CANCEL", "취소"),
-            Map.entry("LIST", "목록"), Map.entry("VIEW_DETAIL", "상세"));
+            Map.entry("LIST", "목록"), Map.entry("VIEW_DETAIL", "상세"), Map.entry("BACK", "목록"));
 
     public ScreenPattern pattern(PageSpec page) {
         String template = normalize(page.template());
@@ -52,7 +52,7 @@ public class ScreenSemanticNormalizer {
         String command = normalize(action);
         SemanticRole role = switch (command) {
             case "DELETE" -> SemanticRole.ACTION_DESTRUCTIVE;
-            case "LIST", "CANCEL", "VIEW_DETAIL" -> SemanticRole.ACTION_SECONDARY;
+            case "LIST", "CANCEL", "VIEW_DETAIL", "BACK" -> SemanticRole.ACTION_SECONDARY;
             case "SEARCH", "CREATE", "SAVE", "UPDATE" -> SemanticRole.ACTION_PRIMARY;
             default -> throw new IllegalArgumentException("SEMANTIC_ROLE_NOT_DERIVED: 알 수 없는 Action입니다: " + action);
         };

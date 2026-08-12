@@ -36,6 +36,29 @@ public class FigmaPropertyDriftValidator {
                         logicalName + "의 실제 Variant 값이 Contract와 일치하지 않습니다.", logicalType));
             }
         });
+        contract.requiredProperties().forEach(requiredName -> {
+            ComponentRegistryEntry.PropertyMapping mapping = contract.properties().get(requiredName);
+            String figmaProperty = mapping != null ? mapping.figmaProperty() : requiredName;
+            if (!actual.properties().containsKey(figmaProperty)) {
+                issues.add(issue("REQUIRED_COMPONENT_PROPERTY_MISSING",
+                        "필수 Property가 실제 Figma Component에 없습니다: " + requiredName, logicalType));
+            }
+        });
+        if (!actual.variants().isEmpty()) {
+            contract.variants().keySet().forEach(variantName -> {
+                if (!actual.variants().containsKey(variantName)) {
+                    issues.add(issue("COMPONENT_VARIANT_NAME_DRIFT",
+                            "Contract의 Variant 이름이 실제 Figma Component Set에 없습니다: " + variantName, logicalType));
+                }
+            });
+            actual.variants().keySet().forEach(actualVariantName -> {
+                if (!contract.variants().containsKey(actualVariantName)) {
+                    issues.add(issue("COMPONENT_VARIANT_NAME_DRIFT",
+                            "실제 Figma Component Set에 Contract가 모르는 Variant가 있습니다: " + actualVariantName,
+                            logicalType));
+                }
+            });
+        }
         actual.properties().forEach((actualName, ignored) -> {
             boolean declared = contract.properties().values().stream()
                     .anyMatch(mapping -> actualName.equals(mapping.figmaProperty()))

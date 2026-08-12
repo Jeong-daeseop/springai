@@ -19,6 +19,8 @@ import com.krdevops.springai.model.figma.FigmaScreenSpec;
 import com.krdevops.springai.service.designsystem.ComponentRoleResolver;
 import com.krdevops.springai.service.designsystem.KrdsRuntimeContractImportService;
 import com.krdevops.springai.service.designsystem.VariantRuleResolver;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -96,7 +98,8 @@ class KrdsQnaRuntimeResolverIntegrationTest {
 
             KrdsComponentResolutionService resolver = new KrdsComponentResolutionService(
                     ruleSetRepository, patternRepository, new ScreenSemanticNormalizer(),
-                    new ScreenPatternValidator(), new ComponentRoleResolver(), new VariantRuleResolver());
+                    new ScreenPatternValidator(), new ComponentRoleResolver(), new VariantRuleResolver(),
+                    new OperationalTelemetry(new SimpleMeterRegistry()));
             FigmaExportBundleAssembler assembler = new FigmaExportBundleAssembler();
             FigmaScreenSpecSerializer serializer = new FigmaScreenSpecSerializer(objectMapper);
             FigmaScreenSpecValidator validator = new FigmaScreenSpecValidator();

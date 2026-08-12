@@ -13,8 +13,11 @@ import com.krdevops.springai.model.figma.ComponentResolutionContext;
 import com.krdevops.springai.model.figma.FigmaScreenType;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +47,26 @@ class VariantRuleResolverTest {
         VariantRuleResolver.Resolution result = resolver.resolve(contract(), context(), rules(List.of()));
         assertThat(result.resolved()).isFalse();
         assertThat(result.errorCode()).isEqualTo("VARIANT_RULE_NOT_FOUND");
+    }
+
+    /** KRV-035: Rule 목록 순서를 무작위로 바꿔도 유일 최고 우선순위 Rule 선택 결과가 항상 동일해야 한다. */
+    @Test
+    void winningRuleIsDeterministicAcrossShuffledRuleOrder() {
+        List<VariantRule> base = List.of(
+                rule("distractor-1", 5), rule("distractor-2", 6),
+                rule("distractor-3", 7), rule("distractor-4", 8),
+                rule("winner", 20));
+        Set<String> winners = new java.util.HashSet<>();
+        for (int seed = 0; seed < 30; seed++) {
+            List<VariantRule> shuffled = new ArrayList<>(base);
+            Collections.shuffle(shuffled, new Random(seed));
+
+            VariantRuleResolver.Resolution result = resolver.resolve(contract(), context(), rules(shuffled));
+            assertThat(result.resolved()).isTrue();
+            assertThat(result.variantKey()).isEqualTo("PRIMARY_KEY");
+            winners.add(result.ruleId());
+        }
+        assertThat(winners).containsExactly("winner");
     }
 
     private ComponentResolutionContext context() {

@@ -79,12 +79,12 @@ public class ScreenDataBindingResolver {
             ScreenFieldBinding field,
             List<TableRelationService.RelationInfo> relations) {
         if (field.source() == null || field.source().type() != FieldSourceType.COLUMN
-                || !DISPLAY_COLUMNS.containsKey(field.role())) {
+                || !DISPLAY_COLUMNS.containsKey(field.dataRole())) {
             return java.util.Optional.empty();
         }
         List<ResolvedJoin> candidates = relations.stream()
                 .filter(relation -> relation.sourceColumn().equalsIgnoreCase(field.source().column()))
-                .map(relation -> displayColumn(specification.database(), relation, field.role()))
+                .map(relation -> displayColumn(specification.database(), relation, field.dataRole()))
                 .flatMap(java.util.Optional::stream)
                 .toList();
         return candidates.size() == 1 ? java.util.Optional.of(candidates.get(0)) : java.util.Optional.empty();
@@ -110,7 +110,7 @@ public class ScreenDataBindingResolver {
         ResolvedJoin join = joins.get(key);
         if (join == null) return field;
         return new ScreenFieldBinding(
-                field.id(), field.label(), field.role(),
+                field.id(), field.label(), field.dataRole(), field.semanticRole(), field.mode(),
                 FieldSource.joinColumn(aliases.get(key), join.displayColumn()),
                 field.visible(), field.required(), field.searchable(), field.sortable(),
                 field.control(), field.confidence());
