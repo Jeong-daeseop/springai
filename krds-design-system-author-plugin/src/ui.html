@@ -23,6 +23,13 @@ h3{margin:0 0 4px}
 <div id="status">DesignSystemSpec JSON 파일을 선택하세요.</div>
 <input id="file" type="file" accept="application/json">
 
+<div class="section">
+  <strong>KRDS 접근성 State 보강</strong>
+  <div>Component Registry v2를 선택하면 실제 Component Set Key로 찾아 Focus·Disabled·Error 상태를 추가합니다.</div>
+  <input id="registryFile" type="file" accept="application/json">
+  <button id="repairStates" disabled>Focus State 추가 및 Inventory 생성</button>
+</div>
+
 <div class="section" id="diffSection" style="display:none">
   <strong>변경 미리보기(Preview)</strong>
   <div id="diffList" class="diff"></div>
@@ -69,6 +76,9 @@ const libraryFileKey = document.getElementById('libraryFileKey');
 const libraryName = document.getElementById('libraryName');
 const registryVersion = document.getElementById('registryVersion');
 const exportRegistry = document.getElementById('exportRegistry');
+const registryFile = document.getElementById('registryFile');
+const repairStates = document.getElementById('repairStates');
+let accessibilityRegistry;
 
 function renderDiff(diff) {
   diffList.replaceChildren();
@@ -146,6 +156,25 @@ file.onchange = async () => {
   }
 };
 
+registryFile.onchange = async () => {
+  const selected = registryFile.files[0];
+  if (!selected) return;
+  try {
+    accessibilityRegistry = JSON.parse(await selected.text());
+    repairStates.disabled = false;
+    status.textContent = `Registry를 불러왔습니다: ${accessibilityRegistry.registryVersion}`;
+  } catch (e) {
+    repairStates.disabled = true;
+    status.textContent = 'Registry JSON 파싱 실패: ' + (e && e.message ? e.message : e);
+  }
+};
+
+repairStates.onclick = () => {
+  repairStates.disabled = true;
+  status.textContent = 'Component Set에 접근성 State를 추가하고 Inventory를 수집 중…';
+  parent.postMessage({ pluginMessage: { type: 'REPAIR_ACCESSIBILITY_STATES', registry: accessibilityRegistry } }, '*');
+};
+
 apply.onclick = () => {
   apply.disabled = true;
   status.textContent = '적용 중…';
@@ -217,11 +246,19 @@ onmessage = ({ data }) => {
     exportRegistry.disabled = false;
     return;
   }
+  if (message.type === 'ACCESSIBILITY_STATES_REPAIRED') {
+    downloadJson(`component-registry-${message.registry.profileId}-${message.registry.registryVersion}.focus.json`, message.registry);
+    downloadJson(`figma-library-inventory-${message.inventory.profileId}-${message.inventory.inventoryVersion}.json`, message.inventory);
+    status.textContent = `완료: ${message.changedSets}개 Component Set, ${message.createdVariants}개 Variant 추가. Registry와 Inventory를 저장했습니다.`;
+    repairStates.disabled = false;
+    return;
+  }
   if (message.type === 'ERROR') {
     status.innerHTML = '<span class="errors">[' + message.code + '] ' + message.message
       + (message.retryable ? ' — 잠시 후 다시 시도할 수 있습니다.' : '') + '</span>';
     apply.disabled = false;
     exportRegistry.disabled = false;
+    repairStates.disabled = false;
   }
 };
 </script>

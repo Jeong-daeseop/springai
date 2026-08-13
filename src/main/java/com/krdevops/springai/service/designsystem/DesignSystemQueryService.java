@@ -91,6 +91,11 @@ public class DesignSystemQueryService {
         return registrySyncService.apply(registry, confirmed);
     }
 
+    public ComponentRegistrySyncResult applyRegistry(
+            ComponentRegistry registry, boolean confirmed, String actor, String comment) {
+        return registrySyncService.apply(registry, confirmed, actor, comment);
+    }
+
     public ComponentRegistrySyncResult retryRegistry(
             ComponentRegistry registry,
             String retryToken,

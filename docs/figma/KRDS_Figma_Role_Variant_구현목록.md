@@ -307,6 +307,8 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 
 - [~] **KRV-070 · P0** Registry v2 Preview와 사람 승인 기록
   - 수용 기준: Design System Owner 승인 이벤트와 Version 연결
+  - 구현: Inventory 기반 Registry Preview 통과 후에만 `actor`가 있는 APPROVAL·REGISTRY_SYNC 이벤트를 Registry Version과 원자 저장
+  - 구현 완료, 운영 승인 보류: 현재 KRDS Published 입력·버튼의 Focus State 누락으로 승인 차단됨(정상 동작)
 
 - [x] **KRV-071 · P0** Pattern·Rule Set 승인 Workflow 구현
   - 수용 기준: 미승인 Rule Set은 Export에 사용할 수 없음
@@ -318,6 +320,8 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 
 - [~] **KRV-073 · P0** Rollback 리허설
   - 수용 기준: 이전 Registry·Rule Set·Pattern Snapshot으로 Preview 재생성 성공
+  - 구현: 운영 Latest나 Published 상태를 변경하지 않고 요청한 Profile·Registry·Rule Set·Pattern 정확한 버전으로 6개 Bundle을 메모리 재생성하고 Context Hash 반환
+  - 통합 리허설 통과, 운영 리허설 보류: DB에 Profile 2.0.0·Registry 2.1.0·Rule Set 2.0.0-candidate·Pattern 1.0.0만 있어 이전 Snapshot이 없음
 
 - [x] **KRV-074 · P1** 운영 지표와 로그 추가
   - 수용 기준: Role/Variant/Drift/Visual 실패 건수와 처리 시간 조회 가능

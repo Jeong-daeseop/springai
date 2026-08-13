@@ -2,6 +2,12 @@ package com.krdevops.springai.service.designsystem;
 
 import com.krdevops.springai.mapper.ComponentRegistryRepository;
 import com.krdevops.springai.mapper.DesignSystemProfileRepository;
+import com.krdevops.springai.mapper.FigmaLibraryInventoryRepository;
+import com.krdevops.springai.mapper.FigmaReviewHistoryRepository;
+import com.krdevops.springai.model.designsystem.FigmaReviewEvent;
+import com.krdevops.springai.model.designsystem.FigmaLibraryInventorySnapshot;
+import com.krdevops.springai.service.designsystem.FigmaPropertyDriftValidator.ActualProperty;
+import com.krdevops.springai.service.designsystem.FigmaPropertyDriftValidator.LibraryComponentSnapshot;
 import com.krdevops.springai.model.designsystem.ComponentRegistry;
 import com.krdevops.springai.model.designsystem.ComponentRegistryDiff;
 import com.krdevops.springai.model.designsystem.ComponentRegistryEntry;
@@ -12,6 +18,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -48,6 +56,32 @@ class ComponentRegistrySyncServiceTest {
         assertThat(applied.profile().registryVersion()).isEqualTo("registry-1");
         verify(registryRepository).saveImmutable(candidate);
         verify(profileRepository).save(applied.profile());
+    }
+
+    @Test
+    void designSystemOwner승인과RegistryVersion연결이력을저장한다() {
+        FigmaLibraryInventoryRepository inventories = mock(FigmaLibraryInventoryRepository.class);
+        FigmaReviewHistoryRepository reviews = mock(FigmaReviewHistoryRepository.class);
+        ComponentRegistrySyncService approvalService = new ComponentRegistrySyncService(
+                registryRepository, profileRepository, new ComponentRegistryValidator(), inventories,
+                new FigmaPropertyDriftValidator(), reviews);
+        ComponentRegistry candidate = registry("registry-1", "BUTTON_SET_KEY", "VARIABLE_KEY");
+        when(profileRepository.findVersion("ftc-krds", "1.0.0")).thenReturn(Optional.of(approvedProfile()));
+        when(registryRepository.findLatest("ftc-krds")).thenReturn(Optional.empty());
+        when(inventories.findLatest("ftc-krds", "registry-1"))
+                .thenReturn(Optional.of(inventory(candidate)));
+
+        ComponentRegistrySyncResult result = approvalService.apply(
+                candidate, true, "ds-owner", "Registry v2 검토 완료");
+
+        assertThat(result.status()).isEqualTo(ComponentRegistrySyncResult.Status.APPLIED);
+        verify(reviews).save(org.mockito.ArgumentMatchers.argThat(event ->
+                event.targetType() == FigmaReviewEvent.TargetType.COMPONENT_REGISTRY
+                        && event.eventType() == FigmaReviewEvent.EventType.APPROVAL
+                        && "registry-1".equals(event.targetVersion())
+                        && "ds-owner".equals(event.actor())));
+        verify(reviews).save(org.mockito.ArgumentMatchers.argThat(event ->
+                event.eventType() == FigmaReviewEvent.EventType.REGISTRY_SYNC));
     }
 
     @Test
@@ -198,6 +232,16 @@ class ComponentRegistrySyncServiceTest {
                         "Foundation",
                         "COLOR",
                         ComponentRegistryEntry.PublishStatus.CURRENT)));
+    }
+
+    private FigmaLibraryInventorySnapshot inventory(ComponentRegistry registry) {
+        ComponentRegistryEntry button = registry.components().get("krds.button");
+        return new FigmaLibraryInventorySnapshot(
+                registry.profileId(), registry.registryVersion(), "inventory-1", Instant.now(),
+                Map.of("krds.button", new LibraryComponentSnapshot(
+                        button.componentSetKey(),
+                        Map.of("Style", new ActualProperty("VARIANT", Set.of("Primary"))),
+                        button.variants())));
     }
 
     private DesignSystemProfile approvedProfile() {

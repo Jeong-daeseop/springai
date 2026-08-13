@@ -109,6 +109,31 @@ public class KrdsComponentResolutionService {
         VariantRuleSet ruleSet = ruleSetRepository.findPublished(profileId, registry.registryVersion())
                 .orElseThrow(() -> failure("VARIANT_RULE_SET_NOT_PUBLISHED", profileId + "/" + registry.registryVersion()));
 
+        return resolveWithSnapshots(profileId, registry, page, screenType, density, viewport, semanticRoot,
+                patternDefinition, ruleSet);
+    }
+
+    /** KRV-073: 운영 Latest 조회를 우회하고 명시한 이전 Snapshot만으로 결정형 Preview를 재생성한다. */
+    public ResolutionResult resolveWithSnapshots(
+            String profileId, ComponentRegistry registry, PageSpec page, FigmaScreenType screenType,
+            LayoutDensity density, String viewport, FigmaNodeSpec semanticRoot,
+            ScreenPatternDefinition patternDefinition, VariantRuleSet ruleSet) {
+        if (registry == null || patternDefinition == null || ruleSet == null) {
+            throw failure("ROLLBACK_SNAPSHOT_MISSING", profileId);
+        }
+        ScreenPattern pattern = normalizer.pattern(page);
+        if (patternDefinition.pattern() != pattern) {
+            throw failure("ROLLBACK_PATTERN_MISMATCH", pattern.code());
+        }
+        if (patternDefinition.status() != ScreenPatternDefinition.Status.PUBLISHED) {
+            throw failure("SCREEN_PATTERN_NOT_PUBLISHED", patternDefinition.version());
+        }
+        if (ruleSet.status() != VariantRuleSet.Status.PUBLISHED
+                || !profileId.equals(ruleSet.profileId())
+                || !registry.registryVersion().equals(ruleSet.registryVersion())) {
+            throw failure("VARIANT_RULE_SET_NOT_PUBLISHED", ruleSet.id() + "/" + ruleSet.version());
+        }
+
         List<DesignSystemIssue> patternIssues = patternValidator.validate(patternDefinition, semanticRoot);
         if (!patternIssues.isEmpty()) {
             throw failure(patternIssues.get(0).code(), patternIssues.get(0).message());

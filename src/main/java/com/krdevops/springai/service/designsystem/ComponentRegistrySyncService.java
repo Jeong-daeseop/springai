@@ -3,6 +3,8 @@ package com.krdevops.springai.service.designsystem;
 import com.krdevops.springai.mapper.ComponentRegistryRepository;
 import com.krdevops.springai.mapper.DesignSystemProfileRepository;
 import com.krdevops.springai.mapper.FigmaLibraryInventoryRepository;
+import com.krdevops.springai.mapper.FigmaReviewHistoryRepository;
+import com.krdevops.springai.model.designsystem.FigmaReviewEvent;
 import com.krdevops.springai.model.designsystem.ComponentBinding;
 import com.krdevops.springai.model.designsystem.ComponentRegistry;
 import com.krdevops.springai.model.designsystem.ComponentRegistryDiff;
@@ -20,6 +22,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * R4: Author Plugin이 내보낸 Published Registry 후보를 검증하고, 이전 버전과 비교한 뒤
@@ -33,13 +37,14 @@ public class ComponentRegistrySyncService {
     private final ComponentRegistryValidator validator;
     private final FigmaLibraryInventoryRepository inventoryRepository;
     private final FigmaPropertyDriftValidator driftValidator;
+    private final FigmaReviewHistoryRepository reviewRepository;
 
     public ComponentRegistrySyncService(
             ComponentRegistryRepository registryRepository,
             DesignSystemProfileRepository profileRepository,
             ComponentRegistryValidator validator
     ) {
-        this(registryRepository, profileRepository, validator, null, null);
+        this(registryRepository, profileRepository, validator, null, null, null);
     }
 
     @Autowired
@@ -48,13 +53,15 @@ public class ComponentRegistrySyncService {
             DesignSystemProfileRepository profileRepository,
             ComponentRegistryValidator validator,
             FigmaLibraryInventoryRepository inventoryRepository,
-            FigmaPropertyDriftValidator driftValidator
+            FigmaPropertyDriftValidator driftValidator,
+            FigmaReviewHistoryRepository reviewRepository
     ) {
         this.registryRepository = registryRepository;
         this.profileRepository = profileRepository;
         this.validator = validator;
         this.inventoryRepository = inventoryRepository;
         this.driftValidator = driftValidator;
+        this.reviewRepository = reviewRepository;
     }
 
     public ComponentRegistrySyncResult preview(ComponentRegistry candidate) {
@@ -124,6 +131,12 @@ public class ComponentRegistrySyncService {
 
     @Transactional
     public ComponentRegistrySyncResult apply(ComponentRegistry candidate, boolean confirmed) {
+        return apply(candidate, confirmed, null, null);
+    }
+
+    @Transactional
+    public ComponentRegistrySyncResult apply(
+            ComponentRegistry candidate, boolean confirmed, String actor, String comment) {
         if (!confirmed) {
             throw new IllegalArgumentException("Registry 반영에는 사람의 명시적 확인이 필요합니다.");
         }
@@ -162,11 +175,27 @@ public class ComponentRegistrySyncService {
             registryRepository.saveImmutable(candidate);
         }
         profileRepository.save(publishedProfile);
+        recordRegistryApproval(candidate, actor, comment);
         return new ComponentRegistrySyncResult(
                 ComponentRegistrySyncResult.Status.APPLIED,
                 preview.diff(),
                 candidate,
                 publishedProfile);
+    }
+
+    private void recordRegistryApproval(ComponentRegistry candidate, String actor, String comment) {
+        if (reviewRepository == null) return; // 레거시 단위 테스트 생성자
+        if (actor == null || actor.isBlank()) {
+            throw new IllegalArgumentException("Registry 승인에는 Design System Owner actor가 필요합니다.");
+        }
+        reviewRepository.save(new FigmaReviewEvent(
+                UUID.randomUUID().toString(), FigmaReviewEvent.TargetType.COMPONENT_REGISTRY,
+                candidate.profileId(), candidate.registryVersion(), FigmaReviewEvent.EventType.APPROVAL,
+                "APPROVED", actor, comment, LocalDateTime.now()));
+        reviewRepository.save(new FigmaReviewEvent(
+                UUID.randomUUID().toString(), FigmaReviewEvent.TargetType.COMPONENT_REGISTRY,
+                candidate.profileId(), candidate.registryVersion(), FigmaReviewEvent.EventType.REGISTRY_SYNC,
+                "APPLIED", actor, comment, LocalDateTime.now()));
     }
 
     /** 실패 보고의 retryToken과 동일 후보를 다시 검증한 뒤 원자적으로 재적용한다. */

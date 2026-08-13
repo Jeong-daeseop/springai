@@ -11,6 +11,7 @@ import com.krdevops.springai.service.designsystem.FigmaContractApprovalService;
 import com.krdevops.springai.model.design.role.ScreenPattern;
 import com.krdevops.springai.model.designsystem.ScreenPatternDefinition;
 import com.krdevops.springai.model.designsystem.VariantRuleSet;
+import com.krdevops.springai.service.figma.FigmaRollbackRehearsalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +32,13 @@ public class DesignSystemController {
     private final DesignSystemQueryService queryService;
     private final FigmaLibraryInventoryRepository inventoryRepository;
     private final FigmaContractApprovalService contractApprovalService;
+    private final FigmaRollbackRehearsalService rollbackRehearsalService;
+
+    @PostMapping("/rollback-rehearsals/preview")
+    public FigmaRollbackRehearsalService.RehearsalResult previewRollback(
+            @RequestBody FigmaRollbackRehearsalService.RehearsalRequest request) {
+        return rollbackRehearsalService.preview(request);
+    }
 
     @PostMapping("/patterns/{pattern}/versions/{version}/approve")
     public ScreenPatternDefinition approvePattern(@PathVariable ScreenPattern pattern, @PathVariable String version,
@@ -135,11 +143,13 @@ public class DesignSystemController {
     public ComponentRegistrySyncResult applyRegistry(
             @PathVariable String profileId,
             @RequestParam(defaultValue = "false") boolean confirmed,
+            @RequestParam(required = false) String actor,
+            @RequestParam(required = false) String comment,
             @RequestBody ComponentRegistry registry
     ) {
         requireSameProfile(profileId, registry);
         try {
-            return queryService.applyRegistry(registry, confirmed);
+            return queryService.applyRegistry(registry, confirmed, actor, comment);
         } catch (IllegalArgumentException exception) {
             throw new FigmaRequestException("COMPONENT_REGISTRY_INVALID", exception.getMessage());
         }

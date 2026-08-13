@@ -17,6 +17,10 @@
 }, {
   "controller" : "DesignSystemController",
   "method" : "POST",
+  "path" : "/api/design-systems/rollback-rehearsals/preview"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
   "path" : "/api/design-systems/rule-sets/{id}/versions/{version}/approve"
 }, {
   "controller" : "DesignSystemController",

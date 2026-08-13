@@ -729,7 +729,9 @@ async function validateQualityGates(
           if (declaredValues) {
             const lowered = declaredValues.map(value => value.toLowerCase());
             if (!lowered.includes("focus")) accessibilityIssues.push(`FOCUS_STATE_UNAVAILABLE:${node.logicalNodeId}`);
-            if (!lowered.includes("error")) accessibilityIssues.push(`ERROR_STATE_UNAVAILABLE:${node.logicalNodeId}`);
+            if (role.startsWith("field.") && !lowered.includes("error")) {
+              accessibilityIssues.push(`ERROR_STATE_UNAVAILABLE:${node.logicalNodeId}`);
+            }
           }
         } catch {
           // Component Set을 조회하지 못하면(예: 이미 local detach) 이 보강 검사만 건너뛴다.

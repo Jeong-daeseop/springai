@@ -64,6 +64,21 @@ type ComponentRegistryExport = {
     publishStatus: RegistryPublishStatus;
   }>;
 };
+type RegistryV2 = {
+  profileId: string;
+  profileVersion: string;
+  registryVersion: string;
+  components: Record<string, {
+    componentSetKey: string;
+    componentName?: string;
+    roles?: string[];
+    variants: Record<string, string>;
+    properties: Record<string, { figmaProperty: string; type: string; values?: Record<string, string> }>;
+    variantAxes: Record<string, { logicalName: string; figmaProperty: string; allowedValues: string[]; required: boolean }>;
+    [key: string]: unknown;
+  }>;
+  [key: string]: unknown;
+};
 
 const PLUGIN_DATA_NS_ID = "designSystemId";
 const PLUGIN_DATA_LOGICAL_ID = "logicalId";
@@ -92,6 +107,121 @@ function findTaggedComponentSets(designSystemId: string): Map<string, ComponentS
     }
   }
   return result;
+}
+
+function normalizedVariantName(properties: Record<string, string>): string {
+  return Object.entries(properties).map(([name, value]) => `${name}=${value}`).join(", ");
+}
+
+function desiredAccessibilityStates(entry: RegistryV2["components"][string]): string[] {
+  const hasState = Object.values(entry.variantAxes ?? {}).some(axis => axis.logicalName.toLowerCase() === "state");
+  if (!hasState) return [];
+  const field = (entry.roles ?? []).some(role => role.startsWith("field."));
+  return field ? ["focus", "disabled", "error"] : ["focus", "disabled"];
+}
+
+async function repairAccessibilityStates(registry: RegistryV2): Promise<{
+  registry: RegistryV2; inventory: Record<string, unknown>; changedSets: number; createdVariants: number;
+}> {
+  if (!registry || registry.profileId !== "krds" || !registry.components) {
+    throw new Error("KRDS Component Registry v2 JSON이 필요합니다.");
+  }
+  await figma.loadAllPagesAsync();
+  const sets = figma.root.findAll(node => node.type === "COMPONENT_SET") as ComponentSetNode[];
+  const byKey = new Map(sets.map(set => [set.key, set]));
+  const normalizeName = (value: string) => value.trim().toLowerCase().replace(/[_\s-]+/g, "");
+  const byName = new Map<string, ComponentSetNode>();
+  for (const set of sets) byName.set(normalizeName(set.name), set);
+  let changedSets = 0;
+  let createdVariants = 0;
+  const inventoryComponents: Record<string, unknown> = {};
+
+  for (const [logicalType, entry] of Object.entries(registry.components)) {
+    const desired = desiredAccessibilityStates(entry);
+    const set = byKey.get(entry.componentSetKey)
+      ?? (entry.componentName ? byName.get(normalizeName(entry.componentName)) : undefined);
+    if (!set && desired.length > 0) {
+      throw new Error(`상태를 보강할 로컬 Component Set을 찾을 수 없습니다: ${logicalType} (${entry.componentName ?? entry.componentSetKey})`);
+    }
+    if (!set) {
+      const actualProperties: Record<string, { type: string; values: string[] }> = {};
+      for (const property of Object.values(entry.properties ?? {})) {
+        actualProperties[property.figmaProperty] = {
+          type: property.type,
+          values: property.type.toUpperCase() === "VARIANT" ? Object.values(property.values ?? {}) : [],
+        };
+      }
+      inventoryComponents[logicalType] = {
+        componentSetKey: entry.componentSetKey,
+        properties: actualProperties,
+        variants: entry.variants,
+      };
+      continue;
+    }
+    entry.componentSetKey = set.key;
+    let changed = false;
+    const components = set.children.filter(child => child.type === "COMPONENT") as ComponentNode[];
+    const existingNames = new Set(components.map(component => component.name.toLowerCase()));
+    const defaultSources = components.filter(component =>
+      (component.variantProperties?.State ?? component.variantProperties?.state ?? "default").toLowerCase() === "default");
+
+    for (const state of desired) {
+      for (const source of defaultSources) {
+        const props = { ...(source.variantProperties ?? {}) } as Record<string, string>;
+        const stateKey = Object.keys(props).find(key => key.toLowerCase() === "state") ?? "State";
+        props[stateKey] = state;
+        const name = normalizedVariantName(props);
+        if (existingNames.has(name.toLowerCase())) continue;
+        const clone = source.clone();
+        clone.name = name;
+        existingNames.add(name.toLowerCase());
+        createdVariants++;
+        changed = true;
+      }
+    }
+    if (changed) changedSets++;
+
+    const refreshed = set.children.filter(child => child.type === "COMPONENT") as ComponentNode[];
+    const variants: Record<string, string> = {};
+    const propertyValues: Record<string, Set<string>> = {};
+    for (const component of refreshed) {
+      variants[component.name] = component.key;
+      for (const [name, value] of Object.entries(component.variantProperties ?? {})) {
+        (propertyValues[name] ??= new Set()).add(value.toLowerCase());
+      }
+    }
+    entry.variants = variants;
+    const stateAxis = Object.values(entry.variantAxes ?? {}).find(axis => axis.logicalName.toLowerCase() === "state");
+    if (stateAxis) {
+      stateAxis.allowedValues = [...(propertyValues[stateAxis.figmaProperty] ?? new Set())];
+      const mapping = Object.values(entry.properties ?? {}).find(property => property.figmaProperty === stateAxis.figmaProperty);
+      if (mapping) mapping.values = Object.fromEntries(stateAxis.allowedValues.map(value => [value, value]));
+    }
+    const actualProperties: Record<string, { type: string; values: string[] }> = {};
+    for (const [name, values] of Object.entries(propertyValues)) {
+      actualProperties[name] = { type: "VARIANT", values: [...values] };
+    }
+    for (const property of Object.values(entry.properties ?? {})) {
+      if (!actualProperties[property.figmaProperty]) {
+        actualProperties[property.figmaProperty] = { type: property.type, values: [] };
+      }
+    }
+    inventoryComponents[logicalType] = { componentSetKey: set.key, properties: actualProperties, variants };
+  }
+
+  const stamp = new Date().toISOString();
+  return {
+    registry,
+    inventory: {
+      profileId: registry.profileId,
+      registryVersion: registry.registryVersion,
+      inventoryVersion: `figma-${stamp.replace(/[-:.TZ]/g, "").slice(0, 14)}`,
+      capturedAt: stamp,
+      components: inventoryComponents,
+    },
+    changedSets,
+    createdVariants,
+  };
 }
 
 async function findTaggedVariables(designSystemId: string): Promise<Map<string, Variable>> {
@@ -689,6 +819,7 @@ type IncomingMessage =
   | { type: "APPLY" }
   | { type: "EXPORT_REVIEW"; eventType: ReviewExport["eventType"]; actor: string; comment: string }
   | { type: "EXPORT_REGISTRY"; options: RegistryExportOptions }
+  | { type: "REPAIR_ACCESSIBILITY_STATES"; registry: RegistryV2 }
   | { type: "FOCUS_ERROR"; index: number };
 
 let currentSpec: DesignSystemSpec | undefined;
@@ -794,6 +925,12 @@ figma.ui.onmessage = async (message: IncomingMessage) => {
         registry,
         allCurrent: statuses.length > 0 && statuses.every(status => status === "CURRENT"),
       });
+      return;
+    }
+
+    if (message.type === "REPAIR_ACCESSIBILITY_STATES") {
+      const result = await repairAccessibilityStates(message.registry);
+      figma.ui.postMessage({ type: "ACCESSIBILITY_STATES_REPAIRED", ...result });
       return;
     }
 

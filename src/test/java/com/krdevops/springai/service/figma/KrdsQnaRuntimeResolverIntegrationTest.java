@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.config.LegacyRepositoryDdlProperties;
 import com.krdevops.springai.mapper.ComponentRegistryRepository;
 import com.krdevops.springai.mapper.FigmaScreenSpecRepository;
+import com.krdevops.springai.mapper.DesignSystemProfileRepository;
 import com.krdevops.springai.mapper.ScreenPatternRepository;
 import com.krdevops.springai.mapper.ScreenSpecRepository;
 import com.krdevops.springai.mapper.VariantRuleSetRepository;
@@ -61,6 +62,8 @@ class KrdsQnaRuntimeResolverIntegrationTest {
             new FigmaScreenSpecRepository(jdbcTemplate, objectMapper, ddlProperties);
     private final ScreenSpecRepository businessSpecRepository =
             new ScreenSpecRepository(jdbcTemplate, objectMapper, ddlProperties);
+    private final DesignSystemProfileRepository profileRepository =
+            new DesignSystemProfileRepository(jdbcTemplate, objectMapper, ddlProperties);
 
     @Test
     void importsContractsResolvesSixScreensAndProducesPluginBundles() throws Exception {
@@ -69,6 +72,7 @@ class KrdsQnaRuntimeResolverIntegrationTest {
         ruleSetRepository.createTableIfNotExists();
         screenSpecRepository.createTableIfNotExists();
         businessSpecRepository.createTableIfNotExists();
+        profileRepository.createTableIfNotExists();
 
         KrdsRuntimeContractImportService importer = new KrdsRuntimeContractImportService(
                 registryRepository, patternRepository, ruleSetRepository, objectMapper);
@@ -129,6 +133,7 @@ class KrdsQnaRuntimeResolverIntegrationTest {
             DesignSystemProfile profile = new DesignSystemProfile(
                     profileId, "KRDS Q&A Integration", profileVersion, registryVersion,
                     registry.library().fileKey(), DesignSystemProfile.Status.PUBLISHED, Map.of(), Map.of());
+            profileRepository.save(profile);
             Path outputDirectory = Path.of("build", "figma-runtime-qna");
             Files.createDirectories(outputDirectory);
             try (var files = Files.list(outputDirectory)) {
@@ -218,6 +223,19 @@ class KrdsQnaRuntimeResolverIntegrationTest {
                         .as("Plugin 입력 Root Frame Bundle 수")
                         .isEqualTo(6L);
             }
+
+            FigmaRollbackRehearsalService rehearsal = new FigmaRollbackRehearsalService(
+                    businessSpecRepository, profileRepository, registryRepository, patternRepository,
+                    ruleSetRepository, builders, screenTypeResolver, logicalNodeIdFactory,
+                    new ScreenSemanticNormalizer(), resolver, validator, assembler, objectMapper);
+            Map<String, String> patternVersions = new LinkedHashMap<>();
+            patterns.forEach(pattern -> patternVersions.put(pattern.pattern().code(), pattern.version()));
+            var preview = rehearsal.preview(new FigmaRollbackRehearsalService.RehearsalRequest(
+                    businessSpecId, businessSpec.version(), profileId, profileVersion, registryVersion,
+                    ruleSetId, ruleSetVersion, patternVersions));
+            assertThat(preview.mode()).isEqualTo("PREVIEW_ONLY");
+            assertThat(preview.bundleCount()).isEqualTo(6);
+            assertThat(preview.contextHashes()).hasSize(6).doesNotContainValue("");
         } finally {
             storedScreenIds.forEach(screenId -> jdbcTemplate.update(
                     "DELETE FROM AI_FIGMA_SCREEN_SPEC WHERE SCREEN_ID = ?", screenId));
@@ -226,6 +244,8 @@ class KrdsQnaRuntimeResolverIntegrationTest {
                     ruleSetId, ruleSetVersion);
             jdbcTemplate.update("DELETE FROM AI_COMPONENT_REGISTRY WHERE PROFILE_ID = ? AND REGISTRY_VERSION = ?",
                     profileId, registryVersion);
+            jdbcTemplate.update("DELETE FROM AI_DESIGN_SYSTEM_PROFILE WHERE PROFILE_ID = ? AND PROFILE_VERSION = ?",
+                    profileId, profileVersion);
             patterns.forEach(pattern -> jdbcTemplate.update(
                     "DELETE FROM AI_SCREEN_PATTERN WHERE PATTERN_ID = ? AND PATTERN_VERSION = ?",
                     pattern.pattern().code(), pattern.version()));
