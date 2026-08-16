@@ -21,3 +21,8 @@ approval_mode = "approve"
 
 [mcp_servers.egovframe-mcp.tools.initializeProject]
 approval_mode = "approve"
+
+[mcp_servers.figma]
+url = "https://mcp.figma.com/mcp"
+oauth_resource = "https://mcp.figma.com/mcp"
+auth = "oauth"
