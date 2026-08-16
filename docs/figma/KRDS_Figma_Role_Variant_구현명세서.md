@@ -4,9 +4,12 @@
 
 - 대상 시스템: `springai` Figma MCP 자동생성 파이프라인
 - 기준 문서: [`KRDS_Figma_Role_Variant_표준방법론_가이드.md`](../guides/KRDS_Figma_Role_Variant_표준방법론_가이드.md)
-- 작성일: 2026-08-11
-- 문서 버전: 1.1.0
+- 작성일: 2026-08-11 (2026-08-17: Q&A 화면 수 6→7 개정 반영, §1.2/§14.4/§15 갱신)
+- 문서 버전: 1.2.0
 - 상태: 구현 기준안
+
+> 개정 안내: Q&A 화면 수는 이후 `qna-update`(질문 수정, `crud.edit`) 추가로 6개→7개로
+> 개정됐다. 최신 백로그·진행 상태는 `KRDS_Figma_Role_Variant_구현목록.md` §2.1을 참고한다.
 
 ## 1. 개요
 
@@ -23,7 +26,7 @@
 3. `ComponentRoleResolver`와 `VariantRuleResolver`를 서버의 결정 엔진으로 추가합니다.
 4. 해결된 Component Key와 Variant Property를 `FigmaScreenSpec`에 명시합니다.
 5. 서버와 Plugin에서 첫 Variant·일반 Frame·로컬 이름 기반 폴백을 차단합니다.
-6. Q&A 6개 화면을 구조·해석·Layout·Visual 회귀 Fixture로 고정합니다.
+6. Q&A 7개 화면(질문 수정 `qna-update` 포함)을 구조·해석·Layout·Visual 회귀 Fixture로 고정합니다.
 
 ### 1.3 범위
 
@@ -589,7 +592,7 @@ AI_SCREEN_PATTERN
 - 요청한 Screen ID 중복 여부
 - 업무 묶음의 기대 화면 수와 필수 Screen ID
 - 각 Screen ID와 Pattern의 정합성
-- Q&A 6개 기대 화면 존재 여부
+- Q&A 7개 기대 화면 존재 여부
 
 ### 8.2 Gate 2 — Registry Contract
 
@@ -793,18 +796,19 @@ componentSet.children.find(child => child.type === "COMPONENT")
 - DETAIL 화면 Preview·Apply 지원
 - `fallbackCount=0` 강제
 
-### 14.4 Q&A 6개 회귀 테스트
+### 14.4 Q&A 7개 회귀 테스트
 
 | Fixture | Pattern | 필수 검증 |
 |---|---|---|
 | `qna-list` | `crud.list` | SearchPanel, 6열 DataTable, Pagination, 등록 |
 | `qna-create` | `crud.create` | 연락처, 이메일, Checkbox, 제목, 내용, 등록·목록 |
 | `qna-detail` | `crud.detail` | 전체 Read-only, 수정·삭제·목록 |
+| `qna-update` | `crud.edit` | 작성자 Read-only, 연락처·제목·이메일·내용 수정, 저장·목록 |
 | `qna-answer-list` | `crud.list` | 검색, 답변 대상 Table, Pagination |
 | `qna-answer-detail` | `crud.detail` | 질문 Read-only, 답글·목록 |
 | `qna-answer-create` | `crud.create` | 질문 Read-only, 상태 Select, 답변 Textarea, 등록·목록 |
 
-6개 Fixture 모두 구조·Resolution·Layout·Visual Gate를 통과해야 릴리스할 수 있습니다.
+7개 Fixture 모두 구조·Resolution·Layout·Visual Gate를 통과해야 릴리스할 수 있습니다.
 
 ## 15. 완료 기준
 
@@ -815,16 +819,23 @@ componentSet.children.find(child => child.type === "COMPONENT")
 - 서버 기본 Profile·빈 Registry 폴백이 제거됨
 - Plugin의 첫 Variant·첫 Component·로컬 이름·Placeholder 폴백이 정상 Apply 경로에서 제거됨
 - Field, Button, Table Cell이 모두 Published Library Instance임
-- DETAIL을 포함한 Q&A 6개 화면이 생성됨
+- DETAIL·EDIT을 포함한 Q&A 7개 화면이 생성됨
 - 모든 Generation Report의 `fallbackCount`가 0임
 - FINAL Apply 전 Preview와 사람 승인 이력이 존재함
 - Registry·Pattern·Rule Set의 Version과 Rollback 경로가 검증됨
 
 ## 16. 관련 문서
 
+이 문서가 3계층 아키텍처·도메인 모델·Resolver·Validation Gate의 **정본(공식 구현 계약)**이다.
+아래 두 문서는 이 정본의 요약본이며, 세부 사양이 아니라 빠른 참고·구체적 예시 제공이 목적이다.
+
+- [KRDS Figma Role·Variant 구현 아키텍처 가이드](./KRDS_Figma_Role_Variant_구현아키텍처_가이드.md) — 계층별 책임 표 위주 요약
+- [Figma 화면 생성 3계층 역할 가이드](./Figma_화면생성_3계층_역할가이드.md) — `qna-update` worked example과 역할 분리 실패 사례
+
+기타 관련 문서:
+
 - [KRDS Figma Role·Variant 표준방법론 가이드](../guides/KRDS_Figma_Role_Variant_표준방법론_가이드.md)
 - [Semantic Figma Design System 구현목록](./12_Semantic_Figma_Design_System_Implementation_List.md)
 - [Agent Design System FigmaScreenSpec 참조 아키텍처](./09_Agent_Design_System_FigmaScreenSpec_Reference_Architecture.md)
 - [Semantic Figma Operations Runbook](./13_Semantic_Figma_Operations_Runbook.md)
 - [KRDS Figma Role·Variant 구현목록](./KRDS_Figma_Role_Variant_구현목록.md)
-- [Figma 화면 생성 3계층 역할 가이드](./Figma_화면생성_3계층_역할가이드.md)
