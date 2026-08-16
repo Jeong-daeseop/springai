@@ -2,6 +2,8 @@ package com.krdevops.springai.service.figma;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -38,6 +40,8 @@ class FigmaOperationsServiceTest {
     private FigmaScreenSpecRepository screenSpecRepository;
     @Mock
     private FigmaReviewHistoryRepository reviewRepository;
+    @Mock
+    private FigmaRefinementService refinementService;
 
     private FigmaOperationsService service;
 
@@ -45,7 +49,7 @@ class FigmaOperationsServiceTest {
     void setUp() {
         service = new FigmaOperationsService(
                 reportRepository, screenSpecRepository, reviewRepository,
-                new OperationalTelemetry(new SimpleMeterRegistry()));
+                new OperationalTelemetry(new SimpleMeterRegistry()), refinementService);
     }
 
     @Test
@@ -100,6 +104,38 @@ class FigmaOperationsServiceTest {
 
         assertThat(service.record(report)).isSameAs(report);
         verify(reportRepository).saveImmutable(report);
+    }
+
+    @Test
+    void 성공보고서의적용된Refinement를Applied로전이한다() {
+        FigmaGenerationReport base = report("refined", true, 1, 1, 0, List.of(), passedGates());
+        FigmaGenerationReport refined = new FigmaGenerationReport(
+                base.reportId(), base.status(), base.figmaScreenSpec(), base.screenId(), base.screenVersion(),
+                base.mode(), base.startedAt(), base.completedAt(), true, base.reusedInstanceCount(),
+                base.createdInstanceCount(), base.archivedNodeCount(), base.fallbackCount(), base.changes(),
+                base.issues(), base.qualityGates(),
+                new FigmaGenerationReport.RefinementSummary("patch-1", 1, 2, 0, 0, 0));
+        when(reportRepository.saveImmutable(refined)).thenReturn(refined);
+
+        service.record(refined);
+
+        verify(refinementService).markApplied("patch-1");
+    }
+
+    @Test
+    void 일부라도제외된Refinement는Applied로전이하지않는다() {
+        FigmaGenerationReport base = report("partially-refined", true, 1, 1, 0, List.of(), passedGates());
+        FigmaGenerationReport refined = new FigmaGenerationReport(
+                base.reportId(), base.status(), base.figmaScreenSpec(), base.screenId(), base.screenVersion(),
+                base.mode(), base.startedAt(), base.completedAt(), true, base.reusedInstanceCount(),
+                base.createdInstanceCount(), base.archivedNodeCount(), base.fallbackCount(), base.changes(),
+                base.issues(), base.qualityGates(),
+                new FigmaGenerationReport.RefinementSummary("patch-1", 1, 1, 1, 0, 0));
+        when(reportRepository.saveImmutable(refined)).thenReturn(refined);
+
+        service.record(refined);
+
+        verify(refinementService, never()).markApplied(any());
     }
 
     @Test

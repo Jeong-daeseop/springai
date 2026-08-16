@@ -45,11 +45,11 @@ class FigmaRefinementConflictServiceTest {
     }
 
     @Test
-    void upstreamChangedValueIsClassifiedAsUpstreamChanged() {
+    void semanticPropertiesAreNotComparedWithFigmaMaterializationValues() {
         FigmaRefinementPatch patch = patch("n1", "krds.detailRow", "width", 160, 176);
         FigmaNodeSpec tree = leafWithProperty("n1", "krds.detailRow", "width", 200);
 
-        assertThat(service.classify(patch, tree, true)).isEqualTo(FigmaRefinementConflictStatus.UPSTREAM_CHANGED);
+        assertThat(service.classify(patch, tree, true)).isEqualTo(FigmaRefinementConflictStatus.NONE);
     }
 
     @Test

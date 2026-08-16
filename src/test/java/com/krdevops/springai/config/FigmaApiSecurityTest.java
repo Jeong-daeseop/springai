@@ -10,6 +10,8 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
+import java.util.Set;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class FigmaApiSecurityTest {
@@ -93,5 +95,28 @@ class FigmaApiSecurityTest {
         filter.doFilter(request, response, new MockFilterChain());
 
         assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void pluginScopedTokenAcceptsRefinementCaptureAndReportButRejectsApproval() throws Exception {
+        FigmaRestTokenService tokenService = new FigmaRestTokenService("token-secret", 900);
+        String token = tokenService.issue(Set.of(
+                FigmaRestTokenService.SCOPE_SCREENS_READ,
+                FigmaRestTokenService.SCOPE_REFINEMENTS_WRITE,
+                FigmaRestTokenService.SCOPE_REPORTS_WRITE)).token();
+        Filter filter = config(tokenService).apiKeyFilter();
+
+        assertBearerResult(filter, token, "POST", "/api/figma/refinements/capture", 200);
+        assertBearerResult(filter, token, "POST", "/api/figma/operations/reports", 200);
+        assertBearerResult(filter, token, "POST", "/api/figma/refinements/p1/approve", 401);
+    }
+
+    private void assertBearerResult(Filter filter, String token, String method, String path, int expected)
+            throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest(method, path);
+        request.addHeader("Authorization", "Bearer " + token);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(request, response, new MockFilterChain());
+        assertThat(response.getStatus()).isEqualTo(expected);
     }
 }

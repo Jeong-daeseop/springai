@@ -8,10 +8,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.Optional;
+import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -37,10 +39,18 @@ class FigmaExportControllerTest {
 
     @Test
     void issuesShortLivedTokenWhenEnabled() throws Exception {
-        mockMvc.perform(post("/api/figma/tokens"))
+        String token = mockMvc.perform(post("/api/figma/tokens"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").isNotEmpty())
-                .andExpect(jsonPath("$.expiresAt").isNotEmpty());
+                .andExpect(jsonPath("$.expiresAt").isNotEmpty())
+                .andReturn().getResponse().getContentAsString();
+        String tokenValue = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(token).get("token").asText();
+        assertThat(restTokenService.verifyWithScopes(tokenValue).scopes())
+                .containsExactlyInAnyOrderElementsOf(Set.of(
+                        FigmaRestTokenService.SCOPE_SCREENS_READ,
+                        FigmaRestTokenService.SCOPE_REFINEMENTS_WRITE,
+                        FigmaRestTokenService.SCOPE_REPORTS_WRITE));
     }
 
     @Test

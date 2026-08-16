@@ -144,8 +144,9 @@ figma.ui.onmessage = async (message: Message) => {
       if (pending.bundle.figmaScreenSpec.status !== "APPROVED") {
         throw new Error("APPROVED ScreenSpecification만 MERGE/REPLACE할 수 있습니다.");
       }
-      // MR-R01: REST 대상이 설정돼 있으면 화면의 승인된 Refinement Patch Set을 조회해 함께 재적용한다.
-      // 조회 자체가 실패해도(오프라인 등) 일반 Apply는 막지 않는다 — Refinement는 선택 기능이다.
+      // MR-R01: REST 대상이 설정돼 있으면 승인된 Refinement를 반드시 확인한다.
+      // 인증/서버/네트워크 실패를 "Patch 없음"으로 취급하면 승인 보정이 조용히 유실되므로
+      // 조회 실패는 fail-closed로 Apply 전체를 차단한다.
       const approvedRefinement = reportTarget
         ? await fetchLatestApprovedRefinement(reportTarget, pending.bundle.figmaScreenSpec.screenId)
         : undefined;
@@ -331,19 +332,26 @@ async function discardRefinement(target: RefinementTarget): Promise<void> {
 type RefinementApplyOutcome = { decisions: ApplyDecision[]; appliedCount: number };
 
 /** MR-R02~06: 승인된 Patch Set을 Staging Root에 결정적 순서로 재적용한다. */
-function applyRefinementPatches(root: FrameNode, patchSet: RefinementPatchSet): RefinementApplyOutcome {
+async function applyRefinementPatches(root: FrameNode, patchSet: RefinementPatchSet): Promise<RefinementApplyOutcome> {
   const currentSnapshot = captureSnapshot([root], REFINEMENT_LOGICAL_KEYS);
   const decisions = planPatchApplication(patchSet, currentSnapshot);
   const wrappers = collectWrapperFrames(root);
   let appliedCount = 0;
   for (const decision of decisions) {
     if (decision.action !== "APPLY") continue;
-    const target = wrappers.get(decision.patch.logicalNodeId);
-    if (!target) continue;
-    applyPatchToNode(target, decision.patch);
-    appliedCount++;
+    const wrapper = wrappers.get(decision.patch.logicalNodeId);
+    if (!wrapper) continue;
+    const target = resolveRefinementTarget(wrapper, decision.patch.propertyPath);
+    if (target && await applyPatchToNode(target, decision.patch)) appliedCount++;
   }
   return { decisions, appliedCount };
+}
+
+function resolveRefinementTarget(wrapper: FrameNode, propertyPath: string): SceneNode | undefined {
+  if (propertyPath === "textAlign" || propertyPath.startsWith("typography.")) {
+    return wrapper.findOne(node => node.type === "TEXT" && node.visible !== false) as TextNode | undefined;
+  }
+  return wrapper;
 }
 
 function collectWrapperFrames(root: FrameNode): Map<string, FrameNode> {
@@ -355,7 +363,7 @@ function collectWrapperFrames(root: FrameNode): Map<string, FrameNode> {
   return wrappers;
 }
 
-/** MR-R01: 화면의 승인된(APPROVED) 최신 Refinement Patch Set을 조회한다. 없거나 조회 실패 시 undefined. */
+/** MR-R01: 최신 승인 Refinement를 조회한다. 조회 실패는 Apply를 차단한다. */
 async function fetchLatestApprovedRefinement(
   target: RefinementTarget, screenId: string,
 ): Promise<RefinementPatchSet | undefined> {
@@ -364,11 +372,13 @@ async function fetchLatestApprovedRefinement(
       `${target.baseUrl.replace(/\/+$/, "")}/api/figma/refinements/screens/${encodeURIComponent(screenId)}`,
       { headers: refinementHeaders(target) },
     );
-    if (!response.ok) return undefined;
+    if (!response.ok) {
+      throw new Error(`승인 Refinement 조회 실패(${response.status}): ${await responseErrorMessage(response)}`);
+    }
     const patchSets = await response.json() as RefinementPatchSet[];
-    return patchSets.find(candidate => candidate.status === "APPROVED");
-  } catch {
-    return undefined;
+    return patchSets.find(candidate => candidate.status === "APPROVED" || candidate.status === "APPLIED");
+  } catch (error) {
+    throw new Error(`승인 Refinement를 확인하지 못해 Apply를 중단했습니다: ${readableError(error)}`);
   }
 }
 
@@ -791,7 +801,7 @@ async function applyBundle(
       // 포함) Staging Root에 승인된 Refinement Patch를 재적용한다. 여기서 던진 예외는
       // runAtomicApply가 Backup으로 자동 Rollback하므로 Gate 실패 시 전체 Apply가 취소된다(MR-R07).
       if (approvedRefinement && staging.root) {
-        refinementOutcome = applyRefinementPatches(staging.root, approvedRefinement);
+        refinementOutcome = await applyRefinementPatches(staging.root, approvedRefinement);
       }
     },
     validateStaging: async staging => {
@@ -907,11 +917,17 @@ function summarizeRefinementOutcome(
   if (!patchSet || !outcome) return null;
   const counts = { applied: 0, excluded: 0, conflict: 0, blocked: 0 };
   for (const decision of outcome.decisions) {
-    if (decision.action === "APPLY") counts.applied++;
+    if (decision.action === "APPLY") continue;
     else if (decision.action === "SKIP_BLOCKED") counts.blocked++;
     else if (decision.action === "SKIP_CONFLICT") counts.conflict++;
     else counts.excluded++; // SKIP_REMOVED, SKIP_TYPE_CHANGED
   }
+  // APPLY 판정 수가 아니라 Figma 속성 setter가 실제로 성공한 건수만 보고한다.
+  // 쓰기 대상/속성이 맞지 않아 반영되지 않은 APPLY는 차단 건으로 남겨 서버의
+  // APPROVED → APPLIED 전이를 막는다.
+  const plannedApplyCount = outcome.decisions.filter(decision => decision.action === "APPLY").length;
+  counts.applied = outcome.appliedCount;
+  counts.blocked += plannedApplyCount - outcome.appliedCount;
   return {
     patchSetId: patchSet.patchSetId,
     patchSetVersion: patchSet.baseScreenVersion,
@@ -1059,7 +1075,10 @@ async function validateQualityGates(
     // 재검증한다. 배경색은 가장 가까운 조상의 첫 opaque solid fill을 사용하고, 찾지 못하면
     // 캔버스 기본 배경(흰색)으로 가정한다.
     for (const textNode of wrapper.findAll(child => child.type === "TEXT") as TextNode[]) {
-      if (!textNode.visible || textNode.characters.trim().length === 0) continue;
+      // 숨긴 Published Instance 안의 텍스트는 캔버스에 materialize되지 않는다. 자식 자체의
+      // visible만 검사하면 숨은 조상의 회색 Label까지 대비 실패로 집계돼 정상 Apply가
+      // 롤백되므로 조상 visibility/opacity를 함께 확인한다.
+      if (!isEffectivelyVisible(textNode, wrapper) || textNode.characters.trim().length === 0) continue;
       const fill = Array.isArray(textNode.fills)
         ? textNode.fills.find(paint => paint.type === "SOLID" && paint.visible !== false)
         : undefined;
@@ -1146,6 +1165,17 @@ async function validateQualityGates(
       changedSections: sectionComparison.changedSections,
     },
   ];
+}
+
+function isEffectivelyVisible(node: SceneNode, boundary: SceneNode): boolean {
+  let current: BaseNode | null = node;
+  while (current && current.type !== "DOCUMENT" && current.type !== "PAGE") {
+    if ("visible" in current && current.visible === false) return false;
+    if ("opacity" in current && current.opacity <= 0) return false;
+    if (current === boundary) return true;
+    current = current.parent;
+  }
+  return true;
 }
 
 function stableByteHash(bytes: Uint8Array): string {
@@ -1663,6 +1693,7 @@ async function ensurePublishedInstance(
       spec.type === "krds.textarea",
     );
     if (spec.type === "krds.textarea") hideInternalTextareaLabel(instance);
+    if (resolution.role === "page.header") enforcePageHeaderTextContrast(instance);
     await ensureVisibleFieldLabel(wrapper, resolution.role, properties);
     const wrapperParent = wrapper.parent;
     const parentLogicalType = wrapperParent && wrapperParent.type === "FRAME"
@@ -1706,6 +1737,25 @@ async function ensurePublishedInstance(
       logicalNodeId: spec.logicalNodeId,
     });
     return false;
+  }
+}
+
+/** Published Page Header의 보조 텍스트도 흰 배경에서 WCAG AA를 만족하도록 override한다. */
+function enforcePageHeaderTextContrast(instance: InstanceNode): void {
+  for (const textNode of instance.findAll(node => node.type === "TEXT") as TextNode[]) {
+    if (!isEffectivelyVisible(textNode, instance) || textNode.characters.trim().length === 0) continue;
+    const fill = Array.isArray(textNode.fills)
+      ? textNode.fills.find(paint => paint.type === "SOLID" && paint.visible !== false)
+      : undefined;
+    if (!fill || fill.type !== "SOLID") continue;
+    const background = resolveBackgroundColor(textNode);
+    const ratio = contrastRatio(fill.color, background);
+    const fontSize = textNode.fontSize !== figma.mixed ? textNode.fontSize : 14;
+    const isBold = textNode.fontName !== figma.mixed
+      && textNode.fontName.style.toLowerCase().includes("bold");
+    if (!meetsWcagAaContrast(ratio, fontSize, isBold)) {
+      textNode.fills = [{ type: "SOLID", color: { r: 0.12, g: 0.13, b: 0.14 } }];
+    }
   }
 }
 

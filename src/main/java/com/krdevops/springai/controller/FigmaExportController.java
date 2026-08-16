@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Set;
 
 /** R6-001~004: FigmaScreenSpec 생성·조회·검증·Bundle 다운로드 API. */
 @RestController
@@ -38,7 +39,10 @@ public class FigmaExportController {
             throw new FigmaRequestException("FIGMA_REST_TOKEN_DISABLED",
                     "app.figma.rest-token-secret이 설정되지 않아 단기 토큰 발급이 비활성화되어 있습니다.");
         }
-        FigmaRestTokenService.IssuedToken issued = restTokenService.issue();
+        FigmaRestTokenService.IssuedToken issued = restTokenService.issue(Set.of(
+                FigmaRestTokenService.SCOPE_SCREENS_READ,
+                FigmaRestTokenService.SCOPE_REFINEMENTS_WRITE,
+                FigmaRestTokenService.SCOPE_REPORTS_WRITE));
         return new TokenResponse(issued.token(), issued.expiresAt().toString());
     }
 

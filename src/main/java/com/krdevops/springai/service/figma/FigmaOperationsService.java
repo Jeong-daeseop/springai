@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** 생성 보고서 수집, 운영 지표 집계, Design System 영향 화면 조회를 담당한다. */
 @Service
@@ -29,19 +30,23 @@ public class FigmaOperationsService {
     private final FigmaScreenSpecRepository screenSpecRepository;
     private final FigmaReviewHistoryRepository reviewRepository;
     private final OperationalTelemetry telemetry;
+    private final FigmaRefinementService refinementService;
 
     public FigmaOperationsService(
             FigmaGenerationReportRepository reportRepository,
             FigmaScreenSpecRepository screenSpecRepository,
             FigmaReviewHistoryRepository reviewRepository,
-            OperationalTelemetry telemetry
+            OperationalTelemetry telemetry,
+            FigmaRefinementService refinementService
     ) {
         this.reportRepository = reportRepository;
         this.screenSpecRepository = screenSpecRepository;
         this.reviewRepository = reviewRepository;
         this.telemetry = telemetry;
+        this.refinementService = refinementService;
     }
 
+    @Transactional
     public FigmaGenerationReport record(FigmaGenerationReport report) {
         if (report.figmaScreenSpec() != null
                 && (!report.screenId().equals(report.figmaScreenSpec().screenId())
@@ -50,8 +55,21 @@ public class FigmaOperationsService {
                     "보고서 화면 버전과 포함된 FigmaScreenSpec이 일치하지 않습니다.");
         }
         validateQualityGates(report);
+        FigmaGenerationReport saved = reportRepository.saveImmutable(report);
+        markRefinementApplied(report);
         recordRefinementTelemetry(report);
-        return reportRepository.saveImmutable(report);
+        return saved;
+    }
+
+    /** 성공 보고서가 실제 Patch 적용을 증명할 때만 APPROVED → APPLIED로 전이한다. */
+    private void markRefinementApplied(FigmaGenerationReport report) {
+        if (!report.success() || report.refinement() == null) return;
+        var refinement = report.refinement();
+        if (refinement.appliedCount() <= 0
+                || refinement.excludedCount() > 0
+                || refinement.conflictCount() > 0
+                || refinement.blockedCount() > 0) return;
+        refinementService.markApplied(refinement.patchSetId());
     }
 
     /** MR-Q06: Refinement 적용률·충돌률·차단률과 Refinement 포함 Apply의 Rollback률을 기록한다. */

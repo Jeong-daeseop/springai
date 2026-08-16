@@ -134,11 +134,21 @@ class FigmaRefinementServiceTest {
 
     @Test
     void markAppliedTransitionsFromApprovedToApplied() {
+        FigmaRefinementPatchSet approved = patchSet("p1", FigmaRefinementStatus.APPROVED);
         FigmaRefinementPatchSet applied = patchSet("p1", FigmaRefinementStatus.APPLIED);
+        when(repository.findById("p1")).thenReturn(Optional.of(approved));
         when(repository.transition("p1", FigmaRefinementStatus.APPROVED, FigmaRefinementStatus.APPLIED, null, null))
                 .thenReturn(applied);
 
         assertThat(service.markApplied("p1").status()).isEqualTo(FigmaRefinementStatus.APPLIED);
+    }
+
+    @Test
+    void markAppliedIsIdempotent() {
+        FigmaRefinementPatchSet applied = patchSet("p1", FigmaRefinementStatus.APPLIED);
+        when(repository.findById("p1")).thenReturn(Optional.of(applied));
+
+        assertThat(service.markApplied("p1")).isSameAs(applied);
     }
 
     @Test

@@ -39,10 +39,10 @@ public class FigmaRefinementConflictService {
         if (!Objects.equals(target.type(), patch.baselineLogicalType())) {
             return FigmaRefinementConflictStatus.TYPE_CHANGED;
         }
-        Object currentValue = target.properties().get(patch.propertyPath());
-        if (currentValue != null && !valuesEqual(currentValue, patch.before())) {
-            return FigmaRefinementConflictStatus.UPSTREAM_CHANGED;
-        }
+        // FigmaNodeSpec.properties는 업무 의미 속성이고 Patch.before는 실제 Figma 렌더 속성이다.
+        // 서로 다른 좌표계를 여기서 비교하면 padding/fill/opacity가 조용히 누락되거나 오탐된다.
+        // 서버는 hash·노드 존재·논리 타입·정책만 판정하고, 같은 속성의 upstream 충돌은
+        // Plugin이 새 Staging Materialization Snapshot을 기준으로 planPatchApplication에서 판정한다.
         return FigmaRefinementConflictStatus.NONE;
     }
 
@@ -66,10 +66,4 @@ public class FigmaRefinementConflictService {
         node.children().forEach(child -> indexNodes(child, index));
     }
 
-    private boolean valuesEqual(Object left, Object right) {
-        if (left instanceof Number leftNumber && right instanceof Number rightNumber) {
-            return Math.abs(leftNumber.doubleValue() - rightNumber.doubleValue()) < 0.0001;
-        }
-        return Objects.equals(left, right);
-    }
 }

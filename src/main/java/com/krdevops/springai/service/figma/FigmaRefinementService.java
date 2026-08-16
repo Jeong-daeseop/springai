@@ -149,6 +149,10 @@ public class FigmaRefinementService {
 
     /** MR-R: 승인된 Patch Set이 실제 재적용에 성공했음을 기록한다. */
     public FigmaRefinementPatchSet markApplied(String patchSetId) {
+        FigmaRefinementPatchSet current = repository.findById(patchSetId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Refinement Patch Set을 찾을 수 없습니다: " + patchSetId));
+        if (current.status() == FigmaRefinementStatus.APPLIED) return current;
         return repository.transition(patchSetId, FigmaRefinementStatus.APPROVED,
                 FigmaRefinementStatus.APPLIED, null, null);
     }
