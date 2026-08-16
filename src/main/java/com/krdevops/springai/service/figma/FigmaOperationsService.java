@@ -9,6 +9,7 @@ import com.krdevops.springai.model.figma.FigmaScreenSpec;
 import com.krdevops.springai.model.figma.ops.DesignSystemImpact;
 import com.krdevops.springai.model.figma.ops.FigmaGenerationReport;
 import com.krdevops.springai.model.figma.ops.FigmaOperationalMetrics;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
@@ -27,15 +28,18 @@ public class FigmaOperationsService {
     private final FigmaGenerationReportRepository reportRepository;
     private final FigmaScreenSpecRepository screenSpecRepository;
     private final FigmaReviewHistoryRepository reviewRepository;
+    private final OperationalTelemetry telemetry;
 
     public FigmaOperationsService(
             FigmaGenerationReportRepository reportRepository,
             FigmaScreenSpecRepository screenSpecRepository,
-            FigmaReviewHistoryRepository reviewRepository
+            FigmaReviewHistoryRepository reviewRepository,
+            OperationalTelemetry telemetry
     ) {
         this.reportRepository = reportRepository;
         this.screenSpecRepository = screenSpecRepository;
         this.reviewRepository = reviewRepository;
+        this.telemetry = telemetry;
     }
 
     public FigmaGenerationReport record(FigmaGenerationReport report) {
@@ -46,7 +50,22 @@ public class FigmaOperationsService {
                     "보고서 화면 버전과 포함된 FigmaScreenSpec이 일치하지 않습니다.");
         }
         validateQualityGates(report);
+        recordRefinementTelemetry(report);
         return reportRepository.saveImmutable(report);
+    }
+
+    /** MR-Q06: Refinement 적용률·충돌률·차단률과 Refinement 포함 Apply의 Rollback률을 기록한다. */
+    private void recordRefinementTelemetry(FigmaGenerationReport report) {
+        if (report.refinement() != null) {
+            var refinement = report.refinement();
+            telemetry.figmaRefinementApplyOutcome("APPLIED", refinement.appliedCount());
+            telemetry.figmaRefinementApplyOutcome("EXCLUDED", refinement.excludedCount());
+            telemetry.figmaRefinementApplyOutcome("CONFLICT", refinement.conflictCount());
+            telemetry.figmaRefinementApplyOutcome("BLOCKED", refinement.blockedCount());
+            if (!report.success()) {
+                telemetry.figmaRefinementRollback();
+            }
+        }
     }
 
     private void validateQualityGates(FigmaGenerationReport report) {

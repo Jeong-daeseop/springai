@@ -55,6 +55,25 @@ button{padding:9px}.section{margin-top:14px;padding-top:12px;border-top:1px soli
   <button id="downloadReport">Report JSON 다운로드</button>
 </div>
 
+<div id="refinement" class="section">
+  <strong>Manual Refinement (수동 시각 보정)</strong>
+  <div class="hint">Figma 캔버스에서 노드를 선택한 뒤 [Refinement 시작]을 누르세요. 승인 전까지는 서버에 반영되지 않습니다.</div>
+  <div class="actions">
+    <button id="refinementStart">Refinement 시작</button>
+    <button id="refinementClear">선택 초기화</button>
+  </div>
+  <div id="refinementStatus" class="hint"></div>
+  <button id="refinementCapture" disabled>변경 캡처</button>
+  <div id="refinementPatches"></div>
+  <div class="actions">
+    <button id="refinementPreview" disabled>Preview</button>
+    <button id="refinementSave" disabled>저장</button>
+  </div>
+  <div id="refinementPreviewResult"></div>
+  <div class="hint">폐기는 운영자 인증(X-API-Key)이 필요합니다. 위 restToken 칸을 비우고 restApiKey를 입력하세요.</div>
+  <button id="refinementDiscard" disabled>Patch Set 폐기</button>
+</div>
+
 <script>
 const file = document.getElementById('file');
 const baseUrl = document.getElementById('baseUrl');
@@ -77,7 +96,17 @@ const previewMigration = document.getElementById('previewMigration');
 const migration = document.getElementById('migration');
 const migrationChanges = document.getElementById('migrationChanges');
 const applyMigration = document.getElementById('applyMigration');
+const refinementStart = document.getElementById('refinementStart');
+const refinementClear = document.getElementById('refinementClear');
+const refinementStatus = document.getElementById('refinementStatus');
+const refinementCapture = document.getElementById('refinementCapture');
+const refinementPatches = document.getElementById('refinementPatches');
+const refinementPreview = document.getElementById('refinementPreview');
+const refinementSave = document.getElementById('refinementSave');
+const refinementPreviewResult = document.getElementById('refinementPreviewResult');
+const refinementDiscard = document.getElementById('refinementDiscard');
 let lastReport;
+let excludedPatchKeys = new Set();
 
 file.onchange = async () => {
   const selected = file.files[0];
@@ -127,6 +156,94 @@ applyMigration.onclick = () => {
   parent.postMessage({ pluginMessage: { type: 'APPLY_MIGRATION' } }, '*');
 };
 close.onclick = () => parent.postMessage({ pluginMessage: { type: 'CLOSE' } }, '*');
+
+refinementStart.onclick = () => {
+  refinementCapture.disabled = true;
+  refinementPreview.disabled = true;
+  refinementSave.disabled = true;
+  refinementPatches.replaceChildren();
+  refinementPreviewResult.replaceChildren();
+  refinementStatus.textContent = 'Refinement 시작 중…';
+  parent.postMessage({ pluginMessage: { type: 'REFINEMENT_START' } }, '*');
+};
+refinementClear.onclick = () => {
+  refinementCapture.disabled = true;
+  refinementPreview.disabled = true;
+  refinementSave.disabled = true;
+  refinementDiscard.disabled = true;
+  refinementPatches.replaceChildren();
+  refinementPreviewResult.replaceChildren();
+  refinementStatus.textContent = '';
+  parent.postMessage({ pluginMessage: { type: 'REFINEMENT_CLEAR' } }, '*');
+};
+refinementCapture.onclick = () => {
+  refinementStatus.textContent = '변경 사항 계산 중…';
+  parent.postMessage({ pluginMessage: { type: 'REFINEMENT_CAPTURE' } }, '*');
+};
+function refinementTarget() {
+  return {
+    baseUrl: baseUrl.value.trim(),
+    token: restToken.value.trim() || undefined,
+    apiKey: restApiKey.value.trim() || undefined,
+  };
+}
+refinementPreview.onclick = () => {
+  refinementStatus.textContent = 'Preview 요청 중…';
+  parent.postMessage({ pluginMessage: { type: 'REFINEMENT_PREVIEW', target: refinementTarget() } }, '*');
+};
+refinementSave.onclick = () => {
+  refinementStatus.textContent = '저장 요청 중…';
+  parent.postMessage({ pluginMessage: {
+    type: 'REFINEMENT_SAVE', target: refinementTarget(), excludedKeys: [...excludedPatchKeys],
+  } }, '*');
+};
+refinementDiscard.onclick = () => {
+  refinementStatus.textContent = 'Patch Set 폐기 요청 중…';
+  parent.postMessage({ pluginMessage: { type: 'REFINEMENT_DISCARD', target: refinementTarget() } }, '*');
+};
+
+function renderRefinementPatches(patches) {
+  refinementPatches.replaceChildren();
+  excludedPatchKeys = new Set();
+  for (const patch of patches) {
+    const key = `${patch.logicalNodeId}::${patch.propertyPath}`;
+    const row = document.createElement('label');
+    row.className = 'row';
+    row.style.display = 'flex';
+    row.style.gap = '6px';
+    row.style.alignItems = 'flex-start';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = true;
+    checkbox.onchange = () => {
+      if (checkbox.checked) excludedPatchKeys.delete(key);
+      else excludedPatchKeys.add(key);
+    };
+    const text = document.createElement('span');
+    text.textContent = `[${patch.scope}] ${patch.logicalNodeId} · ${patch.propertyPath}: `
+      + `${JSON.stringify(patch.before)} → ${JSON.stringify(patch.after)} (owner=${patch.owner})`;
+    row.append(checkbox, text);
+    refinementPatches.append(row);
+  }
+}
+function renderRefinementPreviewEntries(container, title, entries) {
+  const heading = document.createElement('div');
+  heading.textContent = `${title} (${entries.length})`;
+  container.append(heading);
+  for (const entry of entries) {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.textContent = `${entry.logicalNodeId} · ${entry.propertyPath} — ${entry.reason}`;
+    container.append(row);
+  }
+}
+function renderRefinementPreview(preview) {
+  refinementPreviewResult.replaceChildren();
+  renderRefinementPreviewEntries(refinementPreviewResult, '적용', preview.applied);
+  renderRefinementPreviewEntries(refinementPreviewResult, '차단', preview.blocked);
+  renderRefinementPreviewEntries(refinementPreviewResult, '충돌', preview.conflicts);
+  renderRefinementPreviewEntries(refinementPreviewResult, '제외', preview.excluded);
+}
 downloadReport.onclick = () => {
   if (!lastReport) return;
   const blob = new Blob([JSON.stringify(lastReport, null, 2)], {type:'application/json'});
@@ -220,6 +337,54 @@ onmessage = ({data}) => {
     renderIssues(message.report.issues);
     result.style.display = 'block';
     applyMigration.disabled = false;
+    return;
+  }
+  if (message.type === 'REFINEMENT_STARTED') {
+    refinementStatus.textContent = `선택한 노드 ${message.nodeCount}개의 기준값을 캡처했습니다.`;
+    refinementCapture.disabled = false;
+    return;
+  }
+  if (message.type === 'REFINEMENT_CLEARED') {
+    refinementStatus.textContent = 'Refinement 상태를 초기화했습니다.';
+    return;
+  }
+  if (message.type === 'REFINEMENT_CAPTURED') {
+    const patchSet = message.patchSet;
+    refinementStatus.textContent = `Patch ${patchSet.patches.length}건을 계산했습니다.`;
+    renderRefinementPatches(patchSet.patches);
+    refinementPreview.disabled = patchSet.patches.length === 0;
+    refinementSave.disabled = patchSet.patches.length === 0;
+    refinementDiscard.disabled = false;
+    return;
+  }
+  if (message.type === 'REFINEMENT_DISCARD_RESULT') {
+    refinementStatus.innerHTML =
+      `<span class="warning">Patch Set이 ${message.patchSet.status} 상태로 폐기되었습니다.</span>`;
+    refinementDiscard.disabled = true;
+    refinementSave.disabled = true;
+    refinementPreview.disabled = true;
+    return;
+  }
+  if (message.type === 'REFINEMENT_PREVIEW_READY') {
+    refinementStatus.textContent = 'Preview 계산이 완료되었습니다.';
+    renderRefinementPreview(message.preview);
+    return;
+  }
+  if (message.type === 'REFINEMENT_SAVE_RESULT') {
+    refinementStatus.innerHTML =
+      `<span class="ok">Patch Set이 ${message.patchSet.status} 상태로 저장되었습니다.</span>`;
+    return;
+  }
+  if (message.type === 'REFINEMENT_SAVE_FALLBACK') {
+    refinementStatus.innerHTML =
+      `<span class="warning">서버 저장에 실패했습니다(${message.reason}). Patch Set 파일을 대신 내려받습니다.</span>`;
+    const blob = new Blob([JSON.stringify(message.patchSet, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `figma-refinement-patch-set-${message.patchSet.screenId}-v${message.patchSet.baseScreenVersion}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
     return;
   }
   if (message.type === 'ERROR') {

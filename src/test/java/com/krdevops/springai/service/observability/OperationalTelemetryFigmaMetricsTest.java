@@ -38,4 +38,32 @@ class OperationalTelemetryFigmaMetricsTest {
         assertThat(registry.find("figma_role_resolution_failure_total")
                 .tag("error_code", "OTHER").counter()).isNotNull();
     }
+
+    @Test
+    void refinementApplyOutcomeCountsAppliedExcludedConflictAndBlocked() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        OperationalTelemetry telemetry = new OperationalTelemetry(registry);
+
+        telemetry.figmaRefinementApplyOutcome("APPLIED", 3);
+        telemetry.figmaRefinementApplyOutcome("EXCLUDED", 1);
+        telemetry.figmaRefinementApplyOutcome("CONFLICT", 2);
+        telemetry.figmaRefinementApplyOutcome("BLOCKED", 1);
+        telemetry.figmaRefinementRollback();
+
+        assertThat(registry.find("figma_refinement_patches_total")
+                .tag("outcome", "APPLIED").counter().count()).isEqualTo(3);
+        assertThat(registry.find("figma_refinement_patches_total")
+                .tag("outcome", "CONFLICT").counter().count()).isEqualTo(2);
+        assertThat(registry.find("figma_refinement_rollback_total").counter().count()).isEqualTo(1);
+    }
+
+    @Test
+    void refinementApplyOutcomeIgnoresZeroCounts() {
+        SimpleMeterRegistry registry = new SimpleMeterRegistry();
+        OperationalTelemetry telemetry = new OperationalTelemetry(registry);
+
+        telemetry.figmaRefinementApplyOutcome("APPLIED", 0);
+
+        assertThat(registry.find("figma_refinement_patches_total").counter()).isNull();
+    }
 }

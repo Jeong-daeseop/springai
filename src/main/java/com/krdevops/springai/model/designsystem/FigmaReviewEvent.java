@@ -28,7 +28,9 @@ public record FigmaReviewEvent(
     }
 
     public enum TargetType {
-        DESIGN_SYSTEM_PROFILE, COMPONENT_REGISTRY, SCREEN_PATTERN, VARIANT_RULE_SET, FIGMA_SCREEN_SPEC
+        DESIGN_SYSTEM_PROFILE, COMPONENT_REGISTRY, SCREEN_PATTERN, VARIANT_RULE_SET, FIGMA_SCREEN_SPEC,
+        /** MR-S09: Manual Refinement Patch Set 승인/반려 감사 이벤트. */
+        MANUAL_REFINEMENT_PATCH_SET
     }
 
     public enum EventType { REVIEW, APPROVAL, REJECTION, PUBLISH, REGISTRY_SYNC }

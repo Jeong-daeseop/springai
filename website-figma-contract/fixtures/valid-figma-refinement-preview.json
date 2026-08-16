@@ -1,0 +1,28 @@
+{
+  "patchSetId": "qna-detail-refine-1",
+  "screenId": "qna-detail",
+  "generatedAt": "2026-08-16T09:30:00Z",
+  "applied": [
+    {
+      "logicalNodeId": "qna-detail/detail/contact",
+      "propertyPath": "fill",
+      "reason": "ALLOWED 속성이며 baseline과 현재 Screen Spec 값이 다르지 않음"
+    }
+  ],
+  "excluded": [],
+  "blocked": [
+    {
+      "logicalNodeId": "qna-detail/detail/contact",
+      "propertyPath": "layoutMode",
+      "reason": "SYSTEM_LAYOUT 소유 속성은 승인돼도 적용하지 않음"
+    }
+  ],
+  "conflicts": [
+    {
+      "logicalNodeId": "qna-detail/detail/contact",
+      "propertyPath": "width",
+      "reason": "baseline 값과 새 Screen Spec 값이 동일 속성을 다르게 변경함",
+      "conflictStatus": "UPSTREAM_CHANGED"
+    }
+  ]
+}

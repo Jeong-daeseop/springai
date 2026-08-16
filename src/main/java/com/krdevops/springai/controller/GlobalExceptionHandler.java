@@ -64,6 +64,16 @@ public class GlobalExceptionHandler {
                 ex.code(), ex.getMessage(), request.getRequestURI(), java.time.OffsetDateTime.now()));
     }
 
+    /** MR-A09: Refinement 상태·낙관적 잠금 충돌 → 코드가 포함된 409 표준 오류. */
+    @ExceptionHandler(FigmaRefinementConflictException.class)
+    public ResponseEntity<FigmaApiError> handleFigmaRefinementConflict(
+            FigmaRefinementConflictException ex,
+            jakarta.servlet.http.HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new FigmaApiError(
+                ex.code(), ex.getMessage(), request.getRequestURI(), java.time.OffsetDateTime.now()));
+    }
+
     /** 잘못된 인수 → 400 Bad Request */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {

@@ -19,6 +19,8 @@ import com.krdevops.springai.model.figma.LayoutPattern;
 import com.krdevops.springai.model.figma.ops.DesignSystemImpact;
 import com.krdevops.springai.model.figma.ops.FigmaGenerationReport;
 import com.krdevops.springai.model.figma.ops.FigmaOperationalMetrics;
+import com.krdevops.springai.service.observability.OperationalTelemetry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,7 +44,8 @@ class FigmaOperationsServiceTest {
     @BeforeEach
     void setUp() {
         service = new FigmaOperationsService(
-                reportRepository, screenSpecRepository, reviewRepository);
+                reportRepository, screenSpecRepository, reviewRepository,
+                new OperationalTelemetry(new SimpleMeterRegistry()));
     }
 
     @Test

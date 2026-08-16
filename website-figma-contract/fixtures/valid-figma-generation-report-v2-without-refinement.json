@@ -1,0 +1,18 @@
+{
+  "status": "SUCCESS",
+  "figmaScreenSpec": null,
+  "issues": [],
+  "generatedAt": "2026-08-16T09:40:00Z",
+  "screenId": "qna-list",
+  "screenVersion": 1,
+  "mode": "MERGE",
+  "startedAt": "2026-08-16T09:39:50Z",
+  "completedAt": "2026-08-16T09:40:00Z",
+  "success": true,
+  "reusedInstanceCount": 10,
+  "createdInstanceCount": 1,
+  "archivedNodeCount": 0,
+  "fallbackCount": 0,
+  "changes": [],
+  "refinement": null
+}

@@ -116,6 +116,13 @@ tasks.register('figmaRuntimeBundlePluginTest', Exec) {
     commandLine 'npm', 'run', 'test:runtime-bundles'
 }
 
+tasks.register('figmaRefinementPluginTest', Exec) {
+    group = 'verification'
+    description = 'MR-P/T01~03: Manual Refinement 속성 정규화·정책·Diff 순수 로직을 검증합니다.'
+    workingDir file('figma-screen-spec-plugin')
+    commandLine 'npm', 'run', 'test:refinement'
+}
+
 tasks.register('browserGateTest', Exec) {
     group = 'verification'
     description = 'WP8 Playwright 1440/768/390, axe, visual diff Gate를 실제 Chromium으로 검증합니다.'
@@ -134,6 +141,7 @@ tasks.named('check') {
     dependsOn tasks.named('figmaContractTest')
     dependsOn tasks.named('qnaRuntimeResolverTest')
     dependsOn tasks.named('figmaRuntimeBundlePluginTest')
+    dependsOn tasks.named('figmaRefinementPluginTest')
 }
 
 tasks.named('bootJar') {

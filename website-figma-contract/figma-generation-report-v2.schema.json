@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/figma-generation-report-v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "issues", "generatedAt"],
+  "properties": {
+    "reportId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Plugin 실행 보고서를 서버에 멱등 업로드하기 위한 고유 ID"
+    },
+    "status": {"enum": ["SUCCESS", "PARTIAL", "FAILED"]},
+    "figmaScreenSpec": {
+      "anyOf": [
+        {"$ref": "https://schemas.krdevops.local/figma-screen-spec-v1"},
+        {"type": "null"}
+      ]
+    },
+    "issues": {
+      "type": "array",
+      "items": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/figmaIssue"}
+    },
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "artifact": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["artifactId", "relativePath"],
+      "properties": {
+        "artifactId": {"type": "string", "minLength": 1},
+        "relativePath": {"type": "string", "minLength": 1}
+      }
+    },
+    "screenId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "screenVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/positiveVersion"},
+    "mode": {"enum": ["PREVIEW", "MERGE", "REPLACE"]},
+    "startedAt": {"type": "string", "format": "date-time"},
+    "completedAt": {"type": "string", "format": "date-time"},
+    "success": {"type": "boolean"},
+    "reusedInstanceCount": {"type": "integer", "minimum": 0},
+    "createdInstanceCount": {"type": "integer", "minimum": 0},
+    "archivedNodeCount": {"type": "integer", "minimum": 0},
+    "fallbackCount": {"type": "integer", "minimum": 0},
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["logicalNodeId", "logicalType", "changeType", "detail"],
+        "properties": {
+          "logicalNodeId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/logicalNodeId"},
+          "logicalType": {"type": "string", "minLength": 1},
+          "changeType": {"enum": ["ADD", "REUSE", "MOVE", "UPDATE", "ARCHIVE", "CONFLICT"]},
+          "detail": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "refinement": {
+      "anyOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["patchSetId", "patchSetVersion", "appliedCount", "excludedCount", "conflictCount", "blockedCount"],
+          "properties": {
+            "patchSetId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+            "patchSetVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/positiveVersion"},
+            "appliedCount": {"type": "integer", "minimum": 0},
+            "excludedCount": {"type": "integer", "minimum": 0},
+            "conflictCount": {"type": "integer", "minimum": 0},
+            "blockedCount": {"type": "integer", "minimum": 0}
+          }
+        }
+      ],
+      "description": "이번 적용에 사용된 Manual Refinement Patch Set 증적. Refinement가 적용되지 않은 실행은 null이다."
+    }
+  }
+}

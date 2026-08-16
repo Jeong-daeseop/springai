@@ -104,6 +104,7 @@ public class SecurityConfig {
             configuration.setMaxAge(600L);
             source.registerCorsConfiguration("/api/figma/screens/**", configuration);
             source.registerCorsConfiguration("/api/figma/operations/reports", configuration);
+            source.registerCorsConfiguration("/api/figma/refinements/**", configuration);
         }
         return source;
     }
@@ -138,12 +139,14 @@ public class SecurityConfig {
                     return;
                 }
 
-                // R6-012: DEC-10=REST에서 Plugin이 장기 X-API-Key 대신 쓰는 단기 토큰.
-                // 읽기 전용 조회 경로에만 허용해 토큰 유출 시 영향 범위를 최소화한다.
-                if ("GET".equalsIgnoreCase(request.getMethod()) && path.startsWith("/api/figma/screens/")) {
+                // R6-012/MR-A06: DEC-10=REST에서 Plugin이 장기 X-API-Key 대신 쓰는 단기 토큰.
+                // 경로·메서드별로 필요한 Scope가 있는 경우에만 허용해, 승인(approve/reject)처럼
+                // 운영자 전용 동작은 이 Token으로 절대 통과하지 못하게 한다(MR-DEC-05).
+                String requiredScope = requiredScopeFor(request.getMethod(), path);
+                if (requiredScope != null) {
                     String bearer = request.getHeader("Authorization");
                     String token = bearer != null && bearer.startsWith("Bearer ") ? bearer.substring(7) : null;
-                    if (token != null && figmaRestTokenService.verify(token)) {
+                    if (token != null && figmaRestTokenService.verifyWithScopes(token).hasScope(requiredScope)) {
                         authenticate("figma-rest-token-user");
                         filterChain.doFilter(request, response);
                         return;
@@ -154,6 +157,30 @@ public class SecurityConfig {
                 response.getWriter().write("{\"error\":\"Invalid API Key\"}");
             }
         };
+    }
+
+    /**
+     * MR-A06: 경로·메서드별로 Plugin 단기 Token이 가져야 할 Scope. null이면 이 Token으로는
+     * 절대 접근할 수 없고 {@code X-API-Key}(운영자 인증)만 허용한다 — 승인·반려가 여기 해당한다.
+     */
+    String requiredScopeFor(String method, String path) {
+        boolean isGet = "GET".equalsIgnoreCase(method);
+        boolean isPost = "POST".equalsIgnoreCase(method);
+        if (isGet && path.startsWith("/api/figma/screens/")) {
+            return FigmaRestTokenService.SCOPE_SCREENS_READ;
+        }
+        if (isGet && (path.startsWith("/api/figma/refinements/screens/")
+                || path.matches("^/api/figma/refinements/[^/]+$"))) {
+            return FigmaRestTokenService.SCOPE_SCREENS_READ;
+        }
+        if (isPost && ("/api/figma/refinements/preview".equals(path)
+                || "/api/figma/refinements/capture".equals(path))) {
+            return FigmaRestTokenService.SCOPE_REFINEMENTS_WRITE;
+        }
+        if (isPost && "/api/figma/operations/reports".equals(path)) {
+            return FigmaRestTokenService.SCOPE_REPORTS_WRITE;
+        }
+        return null;
     }
 
     private void authenticate(String principal) {

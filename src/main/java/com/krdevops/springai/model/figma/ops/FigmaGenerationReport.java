@@ -26,7 +26,8 @@ public record FigmaGenerationReport(
         @jakarta.validation.constraints.PositiveOrZero int fallbackCount,
         @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<Change> changes,
         @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<FigmaExportIssue> issues,
-        @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<QualityGateResult> qualityGates
+        @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<QualityGateResult> qualityGates,
+        @jakarta.validation.Valid RefinementSummary refinement
 ) {
     public FigmaGenerationReport {
         if (reportId == null || reportId.isBlank()) {
@@ -77,8 +78,31 @@ public record FigmaGenerationReport(
     ) {
         this(reportId, status, figmaScreenSpec, screenId, screenVersion, mode,
                 startedAt, completedAt, success, reusedInstanceCount, createdInstanceCount,
-                archivedNodeCount, fallbackCount, changes, issues, List.of());
+                archivedNodeCount, fallbackCount, changes, issues, List.of(), null);
     }
+
+    /** MR-Q05 Refinement 필드 도입 전 Java 호출자 호환. */
+    public FigmaGenerationReport(
+            String reportId, Status status, FigmaScreenSpec figmaScreenSpec,
+            String screenId, int screenVersion, FigmaSyncMode mode,
+            Instant startedAt, Instant completedAt, boolean success,
+            int reusedInstanceCount, int createdInstanceCount, int archivedNodeCount, int fallbackCount,
+            List<Change> changes, List<FigmaExportIssue> issues, List<QualityGateResult> qualityGates
+    ) {
+        this(reportId, status, figmaScreenSpec, screenId, screenVersion, mode,
+                startedAt, completedAt, success, reusedInstanceCount, createdInstanceCount,
+                archivedNodeCount, fallbackCount, changes, issues, qualityGates, null);
+    }
+
+    /** MR-Q05: 이번 적용에 사용된 Manual Refinement Patch Set 증적. */
+    public record RefinementSummary(
+            @jakarta.validation.constraints.NotBlank String patchSetId,
+            @jakarta.validation.constraints.Positive int patchSetVersion,
+            @jakarta.validation.constraints.PositiveOrZero int appliedCount,
+            @jakarta.validation.constraints.PositiveOrZero int excludedCount,
+            @jakarta.validation.constraints.PositiveOrZero int conflictCount,
+            @jakarta.validation.constraints.PositiveOrZero int blockedCount
+    ) {}
 
     public record QualityGateResult(
             @jakarta.validation.constraints.NotNull Gate gate,

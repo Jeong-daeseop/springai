@@ -7,9 +7,6 @@ public enum FigmaSyncMode {
     /** 미리보기 (적용 전 검증용) */
     PREVIEW,
 
-    /** 기존 Instance 재조정 (logicalNodeId 기반) */
-    RECONCILE,
-
     /** 기존 Instance 전체 교체 */
     REPLACE,
 

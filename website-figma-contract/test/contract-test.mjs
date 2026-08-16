@@ -30,6 +30,10 @@ const schemaNames = [
   "legacy-screen-analysis-v1.schema.json",
   "thymeleaf-binding-contract-v1.schema.json",
   "qna-screen-specification-v2.schema.json",
+  "qna-screen-specification-v3.schema.json",
+  "figma-refinement-patch-set-v1.schema.json",
+  "figma-refinement-preview-v1.schema.json",
+  "figma-generation-report-v2.schema.json",
 ];
 const schemas = schemaNames.map(read);
 const ajv = new Ajv2020({allErrors:true, strict:true});
@@ -52,6 +56,9 @@ const validateScreenSuite = validator("screen-suite-manifest-v1.schema.json");
 const validateVariantRules = validator("variant-rule-set-v1.schema.json");
 const validateCatalog = validator("component-catalog-v1.schema.json");
 const validateGenerationReport = validator("figma-generation-report-v1.schema.json");
+const validateGenerationReportV2 = validator("figma-generation-report-v2.schema.json");
+const validateRefinementPatchSet = validator("figma-refinement-patch-set-v1.schema.json");
+const validateRefinementPreview = validator("figma-refinement-preview-v1.schema.json");
 const validateBundle = validator("figma-export-bundle-v1.schema.json");
 const validateBundleV2 = validator("figma-export-bundle-v2.schema.json");
 const validateDesignRequest = validator("figma-design-request-v1.schema.json");
@@ -60,6 +67,7 @@ const validateLegacyConversionRequest = validator("legacy-conversion-request-v1.
 const validateLegacyScreenAnalysis = validator("legacy-screen-analysis-v1.schema.json");
 const validateBindingContract = validator("thymeleaf-binding-contract-v1.schema.json");
 const validateQnaBusinessSpec = validator("qna-screen-specification-v2.schema.json");
+const validateQnaBusinessSpecV3 = validator("qna-screen-specification-v3.schema.json");
 
 function expectValid(validate, fixture) {
   assert.equal(validate(read(`fixtures/${fixture}`)), true,
@@ -99,6 +107,13 @@ assert.equal(validateQnaBusinessSpec(qnaBusinessSpec), true,
   `Q&A 업무 ScreenSpecification: ${JSON.stringify(validateQnaBusinessSpec.errors)}`);
 assert.equal(new Set(qnaBusinessSpec.pages.map(page => page.id)).size, 6,
   "Q&A 업무 ScreenSpecification Page ID는 정확히 6개이며 중복될 수 없습니다.");
+const qnaBusinessSpecV3 = read("fixtures/qna/qna-screen-specification-v3.json");
+assert.equal(validateQnaBusinessSpecV3(qnaBusinessSpecV3), true,
+  `Q&A v3 업무 ScreenSpecification: ${JSON.stringify(validateQnaBusinessSpecV3.errors)}`);
+assert.equal(qnaBusinessSpecV3.version, 3, "Q&A v3 ScreenSpecification 버전은 3이어야 한다");
+assert.equal(qnaBusinessSpecV3.pages.length, 7, "Q&A v3 ScreenSpecification은 7개 화면이어야 한다");
+assert.equal(qnaBusinessSpecV3.pages.some(page => page.id === "qna-update"), true,
+  "Q&A v3 ScreenSpecification에 qna-update가 필요하다");
 expectValid(validateDesignSystemSpec, "valid-design-system-spec.json");
 expectValid(validateProfile, "valid-design-system-profile.json");
 expectValid(validateRegistry, "valid-krds-component-registry.json");
@@ -115,6 +130,10 @@ assert.equal(new Set(qnaSuite.screens.map(screen => screen.screenId)).size, 6,
   "Q&A 회귀 Suite의 Screen ID는 중복될 수 없다");
 assert.equal(validateRegistryV2(read("fixtures/qna/krds-component-registry-v2.json")), true,
   `Q&A KRDS registry: ${JSON.stringify(validateRegistryV2.errors)}`);
+assert.equal(validateRegistryV2(read("fixtures/qna/krds-component-registry-v2.2.0-candidate.json")), true,
+  `Q&A KRDS registry 2.2.0 candidate: ${JSON.stringify(validateRegistryV2.errors)}`);
+assert.equal(read("fixtures/qna/krds-component-registry-v2.2.0-candidate.json").registryVersion, "2.2.0",
+  "Q&A KRDS registry 후보 버전은 2.2.0이어야 한다");
 const qnaVariantRules = read("fixtures/qna/variant-rule-set-krds-v2-candidate.json");
 assert.equal(validateVariantRules(qnaVariantRules), true,
   `Q&A KRDS variant rules: ${JSON.stringify(validateVariantRules.errors)}`);
@@ -123,7 +142,7 @@ assert.deepEqual(
   [{
     ruleId: "search-panel-default", priority: 100, role: "search.panel",
     when: {pattern: "crud.list", platform: "DESKTOP"},
-    result: {size: "Medium", state: "Default"},
+    result: {type: "simple", size: "Medium", state: "Default"},
   }],
   "search.panel은 정확히 하나의 결정형 Published Variant Rule을 가져야 한다",
 );
@@ -164,6 +183,13 @@ for (const expected of qnaSuite.screens) {
   }
 }
 expectValid(validateGenerationReport, "valid-figma-generation-report.json");
+expectValid(validateGenerationReportV2, "valid-figma-generation-report-v2-with-refinement.json");
+expectValid(validateGenerationReportV2, "valid-figma-generation-report-v2-without-refinement.json");
+expectValid(validateRefinementPatchSet, "valid-figma-refinement-patch-set.json");
+expectInvalid(validateRefinementPatchSet, "invalid-figma-refinement-patch-set-unknown-status.json");
+expectInvalid(validateRefinementPatchSet, "invalid-figma-refinement-patch-missing-owner.json");
+expectValid(validateRefinementPreview, "valid-figma-refinement-preview.json");
+expectInvalid(validateRefinementPreview, "invalid-figma-refinement-preview-missing-reason.json");
 expectValid(validateBundle, "valid-figma-export-bundle.json");
 const screenV2 = read("fixtures/valid-figma-screen-spec-v2.json");
 const registryV2 = read("fixtures/valid-component-registry-v2.json");

@@ -1,0 +1,18 @@
+{
+  "patchSetId": "qna-detail-refine-1",
+  "screenId": "qna-detail",
+  "baseScreenVersion": 3,
+  "baseMaterializationHash": "fnv1a32:1a2b3c4d:512",
+  "status": "DRAFT",
+  "patches": [
+    {
+      "logicalNodeId": "qna-detail/detail/contact",
+      "propertyPath": "width",
+      "propertyType": "NUMBER",
+      "before": 160,
+      "after": 176,
+      "scope": "CONDITIONAL",
+      "conflictStatus": "NONE"
+    }
+  ]
+}

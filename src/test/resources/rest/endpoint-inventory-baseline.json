@@ -127,6 +127,34 @@
   "method" : "POST",
   "path" : "/api/figma/orchestration/approved-specification"
 }, {
+  "controller" : "FigmaRefinementController",
+  "method" : "POST",
+  "path" : "/api/figma/refinements/capture"
+}, {
+  "controller" : "FigmaRefinementController",
+  "method" : "POST",
+  "path" : "/api/figma/refinements/preview"
+}, {
+  "controller" : "FigmaRefinementController",
+  "method" : "GET",
+  "path" : "/api/figma/refinements/screens/{screenId}"
+}, {
+  "controller" : "FigmaRefinementController",
+  "method" : "GET",
+  "path" : "/api/figma/refinements/screens/{screenId}/summary"
+}, {
+  "controller" : "FigmaRefinementController",
+  "method" : "GET",
+  "path" : "/api/figma/refinements/{patchSetId}"
+}, {
+  "controller" : "FigmaRefinementController",
+  "method" : "POST",
+  "path" : "/api/figma/refinements/{patchSetId}/approve"
+}, {
+  "controller" : "FigmaRefinementController",
+  "method" : "POST",
+  "path" : "/api/figma/refinements/{patchSetId}/reject"
+}, {
   "controller" : "FigmaExportController",
   "method" : "GET",
   "path" : "/api/figma/screens/{screenId}"

@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/figma-refinement-preview-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["patchSetId", "screenId", "generatedAt", "applied", "excluded", "blocked", "conflicts"],
+  "properties": {
+    "patchSetId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "screenId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "generatedAt": {"type": "string", "format": "date-time"},
+    "applied": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/previewEntry"}
+    },
+    "excluded": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/previewEntry"}
+    },
+    "blocked": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/previewEntry"}
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/previewEntry"}
+    }
+  },
+  "$defs": {
+    "previewEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logicalNodeId", "propertyPath", "reason"],
+      "properties": {
+        "logicalNodeId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/logicalNodeId"},
+        "propertyPath": {"type": "string", "minLength": 1, "maxLength": 128},
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "적용/제외/차단/충돌 사유. 충돌 항목은 conflictStatus 코드를 포함한다."
+        },
+        "conflictStatus": {
+          "anyOf": [
+            {"enum": ["NONE", "UPSTREAM_CHANGED", "TARGET_REMOVED", "TYPE_CHANGED", "POLICY_BLOCKED", "BASE_STALE"]},
+            {"type": "null"}
+          ]
+        }
+      }
+    }
+  }
+}

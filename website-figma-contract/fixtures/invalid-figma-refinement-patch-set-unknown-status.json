@@ -1,0 +1,8 @@
+{
+  "patchSetId": "qna-detail-refine-1",
+  "screenId": "qna-detail",
+  "baseScreenVersion": 3,
+  "baseMaterializationHash": "fnv1a32:1a2b3c4d:512",
+  "status": "MERGED",
+  "patches": []
+}

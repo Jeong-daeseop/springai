@@ -150,6 +150,17 @@ export type GenerationReport = {
   changes: ReconciliationChange[];
   issues: ExportIssue[];
   qualityGates: QualityGateResult[];
+  /** MR-Q05: 이번 적용에 사용된 Manual Refinement Patch Set 증적. 미적용 시 null/undefined. */
+  refinement?: GenerationReportRefinementSummary | null;
+};
+
+export type GenerationReportRefinementSummary = {
+  patchSetId: string;
+  patchSetVersion: number;
+  appliedCount: number;
+  excludedCount: number;
+  conflictCount: number;
+  blockedCount: number;
 };
 
 export type QualityGateResult = {
@@ -191,4 +202,76 @@ export type MigrationPreview = {
   canApply: boolean;
   operations: MigrationOperation[];
   issues: ExportIssue[];
+};
+
+// --- Manual Refinement (docs/figma/17_..._Manual_Refinement_Implementation_List.md) ---
+
+export type RefinementStatus =
+  "DRAFT" | "CAPTURED" | "REVIEW_REQUIRED" | "APPROVED" | "REJECTED" | "APPLIED" | "SUPERSEDED";
+
+export type RefinementOwner = "SCREEN_SPEC" | "DESIGN_SYSTEM" | "MANUAL_REFINEMENT" | "SYSTEM_LAYOUT" | "RUNTIME_DATA";
+
+export type RefinementScope = "ALLOWED" | "CONDITIONAL" | "BLOCKED";
+
+export type RefinementPropertyType = "COLOR" | "NUMBER" | "STRING" | "BOOLEAN" | "ENUM";
+
+export type RefinementConflictStatus =
+  "NONE" | "UPSTREAM_CHANGED" | "TARGET_REMOVED" | "TYPE_CHANGED" | "POLICY_BLOCKED" | "BASE_STALE";
+
+/** MR-DEC-04: MVP 허용 속성 경로. `refinement/policy.ts`의 단일 기준. */
+export type RefinementPropertyPath =
+  | "fill" | "stroke" | "opacity" | "cornerRadius"
+  | "typography.fontFamily" | "typography.fontStyle" | "typography.fontSize"
+  | "typography.letterSpacing" | "typography.lineHeight"
+  | "padding.top" | "padding.right" | "padding.bottom" | "padding.left"
+  | "itemSpacing" | "textAlign"
+  | "width" | "height" | "minWidth" | "minHeight" | "layoutGrow" | "layoutAlign";
+
+export type RefinementPatch = {
+  logicalNodeId: string;
+  baselineLogicalType: string;
+  propertyPath: string;
+  propertyType: RefinementPropertyType;
+  before: unknown;
+  after: unknown;
+  owner: RefinementOwner;
+  scope: RefinementScope;
+  conflictStatus: RefinementConflictStatus;
+};
+
+export type RefinementPatchSet = {
+  patchSetId: string;
+  screenId: string;
+  baseScreenVersion: number;
+  baseMaterializationHash: string;
+  status: RefinementStatus;
+  capturedAt?: string | null;
+  approvedAt?: string | null;
+  approvedBy?: string | null;
+  approvalComment?: string | null;
+  patches: RefinementPatch[];
+};
+
+export type RefinementPreviewEntry = {
+  logicalNodeId: string;
+  propertyPath: string;
+  reason: string;
+  conflictStatus?: RefinementConflictStatus | null;
+};
+
+export type RefinementPreview = {
+  patchSetId: string;
+  screenId: string;
+  generatedAt: string;
+  applied: RefinementPreviewEntry[];
+  excluded: RefinementPreviewEntry[];
+  blocked: RefinementPreviewEntry[];
+  conflicts: RefinementPreviewEntry[];
+};
+
+/** MR-P03: Capture 시점 기준 Snapshot 한 노드. `snapshot.ts`가 만들고 `diff.ts`가 비교한다. */
+export type RefinementSnapshotEntry = {
+  logicalNodeId: string;
+  logicalType: string;
+  properties: Record<string, unknown>;
 };

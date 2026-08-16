@@ -744,7 +744,7 @@
             "type" : "integer"
           },
           "syncMode" : {
-            "enum" : [ "PREVIEW", "RECONCILE", "REPLACE", "MERGE" ],
+            "enum" : [ "PREVIEW", "REPLACE", "MERGE" ],
             "type" : "string"
           },
           "viewport" : {
@@ -1305,7 +1305,7 @@
             "type" : "integer"
           },
           "syncMode" : {
-            "enum" : [ "PREVIEW", "RECONCILE", "REPLACE", "MERGE" ],
+            "enum" : [ "PREVIEW", "REPLACE", "MERGE" ],
             "type" : "string"
           },
           "viewport" : {
@@ -2311,7 +2311,7 @@
                         "type" : "string"
                       },
                       "dataRole" : {
-                        "enum" : [ "ID", "ROW_NUMBER", "TITLE", "CONTENT", "CATEGORY", "STATUS", "AUTHOR", "DEPARTMENT", "CREATED_AT", "UPDATED_AT", "ATTACHMENT", "SORT_ORDER", "GENERIC" ],
+                        "enum" : [ "ID", "ROW_NUMBER", "TITLE", "CONTENT", "CATEGORY", "STATUS", "AUTHOR", "CONTACT", "EMAIL", "EMAIL_REPLY", "VIEW_COUNT", "DEPARTMENT", "CREATED_AT", "UPDATED_AT", "ATTACHMENT", "SORT_ORDER", "GENERIC" ],
                         "type" : "string"
                       },
                       "id" : {

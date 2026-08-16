@@ -550,3 +550,30 @@ function migrationScore(legacy: LegacyFrameNode, spec: FigmaNodeSpec): number {
 function normalizeMigrationValue(value: string): string {
   return value.toLocaleLowerCase().replace(/[^a-z0-9가-힣]/g, "");
 }
+
+export type ContrastColor = { r: number; g: number; b: number };
+
+/** MR-Q03: WCAG 2.x 상대 휘도(relative luminance) 계산. */
+function relativeLuminance(color: ContrastColor): number {
+  const linearize = (channel: number) =>
+    channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  return 0.2126 * linearize(color.r) + 0.7152 * linearize(color.g) + 0.0722 * linearize(color.b);
+}
+
+/** MR-Q03: 전경/배경 색상의 WCAG 명암비(1~21)를 계산한다. */
+export function contrastRatio(foreground: ContrastColor, background: ContrastColor): number {
+  const l1 = relativeLuminance(foreground);
+  const l2 = relativeLuminance(background);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+/**
+ * MR-Q03: WCAG 2.1 AA 기준(일반 텍스트 4.5:1, 18pt 이상 또는 14pt 이상 굵게는 3:1)을
+ * 명암비가 충족하는지 판정한다.
+ */
+export function meetsWcagAaContrast(ratio: number, fontSizePx: number, bold: boolean): boolean {
+  const isLargeText = fontSizePx >= 24 || (bold && fontSizePx >= 18.66);
+  return ratio >= (isLargeText ? 3 : 4.5);
+}

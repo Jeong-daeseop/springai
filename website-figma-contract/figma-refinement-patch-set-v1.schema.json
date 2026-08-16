@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/figma-refinement-patch-set-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["patchSetId", "screenId", "baseScreenVersion", "baseMaterializationHash", "status", "patches"],
+  "properties": {
+    "patchSetId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "screenId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/identifier"},
+    "baseScreenVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/positiveVersion"},
+    "baseMaterializationHash": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Capture 시점의 결정형 Materialize 결과(FigmaNodeSpec) Hash. Figma Plugin 샌드박스는 Web Crypto SHA-256을 쓸 수 없어 서버·Plugin 모두 FNV-1a32(형식: fnv1a32:{8자리 hex}:{byte 길이})로 계산한다. Preview·재적용 시 이 값과 현재 화면의 Hash가 다르면 BASE_STALE로 처리한다."
+    },
+    "status": {
+      "enum": ["DRAFT", "CAPTURED", "REVIEW_REQUIRED", "APPROVED", "REJECTED", "APPLIED", "SUPERSEDED"]
+    },
+    "capturedAt": {"type": "string", "format": "date-time"},
+    "approvedAt": {"type": ["string", "null"], "format": "date-time"},
+    "approvedBy": {"type": ["string", "null"], "minLength": 1},
+    "approvalComment": {"type": ["string", "null"]},
+    "patches": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/refinementPatch"}
+    }
+  },
+  "$defs": {
+    "refinementPatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logicalNodeId", "baselineLogicalType", "propertyPath", "propertyType", "before", "after", "owner", "scope", "conflictStatus"],
+      "properties": {
+        "logicalNodeId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/logicalNodeId"},
+        "baselineLogicalType": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Capture 시점 대상 노드의 논리 타입(예: krds.button). 재적용 시 같은 logicalNodeId의 현재 타입과 달라지면 TYPE_CHANGED로 판정한다."
+        },
+        "propertyPath": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "예: fill, stroke, opacity, cornerRadius, typography.fontSize, padding.top, itemSpacing, textAlign, width, height, minWidth, minHeight, layoutGrow, layoutAlign"
+        },
+        "propertyType": {"enum": ["COLOR", "NUMBER", "STRING", "BOOLEAN", "ENUM"]},
+        "before": {},
+        "after": {},
+        "owner": {"enum": ["SCREEN_SPEC", "DESIGN_SYSTEM", "MANUAL_REFINEMENT", "SYSTEM_LAYOUT", "RUNTIME_DATA"]},
+        "scope": {"enum": ["ALLOWED", "CONDITIONAL", "BLOCKED"]},
+        "conflictStatus": {
+          "enum": ["NONE", "UPSTREAM_CHANGED", "TARGET_REMOVED", "TYPE_CHANGED", "POLICY_BLOCKED", "BASE_STALE"]
+        }
+      }
+    }
+  }
+}

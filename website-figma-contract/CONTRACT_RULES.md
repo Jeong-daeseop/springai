@@ -5,6 +5,20 @@
 이 문서는 `website-figma-contract`의 JSON Schema만으로 표현하기 어려운 교차 문서 일관성,
 식별자 수명주기, 변경 정책과 컴포넌트 카탈로그 운영 규칙을 정의한다.
 
+## 0. 공식 파이프라인 명칭
+
+`ScreenSpecification`을 의미 기반 `FigmaScreenSpec`과 `FigmaExportBundle`로 변환하고,
+Figma Plugin의 Preview·MERGE/REPLACE, 품질 Gate, 적용 결과 보고까지 수행하는 전체 흐름의
+공식 영문 명칭은 **Semantic Figma Generation Pipeline**으로 정의한다.
+
+공식 한국어 명칭은 **Semantic Figma 화면 생성 파이프라인**으로 정의한다.
+문서, 운영 보고서와 사용자 UI에서는 이 명칭을 우선 사용하며, 코드의 기존 클래스·메서드명은
+각 단계의 구현 명칭으로 유지한다.
+
+파이프라인의 표준 처리 범위는 다음과 같다.
+
+`ScreenSpecification → FigmaScreenSpec → FigmaExportBundle → Plugin Preview → MERGE/REPLACE → 품질 Gate → Figma 적용 → Generation Report`
+
 ## 1. 식별자와 버전
 
 | 값 | 형식 | 수명주기 |
@@ -109,3 +123,97 @@ Semantic Figma v1의 기본 입력은 `figma-export-bundle-v1` 계약을 따르�
 - 필수 속성 추가, enum 제거/이름 변경, 의미 변경은 breaking change이며 v2 파일로 추가한다.
 - producer는 자신이 생성한 `schemaVersion`을 명시하고 consumer는 미지원 버전을 명확히 거부한다.
 - Schema 변경 시 계약 fixture, Spring 테스트, Extractor 테스트, Plugin 테스트를 모두 통과해야 한다.
+
+## 10. Manual Refinement 선행 결정 (MR-DEC-01~06)
+
+`docs/figma/17_Semantic_Figma_Generation_Pipeline_Manual_Refinement_Implementation_List.md`의
+계약·서버·Plugin 구현이 참조하는 확정 결정이다. 이후 섹션에서 값을 바꾸려면 이 절을 먼저 갱신한다.
+
+### 10.1 SyncMode 정리 (MR-C01)
+
+서버 `FigmaSyncMode` Java enum에만 `RECONCILE` 값이 선언되어 있었으나 실제로는 어떤 분기에서도
+처리되지 않는 죽은 값이었다(TypeScript `SyncMode` union과 `figma-generation-report-v1` Schema의
+`mode` enum 모두 `PREVIEW`/`MERGE`/`REPLACE` 3종만 정의). Manual Refinement MVP 범위에도
+`RECONCILE`은 등장하지 않으므로, 정식 지원 모드로 승격하지 않고 **Java enum에서 제거**해 3곳을
+`PREVIEW`/`MERGE`/`REPLACE`로 통일한다. `RECONCILE`이 필요해지면 그때 TS/Schema를 함께 갱신하는
+별도 결정으로 다시 추가한다.
+
+### 10.2 Manual Refinement 수명주기 (MR-DEC-01)
+
+```
+DRAFT → CAPTURED → REVIEW_REQUIRED → APPROVED | REJECTED → APPLIED | SUPERSEDED
+```
+
+- `DRAFT`: Plugin이 캡처를 시작했지만 아직 서버에 전송하지 않음(Plugin 로컬 상태, 서버 저장 대상 아님).
+- `CAPTURED`: Plugin이 Diff를 계산해 서버에 `POST /api/figma/refinements/capture`로 저장한 직후.
+- `REVIEW_REQUIRED`: Preview 계산 결과 차단·충돌 없이 사람 승인 대기 상태.
+- `APPROVED` / `REJECTED`: 운영자가 명시적으로 승인/반려한 종결 상태 중 하나.
+- `APPLIED`: 승인된 Patch Set이 실제 `MERGE`/`REPLACE` 재적용에 성공적으로 반영됨.
+- `SUPERSEDED`: 같은 화면의 더 최신 Patch Set이 승인되어 이전 Patch Set을 대체함.
+
+Java enum, TypeScript union, `figma-refinement-patch-set-v1.schema.json`의 `status` enum은 이
+6개 값을 정확히 동일한 철자로 사용한다.
+
+### 10.3 속성 소유자 (MR-DEC-02)
+
+Manual Refinement는 §3의 3종 소유자(`USER_OVERRIDE`/`DESIGN_SYSTEM`/`SCREEN_SPEC`)를 다음
+5종으로 구체화한다.
+
+| 소유자 | 의미 | 갱신 규칙 |
+|---|---|---|
+| `SCREEN_SPEC` | 업무 데이터·구조 값 | `ScreenSpecification` 변경 시 갱신, Refinement가 덮어쓰지 않음 |
+| `DESIGN_SYSTEM` | 컴포넌트 외형·Variant | Registry/Rule Set 변경 시 갱신, Refinement가 덮어쓰지 않음 |
+| `MANUAL_REFINEMENT` | 승인된 Patch로 확정된 시각 속성 값 | 새 Patch Set 승인 시에만 갱신. §3의 기존 `USER_OVERRIDE`(암묵적, `DATA_MANAGED_PROPERTIES` 기반)는 Component Property 전용으로 계속 동작하며, `MANUAL_REFINEMENT`는 그 상위에 Wrapper Frame 시각 속성까지 포괄하는 명시적·감사 가능한 계층이다. 두 메커니즘은 병행하며 이번 범위에서 기존 `applyOwnedProperties()` 로직을 대체하지 않는다 |
+| `SYSTEM_LAYOUT` | Auto Layout 방향, 필수 노드 존재 등 시스템이 항상 강제하는 규칙 | 승인된 Patch라도 이 소유자의 값은 적용하지 않는다(MR-R06) |
+| `RUNTIME_DATA` | 조회 시점에만 유효한 파생 값(카운트 등) | 정적 계약에 저장하지 않는다 |
+
+### 10.4 승인 전 Figma 직접 수정의 취급 (MR-DEC-03)
+
+Figma에서 사람이 직접 조정한 값은 `Capture → Preview → Approve`를 통과하기 전까지 영속 원본으로
+취급하지 않는다. 승인되지 않은 캡처는 다음 재생성에 반영되지 않으며, Plugin을 닫거나 다른 화면으로
+이동해도 서버에 `CAPTURED` 이상으로 저장되지 않은 값은 유실될 수 있다.
+
+### 10.5 MVP 속성 정책 (MR-DEC-04)
+
+| 분류 | 속성 |
+|---|---|
+| 허용 | `fill`, `stroke`, `opacity`, `cornerRadius`, `typography`, `padding`, `itemSpacing`, `textAlign` |
+| 조건부 | `width`, `height`, `minWidth`, `minHeight`, `layoutGrow`, `layoutAlign` — 품질 Gate(Layout/Accessibility) 통과 시에만 최종 적용 |
+| 차단 | `logicalNodeId` 변경, 화면 버전 필드, Instance detach, 필수 노드 삭제, `visible=false`, Auto Layout 방향(`layoutMode`) |
+
+차단 속성에 대한 Patch는 Capture 단계에서부터 `POLICY_BLOCKED`로 표시하고 Preview에 포함하되
+Apply 대상에서 제외한다.
+
+값 정규화 규칙(MR-C05, `refinement/property-normalizer.ts` 구현 기준):
+
+- 색상(`fill`/`stroke`)은 Figma의 0~1 float RGBA를 소수점 4자리로 반올림한 뒤 `#RRGGBBAA` 문자열로
+  정규화한다. 반올림 전 float 오차(예: `0.4999999999`)만 다른 값은 동일 값으로 취급해 Diff에 포함하지
+  않는다.
+- `fill`/`stroke`가 Paint 배열인 경우 배열 순서를 `type` → `opacity` → `color` 기준으로 정렬한 뒤
+  비교한다. Figma가 반환하는 원래 배열 순서에 의존하지 않는다.
+- `typography`는 `FontName`(`family`+`style`)과 크기·자간·행간을 각각 별도 `propertyPath`
+  (`typography.fontFamily`, `typography.fontStyle`, `typography.fontSize` 등)로 분해해 기록한다.
+- 값이 Figma `figma.mixed` 심볼인 속성은 Patch를 생성하지 않고 `MIXED_VALUE_UNSUPPORTED` 경고로
+  Capture 결과에 남긴다.
+- `width`/`height`/`padding`/`itemSpacing` 등 숫자 속성은 소수점 2자리로 반올림한 뒤 비교한다.
+
+MR-C08(계약 테스트 연결)은 기존 `figmaContractTest` Gradle task와 `contract-test.mjs`의
+`schemaNames`/`validator`/`expectValid`·`expectInvalid` 등록 패턴을 그대로 재사용했으며, 별도
+Gradle task를 신설하지 않았다.
+
+### 10.6 승인 권한과 Token Scope 분리 (MR-DEC-05)
+
+| Scope | 대상 | 권한 |
+|---|---|---|
+| `figma:screens:read` | Plugin 단기 Token | 화면 Bundle GET만 |
+| `figma:refinements:write` | Plugin 단기 Token | capture/preview POST만 (승인 불가) |
+| `figma:reports:write` | Plugin 단기 Token | Generation Report POST만 |
+
+승인·반려(`/approve`, `/reject`)는 Plugin 단기 Token으로 호출할 수 없다. 운영자 인증
+경로(`X-API-Key`, 기존 `apiKeyFilter()`)로만 호출 가능하며, MVP에서 별도 사람 승인자 전용 Token
+체계는 신설하지 않고 기존 API Key 인증을 그대로 승인 권한 경계로 사용한다.
+
+### 10.7 반복 보정 승격 (MR-DEC-06)
+
+같은 속성이 여러 화면에서 반복 승인되어도 Pattern/Design System으로 자동 승격하지 않는다. 승격은
+사람이 후보를 검토해 명시적으로 반영하는 별도 기능(MR-S10)이며, MVP 범위에는 포함하지 않는다.

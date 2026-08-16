@@ -1,0 +1,25 @@
+{
+  "status": "SUCCESS",
+  "figmaScreenSpec": null,
+  "issues": [],
+  "generatedAt": "2026-08-16T09:40:00Z",
+  "screenId": "qna-detail",
+  "screenVersion": 3,
+  "mode": "MERGE",
+  "startedAt": "2026-08-16T09:39:50Z",
+  "completedAt": "2026-08-16T09:40:00Z",
+  "success": true,
+  "reusedInstanceCount": 12,
+  "createdInstanceCount": 0,
+  "archivedNodeCount": 0,
+  "fallbackCount": 0,
+  "changes": [],
+  "refinement": {
+    "patchSetId": "qna-detail-refine-1",
+    "patchSetVersion": 1,
+    "appliedCount": 2,
+    "excludedCount": 0,
+    "conflictCount": 1,
+    "blockedCount": 1
+  }
+}

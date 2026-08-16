@@ -7,7 +7,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
     "test": "esbuild src/core.ts --bundle --platform=node --format=esm --outfile=dist-test/core.mjs && node --test test/core.test.mjs",
-    "test:runtime-bundles": "esbuild src/core.ts --bundle --platform=node --format=esm --outfile=dist-test/core.mjs && node --test test/runtime-bundle-preview.test.mjs"
+    "test:runtime-bundles": "esbuild src/core.ts --bundle --platform=node --format=esm --outfile=dist-test/core.mjs && node --test test/runtime-bundle-preview.test.mjs",
+    "test:refinement": "esbuild src/refinement/diff.ts src/refinement/policy.ts src/refinement/property-normalizer.ts src/refinement/apply-planner.ts --bundle --platform=node --format=esm --outdir=dist-test/refinement --out-extension:.js=.mjs && node --test test/refinement/*.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",

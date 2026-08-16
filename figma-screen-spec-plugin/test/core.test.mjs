@@ -6,6 +6,8 @@ import {
   generationStatus,
   visualRegressionStatus,
   sectionVisualRegression,
+  contrastRatio,
+  meetsWcagAaContrast,
   mappedProperties,
   planFallback,
   previewLegacyMigration,
@@ -14,6 +16,34 @@ import {
   selectVariantName,
   validateBundle
 } from "../dist-test/core.mjs";
+
+test("contrastRatio is 21:1 for pure black on pure white", () => {
+  const ratio = contrastRatio({ r: 0, g: 0, b: 0 }, { r: 1, g: 1, b: 1 });
+  assert.ok(Math.abs(ratio - 21) < 0.01, `expected ~21, got ${ratio}`);
+});
+
+test("contrastRatio is 1:1 for identical colors", () => {
+  const ratio = contrastRatio({ r: 0.5, g: 0.5, b: 0.5 }, { r: 0.5, g: 0.5, b: 0.5 });
+  assert.ok(Math.abs(ratio - 1) < 0.001);
+});
+
+test("contrastRatio is symmetric regardless of foreground/background order", () => {
+  const a = contrastRatio({ r: 0.2, g: 0.4, b: 0.6 }, { r: 0.9, g: 0.9, b: 0.9 });
+  const b = contrastRatio({ r: 0.9, g: 0.9, b: 0.9 }, { r: 0.2, g: 0.4, b: 0.6 });
+  assert.ok(Math.abs(a - b) < 1e-9);
+});
+
+test("meetsWcagAaContrast requires 4.5:1 for normal-size text", () => {
+  assert.equal(meetsWcagAaContrast(4.5, 14, false), true);
+  assert.equal(meetsWcagAaContrast(4.49, 14, false), false);
+});
+
+test("meetsWcagAaContrast relaxes to 3:1 for large text (24px+ or 18.66px+ bold)", () => {
+  assert.equal(meetsWcagAaContrast(3, 24, false), true);
+  assert.equal(meetsWcagAaContrast(2.99, 24, false), false);
+  assert.equal(meetsWcagAaContrast(3, 19, true), true);
+  assert.equal(meetsWcagAaContrast(3, 16, true), false);
+});
 
 test("section visual regression creates baseline on first run", () => {
   const evidence = [{ sectionId: "header", hash: "h1" }, { sectionId: "table", hash: "h2" }];

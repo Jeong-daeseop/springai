@@ -1,0 +1,35 @@
+{
+  "patchSetId": "qna-detail-refine-1",
+  "screenId": "qna-detail",
+  "baseScreenVersion": 3,
+  "baseMaterializationHash": "fnv1a32:1a2b3c4d:512",
+  "status": "APPROVED",
+  "capturedAt": "2026-08-16T09:00:00Z",
+  "approvedAt": "2026-08-16T10:00:00Z",
+  "approvedBy": "operator-1",
+  "approvalComment": "Label 열 폭과 행 높이 보정 승인",
+  "patches": [
+    {
+      "logicalNodeId": "qna-detail/detail/contact",
+      "baselineLogicalType": "krds.detailRow",
+      "propertyPath": "width",
+      "propertyType": "NUMBER",
+      "before": 160,
+      "after": 176,
+      "owner": "MANUAL_REFINEMENT",
+      "scope": "CONDITIONAL",
+      "conflictStatus": "NONE"
+    },
+    {
+      "logicalNodeId": "qna-detail/detail/contact",
+      "baselineLogicalType": "krds.detailRow",
+      "propertyPath": "fill",
+      "propertyType": "COLOR",
+      "before": "#FFFFFF",
+      "after": "#F5F7FA",
+      "owner": "MANUAL_REFINEMENT",
+      "scope": "ALLOWED",
+      "conflictStatus": "NONE"
+    }
+  ]
+}

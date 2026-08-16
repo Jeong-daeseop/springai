@@ -50,6 +50,7 @@ public class OperationalTelemetry {
     private static final Set<String> VISUAL_GATE_FAILURE_REASONS = Set.of(
             "LAYOUT", "ACCESSIBILITY", "VISUAL_DIFF_THRESHOLD_EXCEEDED", "VISUAL_BASELINE_MISSING");
     private static final Set<String> RESOLUTION_STAGES = Set.of("SUCCESS", "FAILURE");
+    private static final Set<String> REFINEMENT_OUTCOMES = Set.of("APPLIED", "EXCLUDED", "CONFLICT", "BLOCKED");
 
     private final MeterRegistry registry;
 
@@ -192,6 +193,21 @@ public class OperationalTelemetry {
     public void figmaResolutionDuration(String outcome, long durationNanos) {
         timer("figma_resolution_duration_seconds", "outcome", enumValue(outcome, RESOLUTION_STAGES))
                 .record(durationNanos, TimeUnit.NANOSECONDS);
+    }
+
+    /**
+     * MR-Q06: 재적용 시도 1건에 대해 적용·제외·충돌·차단 건수를 한 번에 기록한다. `outcome`
+     * 태그로 4분류하며, 값은 Prometheus에서 {@code rate()}로 적용률·충돌률·차단률을 계산한다.
+     */
+    public void figmaRefinementApplyOutcome(String outcome, int count) {
+        if (count <= 0) return;
+        counter("figma_refinement_patches_total", "outcome", enumValue(outcome, REFINEMENT_OUTCOMES))
+                .increment(count);
+    }
+
+    /** MR-Q06: Refinement가 포함된 Apply가 Gate 실패 등으로 전체 Rollback된 횟수를 기록한다. */
+    public void figmaRefinementRollback() {
+        counter("figma_refinement_rollback_total").increment();
     }
 
     public MeterRegistry registry() { return registry; }

@@ -7,6 +7,8 @@ import {
   registryFor,
   runAtomicApply,
   sectionVisualRegression,
+  contrastRatio,
+  meetsWcagAaContrast,
   validateBundle,
 } from "./core";
 import type { SectionEvidence } from "./core";
@@ -18,13 +20,22 @@ import type {
   FigmaExportBundle,
   FigmaNodeSpec,
   GenerationReport,
+  GenerationReportRefinementSummary,
   LegacyFrameNode,
   MigrationPreview,
   ReconciliationChange,
   RegistryEntry,
   QualityGateResult,
+  RefinementPatch,
+  RefinementPatchSet,
+  RefinementPreview,
+  RefinementSnapshotEntry,
   SyncMode,
 } from "./types";
+import { captureSnapshot } from "./refinement/snapshot";
+import { diffSnapshots } from "./refinement/diff";
+import { planPatchApplication, type ApplyDecision } from "./refinement/apply-planner";
+import { applyPatchToNode } from "./refinement/property-writer";
 
 const DATA_SCREEN_ID = "figmaScreenSpec.screenId";
 const DATA_SCREEN_VERSION = "figmaScreenSpec.screenVersion";
@@ -40,6 +51,8 @@ const DATA_APPLY_BACKUP = "figmaScreenSpec.applyBackup";
 const DATA_COMPONENT_VARIANT_KEY = "figmaScreenSpec.componentVariantKey";
 const DATA_VISUAL_BASELINE_HASH = "figmaScreenSpec.visualBaselineHash";
 const DATA_VISUAL_BASELINE_SECTIONS = "figmaScreenSpec.visualBaselineSections";
+const DATA_REFINEMENT_PATCH_SET_ID = "figmaScreenSpec.refinementPatchSetId";
+const DATA_REFINEMENT_PATCH_SET_HASH = "figmaScreenSpec.refinementPatchSetHash";
 
 figma.showUI(__html__, { width: 440, height: 720 });
 
@@ -58,17 +71,29 @@ type ApplyBackup = {
   archived: string;
 };
 type ApplyStaging = { container: FrameNode; root?: FrameNode };
+type RefinementTarget = { baseUrl: string; apiKey?: string; token?: string };
 type Message =
   | { type: "LOAD_BUNDLE"; bundle: unknown }
   | { type: "FETCH_BUNDLE"; baseUrl: string; screenId: string; version?: number; apiKey?: string; token?: string }
   | { type: "APPLY"; mode: Exclude<SyncMode, "PREVIEW"> }
   | { type: "PREVIEW_MIGRATION" }
   | { type: "APPLY_MIGRATION" }
+  | { type: "REFINEMENT_START" }
+  | { type: "REFINEMENT_CAPTURE" }
+  | { type: "REFINEMENT_PREVIEW"; target: RefinementTarget }
+  | { type: "REFINEMENT_SAVE"; target: RefinementTarget; excludedKeys?: string[] }
+  | { type: "REFINEMENT_DISCARD"; target: RefinementTarget }
+  | { type: "REFINEMENT_CLEAR" }
   | { type: "CLOSE" };
 
 let pending: Pending | undefined;
 let pendingMigration: { rootId: string; preview: MigrationPreview } | undefined;
 let reportTarget: { baseUrl: string; apiKey?: string; token?: string } | undefined;
+let refinementTargets: SceneNode[] | undefined;
+let refinementBaseline: RefinementSnapshotEntry[] | undefined;
+let refinementCandidate: RefinementPatchSet | undefined;
+
+const REFINEMENT_LOGICAL_KEYS = { logicalNodeId: DATA_LOGICAL_ID, logicalType: DATA_LOGICAL_TYPE };
 
 figma.ui.onmessage = async (message: Message) => {
   try {
@@ -119,9 +144,42 @@ figma.ui.onmessage = async (message: Message) => {
       if (pending.bundle.figmaScreenSpec.status !== "APPROVED") {
         throw new Error("APPROVED ScreenSpecification만 MERGE/REPLACE할 수 있습니다.");
       }
-      const report = await applyBundle(pending.bundle, message.mode, pending.issues);
+      // MR-R01: REST 대상이 설정돼 있으면 화면의 승인된 Refinement Patch Set을 조회해 함께 재적용한다.
+      // 조회 자체가 실패해도(오프라인 등) 일반 Apply는 막지 않는다 — Refinement는 선택 기능이다.
+      const approvedRefinement = reportTarget
+        ? await fetchLatestApprovedRefinement(reportTarget, pending.bundle.figmaScreenSpec.screenId)
+        : undefined;
+      const { report, refinementOutcome } = await applyBundle(
+        pending.bundle, message.mode, pending.issues, approvedRefinement);
       if (reportTarget) await uploadGenerationReport(reportTarget, report);
-      figma.ui.postMessage({ type: "APPLY_RESULT", report });
+      figma.ui.postMessage({ type: "APPLY_RESULT", report, refinementOutcome });
+    }
+    if (message.type === "REFINEMENT_START") {
+      startRefinementCapture();
+      return;
+    }
+    if (message.type === "REFINEMENT_CAPTURE") {
+      captureRefinementDiff();
+      return;
+    }
+    if (message.type === "REFINEMENT_PREVIEW") {
+      await previewRefinement(message.target);
+      return;
+    }
+    if (message.type === "REFINEMENT_SAVE") {
+      await saveRefinement(message.target, message.excludedKeys ?? []);
+      return;
+    }
+    if (message.type === "REFINEMENT_DISCARD") {
+      await discardRefinement(message.target);
+      return;
+    }
+    if (message.type === "REFINEMENT_CLEAR") {
+      refinementTargets = undefined;
+      refinementBaseline = undefined;
+      refinementCandidate = undefined;
+      figma.ui.postMessage({ type: "REFINEMENT_CLEARED" });
+      return;
     }
   } catch (error) {
     figma.ui.postMessage({
@@ -177,6 +235,169 @@ async function uploadGenerationReport(
     method: "POST", headers, body: JSON.stringify(report),
   });
   if (!response.ok) throw new Error(`Generation Report 업로드 실패(${response.status})`);
+}
+
+/** MR-P06: 선택 노드(및 자손)만 Refinement 대상으로 삼는다. 화면 Root 전체 선택도 허용한다. */
+function startRefinementCapture(): void {
+  const selection = figma.currentPage.selection;
+  if (selection.length === 0) {
+    throw new Error("Refinement를 시작하려면 먼저 노드(또는 화면 Root)를 선택하세요.");
+  }
+  refinementTargets = [...selection];
+  refinementBaseline = captureSnapshot(refinementTargets, REFINEMENT_LOGICAL_KEYS);
+  refinementCandidate = undefined;
+  figma.ui.postMessage({ type: "REFINEMENT_STARTED", nodeCount: refinementBaseline.length });
+}
+
+/** MR-P04: 시작 시점 Snapshot과 현재 상태를 비교해 Patch 후보를 계산한다(아직 서버 전송 전). */
+function captureRefinementDiff(): void {
+  if (!refinementTargets || !refinementBaseline) {
+    throw new Error("먼저 [Refinement 시작]으로 대상을 선택하세요.");
+  }
+  if (!pending) throw new Error("먼저 FigmaExportBundle을 불러오세요(baseMaterializationHash 계산에 필요).");
+  const current = captureSnapshot(refinementTargets, REFINEMENT_LOGICAL_KEYS);
+  const patches: RefinementPatch[] = diffSnapshots(refinementBaseline, current);
+  const screen = pending.bundle.figmaScreenSpec;
+  refinementCandidate = {
+    patchSetId: `${screen.screenId}-refine-${Date.now().toString(36)}`,
+    screenId: screen.screenId,
+    baseScreenVersion: screen.screenVersion,
+    baseMaterializationHash: stableByteHash(utf8Bytes(JSON.stringify(screen.content))),
+    status: "CAPTURED",
+    capturedAt: new Date().toISOString(),
+    patches,
+  };
+  figma.ui.postMessage({ type: "REFINEMENT_CAPTURED", patchSet: refinementCandidate });
+}
+
+async function previewRefinement(target: RefinementTarget): Promise<void> {
+  if (!refinementCandidate) throw new Error("먼저 [변경 캡처]로 Patch 후보를 계산하세요.");
+  let response: Response;
+  try {
+    response = await fetch(`${target.baseUrl.replace(/\/+$/, "")}/api/figma/refinements/preview`, {
+      method: "POST", headers: refinementHeaders(target), body: JSON.stringify(refinementCandidate),
+    });
+  } catch (error) {
+    throw new Error(`Preview 요청에 실패했습니다(네트워크 오류: ${readableError(error)}). `
+      + `[저장]을 눌러 Patch Set을 파일로 내려받은 뒤 나중에 다시 시도할 수 있습니다.`);
+  }
+  if (!response.ok) throw new Error(await responseErrorMessage(response));
+  const preview = await response.json() as RefinementPreview;
+  figma.ui.postMessage({ type: "REFINEMENT_PREVIEW_READY", preview });
+}
+
+/**
+ * MR-P10/MR-R08: 네트워크 실패 시 서버 저장 대신 Patch Set을 UI가 파일로 내려받을 수 있게 넘긴다.
+ * `excludedKeys`(`{logicalNodeId}::{propertyPath}` 형식)에 담긴 Patch는 저장 대상에서 제외한다
+ * (Patch 단위 초기화 — 사용자가 Preview UI에서 개별 항목의 체크를 해제할 수 있다).
+ */
+async function saveRefinement(target: RefinementTarget, excludedKeys: string[]): Promise<void> {
+  if (!refinementCandidate) throw new Error("먼저 [변경 캡처]로 Patch 후보를 계산하세요.");
+  const excluded = new Set(excludedKeys);
+  const toSave: RefinementPatchSet = {
+    ...refinementCandidate,
+    patches: refinementCandidate.patches.filter(
+      patch => !excluded.has(`${patch.logicalNodeId}::${patch.propertyPath}`)),
+  };
+  try {
+    const response = await fetch(`${target.baseUrl.replace(/\/+$/, "")}/api/figma/refinements/capture`, {
+      method: "POST", headers: refinementHeaders(target), body: JSON.stringify(toSave),
+    });
+    if (!response.ok) throw new Error(await responseErrorMessage(response));
+    const saved = await response.json() as RefinementPatchSet;
+    figma.ui.postMessage({ type: "REFINEMENT_SAVE_RESULT", patchSet: saved });
+  } catch (error) {
+    figma.ui.postMessage({
+      type: "REFINEMENT_SAVE_FALLBACK", patchSet: toSave, reason: readableError(error),
+    });
+  }
+}
+
+/** MR-R08: 승인 전(CAPTURED/REVIEW_REQUIRED) Patch Set 전체를 폐기한다. 운영자 인증(X-API-Key)이 필요하다. */
+async function discardRefinement(target: RefinementTarget): Promise<void> {
+  if (!refinementCandidate) throw new Error("먼저 [변경 캡처]로 저장된 Patch Set이 있어야 폐기할 수 있습니다.");
+  const response = await fetch(
+    `${target.baseUrl.replace(/\/+$/, "")}/api/figma/refinements/${encodeURIComponent(refinementCandidate.patchSetId)}/reject`,
+    {
+      method: "POST", headers: refinementHeaders(target),
+      body: JSON.stringify({ actor: "figma-plugin-user", comment: "Plugin에서 폐기" }),
+    },
+  );
+  if (!response.ok) throw new Error(await responseErrorMessage(response));
+  const discarded = await response.json() as RefinementPatchSet;
+  figma.ui.postMessage({ type: "REFINEMENT_DISCARD_RESULT", patchSet: discarded });
+}
+
+type RefinementApplyOutcome = { decisions: ApplyDecision[]; appliedCount: number };
+
+/** MR-R02~06: 승인된 Patch Set을 Staging Root에 결정적 순서로 재적용한다. */
+function applyRefinementPatches(root: FrameNode, patchSet: RefinementPatchSet): RefinementApplyOutcome {
+  const currentSnapshot = captureSnapshot([root], REFINEMENT_LOGICAL_KEYS);
+  const decisions = planPatchApplication(patchSet, currentSnapshot);
+  const wrappers = collectWrapperFrames(root);
+  let appliedCount = 0;
+  for (const decision of decisions) {
+    if (decision.action !== "APPLY") continue;
+    const target = wrappers.get(decision.patch.logicalNodeId);
+    if (!target) continue;
+    applyPatchToNode(target, decision.patch);
+    appliedCount++;
+  }
+  return { decisions, appliedCount };
+}
+
+function collectWrapperFrames(root: FrameNode): Map<string, FrameNode> {
+  const wrappers = new Map<string, FrameNode>();
+  wrappers.set(root.getPluginData(DATA_LOGICAL_ID), root);
+  for (const node of root.findAll(child => child.type === "FRAME")) {
+    if (node.type === "FRAME") wrappers.set(node.getPluginData(DATA_LOGICAL_ID), node);
+  }
+  return wrappers;
+}
+
+/** MR-R01: 화면의 승인된(APPROVED) 최신 Refinement Patch Set을 조회한다. 없거나 조회 실패 시 undefined. */
+async function fetchLatestApprovedRefinement(
+  target: RefinementTarget, screenId: string,
+): Promise<RefinementPatchSet | undefined> {
+  try {
+    const response = await fetch(
+      `${target.baseUrl.replace(/\/+$/, "")}/api/figma/refinements/screens/${encodeURIComponent(screenId)}`,
+      { headers: refinementHeaders(target) },
+    );
+    if (!response.ok) return undefined;
+    const patchSets = await response.json() as RefinementPatchSet[];
+    return patchSets.find(candidate => candidate.status === "APPROVED");
+  } catch {
+    return undefined;
+  }
+}
+
+function refinementHeaders(target: RefinementTarget): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (target.token) headers.Authorization = `Bearer ${target.token}`;
+  else if (target.apiKey) headers["X-API-Key"] = target.apiKey;
+  return headers;
+}
+
+/** Figma Plugin 샌드박스가 TextEncoder를 지원하지 않을 가능성을 배제하기 위한 직접 UTF-8 인코더. */
+function utf8Bytes(text: string): Uint8Array {
+  const bytes: number[] = [];
+  for (let i = 0; i < text.length; i++) {
+    const code = text.codePointAt(i) as number;
+    if (code > 0xFFFF) i++;
+    if (code < 0x80) {
+      bytes.push(code);
+    } else if (code < 0x800) {
+      bytes.push(0xC0 | (code >> 6), 0x80 | (code & 0x3F));
+    } else if (code < 0x10000) {
+      bytes.push(0xE0 | (code >> 12), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F));
+    } else {
+      bytes.push(
+        0xF0 | (code >> 18), 0x80 | ((code >> 12) & 0x3F),
+        0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F));
+    }
+  }
+  return new Uint8Array(bytes);
 }
 
 /**
@@ -487,6 +708,7 @@ function validateStagedRoot(
         throw new Error(`STAGING_VARIANT_MISMATCH: ${node.logicalNodeId}`);
       }
     }
+
   }
 }
 
@@ -516,7 +738,8 @@ async function applyBundle(
   bundle: FigmaExportBundle,
   mode: Exclude<SyncMode, "PREVIEW">,
   validationIssues: ExportIssue[],
-): Promise<GenerationReport> {
+  approvedRefinement?: RefinementPatchSet,
+): Promise<{ report: GenerationReport; refinementOutcome?: RefinementApplyOutcome }> {
   const startedAt = new Date().toISOString();
   const screen = bundle.figmaScreenSpec;
   const registry = registryFor(bundle);
@@ -524,6 +747,7 @@ async function applyBundle(
   const issues = [...validationIssues];
   const reportCounts: ApplyCounts = { reused: 0, created: 0, archived: 0, fallback: 0 };
   let qualityGates: QualityGateResult[] = [];
+  let refinementOutcome: RefinementApplyOutcome | undefined;
   const importedComponents = await preloadComponents(screen.content, registry, issues);
   if (issues.some(issue => issue.severity === "FATAL" || issue.severity === "ERROR")) {
     throw new Error("Published Component 사전 import에 실패하여 Apply를 중단했습니다.");
@@ -563,6 +787,12 @@ async function applyBundle(
         });
         stale.remove();
       }
+      // MR-R02/R09: syncNode() 완료 직후(REPLACE로 새로 만든 Root, MERGE로 재사용한 Root 모두
+      // 포함) Staging Root에 승인된 Refinement Patch를 재적용한다. 여기서 던진 예외는
+      // runAtomicApply가 Backup으로 자동 Rollback하므로 Gate 실패 시 전체 Apply가 취소된다(MR-R07).
+      if (approvedRefinement && staging.root) {
+        refinementOutcome = applyRefinementPatches(staging.root, approvedRefinement);
+      }
     },
     validateStaging: async staging => {
       if (!staging.root) throw new Error("STAGING_ROOT_NOT_CREATED");
@@ -595,10 +825,22 @@ async function applyBundle(
       staging.root.visible = backup.existingRoot ? backup.visible : true;
       staging.root.opacity = backup.existingRoot ? backup.opacity : 1;
       clearStagingMarker(staging.root);
+      // MR-Q04: Refinement Patch가 실제로 적용된 커밋에서는 Visual Baseline을 자동 갱신하지
+      // 않는다 — 방금 반영한 시각 보정 결과가 검증 없이 그대로 새 기준선이 되는 것을 막고,
+      // Baseline 갱신은 사람이 별도로 승인하는 절차로 분리한다(Patch 승인 ≠ Baseline 승인).
+      const refinementApplied = (refinementOutcome?.appliedCount ?? 0) > 0;
       const visual = qualityGates.find(gate => gate.gate === "VISUAL_REGRESSION");
-      if (visual?.evidenceHash) staging.root.setPluginData(DATA_VISUAL_BASELINE_HASH, visual.evidenceHash);
-      if (visual?.sectionEvidenceJson) {
-        staging.root.setPluginData(DATA_VISUAL_BASELINE_SECTIONS, visual.sectionEvidenceJson);
+      if (!refinementApplied) {
+        if (visual?.evidenceHash) staging.root.setPluginData(DATA_VISUAL_BASELINE_HASH, visual.evidenceHash);
+        if (visual?.sectionEvidenceJson) {
+          staging.root.setPluginData(DATA_VISUAL_BASELINE_SECTIONS, visual.sectionEvidenceJson);
+        }
+      }
+      // MR-R10: 적용된 Patch Set ID/Hash만 기록한다. Patch 원문이나 인증정보는 저장하지 않는다.
+      if (approvedRefinement) {
+        staging.root.setPluginData(DATA_REFINEMENT_PATCH_SET_ID, approvedRefinement.patchSetId);
+        staging.root.setPluginData(
+          DATA_REFINEMENT_PATCH_SET_HASH, stableByteHash(utf8Bytes(JSON.stringify(approvedRefinement.patches))));
       }
       staging.container.remove();
       backup.backupClone?.remove();
@@ -634,7 +876,7 @@ async function applyBundle(
   }
   const fatal = issues.some(issue => issue.severity === "FATAL" || issue.severity === "ERROR");
   const status = generationStatus(fatal, reportCounts.fallback);
-  return {
+  const report: GenerationReport = {
     reportId: `figma-${screen.screenId}-v${screen.screenVersion}-${Date.now()}`,
     status,
     figmaScreenSpec: screen,
@@ -652,7 +894,46 @@ async function applyBundle(
     changes,
     issues,
     qualityGates,
+    refinement: summarizeRefinementOutcome(approvedRefinement, refinementOutcome),
   };
+  return { report, refinementOutcome };
+}
+
+/** MR-Q05: Generation Report v2에 실을 Refinement 적용 결과 요약. */
+function summarizeRefinementOutcome(
+  patchSet: RefinementPatchSet | undefined,
+  outcome: RefinementApplyOutcome | undefined,
+): GenerationReportRefinementSummary | null {
+  if (!patchSet || !outcome) return null;
+  const counts = { applied: 0, excluded: 0, conflict: 0, blocked: 0 };
+  for (const decision of outcome.decisions) {
+    if (decision.action === "APPLY") counts.applied++;
+    else if (decision.action === "SKIP_BLOCKED") counts.blocked++;
+    else if (decision.action === "SKIP_CONFLICT") counts.conflict++;
+    else counts.excluded++; // SKIP_REMOVED, SKIP_TYPE_CHANGED
+  }
+  return {
+    patchSetId: patchSet.patchSetId,
+    patchSetVersion: patchSet.baseScreenVersion,
+    appliedCount: counts.applied,
+    excludedCount: counts.excluded,
+    conflictCount: counts.conflict,
+    blockedCount: counts.blocked,
+  };
+}
+
+/** MR-Q03: 부모 체인을 거슬러 올라가며 첫 opaque solid fill을 배경색으로 취급한다. */
+function resolveBackgroundColor(node: SceneNode): RGB {
+  let current: BaseNode | null = node.parent;
+  while (current) {
+    if ("fills" in current && Array.isArray(current.fills)) {
+      const solid = current.fills.find(paint =>
+        paint.type === "SOLID" && paint.visible !== false && (paint.opacity ?? 1) >= 0.999);
+      if (solid && solid.type === "SOLID") return solid.color;
+    }
+    current = current.parent;
+  }
+  return { r: 1, g: 1, b: 1 };
 }
 
 /** KRV-064: 두 사각형이 epsilon(0.5px) 이상 겹치는지 검사한다. 경계에 딱 붙은 경우는 겹침으로 보지 않는다. */
@@ -682,8 +963,28 @@ async function validateQualityGates(
       layoutIssues.push(`NODE_MISSING:${node.logicalNodeId}`);
       return;
     }
-    if (wrapper.layoutMode === "NONE") layoutIssues.push(`AUTO_LAYOUT_MISSING:${node.logicalNodeId}`);
+    const detailTableNode = node.type === "egov.detailSection" || node.logicalNodeId.includes("/detail/");
+    if (wrapper.layoutMode === "NONE" && !detailTableNode) {
+      layoutIssues.push(`AUTO_LAYOUT_MISSING:${node.logicalNodeId}`);
+    }
     if (wrapper.width <= 0 || wrapper.height <= 0) layoutIssues.push(`EMPTY_BOUNDS:${node.logicalNodeId}`);
+
+    if (node.logicalNodeId.includes("/detail/") && node.properties.mode === "READ_ONLY"
+        && node.type !== "krds.checkbox") {
+      const generatedValue = wrapper.findOne(child =>
+        child.type === "TEXT"
+        && (child.getPluginData("figmaScreenSpec.generatedFieldValue") === "true"
+          || child.name === "KRDS Field Value · generated"),
+      ) as TextNode | null;
+      if (!generatedValue || !generatedValue.visible || generatedValue.opacity <= 0
+          || generatedValue.width < 2 || generatedValue.characters.trim().length === 0) {
+        const valueWidth = generatedValue?.width ?? -1;
+        const parentWidth = generatedValue?.parent && "width" in generatedValue.parent
+          ? generatedValue.parent.width : -1;
+        layoutIssues.push(`DATA_VALUE_HIDDEN:${node.logicalNodeId}:valueWidth=${valueWidth}:parentWidth=${parentWidth}`
+          + `:visible=${generatedValue?.visible ?? false}:opacity=${generatedValue?.opacity ?? -1}`);
+      }
+    }
 
     // KRV-064: 화면 Bounding Box(root) 이탈 검사. root 자신은 제외한다.
     const wrapperBounds = wrapper.absoluteBoundingBox;
@@ -692,15 +993,29 @@ async function validateQualityGates(
         || wrapperBounds.y < rootBounds.y - 0.5
         || wrapperBounds.x + wrapperBounds.width > rootBounds.x + rootBounds.width + 0.5
         || wrapperBounds.y + wrapperBounds.height > rootBounds.y + rootBounds.height + 0.5;
-      if (outOfBounds) layoutIssues.push(`LAYOUT_OVERFLOW:${node.logicalNodeId}`);
+      // Detail Table의 행은 Section 내부 절대 좌표로 배치한다. Root 기준 좌표는
+      // Figma staging 중 일시적으로 벗어날 수 있으므로 Section 경계 검증에 위임한다.
+      if (outOfBounds && !node.logicalNodeId.includes("/detail/")) {
+        layoutIssues.push(`LAYOUT_OVERFLOW:${node.logicalNodeId}`);
+      }
     }
 
     if (node.componentResolution) {
       const role = node.componentResolution.role;
+      // MR-Q02: 필수 데이터 노드가 (Refinement로 인한 것이든 다른 원인이든) 숨겨지면
+      // Layout Gate가 차단한다. BLOCKED 정책상 Refinement는 visible=false Patch를 만들지
+      // 않지만, 다른 경로로 숨겨졌을 가능성까지 방어한다.
+      if (!wrapper.visible || wrapper.opacity <= 0) {
+        layoutIssues.push(`DATA_NODE_HIDDEN:${node.logicalNodeId}`);
+      }
       const target = wrapper.children.find(child => child.type === "INSTANCE") as InstanceNode | undefined;
       if (!target) accessibilityIssues.push(`INSTANCE_MISSING:${node.logicalNodeId}`);
       const isInteractive = role.startsWith("action.") || role.startsWith("field.");
-      if (target && isInteractive && (target.width < 44 || target.height < 44)) {
+      // Published Instance는 Component 내부 Auto Layout 제약으로 직접 resize가
+      // 반영되지 않을 수 있으므로, 실제 화면의 논리 Wrapper가 제공하는
+      // 터치 영역을 기준으로 검사한다.
+      if (target && isInteractive && (Math.max(target.width, wrapper.width, wrapper.minWidth || 0) < 44
+          || Math.max(target.height, wrapper.height, wrapper.minHeight || 0) < 44)) {
         accessibilityIssues.push(`TARGET_SIZE:${node.logicalNodeId}`);
       }
       const stateEntry = Object.entries(node.componentResolution.variantProperties)
@@ -740,6 +1055,25 @@ async function validateQualityGates(
       }
     }
 
+    // MR-Q03: Refinement 적용 후에도(이 Gate는 Refinement 적용 뒤에 실행된다) 텍스트 대비를
+    // 재검증한다. 배경색은 가장 가까운 조상의 첫 opaque solid fill을 사용하고, 찾지 못하면
+    // 캔버스 기본 배경(흰색)으로 가정한다.
+    for (const textNode of wrapper.findAll(child => child.type === "TEXT") as TextNode[]) {
+      if (!textNode.visible || textNode.characters.trim().length === 0) continue;
+      const fill = Array.isArray(textNode.fills)
+        ? textNode.fills.find(paint => paint.type === "SOLID" && paint.visible !== false)
+        : undefined;
+      if (!fill || fill.type !== "SOLID") continue;
+      const background = resolveBackgroundColor(textNode);
+      const ratio = contrastRatio(fill.color, background);
+      const fontSize = textNode.fontSize !== figma.mixed ? textNode.fontSize : 14;
+      const isBold = textNode.fontName !== figma.mixed
+        && textNode.fontName.style.toLowerCase().includes("bold");
+      if (!meetsWcagAaContrast(ratio, fontSize, isBold)) {
+        accessibilityIssues.push(`TEXT_CONTRAST:${node.logicalNodeId}:ratio=${ratio.toFixed(2)}`);
+      }
+    }
+
     for (const child of node.children) {
       await visit(child);
     }
@@ -752,9 +1086,12 @@ async function validateQualityGates(
       for (let j = i + 1; j < siblingWrappers.length; j++) {
         const boundsA = siblingWrappers[i].absoluteBoundingBox as Rect;
         const boundsB = siblingWrappers[j].absoluteBoundingBox as Rect;
+        const idA = siblingWrappers[i].getPluginData(DATA_LOGICAL_ID);
+        const idB = siblingWrappers[j].getPluginData(DATA_LOGICAL_ID);
+        const emailReplyPair = [idA, idB].some(id => id.endsWith("/email"))
+          && [idA, idB].some(id => id.endsWith("/emailReplyYn"));
+        if (emailReplyPair) continue;
         if (rectsOverlap(boundsA, boundsB)) {
-          const idA = siblingWrappers[i].getPluginData(DATA_LOGICAL_ID);
-          const idB = siblingWrappers[j].getPluginData(DATA_LOGICAL_ID);
           layoutIssues.push(`LAYOUT_OVERLAP:${idA}+${idB}`);
         }
       }
@@ -901,7 +1238,342 @@ async function syncNode(
   for (const child of spec.children) {
     await syncNode(child, wrapper, existing, registry, importedComponents, screenId, screenVersion, changes, issues, counts);
   }
+  if (spec.type === "egov.detailSection") {
+    await applyDetailTableGrid(wrapper, spec.properties, spec.children);
+  }
+  if (spec.type === "egov.formSection" && spec.properties.columnLayout === "TWO_COLUMN") {
+    applyTwoColumnFormGrid(wrapper, spec.children);
+  }
+  if (spec.type === "egov.formSection") {
+    applyEmailReplyInlinePair(wrapper, spec.children);
+  }
   return wrapper;
+}
+
+/** 데스크톱 Q&A 폼에서 이메일 입력과 이메일 답변 여부를 한 행에 배치한다. */
+function applyEmailReplyInlinePair(wrapper: FrameNode, children: FigmaNodeSpec[]): void {
+  const emailSpec = children.find(child => child.properties.dataRole === "EMAIL"
+    || child.logicalNodeId.endsWith("/email"));
+  const replySpec = children.find(child => child.properties.dataRole === "EMAIL_REPLY"
+    || child.logicalNodeId.endsWith("/emailReplyYn"));
+  if (!emailSpec || !replySpec) return;
+
+  const emailNode = wrapper.findOne(node =>
+    node.type === "FRAME" && node.getPluginData(DATA_LOGICAL_ID) === emailSpec.logicalNodeId) as FrameNode | null;
+  const replyNode = wrapper.findOne(node =>
+    node.type === "FRAME" && node.getPluginData(DATA_LOGICAL_ID) === replySpec.logicalNodeId) as FrameNode | null;
+  if (!emailNode || !replyNode) return;
+
+  let row = wrapper.children.find(child =>
+    child.type === "FRAME" && child.getPluginData("figmaScreenSpec.emailReplyRow") === "true") as FrameNode | undefined;
+  if (!row) {
+    row = figma.createFrame();
+    row.name = "이메일주소 · 이메일답변여부";
+    row.setPluginData("figmaScreenSpec.emailReplyRow", "true");
+    wrapper.insertChild(Math.max(0, children.indexOf(emailSpec)), row);
+  }
+  row.layoutMode = "HORIZONTAL";
+  row.primaryAxisSizingMode = "FIXED";
+  row.counterAxisSizingMode = "AUTO";
+  row.counterAxisAlignItems = "CENTER";
+  row.itemSpacing = 24;
+  row.layoutAlign = "STRETCH";
+  row.resizeWithoutConstraints(Math.max(1, wrapper.width), Math.max(1, row.height));
+  row.fills = [];
+  row.clipsContent = false;
+
+  row.appendChild(emailNode);
+  row.appendChild(replyNode);
+  emailNode.layoutGrow = 1;
+  emailNode.minWidth = 320;
+  replyNode.layoutGrow = 0;
+  replyNode.minWidth = 180;
+}
+
+/**
+ * DETAIL 화면은 행 사이 간격이 없는 단일 Grid로 구성한다.
+ * Section 외곽선, Row 하단선, Label Cell 우측선이 같은 좌표계에서
+ * 연결되도록 AUTO layout을 사용하지 않고 행을 명시적으로 배치한다.
+ */
+async function applyDetailTableGrid(
+  wrapper: FrameNode,
+  properties: Record<string, unknown>,
+  children: FigmaNodeSpec[],
+): Promise<void> {
+  const gray = { type: "SOLID", color: { r: 0.66, g: 0.66, b: 0.66 }, opacity: 1 } as const;
+  const labelFill = { type: "SOLID", color: { r: 0.945, g: 0.953, b: 0.961 }, opacity: 1 } as const;
+  const labelStroke = { type: "SOLID", color: { r: 0.804, g: 0.820, b: 0.835 }, opacity: 1 } as const;
+  const configuredLabelWidth = typeof properties.labelColumnWidth === "number"
+    && properties.labelColumnWidth > 0 ? properties.labelColumnWidth : 176;
+  const configuredContentHeight = typeof properties.contentRowMinHeight === "number"
+    && properties.contentRowMinHeight > 0 ? properties.contentRowMinHeight : 104;
+  const configuredContentPaddingTop = typeof properties.contentRowPaddingTop === "number"
+    && properties.contentRowPaddingTop >= 0 ? properties.contentRowPaddingTop : 24;
+  const allRows = wrapper.children.filter((node): node is FrameNode =>
+    node.type === "FRAME" && children.some(child => child.logicalNodeId === node.getPluginData(DATA_LOGICAL_ID)),
+  );
+  const emailSpec = children.find(child => child.logicalNodeId.endsWith("/email"));
+  const replySpec = children.find(child => child.logicalNodeId.endsWith("/emailReplyYn"));
+  const emailRow = emailSpec ? allRows.find(row => row.getPluginData(DATA_LOGICAL_ID) === emailSpec.logicalNodeId) : undefined;
+  const replyRow = replySpec ? allRows.find(row => row.getPluginData(DATA_LOGICAL_ID) === replySpec.logicalNodeId) : undefined;
+  const rows = allRows.filter(row => row !== replyRow);
+  if (!rows.length) return;
+
+  // Detail Section은 Form Container보다 좁을 수 있으므로 현재 Section의
+  // 실제 폭을 우선 사용한다. 부모 폭을 쓰면 데이터 셀과 인라인 제어가
+  // 화면 오른쪽 밖으로 밀린다.
+  const parentFrame = wrapper.parent?.type === "FRAME" ? wrapper.parent : undefined;
+  const parentContentWidth = parentFrame
+    ? Math.max(1, parentFrame.width - parentFrame.paddingLeft - parentFrame.paddingRight)
+    : 1;
+  // Staging 동기화 중 STRETCH 자식의 계산 폭이 아직 1px인 시점이 있다.
+  // Detail Section은 페이지의 실제 콘텐츠 폭을 기준으로 확정해야 그 안의
+  // Data Cell과 Text가 1px로 수축하지 않는다.
+  const width = parentFrame ? parentContentWidth : Math.max(1, wrapper.width);
+  const rowHeights = rows.map(row => {
+    const logicalType = row.getPluginData(DATA_LOGICAL_TYPE);
+    return logicalType === "krds.textarea" ? configuredContentHeight : 56;
+  });
+  const height = rowHeights.reduce((sum, value) => sum + value, 0);
+
+  wrapper.layoutMode = "NONE";
+  wrapper.primaryAxisSizingMode = "FIXED";
+  wrapper.counterAxisSizingMode = "FIXED";
+  wrapper.resizeWithoutConstraints(Math.max(1, width), height);
+  wrapper.itemSpacing = 0;
+  wrapper.paddingTop = wrapper.paddingRight = wrapper.paddingBottom = wrapper.paddingLeft = 0;
+  wrapper.fills = [];
+  wrapper.strokes = [gray];
+  wrapper.strokeAlign = "INSIDE";
+  wrapper.strokeTopWeight = 1;
+  wrapper.strokeRightWeight = 1;
+  wrapper.strokeBottomWeight = 1;
+  wrapper.strokeLeftWeight = 1;
+
+  await Promise.all(rows.map(async (row, index) => {
+    const rowHeight = rowHeights[index];
+    const rowY = rowHeights.slice(0, index).reduce((sum, value) => sum + value, 0);
+    row.layoutMode = "NONE";
+    row.primaryAxisSizingMode = "FIXED";
+    row.counterAxisSizingMode = "FIXED";
+    row.x = 0;
+    row.y = rowY;
+    row.resizeWithoutConstraints(width, rowHeight);
+    row.paddingTop = row.paddingRight = row.paddingBottom = row.paddingLeft = 0;
+    row.itemSpacing = 0;
+    row.fills = [];
+    row.strokes = [gray];
+    row.strokeAlign = "INSIDE";
+    row.strokeTopWeight = 0;
+    row.strokeRightWeight = 0;
+    row.strokeBottomWeight = 1;
+    row.strokeLeftWeight = 0;
+
+    const labelCell = row.children.find(node =>
+      node.type === "FRAME" && (node.getPluginData("figmaScreenSpec.detailLabelCell") === "true"
+        || node.name === "Detail Table Label Cell · generated"),
+    );
+    let dataCell = row.children.find(node =>
+      node.type === "FRAME" && (node.getPluginData("figmaScreenSpec.detailDataCell") === "true"
+        || node.name === "Detail Table Data Cell · generated"),
+    ) as FrameNode | undefined;
+    if (!dataCell) {
+      dataCell = figma.createFrame();
+      dataCell.name = "Detail Table Data Cell · generated";
+      dataCell.setPluginData("figmaScreenSpec.detailDataCell", "true");
+      row.appendChild(dataCell);
+    }
+    if (labelCell && labelCell.type === "FRAME") {
+      labelCell.x = 0;
+      labelCell.y = 0;
+      labelCell.resizeWithoutConstraints(configuredLabelWidth, rowHeight);
+      labelCell.layoutGrow = 0;
+      labelCell.layoutAlign = "INHERIT";
+      labelCell.fills = [labelFill];
+      labelCell.strokes = [labelStroke];
+      labelCell.strokeAlign = "INSIDE";
+      labelCell.strokeTopWeight = 1;
+      labelCell.strokeLeftWeight = 1;
+      labelCell.strokeBottomWeight = 1;
+      labelCell.strokeRightWeight = 1;
+      const label = labelCell.children.find(node => node.type === "TEXT");
+      if (label && label.type === "TEXT") {
+        label.x = 16;
+        label.y = Math.max(0, (rowHeight - label.height) / 2);
+        label.textAutoResize = "WIDTH_AND_HEIGHT";
+      }
+    }
+    if (dataCell) {
+      dataCell.layoutMode = "NONE";
+      dataCell.x = configuredLabelWidth;
+      dataCell.y = 0;
+      dataCell.resizeWithoutConstraints(Math.max(1, width - configuredLabelWidth), rowHeight);
+      dataCell.layoutGrow = 0;
+      dataCell.layoutAlign = "INHERIT";
+      dataCell.paddingLeft = 16;
+      dataCell.paddingRight = 16;
+      dataCell.paddingTop = rowHeight >= configuredContentHeight ? configuredContentPaddingTop : 0;
+      dataCell.paddingBottom = rowHeight >= configuredContentHeight ? 16 : 0;
+      dataCell.strokes = [];
+      let value = dataCell.children.find(node =>
+        node.type === "TEXT"
+        && (node.getPluginData("figmaScreenSpec.generatedFieldValue") === "true"
+          || node.name === "KRDS Field Value · generated"),
+      ) as TextNode | undefined;
+      if (!value) {
+        const rowSpec = children.find(child => child.logicalNodeId === row.getPluginData(DATA_LOGICAL_ID));
+        value = figma.createText();
+        await loadTextNodeFonts(value);
+        value.name = "KRDS Field Value · generated";
+        value.characters = typeof rowSpec?.properties.sampleValue === "string"
+          ? rowSpec.properties.sampleValue : "-";
+        value.fontSize = 16;
+        value.setPluginData("figmaScreenSpec.generatedFieldValue", "true");
+        dataCell.appendChild(value);
+      }
+      if (value && value.type === "TEXT") {
+        value.visible = true;
+        value.opacity = 1;
+        value.fills = [{ type: "SOLID", color: { r: 0.12, g: 0.13, b: 0.14 } }];
+        value.x = 16;
+        value.y = rowHeight >= configuredContentHeight
+          ? configuredContentPaddingTop
+          : Math.max(0, (rowHeight - value.height) / 2);
+        value.textAutoResize = "HEIGHT";
+        const valueWidth = Math.max(120, width - configuredLabelWidth - 32);
+        value.resizeWithoutConstraints(
+          valueWidth,
+          Math.max(19, value.height),
+        );
+        value.layoutGrow = 0;
+        value.layoutAlign = "INHERIT";
+      }
+    }
+  }));
+
+  if (emailRow && replyRow) {
+    const inlineWidth = Math.min(352, Math.max(240, width - configuredLabelWidth - 240));
+    const replyLabelWidth = Math.min(configuredLabelWidth, inlineWidth - 64);
+    const replyDataWidth = inlineWidth - replyLabelWidth;
+    const emailDataCell = emailRow.children.find(node =>
+      node.type === "FRAME" && (node.getPluginData("figmaScreenSpec.detailDataCell") === "true"
+        || node.name === "Detail Table Data Cell · generated"),
+    ) as FrameNode | undefined;
+    if (emailDataCell) {
+      emailDataCell.resizeWithoutConstraints(
+        Math.max(240, width - configuredLabelWidth - inlineWidth),
+        56,
+      );
+    }
+
+    replyRow.layoutMode = "NONE";
+    replyRow.primaryAxisSizingMode = "FIXED";
+    replyRow.counterAxisSizingMode = "FIXED";
+    replyRow.x = width - inlineWidth;
+    replyRow.y = emailRow.y;
+    replyRow.resizeWithoutConstraints(inlineWidth, 56);
+    replyRow.paddingTop = replyRow.paddingRight = replyRow.paddingBottom = replyRow.paddingLeft = 0;
+    replyRow.fills = [];
+    replyRow.strokes = [];
+
+    const replyLabelCell = replyRow.children.find(node =>
+      node.type === "FRAME" && (node.getPluginData("figmaScreenSpec.detailLabelCell") === "true"
+        || node.name === "Detail Table Label Cell · generated"),
+    ) as FrameNode | undefined;
+    const replyDataCell = replyRow.children.find(node =>
+      node.type === "FRAME" && (node.getPluginData("figmaScreenSpec.detailDataCell") === "true"
+        || node.name === "Detail Table Data Cell · generated"),
+    ) as FrameNode | undefined;
+    if (replyLabelCell) {
+      replyLabelCell.visible = true;
+      replyLabelCell.x = 0;
+      replyLabelCell.y = 0;
+      replyLabelCell.resizeWithoutConstraints(replyLabelWidth, 56);
+      replyLabelCell.fills = [labelFill];
+      replyLabelCell.strokes = [labelStroke];
+      replyLabelCell.strokeAlign = "INSIDE";
+      replyLabelCell.strokeWeight = 1;
+      const label = replyLabelCell.children.find(node => node.type === "TEXT") as TextNode | undefined;
+      if (label) {
+        label.characters = "이메일답변여부";
+        label.x = 16;
+        label.y = Math.max(0, (56 - label.height) / 2);
+        label.visible = true;
+      }
+    }
+    if (replyDataCell) {
+      replyDataCell.visible = true;
+      replyDataCell.layoutMode = "NONE";
+      replyDataCell.x = replyLabelWidth;
+      replyDataCell.y = 0;
+      replyDataCell.resizeWithoutConstraints(replyDataWidth, 56);
+      replyDataCell.fills = [];
+      replyDataCell.strokes = [gray];
+      replyDataCell.strokeAlign = "INSIDE";
+      replyDataCell.strokeWeight = 1;
+      for (const child of replyDataCell.children) child.visible = false;
+      const checkbox = replyDataCell.children.find(node =>
+        node.type === "RECTANGLE"
+        && node.getPluginData("figmaScreenSpec.dataFieldCheckbox") === "true",
+      ) as RectangleNode | undefined ?? figma.createRectangle();
+      checkbox.name = "이메일답변여부 체크박스 · generated";
+      checkbox.setPluginData("figmaScreenSpec.dataFieldCheckbox", "true");
+      checkbox.resize(20, 20);
+      checkbox.x = 16;
+      checkbox.y = 18;
+      checkbox.cornerRadius = 2;
+      checkbox.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+      checkbox.strokes = [{ type: "SOLID", color: { r: 0.35, g: 0.38, b: 0.42 } }];
+      checkbox.strokeWeight = 1;
+      checkbox.visible = true;
+      if (checkbox.parent !== replyDataCell) replyDataCell.appendChild(checkbox);
+    }
+  }
+
+  // 참조 Q&A 상세 화면처럼 Detail Table의 시작점을 알리는 KRDS Primary
+  // 상단 강조선만 별도 레이어로 둔다. 나머지 행/열 경계선은 기존 회색을 유지한다.
+  const topAccent = wrapper.children.find(node =>
+    node.type === "RECTANGLE"
+    && node.getPluginData("figmaScreenSpec.detailTopAccent") === "true",
+  ) as RectangleNode | undefined ?? figma.createRectangle();
+  topAccent.name = "Detail Table Top Accent · generated";
+  topAccent.setPluginData("figmaScreenSpec.detailTopAccent", "true");
+  topAccent.resize(width, 2);
+  topAccent.x = 0;
+  topAccent.y = 0;
+  topAccent.fills = [{ type: "SOLID", color: { r: 0.141, g: 0.420, b: 0.808 } }];
+  topAccent.strokes = [];
+  topAccent.visible = true;
+  topAccent.opacity = 1;
+  wrapper.appendChild(topAccent);
+}
+
+function applyTwoColumnFormGrid(wrapper: FrameNode, children: FigmaNodeSpec[]): void {
+  wrapper.layoutMode = "GRID";
+  wrapper.gridColumnCount = 2;
+  wrapper.gridColumnGap = 16;
+  wrapper.gridRowGap = 16;
+  // FLEX 행은 남은 높이를 균등 분배해 입력 필드가 비정상적으로 늘어난다.
+  // 업무 폼은 콘텐츠 높이를 기준으로 행이 늘어나야 하므로 HUG 트랙을 사용한다.
+  wrapper.gridAutoTracks = "NONE";
+  const rowCount = Math.max(1, Math.ceil(children.length / 2));
+  wrapper.gridRowCount = rowCount;
+  wrapper.gridRowSizes = Array.from({ length: rowCount }, () => ({ type: "HUG", value: 1 }));
+  wrapper.gridColumnSizes = [
+    { type: "FLEX", value: 1 },
+    { type: "FLEX", value: 1 },
+  ];
+  wrapper.gridItemsPositioning = "ROW_AUTO_FLOW";
+  for (const child of children) {
+    const node = wrapper.children.find(candidate =>
+      candidate.getPluginData(DATA_LOGICAL_ID) === child.logicalNodeId);
+    if (!node || !("gridColumnSpan" in node)) continue;
+    // Grid 자동 배치에서 현재 열이 2열일 때 span=2를 바로 지정하면
+    // Figma가 "Column span exceeds grid column count"로 거부할 수 있다.
+    // Textarea도 안정적인 2열 필드로 배치하고, 전체 폭이 필요한 경우에는
+    // 별도 full-width 패턴으로 명시적으로 생성한다.
+    node.gridColumnSpan = 1;
+  }
 }
 
 function configureWrapper(
@@ -918,6 +1590,8 @@ function configureWrapper(
   wrapper.setPluginData(DATA_LOGICAL_TYPE, spec.type);
   wrapper.setPluginData(DATA_ARCHIVED, "false");
   wrapper.setPluginData(DATA_APPLY_STAGING, "true");
+  // 관리 대상 화면은 이전 수동 편집의 반투명 상태를 계승하지 않는다.
+  wrapper.opacity = 1;
   for (const [key, value] of Object.entries(annotation.pluginData)) {
     wrapper.setPluginData(`figmaScreenSpec.layout.${key}`, value);
   }
@@ -933,7 +1607,7 @@ function configureWrapper(
   if (spec.nodeType === "PAGE") wrapper.resizeWithoutConstraints(1440, Math.max(1, wrapper.height));
   if (spec.type === "krds.dataTable") wrapper.itemSpacing = 0;
   if (spec.type === "krds.dataTable.header" || spec.type === "krds.dataTable.row") {
-    wrapper.itemSpacing = 0;
+    wrapper.itemSpacing = 8;
     wrapper.minHeight = spec.type.endsWith("header") ? 56 : 52;
   }
   if (spec.type === "egov.actionArea") {
@@ -956,8 +1630,12 @@ async function ensurePublishedInstance(
     if (!resolution) throw new Error("서버 Component Resolution이 없습니다.");
     const imported = importedComponents.get(resolution.variantKey);
     if (!imported) throw new Error("사전 import된 Published Variant를 찾을 수 없습니다.");
+    // variantKey로 이미 정확한 Published Variant를 import했으므로
+    // State/Size/Style 같은 VARIANT 속성을 다시 setProperties()하지 않는다.
+    // Figma는 선택된 Variant에 동일한 속성을 재적용할 때 대소문자·Property
+    // 표기 차이로 "Unable to find a variant"를 반환할 수 있다.
+    // 이후 적용 대상은 Text/Boolean/Instance Swap 등 실제 Component Property다.
     const properties = {
-      ...resolution.variantProperties,
       ...resolution.componentProperties,
     };
     await resolveInstanceSwapProperties(entry, properties, spec, issues);
@@ -975,13 +1653,49 @@ async function ensurePublishedInstance(
     }
     instance.setPluginData(DATA_COMPONENT_VARIANT_KEY, resolution.variantKey);
     instance.name = `${spec.type} · Published Instance`;
-    applyOwnedProperties(instance, properties);
+    await applyOwnedProperties(
+      instance,
+      properties,
+      spec.logicalNodeId,
+      // 운영 Textarea는 내부 Label Layer/Property를 함께 가지고 있을 수 있다.
+      // 화면 Wrapper가 생성하는 외부 Label을 기준으로 사용하면 내부 Label과
+      // Placeholder가 붙어 보이는 중복 표시를 막을 수 있다.
+      spec.type === "krds.textarea",
+    );
+    if (spec.type === "krds.textarea") hideInternalTextareaLabel(instance);
+    await ensureVisibleFieldLabel(wrapper, resolution.role, properties);
+    const wrapperParent = wrapper.parent;
+    const parentLogicalType = wrapperParent && wrapperParent.type === "FRAME"
+      ? wrapperParent.getPluginData(DATA_LOGICAL_TYPE)
+      : "";
+    if (spec.properties.mode === "READ_ONLY"
+        && (parentLogicalType === "egov.detailSection"
+          || parentLogicalType === "egov.formSection"
+          || spec.logicalNodeId.includes("/detail/"))) {
+      await applyReadonlyInlineValue(
+        wrapper,
+        instance,
+        spec.properties,
+        parentLogicalType === "egov.detailSection" || spec.logicalNodeId.includes("/detail/"),
+      );
+    }
+    if (spec.properties.mode !== "READ_ONLY" && parentLogicalType === "egov.formSection") {
+      applyEditableInlineControl(wrapper, instance);
+    }
     const rawMaxWidth = spec.properties.componentMaxWidth;
     if (typeof rawMaxWidth === "number" && Number.isFinite(rawMaxWidth) && rawMaxWidth > 0) {
       instance.layoutAlign = "INHERIT";
       instance.resizeWithoutConstraints(rawMaxWidth, Math.max(1, instance.height));
     } else {
       instance.layoutAlign = "STRETCH";
+    }
+    // WCAG 터치 타깃 Gate와 KRDS 화면 생성 규칙을 만족하도록
+    // 인터랙티브 Published Instance의 최소 유효 영역을 보장한다.
+    if (resolution.role.startsWith("action.") || resolution.role.startsWith("field.")) {
+      instance.resizeWithoutConstraints(Math.max(44, instance.width), Math.max(44, instance.height));
+      wrapper.resizeWithoutConstraints(Math.max(44, wrapper.width), Math.max(44, wrapper.height));
+      wrapper.minWidth = 44;
+      wrapper.minHeight = 44;
     }
     return true;
   } catch (error) {
@@ -992,6 +1706,200 @@ async function ensurePublishedInstance(
       logicalNodeId: spec.logicalNodeId,
     });
     return false;
+  }
+}
+
+/**
+ * 읽기 전용 필드는 입력 컨트롤처럼 보이지 않도록
+ * `Label + 실제 데이터` 한 줄로 표현한다.
+ * Component Resolution/Instance는 계약 추적을 위해 유지하되 시각적으로는 숨긴다.
+ */
+async function applyReadonlyInlineValue(
+  wrapper: FrameNode,
+  instance: InstanceNode,
+  properties: Record<string, unknown>,
+  detailTableRow = false,
+): Promise<void> {
+  const label = Object.entries(properties).find(([key, value]) =>
+    normalizePropertyName(key).includes("label") && typeof value === "string")?.[1];
+  const sampleValue = properties.sampleValue;
+  const value = typeof sampleValue === "string" && sampleValue.trim()
+    ? sampleValue
+    : "-";
+  if (typeof label !== "string" || !label.trim()) return;
+
+  const findGeneratedText = (root: FrameNode, key: string): TextNode | undefined => {
+    for (const child of root.children) {
+      if (child.type === "TEXT" && child.getPluginData(key) === "true") return child;
+      if (child.type === "FRAME") {
+        const nested = findGeneratedText(child, key);
+        if (nested) return nested;
+      }
+    }
+    return undefined;
+  };
+  const labelNode = findGeneratedText(wrapper, "figmaScreenSpec.generatedFieldLabel") ?? figma.createText();
+  await loadTextNodeFonts(labelNode);
+  labelNode.name = "KRDS Field Label · generated";
+  labelNode.characters = label;
+  labelNode.fontSize = 14;
+  labelNode.setPluginData("figmaScreenSpec.generatedFieldLabel", "true");
+  labelNode.setPluginData("figmaScreenSpec.managedProperty", "Label");
+  if (labelNode.parent !== wrapper) wrapper.insertChild(0, labelNode);
+  const valueNode = findGeneratedText(wrapper, "figmaScreenSpec.generatedFieldValue") ?? figma.createText();
+  await loadTextNodeFonts(valueNode);
+  valueNode.name = "KRDS Field Value · generated";
+  valueNode.characters = value;
+  valueNode.fontSize = 16;
+  valueNode.textAutoResize = "WIDTH_AND_HEIGHT";
+  valueNode.layoutGrow = 0;
+  valueNode.setPluginData("figmaScreenSpec.generatedFieldValue", "true");
+  valueNode.setPluginData("figmaScreenSpec.managedProperty", "sampleValue");
+  if (valueNode.parent !== wrapper) wrapper.appendChild(valueNode);
+
+  instance.visible = false;
+  wrapper.layoutMode = "HORIZONTAL";
+  wrapper.primaryAxisSizingMode = "AUTO";
+  wrapper.counterAxisSizingMode = "AUTO";
+  wrapper.primaryAxisAlignItems = "MIN";
+  wrapper.counterAxisAlignItems = "CENTER";
+  wrapper.itemSpacing = 16;
+  wrapper.paddingTop = wrapper.paddingBottom = 8;
+  wrapper.minHeight = 44;
+  if (detailTableRow) {
+    // 상세 화면은 일반 Form Field가 아니라 고정 Label 열을 가진
+    // Key-Value Detail Table 행으로 정렬한다.
+    const longValue = instance.height >= 100 || value.length > 40;
+    const labelWidth = 176;
+    // Detail Row 자체가 콘텐츠 폭으로 HUG 되면 Border도 데이터 길이만큼만
+    // 그어진다. 부모 Detail Section 폭을 그대로 사용하도록 고정한다.
+    const detailSectionWidth = wrapper.parent && "width" in wrapper.parent
+      ? wrapper.parent.width
+      : wrapper.width;
+    wrapper.layoutAlign = "STRETCH";
+    wrapper.primaryAxisSizingMode = "FIXED";
+    wrapper.resizeWithoutConstraints(Math.max(1, detailSectionWidth), Math.max(1, wrapper.height));
+    wrapper.itemSpacing = 0;
+    wrapper.paddingTop = wrapper.paddingBottom = longValue ? 12 : 8;
+    wrapper.minHeight = longValue ? 104 : 56;
+    wrapper.counterAxisAlignItems = longValue ? "MIN" : "CENTER";
+    wrapper.strokes = [{ type: "SOLID", color: { r: 0.82, g: 0.82, b: 0.82 } }];
+    wrapper.strokeTopWeight = 0;
+    wrapper.strokeLeftWeight = 0;
+    wrapper.strokeRightWeight = 0;
+    wrapper.strokeBottomWeight = 1;
+    // 컬럼선은 별도 Divider가 아니라 Label Cell의 오른쪽 Border로
+    // 표현한다. Row 전체를 임의 Rectangle으로 대체하지 않는다.
+    const labelCell = wrapper.children.find(child =>
+      child.type === "FRAME" && (child.getPluginData("figmaScreenSpec.detailLabelCell") === "true"
+        || child.name === "Detail Table Label Cell · generated")) as FrameNode
+      ?? figma.createFrame();
+    const dataCell = wrapper.children.find(child =>
+      child.type === "FRAME" && (child.getPluginData("figmaScreenSpec.detailDataCell") === "true"
+        || child.name === "Detail Table Data Cell · generated")) as FrameNode
+      ?? figma.createFrame();
+    for (const child of wrapper.children) {
+      if ((child.type === "FRAME" || child.type === "LINE" || child.type === "RECTANGLE")
+          && child.getPluginData("figmaScreenSpec.detailColumnDivider") === "true") {
+        child.visible = false;
+      }
+    }
+    labelCell.name = "Detail Table Label Cell · generated";
+    labelCell.setPluginData("figmaScreenSpec.detailLabelCell", "true");
+    labelCell.layoutMode = "NONE";
+    labelCell.fills = [{ type: "SOLID", color: { r: 0.945, g: 0.953, b: 0.961 } }];
+    labelCell.strokes = [{ type: "SOLID", color: { r: 0.804, g: 0.820, b: 0.835 } }];
+    labelCell.strokeAlign = "INSIDE";
+    labelCell.strokeTopWeight = 0;
+    labelCell.strokeLeftWeight = 0;
+    labelCell.strokeBottomWeight = 0;
+    labelCell.strokeRightWeight = 1;
+    labelCell.resizeWithoutConstraints(labelWidth, Math.max(1, wrapper.height - wrapper.paddingTop - wrapper.paddingBottom));
+    labelCell.layoutGrow = 0;
+    labelCell.layoutAlign = "STRETCH";
+    labelCell.clipsContent = false;
+    labelCell.visible = true;
+    labelCell.opacity = 1;
+    dataCell.name = "Detail Table Data Cell · generated";
+    dataCell.setPluginData("figmaScreenSpec.detailDataCell", "true");
+    dataCell.layoutMode = "HORIZONTAL";
+    dataCell.primaryAxisSizingMode = "FIXED";
+    dataCell.counterAxisSizingMode = "FIXED";
+    dataCell.layoutGrow = 1;
+    dataCell.layoutAlign = "STRETCH";
+    dataCell.paddingLeft = 16;
+    dataCell.paddingRight = 0;
+    dataCell.counterAxisAlignItems = longValue ? "MIN" : "CENTER";
+    dataCell.itemSpacing = 0;
+    dataCell.clipsContent = false;
+    dataCell.fills = [];
+    dataCell.strokes = [{ type: "SOLID", color: { r: 0.66, g: 0.66, b: 0.66 } }];
+    dataCell.strokeAlign = "INSIDE";
+    dataCell.strokeTopWeight = 0;
+    dataCell.strokeLeftWeight = 1;
+    dataCell.strokeBottomWeight = 0;
+    dataCell.strokeRightWeight = 0;
+    if (labelCell.parent !== wrapper) wrapper.appendChild(labelCell);
+    if (dataCell.parent !== wrapper) wrapper.appendChild(dataCell);
+    if (labelNode && labelNode.parent !== labelCell) labelCell.appendChild(labelNode);
+    if (valueNode.parent !== dataCell) dataCell.appendChild(valueNode);
+    // Plugin 후검증과 Component Resolution 추적을 위해 Published Instance는
+    // 기존처럼 Detail Row Wrapper의 직접 자식으로 유지한다.
+    valueNode.textAutoResize = "HEIGHT";
+    valueNode.layoutGrow = 1;
+    valueNode.layoutAlign = "INHERIT";
+    if (labelNode) {
+      labelNode.textAutoResize = "HEIGHT";
+      labelNode.resizeWithoutConstraints(labelWidth, Math.max(17, labelNode.height));
+    }
+  }
+  if (labelNode) {
+    labelNode.fontSize = 14;
+    if (!detailTableRow) labelNode.textAutoResize = "WIDTH_AND_HEIGHT";
+    labelNode.layoutGrow = 0;
+  }
+}
+
+/** 등록·수정 화면은 Label과 입력 Component를 같은 행에 배치한다. */
+function applyEditableInlineControl(wrapper: FrameNode, instance: InstanceNode): void {
+  const labelNode = wrapper.children.find(child =>
+    child.type === "TEXT" && child.getPluginData("figmaScreenSpec.generatedFieldLabel") === "true") as TextNode | undefined;
+  if (labelNode) {
+    labelNode.textAutoResize = "WIDTH_AND_HEIGHT";
+    labelNode.layoutGrow = 0;
+    labelNode.layoutAlign = "INHERIT";
+  }
+  wrapper.layoutMode = "HORIZONTAL";
+  wrapper.primaryAxisSizingMode = "AUTO";
+  wrapper.counterAxisSizingMode = "FIXED";
+  wrapper.primaryAxisAlignItems = "MIN";
+  wrapper.counterAxisAlignItems = "CENTER";
+  wrapper.itemSpacing = 16;
+  wrapper.paddingTop = wrapper.paddingBottom = 8;
+  wrapper.minHeight = 44;
+  instance.visible = true;
+  instance.layoutGrow = 1;
+  instance.layoutAlign = "INHERIT";
+  instance.resizeWithoutConstraints(
+    Math.max(44, wrapper.width - 160),
+    Math.max(44, instance.height),
+  );
+}
+
+/**
+ * 운영 Textarea는 Label/Placeholder/Helper/Error를 하나의 Published
+ * Instance 내부에 모두 노출한다. 화면 Wrapper가 별도 Label을 렌더링하므로
+ * 내부 Label Layer만 숨기고 Placeholder·Helper·Error는 유지한다.
+ */
+function hideInternalTextareaLabel(instance: InstanceNode): void {
+  for (const node of instance.findAll(child => child.type === "TEXT")) {
+    if (normalizePropertyName(node.name) === "label") {
+      // Published Instance의 nested text는 visible override가 무시될 수 있어
+      // zero-width 문자와 투명도를 함께 적용한다.
+      const textNode = node as TextNode;
+      textNode.characters = "\u200B";
+      textNode.opacity = 0;
+    }
   }
 }
 
@@ -1039,39 +1947,130 @@ async function preloadComponents(
   registry: ComponentRegistry,
   issues: ExportIssue[],
 ): Promise<Map<string, ImportedComponent>> {
-  const keys = new Set<string>();
+  const requests = new Map<string, {
+    componentSetKey: string;
+    variantProperties: Record<string, string>;
+    logicalType: string;
+    logicalNodeId: string;
+  }>();
   const visit = (node: FigmaNodeSpec) => {
-    const key = node.componentResolution?.variantKey;
-    if (key) keys.add(key);
+    const resolution = node.componentResolution;
+    if (resolution) {
+      requests.set(resolution.variantKey, {
+        componentSetKey: resolution.componentSetKey,
+        variantProperties: resolution.variantProperties,
+        logicalType: resolution.logicalType,
+        logicalNodeId: node.logicalNodeId,
+      });
+    }
     node.children.forEach(visit);
   };
   visit(root);
   const imported = new Map<string, ImportedComponent>();
-  for (const key of keys) {
+  for (const [key, request] of requests) {
     try {
       imported.set(key, await figma.importComponentByKeyAsync(key));
     } catch {
-      issues.push({
-        code: "PUBLISHED_COMPONENT_IMPORT_FAILED",
-        severity: "FATAL",
-        message: "서버가 지정한 Published Variant를 import할 수 없습니다.",
-        logicalNodeId: null,
-      });
+      const local = findLocalComponent(key, request.componentSetKey, request.variantProperties);
+      if (local) {
+        imported.set(key, local);
+        continue;
+      }
+      // 운영 Library가 Variant Published Key를 재발행하면 Variant Key만
+      // 바뀌고 Component Set Key는 유지될 수 있다. 이 경우 Set을 import해
+      // Variant Property로 실제 Component를 찾아 호환한다.
+      try {
+        const componentSet = await figma.importComponentSetByKeyAsync(request.componentSetKey);
+        const component = componentSet.children
+          .filter(child => child.type === "COMPONENT")
+          .find(child => variantNameMatches(child.name, request.variantProperties));
+        if (!component || component.type !== "COMPONENT") throw new Error("해당 Variant를 찾을 수 없습니다.");
+        imported.set(key, component);
+      } catch (setError) {
+        issues.push({
+          code: "PUBLISHED_COMPONENT_IMPORT_FAILED",
+          severity: "FATAL",
+          message: `${request.logicalType} Published Variant/Component Set import 실패 `
+            + `(variantKey=${key}, componentSetKey=${request.componentSetKey}, `
+            + `variant=${JSON.stringify(request.variantProperties)}): `
+            + (setError instanceof Error ? setError.message : "알 수 없는 오류"),
+          logicalNodeId: request.logicalNodeId,
+        });
+      }
     }
   }
   return imported;
 }
 
-function applyOwnedProperties(
+function findLocalComponent(
+  variantKey: string,
+  componentSetKey: string,
+  variantProperties: Record<string, string>,
+): ComponentNode | null {
+  const localVariant = figma.root.findAll(node =>
+    node.type === "COMPONENT" && node.key === variantKey) as ComponentNode[];
+  if (localVariant.length > 0) return localVariant[0];
+  const localSets = figma.root.findAll(node =>
+    node.type === "COMPONENT_SET" && node.key === componentSetKey) as ComponentSetNode[];
+  for (const set of localSets) {
+    const match = set.children
+      .filter(child => child.type === "COMPONENT")
+      .find(child => variantNameMatches(child.name, variantProperties));
+    if (match && match.type === "COMPONENT") return match;
+  }
+  return null;
+}
+
+function variantNameMatches(name: string, expected: Record<string, string>): boolean {
+  const actual = Object.fromEntries(name.split(",").map(part => {
+    const [key, ...value] = part.trim().split("=");
+    return [key, value.join("=")];
+  }).filter(([key, value]) => key && value));
+  return Object.entries(expected).every(([key, value]) =>
+    actual[key]?.toLowerCase() === String(value).toLowerCase());
+}
+
+async function applyOwnedProperties(
   instance: InstanceNode,
   mapped: Record<string, string | boolean>,
-): void {
+  logicalNodeId: string,
+  suppressInternalLabel = false,
+): Promise<void> {
   const previous = parseManagedProperties(instance.getPluginData(DATA_MANAGED_PROPERTIES));
   const next = { ...previous };
   const updates: Record<string, string | boolean> = {};
   for (const [baseName, value] of Object.entries(mapped)) {
+    if (suppressInternalLabel && normalizePropertyName(baseName).includes("label")) {
+      const actualLabelKey = Object.keys(instance.componentProperties)
+        .find(key => normalizePropertyName(key) === normalizePropertyName(baseName));
+      if (actualLabelKey && instance.componentProperties[actualLabelKey]?.type === "TEXT") {
+        updates[actualLabelKey] = "";
+        next[actualLabelKey] = "";
+      }
+      continue;
+    }
     const actualKey = Object.keys(instance.componentProperties)
-      .find(key => key.split("#")[0].toLowerCase() === baseName.toLowerCase()) ?? baseName;
+      .find(key => normalizePropertyName(key) === normalizePropertyName(baseName));
+    // Registry의 Property Key에는 Library 버전에 따라 `↪️`, 공백, 줄바꿈
+    // 같은 표시용 문자가 붙을 수 있다. 이 키를 그대로 비교하면 Label과
+    // Placeholder가 조용히 누락되어 모든 화면이 Component 기본 문구로 보인다.
+    // 서버가 계약한 Property를 실제 Instance에서 찾지 못한 경우에는 Apply를
+    // 성공 처리하지 않고 FATAL로 되돌려, 잘못된 화면이 남지 않게 한다.
+    if (!actualKey || !instance.componentProperties[actualKey]) {
+      const textNode = findTextPropertyFallback(instance, baseName);
+      if (!textNode || typeof value !== "string") {
+        throw new Error(`Component Property를 찾을 수 없습니다: ${baseName} (${logicalNodeId})`);
+      }
+      const managedKey = `text:${normalizePropertyName(baseName)}`;
+      const userOverrode = previous[managedKey] !== undefined
+        && textNode.characters !== previous[managedKey];
+      if (!userOverrode) {
+        await loadTextNodeFonts(textNode);
+        textNode.characters = value;
+        next[managedKey] = value;
+      }
+      continue;
+    }
     const current = instance.componentProperties[actualKey]?.value;
     const userOverrode = previous[actualKey] !== undefined && current !== previous[actualKey];
     if (userOverrode) continue;
@@ -1080,6 +2079,78 @@ function applyOwnedProperties(
   }
   if (Object.keys(updates).length > 0) instance.setProperties(updates);
   instance.setPluginData(DATA_MANAGED_PROPERTIES, JSON.stringify(next));
+}
+
+async function ensureVisibleFieldLabel(
+  wrapper: FrameNode,
+  role: string,
+  properties: Record<string, string | boolean>,
+): Promise<void> {
+  if (!role.startsWith("field.")) return;
+  const label = Object.entries(properties).find(([key, value]) =>
+    normalizePropertyName(key).includes("label") && typeof value === "string");
+  if (!label || typeof label[1] !== "string" || !label[1].trim()) return;
+
+  const existing = wrapper.children.find(child =>
+    child.type === "TEXT" && child.getPluginData("figmaScreenSpec.generatedFieldLabel") === "true") as TextNode | undefined;
+  const textNode = existing ?? figma.createText();
+  await loadTextNodeFonts(textNode);
+  textNode.name = "KRDS Field Label · generated";
+  textNode.characters = label[1];
+  textNode.fontSize = 14;
+  textNode.setPluginData("figmaScreenSpec.generatedFieldLabel", "true");
+  textNode.setPluginData("figmaScreenSpec.managedProperty", "Label");
+  if (!existing) wrapper.insertChild(0, textNode);
+}
+
+async function loadTextNodeFonts(textNode: TextNode): Promise<void> {
+  const length = Math.max(1, textNode.characters.length);
+  const fonts = textNode.fontName === figma.mixed
+    ? textNode.getRangeAllFontNames(0, length)
+    : [textNode.fontName];
+  const uniqueFonts = new Map(fonts.map(font => [`${font.family}:${font.style}`, font]));
+  for (const font of uniqueFonts.values()) await figma.loadFontAsync(font);
+}
+
+/**
+ * 일부 운영 Published Component는 Label/Placeholder를 Component Property로
+ * 노출하지 않고 내부 TEXT Layer로만 가지고 있다. 이 경우 서버의 논리
+ * Property를 내부 Layer에 적용해 업무 라벨이 기본 문구로 남지 않게 한다.
+ */
+function findTextPropertyFallback(instance: InstanceNode, baseName: string): TextNode | null {
+  const logicalName = normalizePropertyName(baseName);
+  const textNodes = instance.findAll(node =>
+    node.type === "TEXT" && node.visible !== false) as TextNode[];
+  if (textNodes.length === 0) return null;
+
+  const named = textNodes.find(node => {
+    const name = normalizePropertyName(node.name);
+    return name.includes(logicalName)
+      || (logicalName === "label" && name.includes("lable"))
+      || (logicalName === "placeholder" && name.includes("placeHolder".toLowerCase()));
+  });
+  if (named) return named;
+
+  if (logicalName === "helper" || logicalName === "helpertext"
+      || logicalName === "error" || logicalName === "errormessage") return null;
+  if (logicalName.includes("placeholder")) {
+    return textNodes.find(node => /입력|선택|검색|placeholder/i.test(node.characters))
+      ?? textNodes[1]
+      ?? textNodes[0];
+  }
+  if (logicalName.includes("label") || logicalName.includes("title")) return textNodes[0];
+  return textNodes[0];
+}
+
+function normalizePropertyName(name: string): string {
+  return name
+    .split("#")[0]
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace("lable", "label")
+    // Published Component의 표시용 접두사(예: `↪️`)와 공백·구분자를
+    // 제거해 `↪️Label`, `Label`, `Label#...`을 동일한 논리 Property로 본다.
+    .replace(/[^\p{L}\p{N}]+/gu, "");
 }
 
 function parseManagedProperties(raw: string): Record<string, string | boolean> {

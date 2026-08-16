@@ -1,0 +1,14 @@
+{
+  "patchSetId": "qna-detail-refine-1",
+  "screenId": "qna-detail",
+  "generatedAt": "2026-08-16T09:30:00Z",
+  "applied": [
+    {
+      "logicalNodeId": "qna-detail/detail/contact",
+      "propertyPath": "fill"
+    }
+  ],
+  "excluded": [],
+  "blocked": [],
+  "conflicts": []
+}
