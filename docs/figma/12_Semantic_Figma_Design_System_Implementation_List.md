@@ -28,6 +28,8 @@
 7. 7가지 디자인 요청을 Spring MCP·Spring AI·Figma REST 조회·Plugin Preview/Apply 경계 안에서 제공한다.
 8. JSP·Controller·VO 분석부터 `DESIGN.md`·회사 Token 적용, 반응형 Thymeleaf 생성, 빌드·렌더 검증까지 하나의 추적 가능한 Generator로 연결한다.
 
+> 관련 후속 문서: [17_Semantic_Figma_Generation_Pipeline_Manual_Refinement_Implementation_List.md](./17_Semantic_Figma_Generation_Pipeline_Manual_Refinement_Implementation_List.md)가 이 문서(R1~R5)가 생성하는 `FigmaScreenSpec`을 baseline으로 재사용해, Figma에서 사람이 직접 조정한 속성을 승인 후 재적용하는 Manual Refinement 계층을 그 위에 추가한다.
+
 ---
 
 ## 2. 상태 및 우선순위 표기
