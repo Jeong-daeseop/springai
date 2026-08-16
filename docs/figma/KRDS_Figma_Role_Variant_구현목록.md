@@ -5,8 +5,8 @@
 - 대상 시스템: `springai`
 - 기준 명세: [`KRDS_Figma_Role_Variant_구현명세서.md`](./KRDS_Figma_Role_Variant_구현명세서.md)
 - 작성일: 2026-08-11
-- 문서 버전: 1.2.0 (2026-08-13 갱신: KRV-004/012/013/016/021/027/035/049/072/074/075 구현 완료 반영)
-- 상태: 실제 Library Inventory·Q&A 6화면 Preview 자동 검증 완료, 사람 승인 후속
+- 문서 버전: 1.3.0 (2026-08-16 갱신: Q&A 7화면 Desktop E2E·사람 승인·Rollback 리허설 완료 반영)
+- 상태: 실제 Library Inventory·Q&A 7화면 Desktop MERGE 및 운영 전환 Gate 완료
 
 ## 1. 추진 기준
 
@@ -33,24 +33,22 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 
 | 단계 | 목표 | 종료 조건 |
 |---|---|---|
-| M0 | 현행 기준선 고정 | Q&A 6개 입력·현재 결과·실패 유형 저장 |
+| M0 | 현행 기준선 고정 | Q&A 7개 입력·현재 결과·실패 유형 저장 |
 | M1 | 의미 계약 v2 | Role·Pattern·Context Schema와 Java 모델 통과 |
 | M2 | Component Contract v2 | KRDS Inventory와 Registry v2 승인 |
 | M3 | 결정형 Resolver | Role·Variant 0/1/N 검증 통과 |
 | M4 | Export 통합 | v2 Screen Spec·Bundle 생성, 폴백 0 |
 | M5 | Plugin 엄격 적용 | 첫 Variant·Placeholder·로컬 이름 폴백 제거 |
-| M6 | 5단계 Gate | Q&A 6개 구조·Layout·Visual 검증 통과 |
+| M6 | 5단계 Gate | Q&A 7개 구조·Layout·Visual 검증 통과 |
 | M7 | 운영 전환 | Preview 승인·Rollback·지표·Runbook 완료 |
 
-### 2.1 2026-08-13 구현 현황
+### 2.1 2026-08-16 구현 현황
 
-아래 표가 현재 구현 상태의 기준입니다. 이후 절의 체크박스는 이 표와 동기화되어 있습니다 (동기화 기준일: 2026-08-13).
+아래 표가 현재 구현 상태의 기준입니다. 이후 절의 체크박스는 이 표와 동기화되어 있습니다 (동기화 기준일: 2026-08-16).
 
 | 상태 | 작업 ID | 비고 |
 |---|---|---|
-| 완료 | KRV-001~004, 010~017, 020~028, 030~035, 040~063, 067~068, 072, 074~076 | Published Library Inventory, Q&A 업무 ScreenSpecification→Builder→Resolver→Snapshot Bundle→Plugin 전체 경로, 구조화 Action·결정 엔진·엄격 Plugin, Drift 보고서·Shadow Mode·Breaking Change 분석·운영 지표·Runbook 및 자동 테스트 구현 |
-| 부분 | KRV-064~066, 071 | 실제 Figma 품질 Gate 및 승인 Workflow가 추가로 필요 |
-| 사람 승인/리허설 필요 | KRV-070, 073 | Design System Owner 승인과 이전 Snapshot Rollback 재생성 필요 |
+| 완료 | KRV-001~004, 010~017, 020~028, 030~035, 040~068, 070~076 | Published Library Inventory, Q&A 7화면 ScreenSpecification→Builder→Resolver→Snapshot Bundle→Plugin 전체 경로, 실제 Desktop 품질 Gate, 승인 이력, 이전 Snapshot Rollback Preview 및 운영 복구 완료 |
 
 구현된 핵심 산출물은 다음과 같습니다.
 
@@ -58,10 +56,10 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - `ComponentRoleResolver`, `VariantRuleResolver`, `KrdsComponentResolutionService`
 - `ComponentContractValidator`, `FigmaPropertyDriftValidator`, `ScreenPatternValidator`, `ScreenSuiteManifestValidator`
 - Component Registry·Figma Screen Spec·Export Bundle v2 Schema
-- Q&A 6화면 Suite Manifest와 KRDS 초기 Variant Rule Set
+- Q&A 7화면 Suite Manifest와 KRDS 초기 Variant Rule Set (`qna-update` 포함)
 - Published Variant Key 직접 import 및 첫 Variant·첫 Component·로컬 이름·Placeholder 폴백 차단
-- 실제 KRDS Inventory와 Q&A 6개 **FigmaScreenSpec** v2: `website-figma-contract/fixtures/qna/`
-- Figma 검증 보고서와 운영 승인 체크리스트: `docs/figma/KRDS_QNA_6화면_*`
+- 실제 KRDS Inventory와 Q&A 7개 **FigmaScreenSpec** v2: `website-figma-contract/fixtures/qna/`
+- Figma Desktop E2E·Generation Report·Rollback 증적: `docs/figma/KRDS_QNA_7화면_운영검증보고서_2026-08-16.md`
 - Runtime 교차 검증: `./gradlew figmaRuntimeBundlePluginTest`
 - `ComponentRegistryDriftReporter`(KRV-004), `ScreenSemanticNormalizer`+`ScreenSpecificationMigrationPreviewService`(KRV-012/013/016),
   `ComponentRegistryValidator.validateNewEntryLifecycle`(KRV-021), `ComponentResolutionShadowComparator`(KRV-049),
@@ -70,13 +68,13 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 
 ## 3. M0 — 기준선 및 Inventory
 
-- [x] **KRV-001 · P0** Q&A 6개 원본 화면 식별자와 기대 화면 수를 Fixture Manifest로 고정
-  - 대상: `website-figma-contract/fixtures/qna/qna-screen-suite-v1.json`
-  - 작업: 목록·등록·상세·답변 목록·답변 상세·답변 등록의 ID, Pattern, Viewport, 필수 업무 요소 기록
-  - 수용 기준: 화면 수가 6개가 아니면 계약 테스트 실패
+- [x] **KRV-001 · P0** Q&A 7개 원본 화면 식별자와 기대 화면 수를 Fixture Manifest로 고정
+  - 대상: `website-figma-contract/fixtures/qna/qna-screen-specification-v3.json`
+  - 작업: 목록·등록·수정·상세·답변 목록·답변 상세·답변 등록의 ID, Pattern, Viewport, 필수 업무 요소 기록
+  - 수용 기준: 화면 수가 7개가 아니면 계약 테스트 실패
 
 - [x] **KRV-002 · P0** 현행 생성 결과 Snapshot 저장
-  - 작업: 기존 3개 KRDS 프레임과 원본 6개 화면의 구조·스크린샷·Generation Report 저장
+  - 작업: 기존 3개 KRDS 프레임과 원본 7개 화면의 구조·스크린샷·Generation Report 저장
   - 수용 기준: 누락 화면, 일반 Text/Frame, 폴백, 잘못된 Variant가 증거와 함께 식별됨
 
 - [x] **KRV-003 · P0** KRDS Component Set Inventory 추출
@@ -121,7 +119,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 
 - [x] **KRV-017 · P0** `ScreenSuiteManifestValidator` 구현
   - 테스트: 기대 화면 누락, 중복 Screen ID, 잘못된 Pattern, 추가 화면 정책
-  - 수용 기준: Q&A 5개 또는 3개 화면 입력은 실패하고 지정된 6개 화면만 통과
+  - 수용 기준: 화면 누락·중복·추가 입력은 실패하고 지정된 7개 화면만 통과
   - 구현: 누락·중복뿐 아니라 추가 Screen ID와 전체 화면 수 불일치도 차단
 
 ## 5. M2 — Component Contract 및 Rule Set
@@ -138,7 +136,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
   - 수용 기준: Role·Axis·Property·Platform 누락 Fixture가 실패
 
 - [x] **KRV-023 · P0** KRDS Registry v2 후보 작성
-  - 대상: Q&A 6개 화면에 필요한 Logical Type 전부
+  - 대상: Q&A 7개 화면에 필요한 Logical Type 전부
   - 수용 기준: Field·Button·Table Cell에 실제 Published Key와 Property 계약 존재
 
 - [x] **KRV-024 · P0** Variant Rule Set 모델과 Schema 구현
@@ -149,7 +147,7 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 - [x] **KRV-025 · P0** KRDS 초기 결정표 작성
   - 추가: `variant-rule-set-krds-v1.json`
   - 필수 Context: Pattern, Role, Platform, Mode, State, Density, Required, Field Count
-  - 수용 기준: Q&A 6개 모든 Component Context에 정확히 한 Rule이 일치
+  - 수용 기준: Q&A 7개 모든 Component Context에 정확히 한 Rule이 일치
 
 - [x] **KRV-026 · P0** `ComponentContractValidator` 구현
   - 수용 기준: 필수 Property, Axis, Value, Platform, Lifecycle 오류를 모두 차단
@@ -264,14 +262,14 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 
 ## 9. M6 — 품질 Gate 및 회귀 테스트
 
-- [x] **KRV-060 · P0** Q&A 6개 ScreenSpecification v2 Fixture 작성
+- [x] **KRV-060 · P0** Q&A 7개 ScreenSpecification v3 Fixture 작성
   - 수용 기준: 업무 필드·액션·Pattern이 기준 문서와 일치
-  - 구현: `qna-screen-specification-v2.json` 한 건에 6개 업무 Page의 Field·Action·Pattern 입력을 구조화
+  - 구현: `qna-screen-specification-v3.json` 한 건에 7개 업무 Page의 Field·Action·Pattern 입력을 구조화
   - Runtime: Bootstrap이 업무 명세를 `AI_SCREEN_SPECIFICATION`에 저장한 뒤 공통 Builder→Resolver→FigmaScreenSpec→Snapshot Bundle로 생성
   - 회귀: 기존 완성형 Figma JSON 비교 없이 동일 업무 입력의 Context Hash·Rule ID·Variant Key 결정성과 Plugin Preview를 검증
 
 - [x] **KRV-061 · P0** Java Resolver 회귀 Suite 추가
-  - 수용 기준: 6개 화면의 모든 Role·Variant가 유일하게 해결됨
+  - 수용 기준: 7개 화면의 모든 Role·Variant가 유일하게 해결됨
 
 - [x] **KRV-062 · P0** Contract Test에 v2 Schema와 오류 Fixture 연결
   - 수정: `website-figma-contract/test/contract-test.mjs`
@@ -291,12 +289,12 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
   - 구현: 실제 Instance의 44px Target Size와 Component Set State를 검사하고, Registry 승인 시 최신 Figma Inventory의 Focus·Error·Disabled·Read-only Variant 누락을 차단
 
 - [x] **KRV-066 · P1** Visual Regression Fixture 구축
-  - 대상: Desktop 동일 Viewport의 Q&A 6개
+  - 대상: Desktop 동일 Viewport의 Q&A 7개
   - 수용 기준: 기준선·임계값·Diff Artifact가 화면별로 저장됨
   - 구현: 최초 신규 Frame의 PNG Hash와 Section별 PNG Hash를 기준선으로 저장하고 이후 staging 렌더를 0% 임계값으로 비교한다. 기존 Frame에 기준선이 없으면 자동 승인하지 않고 Apply를 롤백한다. 서버 보고서에는 baseline/evidence Hash, Section Diff Artifact, changedSections, diffRatio가 화면별 저장된다.
 
-- [x] **KRV-067 · P0** 6개 화면 수 검증을 Release Gate로 연결
-  - 수용 기준: 생성 Frame이 6개 미만이거나 중복이면 CI 실패
+- [x] **KRV-067 · P0** 7개 화면 수 검증을 Release Gate로 연결
+  - 수용 기준: 생성 Frame이 7개가 아니거나 중복이면 CI 실패
   - 구현: Gradle `check`에 Contract, Q&A Runtime Resolver, Runtime Bundle Plugin 테스트를 필수 연결
 
 - [x] **KRV-068 · P1** 전체 검증 실행
@@ -305,10 +303,10 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
 
 ## 10. M7 — 승인·운영 전환
 
-- [~] **KRV-070 · P0** Registry v2 Preview와 사람 승인 기록
+- [x] **KRV-070 · P0** Registry v2 Preview와 사람 승인 기록
   - 수용 기준: Design System Owner 승인 이벤트와 Version 연결
   - 구현: Inventory 기반 Registry Preview 통과 후에만 `actor`가 있는 APPROVAL·REGISTRY_SYNC 이벤트를 Registry Version과 원자 저장
-  - 구현 완료, 운영 승인 보류: 현재 KRDS Published 입력·버튼의 Focus State 누락으로 승인 차단됨(정상 동작)
+  - 운영 증적: Registry `krds/2.2.2`에 `design-system-owner`의 `APPROVED`, `MIGRATION_APPROVED`, `REGISTRY_SYNC/APPLIED` 이력 저장
 
 - [x] **KRV-071 · P0** Pattern·Rule Set 승인 Workflow 구현
   - 수용 기준: 미승인 Rule Set은 Export에 사용할 수 없음
@@ -318,10 +316,10 @@ Resolver와 Plugin을 동시에 전환하지 않습니다. 계약 v2와 회귀 F
   - 검사: Role 제거, Axis 제거, Property 이름 변경, Rule 결과 변경
   - 수용 기준: 영향받는 최신 Screen Spec 목록 제공
 
-- [~] **KRV-073 · P0** Rollback 리허설
+- [x] **KRV-073 · P0** Rollback 리허설
   - 수용 기준: 이전 Registry·Rule Set·Pattern Snapshot으로 Preview 재생성 성공
-  - 구현: 운영 Latest나 Published 상태를 변경하지 않고 요청한 Profile·Registry·Rule Set·Pattern 정확한 버전으로 6개 Bundle을 메모리 재생성하고 Context Hash 반환
-  - 통합 리허설 통과, 운영 리허설 보류: DB에 Profile 2.0.0·Registry 2.1.0·Rule Set 2.0.0-candidate·Pattern 1.0.0만 있어 이전 Snapshot이 없음
+  - 구현: 요청한 Profile·Registry·Rule Set·Pattern 정확한 버전으로 7개 Bundle을 메모리 재생성하고 Context Hash 반환
+  - 운영 리허설: Profile `2.0.0`을 Registry `2.2.1`로 일시 전환하고 Rule Set `2.2.1-candidate`·Pattern `1.0.0`으로 7개 Bundle/Hash 재생성 성공 후 Registry `2.2.2`로 복구
 
 - [x] **KRV-074 · P1** 운영 지표와 로그 추가
   - 수용 기준: Role/Variant/Drift/Visual 실패 건수와 처리 시간 조회 가능
@@ -418,21 +416,21 @@ KRV-070~076
 
 ## 13. 릴리스 차단 체크리스트
 
-- [x] Q&A 화면 수가 정확히 6개임(Manifest와 ID 집합·개수 자동 검증)
-- [ ] 모든 화면이 승인된 Screen Pattern을 사용함
-- [ ] Role 미해결 0건
-- [ ] Variant 미해결·복수 해석 0건
-- [ ] Property Drift 0건
-- [ ] 일반 Text·Frame 기반 Field·Cell·Button 0건
-- [ ] 첫 Variant 또는 첫 Component 선택 코드 0건
-- [ ] 정상 Apply의 Placeholder·로컬 이름 폴백 0건
-- [ ] Generation Report `fallbackCount=0`
-- [ ] DETAIL 포함 Plugin 테스트 통과
-- [ ] Layout·Accessibility 오류 0건
-- [ ] Visual Diff 승인 완료
-- [ ] Preview와 사람 승인 이력 존재
-- [ ] Rollback 리허설 완료
+- [x] Q&A 화면 수가 정확히 7개임(Manifest와 ID 집합·개수 자동 검증)
+- [x] 모든 화면이 승인된 Screen Pattern을 사용함
+- [x] Role 미해결 0건
+- [x] Variant 미해결·복수 해석 0건
+- [x] Property Drift 0건
+- [x] 일반 Text·Frame 기반 Field·Cell·Button 0건
+- [x] 첫 Variant 또는 첫 Component 선택 코드 0건
+- [x] 정상 Apply의 Placeholder·로컬 이름 폴백 0건
+- [x] Generation Report `fallbackCount=0`
+- [x] DETAIL 포함 Plugin 테스트 통과
+- [x] Layout·Accessibility 오류 0건
+- [x] Visual Diff 승인 완료
+- [x] Preview와 사람 승인 이력 존재
+- [x] Rollback 리허설 완료
 
 ## 14. 완료 정의
 
-본 구현은 단순히 6개 Frame을 생성했을 때 완료된 것으로 보지 않습니다. 동일 ScreenSpecification·Registry·Pattern·Rule Set Version으로 반복 생성했을 때 동일한 Published Component와 Variant가 선택되고, Q&A 6개 화면의 업무 요소·레이아웃·시각 기준이 모두 검증되어야 완료됩니다.
+본 구현은 단순히 7개 Frame을 생성했을 때 완료된 것으로 보지 않습니다. 동일 ScreenSpecification·Registry·Pattern·Rule Set Version으로 반복 생성했을 때 동일한 Published Component와 Variant가 선택되고, Q&A 7개 화면의 업무 요소·레이아웃·시각 기준이 모두 검증되어야 완료됩니다.

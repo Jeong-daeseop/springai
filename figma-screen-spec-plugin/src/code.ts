@@ -603,8 +603,21 @@ function hasScreenAncestor(node: BaseNode, screenId: string): boolean {
 }
 
 function logicalChildren(parent: FrameNode): FrameNode[] {
-  return parent.children.filter(node =>
-    node.type === "FRAME" && node.getPluginData(DATA_LOGICAL_ID)) as FrameNode[];
+  // 시각적 배치를 위한 비논리 Group Frame(예: 이메일+답변여부 한 행)은
+  // Screen Spec의 부모·자식 관계를 바꾸지 않는다. 따라서 직계 Frame만 보면
+  // 정상 MERGE도 CHILD_ORDER_MISMATCH로 오판한다. 비논리 Frame은 투명한
+  // 컨테이너로 취급하고 그 안의 첫 논리 자식들을 원래 캔버스 순서대로 펼친다.
+  const result: FrameNode[] = [];
+  const collect = (node: SceneNode): void => {
+    if (node.type !== "FRAME") return;
+    if (node.getPluginData(DATA_LOGICAL_ID)) {
+      result.push(node);
+      return;
+    }
+    for (const child of node.children) collect(child);
+  };
+  for (const child of parent.children) collect(child);
+  return result;
 }
 
 function findExistingNodes(screenId: string): ExistingLogicalNode[] {
@@ -1314,10 +1327,17 @@ function applyEmailReplyInlinePair(wrapper: FrameNode, children: FigmaNodeSpec[]
 
   row.appendChild(emailNode);
   row.appendChild(replyNode);
-  emailNode.layoutGrow = 1;
+  // 재사용 Wrapper는 Row로 이동하기 전에 Section 전체 폭(STRETCH)을 가지고
+  // 있을 수 있다. layoutGrow만 바꾸면 기존 고정 폭이 한 프레임 유지되어 Root
+  // 경계를 넘으므로 Row의 실제 가용 폭으로 두 자식을 즉시 재계산한다.
+  const replyWidth = Math.min(240, Math.max(180, row.width * 0.3));
+  const emailWidth = Math.max(320, row.width - row.itemSpacing - replyWidth);
+  emailNode.layoutGrow = 0;
   emailNode.minWidth = 320;
+  emailNode.resizeWithoutConstraints(emailWidth, Math.max(44, emailNode.height));
   replyNode.layoutGrow = 0;
   replyNode.minWidth = 180;
+  replyNode.resizeWithoutConstraints(replyWidth, Math.max(44, replyNode.height));
 }
 
 /**
@@ -1693,7 +1713,11 @@ async function ensurePublishedInstance(
       spec.type === "krds.textarea",
     );
     if (spec.type === "krds.textarea") hideInternalTextareaLabel(instance);
-    if (resolution.role === "page.header") enforcePageHeaderTextContrast(instance);
+    // Published Library 내부의 보조 텍스트 색상이 실제 배경에서 WCAG AA를
+    // 만족하지 못하는 경우가 있다. 특정 role만 예외 처리하면 SearchPanel,
+    // Pagination 등 다른 Published Component가 실제 Desktop Gate에서 실패하므로
+    // materialize된 모든 Instance에 같은 기준을 적용한다.
+    enforcePublishedTextContrast(instance);
     await ensureVisibleFieldLabel(wrapper, resolution.role, properties);
     const wrapperParent = wrapper.parent;
     const parentLogicalType = wrapperParent && wrapperParent.type === "FRAME"
@@ -1740,8 +1764,8 @@ async function ensurePublishedInstance(
   }
 }
 
-/** Published Page Header의 보조 텍스트도 흰 배경에서 WCAG AA를 만족하도록 override한다. */
-function enforcePageHeaderTextContrast(instance: InstanceNode): void {
+/** Published Instance의 표시 텍스트가 실제 배경에서 WCAG AA를 만족하도록 override한다. */
+function enforcePublishedTextContrast(instance: InstanceNode): void {
   for (const textNode of instance.findAll(node => node.type === "TEXT") as TextNode[]) {
     if (!isEffectivelyVisible(textNode, instance) || textNode.characters.trim().length === 0) continue;
     const fill = Array.isArray(textNode.fills)
