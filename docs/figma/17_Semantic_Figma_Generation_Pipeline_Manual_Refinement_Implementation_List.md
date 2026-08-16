@@ -2,7 +2,7 @@
 
 > 문서 버전: 1.0  
 > 작성일: 2026-08-16  
-> 상태: MVP 구현 완료 (MR-T14 Figma Desktop 수동 E2E 제외, `./gradlew build` 통과)  
+> 상태: MVP 구현 완료 (`./gradlew build` 통과, MR-T14 Figma Desktop E2E는 2026-08-17 서버 기록으로 확인)  
 > 공식 영문명: **Semantic Figma Generation Pipeline**  
 > 공식 한국어명: **Semantic Figma 화면 생성 파이프라인**
 
@@ -194,8 +194,14 @@ Manual Refinement는 `MERGE`·`REPLACE`를 대체하는 동기화 모드가 아�
   - 질문 내용 데이터 필드 정렬
   - 상단 강조선만 적용
   - 데이터 셀 최소 폭과 가시성 유지
-- [ ] **MR-T14 · P1** Figma Desktop 수동 E2E 검증
+- [x] **MR-T14 · P1** Figma Desktop 수동 E2E 검증
   - Capture → 승인 → 새 Screen Version MERGE → Patch 재적용 → Gate → Report
+  - 증거(2026-08-17 확인): `qna-detail` 화면에 `codex-e2e` 승인의 `patchSetId:
+    qna-detail-refine-msvjatu3`(`writer` 필드 `textAlign: LEFT→CENTER`)가 존재하며,
+    `reportId: figma-qna-detail-v15-1786869662711`가 `mode: MERGE`, `screenVersion: 15`,
+    `refinement.appliedCount: 1`(excluded/conflict/blocked 모두 0), LAYOUT·ACCESSIBILITY·
+    VISUAL_REGRESSION Gate 전부 `PASSED`(`diffRatio: 0.0`, 실제 evidence hash 존재)로
+    `success: true`를 기록. `GET /api/figma/refinements/screens/qna-detail/summary`로 재확인 가능
 
 ## 12. 예상 변경 파일
 
@@ -270,7 +276,7 @@ MVP에는 다음만 포함한다.
 - [x] Patch 원문, 승인 이력, 적용 보고서가 screen/version/patchSetId로 추적된다.
 - [x] Plugin 단기 Token으로 승인할 수 없고 운영자만 승인·반려할 수 있다.
 - [x] 계약 테스트, Spring 전체 테스트, Plugin test/typecheck/lint/build가 통과한다.
-- [ ] qna-detail 대표 시나리오가 Figma Desktop에서 재생성 후에도 동일하게 유지된다. (Figma Desktop 수동 검증 필요 — 자동화 범위 밖)
+- [x] qna-detail 대표 시나리오가 Figma Desktop에서 재생성 후에도 동일하게 유지된다. (MR-T14 증거 참고 — `qna-detail-refine-msvjatu3` MERGE 재적용 성공, Gate 전부 PASSED)
 
 ## 16. 변경 이력
 
