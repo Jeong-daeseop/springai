@@ -60,6 +60,24 @@ public class ScreenSpecRepository {
                 specification.database(), specification.primaryTable(), toJson(specification));
     }
 
+    /** 승인된 계약을 기존 버전과 충돌 없이 신규 Snapshot으로 저장한다. */
+    public void saveImmutable(ScreenSpecification specification) {
+        Optional<ScreenSpecification> existing = findVersion(specification.id(), specification.version());
+        if (existing.isPresent() && !existing.get().equals(specification)) {
+            throw new IllegalStateException("SCREEN_SPEC_VERSION_CONFLICT: "
+                    + specification.id() + "/" + specification.version());
+        }
+        if (existing.isEmpty()) {
+            jdbcTemplate.update("""
+                INSERT INTO AI_SCREEN_SPECIFICATION
+                    (SPEC_ID, SPEC_VERSION, SPEC_STATUS, DATABASE_NAME, PRIMARY_TABLE, SPEC_JSON)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                    specification.id(), specification.version(), specification.status().name(),
+                    specification.database(), specification.primaryTable(), toJson(specification));
+        }
+    }
+
     public Optional<ScreenSpecification> findLatest(String id) {
         List<String> json = jdbcTemplate.queryForList("""
             SELECT SPEC_JSON FROM AI_SCREEN_SPECIFICATION

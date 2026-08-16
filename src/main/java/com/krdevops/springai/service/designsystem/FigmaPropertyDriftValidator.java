@@ -59,12 +59,17 @@ public class FigmaPropertyDriftValidator {
                 }
             });
         }
-        actual.properties().forEach((actualName, ignored) -> {
+        actual.properties().forEach((actualName, actualProperty) -> {
             boolean declared = contract.properties().values().stream()
                     .anyMatch(mapping -> actualName.equals(mapping.figmaProperty()))
                     || contract.variantAxes().values().stream()
                     .anyMatch(axis -> actualName.equals(axis.figmaProperty()));
-            if (!declared) {
+            // Figma에서 재구성·Publish 과정에 남은 값 없는 고아 Variant Property는
+            // 런타임 해석에 사용되지 않으므로 계약 Drift 대상에서 제외한다.
+            boolean emptyOrphanVariant = !declared
+                    && "VARIANT".equalsIgnoreCase(actualProperty.type())
+                    && actualProperty.values().isEmpty();
+            if (!declared && !emptyOrphanVariant) {
                 issues.add(issue("COMPONENT_UNDECLARED_PROPERTY_DRIFT",
                         "Contract에 없는 실제 Figma Property가 있습니다: " + actualName, logicalType));
             }

@@ -1,0 +1,1094 @@
+{
+  "profileId": "krds",
+  "registryVersion": "2.2.0",
+  "inventoryVersion": "figma-20260813235602",
+  "capturedAt": "2026-08-13T23:56:02.504Z",
+  "components": {
+    "krds.textField": {
+      "componentSetKey": "f55c5801028025f13b9931f33b111fb21ec2fb39",
+      "properties": {
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "default",
+            "focus",
+            "disabled",
+            "error",
+            "readonly"
+          ]
+        },
+        "Size": {
+          "type": "VARIANT",
+          "values": [
+            "medium"
+          ]
+        },
+        "↪️Label#286:10": {
+          "type": "TEXT",
+          "values": []
+        },
+        "Placeholder#286:9": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "State=Default, Size=medium": "a5ca68facd04b78a246233b668590f81de5f0a31",
+        "State=Focus, Size=medium": "ecd7dc785ea85b4f2ca137049709bfbf177da119",
+        "State=Disabled, Size=medium": "9ddd7605912a3c712fd37772d5d3467df668e39f",
+        "State=error, Size=medium": "ce098c028d39e4917582365a9a57f2cbb0084dd5",
+        "State=readonly, Size=medium": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d"
+      }
+    },
+    "krds.select": {
+      "componentSetKey": "57fa7703261fe74ae982edba68e50e4a7a741485",
+      "properties": {
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "default",
+            "focus",
+            "disabled",
+            "error",
+            "readonly"
+          ]
+        },
+        "Size": {
+          "type": "VARIANT",
+          "values": [
+            "medium"
+          ]
+        },
+        "↪️Label#286:10": {
+          "type": "TEXT",
+          "values": []
+        },
+        "Placeholder#286:9": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "State=Default, Size=medium": "583541ea4a6c130fe6c446d1159a9938b25b248b",
+        "State=Focus, Size=medium": "c5cb29f53218274f1b0cd6ea5c356ebab947a68f",
+        "State=Disabled, Size=medium": "6a6afe758a60d2ef0a80021bc417eac65a68e38e",
+        "State=error, Size=medium": "f9b76eb04bc6acdc6fb2125340df962a777c7e7c",
+        "State=readonly, Size=medium": "47e3ce23770c09a153ecc88478e7ba8f7fa01822"
+      }
+    },
+    "krds.checkbox": {
+      "componentSetKey": "cca787def753547af2a843aa8c421744d279a9bb",
+      "properties": {
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "unchecked",
+            "checked",
+            "focus",
+            "disabled",
+            "error",
+            "readonly"
+          ]
+        },
+        "Size": {
+          "type": "VARIANT",
+          "values": [
+            "medium"
+          ]
+        },
+        "Check": {
+          "type": "VARIANT",
+          "values": [
+            "on",
+            "off"
+          ]
+        },
+        "label#309:0": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "State=unchecked, Size=medium, Check=on": "1ccf1783d5b859e256a0a558f9a2b885fb3d55ff",
+        "State=checked, Size=medium, Check=on": "c6255ac96fcc051633ed75407e9131c36ef240a2",
+        "State=focus, Size=medium, Check=off": "422f32948af0b831f60a0c0cc8de767922b4a9ef",
+        "State=disabled, Size=medium, Check=off": "2e4decb8211d9f11192c04311311119ec4d60250",
+        "State=error, Size=medium, Check=off": "6e1b38512c95236ba9a3046e0067ec036b03dc5a",
+        "State=readonly, Size=medium, Check=off": "868fa8039bcabb10e84feba061a878de2e086a45",
+        "State=focus, Size=medium, Check=on": "899c97f1f3526717bc61424e45fd54d492e19a73",
+        "State=disabled, Size=medium, Check=on": "452dd7a8f1699a81a28d56bd086936880fa6b232",
+        "State=error, Size=medium, Check=on": "712cb619fec8bfbd7e49a749122e26f241c71010",
+        "State=readonly, Size=medium, Check=on": "c8ce83bd088b4c005c0baeda7fe9070709a68993"
+      }
+    },
+    "krds.button": {
+      "componentSetKey": "401090e03acd1062033e52471c65fd5f8666c23a",
+      "properties": {
+        "Size": {
+          "type": "VARIANT",
+          "values": [
+            "medium",
+            "small"
+          ]
+        },
+        "Style": {
+          "type": "VARIANT",
+          "values": [
+            "primary",
+            "secondary",
+            "ghost"
+          ]
+        },
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "default",
+            "disabled",
+            "focus"
+          ]
+        },
+        "Label#300:3": {
+          "type": "TEXT",
+          "values": []
+        },
+        "Type": {
+          "type": "VARIANT",
+          "values": []
+        }
+      },
+      "variants": {
+        "Size=Medium, Style=Primary, State=Default": "6237cff0545cc51ddcd657a49b5fb6186d1c4090",
+        "Size=Small, Style=Primary, State=Default": "18446f3e6f98654a8bf9351769b12516812deaab",
+        "Size=Small, Style=Primary, State=Disabled": "e3b2cce82fb08a03283dce5ddc038b8e65c10f8f",
+        "Size=Small, Style=Secondary, State=Default": "3ad3c5e77242003a3b205f2a2cac62390bd10292",
+        "Size=Small, Style=Secondary, State=Disabled": "9c9564d1f02f682008ae494dae82fd6ead3e363f",
+        "Size=Small, Style=Ghost, State=Default": "d13c1967ccf4339985295b89d4c15e94976db48c",
+        "Size=Small, Style=Ghost, State=Disabled": "d3a23debaa3140f6979a09abb2ceaca9254dc62f",
+        "Size=Medium, Style=Primary, State=Disabled": "36453ac6fe356359773adbe129348b7505e5ad16",
+        "Size=Medium, Style=Secondary, State=Default": "a554af98520754543085d516077b9541ea754552",
+        "Size=Medium, Style=Secondary, State=Disabled": "abf99fc6732e94e326f24d1f87446084a2d05a8b",
+        "Size=Medium, Style=Ghost, State=Default": "2a396776a3d7e2f2e10ae8a0e833482687517642",
+        "Size=Medium, Style=Ghost, State=Disabled": "f17e92e464745fb06d4505aad3f10b0615964e0a",
+        "Size=Medium, Style=Primary, State=focus": "7c8d843d216be3d7987987b35b49da9492614f35",
+        "Size=Small, Style=Primary, State=focus": "fc271a7c112b7ba81e0a5e0589b83fea6634a853",
+        "Size=Small, Style=Secondary, State=focus": "cabba30ef80fa0759be663205d1b2e164d6379e6",
+        "Size=Small, Style=Ghost, State=focus": "5e1d320748ab024a49a724a48eac307cc93e9982",
+        "Size=Medium, Style=Secondary, State=focus": "325e159b3c2a9adcf22e38f4399456716c9d91ed",
+        "Size=Medium, Style=Ghost, State=focus": "38bbbff5891bf0c32dd981745b67efc374d56f84"
+      }
+    },
+    "krds.pagination": {
+      "componentSetKey": "0bd34989017991e94c73147e823ef53a6aaac39f",
+      "properties": {},
+      "variants": {
+        "Default": "0bd34989017991e94c73147e823ef53a6aaac39f"
+      }
+    },
+    "krds.textarea": {
+      "componentSetKey": "2b440cecd92043fc8347bbab1fc9ab6a90729435",
+      "properties": {
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "default",
+            "focus",
+            "disabled",
+            "error",
+            "readonly"
+          ]
+        },
+        "Label#286:10": {
+          "type": "TEXT",
+          "values": []
+        },
+        "Placeholder#286:9": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "State=Default": "49fac55bd12165e2cc423ea88c3e1e23ad6ef741",
+        "State=Focus": "21aa1191d34948d49a0f3b2f27ad1c21c8b8cde4",
+        "State=Disabled": "37957abb145090da7bbce87c71365b6bf59832df",
+        "State=error": "1087e5e57cf04dba984be5a3374e1a11be833422",
+        "State=readonly": "a39c10cfc5b3e962e251a8b591f38f88223f8cbe"
+      }
+    },
+    "krds.pageHeader": {
+      "componentSetKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980",
+      "properties": {
+        "Title#259:4": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "Default": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980"
+      }
+    },
+    "krds.tableHeader": {
+      "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+      "properties": {
+        "Type": {
+          "type": "VARIANT",
+          "values": [
+            "title"
+          ]
+        },
+        "Title#288:19": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "Type=title": "967bbe40067ab6cc457fd7dc6c94abe7f44d063e"
+      }
+    },
+    "krds.searchPanel": {
+      "componentSetKey": "b49f8e5b0ad1749a6c72b00da8378c71aaeea39b",
+      "properties": {
+        "Type": {
+          "type": "VARIANT",
+          "values": [
+            "simple",
+            "advanced"
+          ]
+        },
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "default",
+            "focus",
+            "disabled"
+          ]
+        },
+        "Size": {
+          "type": "VARIANT",
+          "values": [
+            "medium"
+          ]
+        },
+        "Lable#723:0": {
+          "type": "TEXT",
+          "values": []
+        },
+        "↪️Hint#1275:39": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "Type=Simple, State=default, Size=medium": "b99a5f8d431b4cf21b14cbf51a126385b2069c69",
+        "Type=Advanced, State=default, Size=medium": "86b1173e4cdc08be3ab91cb2175daa9bc257a70b",
+        "Type=Simple, State=focus, Size=medium": "4c4d3740d592d8c21409564562127fca807fd511",
+        "Type=Advanced, State=focus, Size=medium": "c0bce085ddff880fa836d7af92a9c32211471a24",
+        "Type=Simple, State=disabled, Size=medium": "de7a3f8352b744027b6fda56a7ab3bc5ae92927a",
+        "Type=Advanced, State=disabled, Size=medium": "0d3bf22639f5537ec7da3cc9eec77a12990b665c"
+      }
+    },
+    "krds.tableCell": {
+      "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+      "properties": {
+        "Type": {
+          "type": "VARIANT",
+          "values": [
+            "body"
+          ]
+        },
+        "Body#288:22": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "Type=body": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+      }
+    }
+  },
+  "variables": {
+    "navy/900": {
+      "variableKey": "2ec297701f9086af39e804aa1bd8b0fdfee617ef",
+      "variableName": "navy/900",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "blue/500": {
+      "variableKey": "4e71afd57e0525c19c22bb1eac6014b3648a51d1",
+      "variableName": "blue/500",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "blue/50": {
+      "variableKey": "1c459ec6dab6d236eca5c9ec28afbfaca2fd5b7a",
+      "variableName": "blue/50",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "orange/500": {
+      "variableKey": "834a34331eca2f4a9e7900f7b9537b1cb7e92352",
+      "variableName": "orange/500",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "warning/100": {
+      "variableKey": "b2344bbaf8b01d4bb0cb76decf042be17445fccb",
+      "variableName": "warning/100",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gray/900": {
+      "variableKey": "a8430efc22d356db29aa24d07fbec4addbf441c3",
+      "variableName": "gray/900",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gray/800": {
+      "variableKey": "ed0a3a149548de5d545a2db6ddaea46870aeab1e",
+      "variableName": "gray/800",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gray/700": {
+      "variableKey": "78f241fd86a251a9a0ea656e2b5821996fdd7d77",
+      "variableName": "gray/700",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gray/600": {
+      "variableKey": "bd82ae4493d6e695ad2b0d43c84fb4fa80f72925",
+      "variableName": "gray/600",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gray/500": {
+      "variableKey": "03a233a86a479141957d635a73395895cb814fea",
+      "variableName": "gray/500",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gray/400": {
+      "variableKey": "2170dfe4171261ce4d988acb8336062a8c13a58a",
+      "variableName": "gray/400",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gray/300": {
+      "variableKey": "ea1d3798a8dc0b56c9fc61b2ab58268fa2243a31",
+      "variableName": "gray/300",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gray/200": {
+      "variableKey": "dc83edcab37910d2925bf59b64ae284e4ad2125d",
+      "variableName": "gray/200",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gray/100": {
+      "variableKey": "d0066adc377638470c3ba95a0167afafc7b88678",
+      "variableName": "gray/100",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gray/50": {
+      "variableKey": "f4e4049bd8c0b35db38d4622dbafe3b755bb91ed",
+      "variableName": "gray/50",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gray/25": {
+      "variableKey": "d0ddadf238f03c9187b6163695d39ea549d1b015",
+      "variableName": "gray/25",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "white/1000": {
+      "variableKey": "21b096c87793700ab148e7b9cc757dced40c2b23",
+      "variableName": "white/1000",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-blue/50": {
+      "variableKey": "0f11fb7ab4aead68c5c338bb71a3402db432d4e2",
+      "variableName": "gov-blue/50",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-blue/400": {
+      "variableKey": "a0da6fc60b08946f3b6fd8793e20bb90f45da71d",
+      "variableName": "gov-blue/400",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-blue/600": {
+      "variableKey": "8416fb033c6e9af384dd3c37c2d5d677dbda269c",
+      "variableName": "gov-blue/600",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-blue/700": {
+      "variableKey": "e8b5cb9a6b8b52942c1840ab07703f72b4dd16f2",
+      "variableName": "gov-blue/700",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-blue/800": {
+      "variableKey": "d101b33b339f294b413f89a797f7f845f5f9b9cc",
+      "variableName": "gov-blue/800",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-gray/100": {
+      "variableKey": "47fd7deb686c66f59cda1bdbe4bce72277099d9f",
+      "variableName": "gov-gray/100",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-gray/150": {
+      "variableKey": "5a73be4cb10c3f2233654b5dfe3a8c5c26f87929",
+      "variableName": "gov-gray/150",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-gray/200": {
+      "variableKey": "2113661245286e9c22eea0ba6b180d94d9a1711d",
+      "variableName": "gov-gray/200",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-gray/400": {
+      "variableKey": "82162a7a8a7c71e03adea09d0e494c74030a6594",
+      "variableName": "gov-gray/400",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-gray/500": {
+      "variableKey": "c82ae61d821994ffac8cb75275a9a166d233051e",
+      "variableName": "gov-gray/500",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-gray/700": {
+      "variableKey": "4d72a799f5d9df7d77a300930c976535c39d5ffa",
+      "variableName": "gov-gray/700",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-gray/800": {
+      "variableKey": "1300c2db24fbf7d82fe561eac120ec3091c73b5a",
+      "variableName": "gov-gray/800",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "gov-gray/900": {
+      "variableKey": "1014eec195fb7d9d6fe276419dae67c7025ff646",
+      "variableName": "gov-gray/900",
+      "collectionKey": "7a9af4ae8ce993d7510b3603c4010832ce2e984b",
+      "collectionName": "Primitives",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/bg/default": {
+      "variableKey": "83b02e7145b91254829ecd1b512f30b5d13af1f4",
+      "variableName": "color/bg/default",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/bg/subtle": {
+      "variableKey": "c65b02fa0c045a00dced536211d0f375ead38983",
+      "variableName": "color/bg/subtle",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/bg/brand-tint": {
+      "variableKey": "99d594604aa78834361c44bba849ea40efd0c901",
+      "variableName": "color/bg/brand-tint",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/bg/brand": {
+      "variableKey": "85fc0a0255d24817d7e76be35bf770f7677a7f5f",
+      "variableName": "color/bg/brand",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/text/default": {
+      "variableKey": "f89e2cd27f3998f3568d59faa7e756c268a34bea",
+      "variableName": "color/text/default",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/text/secondary": {
+      "variableKey": "77300b0d5846d0fcdfde6a83a9601982f2156b5e",
+      "variableName": "color/text/secondary",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/text/muted": {
+      "variableKey": "1a83172abba9557c1c5cdb922efa2b7c74699de9",
+      "variableName": "color/text/muted",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/text/brand": {
+      "variableKey": "ccac38b754bbaf5e0d2432d4966d4a841c861d81",
+      "variableName": "color/text/brand",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/text/link": {
+      "variableKey": "a5aa7027c96ce465deb36fc5afec1a21d93f6152",
+      "variableName": "color/text/link",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/text/on-brand": {
+      "variableKey": "3cb29b3363c4ad8290cd9e8872bd902a9bdef797",
+      "variableName": "color/text/on-brand",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/border/default": {
+      "variableKey": "bacec1481d953ba43f95b7eb9c0db8f5c24f0736",
+      "variableName": "color/border/default",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/border/strong": {
+      "variableKey": "739c495e7b443c56a167ac56a79e640a19044c43",
+      "variableName": "color/border/strong",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/border/focus": {
+      "variableKey": "38fcaba46f6f5a9b94381b8545952b6bc1247ba8",
+      "variableName": "color/border/focus",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/accent/alert": {
+      "variableKey": "9257574753ccb017a485a1873edaca897acc1e3d",
+      "variableName": "color/accent/alert",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/status/warning-bg": {
+      "variableKey": "5992e11950b609c577fd51d59f2d6336c1fe55c6",
+      "variableName": "color/status/warning-bg",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/bg/default": {
+      "variableKey": "d0b2b70a091a594184b297c411930ed2830b32b5",
+      "variableName": "color/gov/bg/default",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/bg/brand": {
+      "variableKey": "c4a954daf5fb65a29478c63d8f6ee3a87682eb64",
+      "variableName": "color/gov/bg/brand",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/bg/brand-tint": {
+      "variableKey": "bf63afe297e72042103a1d7ab07b5ae51c0b27a9",
+      "variableName": "color/gov/bg/brand-tint",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/text/default": {
+      "variableKey": "18595703775aaba8d953e974b21a182f54dccb0f",
+      "variableName": "color/gov/text/default",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/text/secondary": {
+      "variableKey": "6d1eae8c6ffe858ef217fa1e5dab04beca708fa4",
+      "variableName": "color/gov/text/secondary",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/text/muted": {
+      "variableKey": "a21d7422cbe56d4323e934e658b93ccfcf5ef056",
+      "variableName": "color/gov/text/muted",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/text/subtle": {
+      "variableKey": "cdb1488a94d349840c1b44aeaa611052ff6960de",
+      "variableName": "color/gov/text/subtle",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/text/link": {
+      "variableKey": "801915365dfc7cac48efb9ae5857782d7fa12584",
+      "variableName": "color/gov/text/link",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/text/brand": {
+      "variableKey": "1ed300a06f73045786e6c09e429b041a4d6a0601",
+      "variableName": "color/gov/text/brand",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/text/action": {
+      "variableKey": "55c2948a01dbeecb3e6c26bae41867c2bafc72cd",
+      "variableName": "color/gov/text/action",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/text/on-brand": {
+      "variableKey": "c7c52c402d8acb0a2ac335e3615c555f241ad754",
+      "variableName": "color/gov/text/on-brand",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/border/default": {
+      "variableKey": "8d1bbf5341fbcbb223d2607b9b7fc578d3f70dbd",
+      "variableName": "color/gov/border/default",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/border/subtle": {
+      "variableKey": "7013d107e1db03c47bc08bb36cdbca9048138325",
+      "variableName": "color/gov/border/subtle",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/border/footer": {
+      "variableKey": "7dfb7eac516ef56d61ba5a29d900bfc4ea3020d8",
+      "variableName": "color/gov/border/footer",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/gov/text/strong": {
+      "variableKey": "69ae1b8699e4a8e047ed38b409864802bd1d0528",
+      "variableName": "color/gov/text/strong",
+      "collectionKey": "59e6059b6f86d93e63b0a22243bf0ee60ff538c0",
+      "collectionName": "Color",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "spacing/2xs": {
+      "variableKey": "cfd3a2d54fcf8fc1922e3ffd227008b52cb8b963",
+      "variableName": "spacing/2xs",
+      "collectionKey": "62bbfe0bee17d40f2ea2e73ff260a32ec6e5fbea",
+      "collectionName": "Spacing",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "spacing/xs": {
+      "variableKey": "49ba479f28882993dc5c7f2dc87d6c6889722915",
+      "variableName": "spacing/xs",
+      "collectionKey": "62bbfe0bee17d40f2ea2e73ff260a32ec6e5fbea",
+      "collectionName": "Spacing",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "spacing/sm": {
+      "variableKey": "419cd8f4ec20cafb3906b11f8bda5f1b463f4763",
+      "variableName": "spacing/sm",
+      "collectionKey": "62bbfe0bee17d40f2ea2e73ff260a32ec6e5fbea",
+      "collectionName": "Spacing",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "spacing/md": {
+      "variableKey": "4c45db8f1c900f77ba8238ffafa20f139d4c839a",
+      "variableName": "spacing/md",
+      "collectionKey": "62bbfe0bee17d40f2ea2e73ff260a32ec6e5fbea",
+      "collectionName": "Spacing",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "spacing/lg": {
+      "variableKey": "5e7d1e01aa61c7e0deb15f2e7edbc99af3bd79cf",
+      "variableName": "spacing/lg",
+      "collectionKey": "62bbfe0bee17d40f2ea2e73ff260a32ec6e5fbea",
+      "collectionName": "Spacing",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "spacing/xl": {
+      "variableKey": "9c185df49aa174d98ea3012f1ddc47d1ccd635d7",
+      "variableName": "spacing/xl",
+      "collectionKey": "62bbfe0bee17d40f2ea2e73ff260a32ec6e5fbea",
+      "collectionName": "Spacing",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "spacing/2xl": {
+      "variableKey": "f2c6725f6ad652bf53e6de13b5f014389ba8471d",
+      "variableName": "spacing/2xl",
+      "collectionKey": "62bbfe0bee17d40f2ea2e73ff260a32ec6e5fbea",
+      "collectionName": "Spacing",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "radius/xs": {
+      "variableKey": "d815b7220929abf6991987d60cbc4a0f499c18cc",
+      "variableName": "radius/xs",
+      "collectionKey": "bbd0550a66162ee3587d70e4325b9b55fc0fbfaa",
+      "collectionName": "Radius",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "radius/sm": {
+      "variableKey": "87206a5d509c50dc4d0b76dba34c76240928344c",
+      "variableName": "radius/sm",
+      "collectionKey": "bbd0550a66162ee3587d70e4325b9b55fc0fbfaa",
+      "collectionName": "Radius",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "radius/md": {
+      "variableKey": "c9e65411233dca4e0b14c62b5e429e172c274830",
+      "variableName": "radius/md",
+      "collectionKey": "bbd0550a66162ee3587d70e4325b9b55fc0fbfaa",
+      "collectionName": "Radius",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "radius/lg": {
+      "variableKey": "e3b4b3926d61fb2b824e4304d952fd77a1b190c4",
+      "variableName": "radius/lg",
+      "collectionKey": "bbd0550a66162ee3587d70e4325b9b55fc0fbfaa",
+      "collectionName": "Radius",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "radius/xl": {
+      "variableKey": "20f140ca3d4a8942a7efbd4160420c860261c0cd",
+      "variableName": "radius/xl",
+      "collectionKey": "bbd0550a66162ee3587d70e4325b9b55fc0fbfaa",
+      "collectionName": "Radius",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "radius/2xl": {
+      "variableKey": "848421c4e8f1ee13679331d3c613fa5748de8c44",
+      "variableName": "radius/2xl",
+      "collectionKey": "bbd0550a66162ee3587d70e4325b9b55fc0fbfaa",
+      "collectionName": "Radius",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "radius/pill": {
+      "variableKey": "ccc71ace8a099dadd5b539b819cf11020e0666b6",
+      "variableName": "radius/pill",
+      "collectionKey": "bbd0550a66162ee3587d70e4325b9b55fc0fbfaa",
+      "collectionName": "Radius",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "radius/full": {
+      "variableKey": "c1b7df6c02170aeb15b644311f0e2e7ab814657f",
+      "variableName": "radius/full",
+      "collectionKey": "bbd0550a66162ee3587d70e4325b9b55fc0fbfaa",
+      "collectionName": "Radius",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "radius/btn": {
+      "variableKey": "ffc6f00c4f98488b4ea3d678a806975c4f1e87b2",
+      "variableName": "radius/btn",
+      "collectionKey": "bbd0550a66162ee3587d70e4325b9b55fc0fbfaa",
+      "collectionName": "Radius",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "radius/card": {
+      "variableKey": "c529945986ce33f8ded13753a08cc977910147da",
+      "variableName": "radius/card",
+      "collectionKey": "bbd0550a66162ee3587d70e4325b9b55fc0fbfaa",
+      "collectionName": "Radius",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "radius/btn-pill": {
+      "variableKey": "9dd5c92586549bebf3a3bad58a94feb7a1997e65",
+      "variableName": "radius/btn-pill",
+      "collectionKey": "bbd0550a66162ee3587d70e4325b9b55fc0fbfaa",
+      "collectionName": "Radius",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "color/text": {
+      "variableKey": "381c558aa5a4fcabc4607a462115e7274eb397db",
+      "variableName": "color/text",
+      "collectionKey": "ff3740372709889ab00b8482d6b6fa8ef17fd07a",
+      "collectionName": "Website Tokens",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color/background": {
+      "variableKey": "7c781ed87f97205faa6cdca62f0cd4379376b486",
+      "variableName": "color/background",
+      "collectionKey": "ff3740372709889ab00b8482d6b6fa8ef17fd07a",
+      "collectionName": "Website Tokens",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "number/fontSize": {
+      "variableKey": "3d0b92fba4c0c7fc1019392a23d6e73e2c0dd1e1",
+      "variableName": "number/fontSize",
+      "collectionKey": "ff3740372709889ab00b8482d6b6fa8ef17fd07a",
+      "collectionName": "Website Tokens",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "number/radius": {
+      "variableKey": "1f1c90ac848216670f0a501395d199336de5c21a",
+      "variableName": "number/radius",
+      "collectionKey": "ff3740372709889ab00b8482d6b6fa8ef17fd07a",
+      "collectionName": "Website Tokens",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "font-family/base": {
+      "variableKey": "ff9f9d275b643d6928db5482071ddf46c6ef7892",
+      "variableName": "font-family/base",
+      "collectionKey": "005a6939e121697176d36099a8806e2dbf4d9613",
+      "collectionName": "Typography",
+      "resolvedType": "STRING",
+      "publishStatus": "CURRENT"
+    },
+    "font-style/regular": {
+      "variableKey": "93b66b4f1daf3d9492d19fb0f194eab20de4776e",
+      "variableName": "font-style/regular",
+      "collectionKey": "005a6939e121697176d36099a8806e2dbf4d9613",
+      "collectionName": "Typography",
+      "resolvedType": "STRING",
+      "publishStatus": "CURRENT"
+    },
+    "font-style/bold": {
+      "variableKey": "d10c41a49d2e36491acd07d80d289718c0ddd899",
+      "variableName": "font-style/bold",
+      "collectionKey": "005a6939e121697176d36099a8806e2dbf4d9613",
+      "collectionName": "Typography",
+      "resolvedType": "STRING",
+      "publishStatus": "CURRENT"
+    },
+    "font-size/xs": {
+      "variableKey": "06b6ec832c9365fa5ee137f212a7c7fbc93336cd",
+      "variableName": "font-size/xs",
+      "collectionKey": "005a6939e121697176d36099a8806e2dbf4d9613",
+      "collectionName": "Typography",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "font-size/sm": {
+      "variableKey": "5296f24218fe2f776f95d75e6bf8ce1eebe6e1ff",
+      "variableName": "font-size/sm",
+      "collectionKey": "005a6939e121697176d36099a8806e2dbf4d9613",
+      "collectionName": "Typography",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "font-size/md": {
+      "variableKey": "4cfda05ad04a3c76859500f5b2cb69c63b7ba450",
+      "variableName": "font-size/md",
+      "collectionKey": "005a6939e121697176d36099a8806e2dbf4d9613",
+      "collectionName": "Typography",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "font-size/lg": {
+      "variableKey": "1895dd508cf770ae07c29eef0b928a81ec24c2e7",
+      "variableName": "font-size/lg",
+      "collectionKey": "005a6939e121697176d36099a8806e2dbf4d9613",
+      "collectionName": "Typography",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "font-size/xl": {
+      "variableKey": "ab475d1903ccccc162c183e59a218e39ad9c9308",
+      "variableName": "font-size/xl",
+      "collectionKey": "005a6939e121697176d36099a8806e2dbf4d9613",
+      "collectionName": "Typography",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "font-size/2xl": {
+      "variableKey": "122bd3c24e5ab807c30c70f5a842cd809650a97d",
+      "variableName": "font-size/2xl",
+      "collectionKey": "005a6939e121697176d36099a8806e2dbf4d9613",
+      "collectionName": "Typography",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "font-size/3xl": {
+      "variableKey": "4f9b821e02b728d83c53a073c7e513703f1a41ee",
+      "variableName": "font-size/3xl",
+      "collectionKey": "005a6939e121697176d36099a8806e2dbf4d9613",
+      "collectionName": "Typography",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "color.primary": {
+      "variableKey": "d59e8568935857195db3e8533e1a16dc4aa81211",
+      "variableName": "color/primary",
+      "collectionKey": "e42b4f3db1fe08ced4b60ffb340cbd2d1e1c498f",
+      "collectionName": "Colors",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "spacing.16": {
+      "variableKey": "fae09c526ec0287ec517e6d9e1a525a36a5765b1",
+      "variableName": "spacing/16",
+      "collectionKey": "ef52fe0d7c6386f222b3b8c862487efab2bb703d",
+      "collectionName": "Foundation",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "color.background": {
+      "variableKey": "b0cb9ccb32bcd5bb2ebf31001ab909049919e4a6",
+      "variableName": "color/background",
+      "collectionKey": "ef52fe0d7c6386f222b3b8c862487efab2bb703d",
+      "collectionName": "Foundation",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "color.text.default": {
+      "variableKey": "19e83dd52025c782a1ee3cfe4ade201d0ecdcdcf",
+      "variableName": "color/text/default",
+      "collectionKey": "ef52fe0d7c6386f222b3b8c862487efab2bb703d",
+      "collectionName": "Foundation",
+      "resolvedType": "COLOR",
+      "publishStatus": "CURRENT"
+    },
+    "radius.md": {
+      "variableKey": "312da9a52e5ea9f2914db41476f1ed070d65bb97",
+      "variableName": "radius/md",
+      "collectionKey": "ef52fe0d7c6386f222b3b8c862487efab2bb703d",
+      "collectionName": "Foundation",
+      "resolvedType": "FLOAT",
+      "publishStatus": "CURRENT"
+    },
+    "legacy/color/primary/string": {
+      "variableKey": "f72b84c669b716077de0d341d7a8a303af5aa108",
+      "variableName": "legacy/color/primary/string",
+      "collectionKey": "e42b4f3db1fe08ced4b60ffb340cbd2d1e1c498f",
+      "collectionName": "Colors",
+      "resolvedType": "STRING",
+      "publishStatus": "CURRENT"
+    }
+  }
+}

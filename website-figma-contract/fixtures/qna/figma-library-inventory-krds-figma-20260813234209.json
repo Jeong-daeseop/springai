@@ -1,0 +1,297 @@
+{
+  "profileId": "krds",
+  "registryVersion": "2.2.0",
+  "inventoryVersion": "figma-20260813234209",
+  "capturedAt": "2026-08-13T23:42:09.002Z",
+  "components": {
+    "krds.textField": {
+      "componentSetKey": "f55c5801028025f13b9931f33b111fb21ec2fb39",
+      "properties": {
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "default",
+            "focus",
+            "disabled",
+            "error",
+            "readonly"
+          ]
+        },
+        "↪️Label#286:10": {
+          "type": "TEXT",
+          "values": []
+        },
+        "Placeholder#286:9": {
+          "type": "TEXT",
+          "values": []
+        },
+        "Size": {
+          "type": "VARIANT",
+          "values": []
+        }
+      },
+      "variants": {
+        "State=Default": "a5ca68facd04b78a246233b668590f81de5f0a31",
+        "State=Focus": "ecd7dc785ea85b4f2ca137049709bfbf177da119",
+        "State=Disabled": "9ddd7605912a3c712fd37772d5d3467df668e39f",
+        "State=error": "ce098c028d39e4917582365a9a57f2cbb0084dd5",
+        "State=readonly": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d"
+      }
+    },
+    "krds.select": {
+      "componentSetKey": "57fa7703261fe74ae982edba68e50e4a7a741485",
+      "properties": {
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "default",
+            "focus",
+            "disabled",
+            "error",
+            "readonly"
+          ]
+        },
+        "↪️Label#286:10": {
+          "type": "TEXT",
+          "values": []
+        },
+        "Placeholder#286:9": {
+          "type": "TEXT",
+          "values": []
+        },
+        "Size": {
+          "type": "VARIANT",
+          "values": []
+        }
+      },
+      "variants": {
+        "State=Default": "583541ea4a6c130fe6c446d1159a9938b25b248b",
+        "State=Focus": "c5cb29f53218274f1b0cd6ea5c356ebab947a68f",
+        "State=Disabled": "6a6afe758a60d2ef0a80021bc417eac65a68e38e",
+        "State=error": "f9b76eb04bc6acdc6fb2125340df962a777c7e7c",
+        "State=readonly": "47e3ce23770c09a153ecc88478e7ba8f7fa01822"
+      }
+    },
+    "krds.checkbox": {
+      "componentSetKey": "f3718c30dbd755260e7407f4dbdb5b85e4b7210e",
+      "properties": {
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "unchecked",
+            "checked",
+            "focus",
+            "disabled",
+            "error",
+            "readonly"
+          ]
+        },
+        "Size": {
+          "type": "VARIANT",
+          "values": [
+            "medium"
+          ]
+        },
+        "Check": {
+          "type": "VARIANT",
+          "values": [
+            "off"
+          ]
+        },
+        "label#309:0": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "State=Unchecked, Size=medium, Check=off": "81db0bc48fdabdb368da7709e51e13e73eae3fea",
+        "State=Checked, Size=medium, Check=off": "f8d62cc6545bbb540743929247d0cbaa39429758",
+        "State=focus, Size=medium, Check=off": "e14276190ed8e450f83a7269b7ead39e2d0f6b1e",
+        "State=disabled, Size=medium, Check=off": "e945ed20494a45257458e4155ab4595425391c15",
+        "State=error, Size=medium, Check=off": "ec93eeafa45b3c85b7b8e5a4e0e0bc4453ed2595",
+        "State=readonly, Size=medium, Check=off": "9c9bbc1bcf2d9f402ac4b564c1db6f85d3870294"
+      }
+    },
+    "krds.button": {
+      "componentSetKey": "401090e03acd1062033e52471c65fd5f8666c23a",
+      "properties": {
+        "Size": {
+          "type": "VARIANT",
+          "values": [
+            "medium",
+            "small"
+          ]
+        },
+        "Style": {
+          "type": "VARIANT",
+          "values": [
+            "primary",
+            "secondary",
+            "ghost"
+          ]
+        },
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "default",
+            "disabled",
+            "focus"
+          ]
+        },
+        "Label#300:3": {
+          "type": "TEXT",
+          "values": []
+        },
+        "Type": {
+          "type": "VARIANT",
+          "values": []
+        }
+      },
+      "variants": {
+        "Size=Medium, Style=Primary, State=Default": "6237cff0545cc51ddcd657a49b5fb6186d1c4090",
+        "Size=Small, Style=Primary, State=Default": "18446f3e6f98654a8bf9351769b12516812deaab",
+        "Size=Small, Style=Primary, State=Disabled": "e3b2cce82fb08a03283dce5ddc038b8e65c10f8f",
+        "Size=Small, Style=Secondary, State=Default": "3ad3c5e77242003a3b205f2a2cac62390bd10292",
+        "Size=Small, Style=Secondary, State=Disabled": "9c9564d1f02f682008ae494dae82fd6ead3e363f",
+        "Size=Small, Style=Ghost, State=Default": "d13c1967ccf4339985295b89d4c15e94976db48c",
+        "Size=Small, Style=Ghost, State=Disabled": "d3a23debaa3140f6979a09abb2ceaca9254dc62f",
+        "Size=Medium, Style=Primary, State=Disabled": "36453ac6fe356359773adbe129348b7505e5ad16",
+        "Size=Medium, Style=Secondary, State=Default": "a554af98520754543085d516077b9541ea754552",
+        "Size=Medium, Style=Secondary, State=Disabled": "abf99fc6732e94e326f24d1f87446084a2d05a8b",
+        "Size=Medium, Style=Ghost, State=Default": "2a396776a3d7e2f2e10ae8a0e833482687517642",
+        "Size=Medium, Style=Ghost, State=Disabled": "f17e92e464745fb06d4505aad3f10b0615964e0a",
+        "Size=Medium, Style=Primary, State=focus": "7c8d843d216be3d7987987b35b49da9492614f35",
+        "Size=Small, Style=Primary, State=focus": "fc271a7c112b7ba81e0a5e0589b83fea6634a853",
+        "Size=Small, Style=Secondary, State=focus": "cabba30ef80fa0759be663205d1b2e164d6379e6",
+        "Size=Small, Style=Ghost, State=focus": "5e1d320748ab024a49a724a48eac307cc93e9982",
+        "Size=Medium, Style=Secondary, State=focus": "325e159b3c2a9adcf22e38f4399456716c9d91ed",
+        "Size=Medium, Style=Ghost, State=focus": "38bbbff5891bf0c32dd981745b67efc374d56f84"
+      }
+    },
+    "krds.pagination": {
+      "componentSetKey": "0bd34989017991e94c73147e823ef53a6aaac39f",
+      "properties": {},
+      "variants": {
+        "Default": "0bd34989017991e94c73147e823ef53a6aaac39f"
+      }
+    },
+    "krds.textarea": {
+      "componentSetKey": "2b440cecd92043fc8347bbab1fc9ab6a90729435",
+      "properties": {
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "default",
+            "focus",
+            "disabled",
+            "error",
+            "readonly"
+          ]
+        },
+        "Label#286:10": {
+          "type": "TEXT",
+          "values": []
+        },
+        "Placeholder#286:9": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "State=Default": "49fac55bd12165e2cc423ea88c3e1e23ad6ef741",
+        "State=Focus": "21aa1191d34948d49a0f3b2f27ad1c21c8b8cde4",
+        "State=Disabled": "37957abb145090da7bbce87c71365b6bf59832df",
+        "State=error": "1087e5e57cf04dba984be5a3374e1a11be833422",
+        "State=readonly": "a39c10cfc5b3e962e251a8b591f38f88223f8cbe"
+      }
+    },
+    "krds.pageHeader": {
+      "componentSetKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980",
+      "properties": {
+        "Title#259:4": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "Default": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980"
+      }
+    },
+    "krds.tableHeader": {
+      "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+      "properties": {
+        "Type": {
+          "type": "VARIANT",
+          "values": [
+            "title"
+          ]
+        },
+        "Title#288:19": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "Type=title": "967bbe40067ab6cc457fd7dc6c94abe7f44d063e"
+      }
+    },
+    "krds.searchPanel": {
+      "componentSetKey": "b49f8e5b0ad1749a6c72b00da8378c71aaeea39b",
+      "properties": {
+        "Type": {
+          "type": "VARIANT",
+          "values": [
+            "simple",
+            "advanced"
+          ]
+        },
+        "State": {
+          "type": "VARIANT",
+          "values": [
+            "default",
+            "focus",
+            "disabled"
+          ]
+        },
+        "Lable#723:0": {
+          "type": "TEXT",
+          "values": []
+        },
+        "↪️Hint#1275:39": {
+          "type": "TEXT",
+          "values": []
+        },
+        "Size": {
+          "type": "VARIANT",
+          "values": []
+        }
+      },
+      "variants": {
+        "Type=Simple, State=default": "b99a5f8d431b4cf21b14cbf51a126385b2069c69",
+        "Type=Advanced, State=default": "86b1173e4cdc08be3ab91cb2175daa9bc257a70b",
+        "Type=Simple, State=focus": "4c4d3740d592d8c21409564562127fca807fd511",
+        "Type=Advanced, State=focus": "c0bce085ddff880fa836d7af92a9c32211471a24",
+        "Type=Simple, State=disabled": "de7a3f8352b744027b6fda56a7ab3bc5ae92927a",
+        "Type=Advanced, State=disabled": "0d3bf22639f5537ec7da3cc9eec77a12990b665c"
+      }
+    },
+    "krds.tableCell": {
+      "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+      "properties": {
+        "Type": {
+          "type": "VARIANT",
+          "values": [
+            "body"
+          ]
+        },
+        "Body#288:22": {
+          "type": "TEXT",
+          "values": []
+        }
+      },
+      "variants": {
+        "Type=body": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+      }
+    }
+  }
+}

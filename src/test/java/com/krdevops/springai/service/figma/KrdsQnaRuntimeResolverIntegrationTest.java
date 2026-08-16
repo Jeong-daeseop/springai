@@ -42,7 +42,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** 실제 계약 Fixture → MySQL Repository → Resolver → v2 Bundle의 6화면 실행 경로를 검증한다. */
+/** 실제 계약 Fixture → MySQL Repository → Resolver → v2 Bundle의 7화면 실행 경로를 검증한다. */
 class KrdsQnaRuntimeResolverIntegrationTest {
 
     private final DriverManagerDataSource dataSource = new DriverManagerDataSource(
@@ -129,7 +129,7 @@ class KrdsQnaRuntimeResolverIntegrationTest {
             businessSpecRepository.save(businessSpec);
             assertThat(businessSpecRepository.findVersion(businessSpecId, businessSpec.version()))
                     .contains(businessSpec);
-            assertThat(businessSpec.pages()).hasSize(6);
+            assertThat(businessSpec.pages()).hasSize(7);
             DesignSystemProfile profile = new DesignSystemProfile(
                     profileId, "KRDS Q&A Integration", profileVersion, registryVersion,
                     registry.library().fileKey(), DesignSystemProfile.Status.PUBLISHED, Map.of(), Map.of());
@@ -202,10 +202,12 @@ class KrdsQnaRuntimeResolverIntegrationTest {
                                     .containsExactlyInAnyOrderEntriesOf(componentResolutions(resolvedSpec.content()));
                         });
 
-                ScreenPatternDefinition resolvedPattern = patterns.stream()
-                        .filter(candidate -> candidate.pattern() == result.pattern()
-                                && candidate.version().equals(result.screenPatternVersion()))
-                        .findFirst().orElseThrow();
+                // Resolver가 실제 Repository에서 선택한 Published Snapshot을 Bundle의
+                // Source of Truth로 사용한다. 로컬 Fixture 목록을 다시 찾으면 운영 DB에
+                // 남아 있는 이전 Pattern Version과 충돌해 조립 대상이 달라질 수 있다.
+                ScreenPatternDefinition resolvedPattern = patternRepository
+                        .findVersion(result.pattern(), result.screenPatternVersion())
+                        .orElseThrow();
                 FigmaExportBundle bundle = assembler.assemble(
                         resolvedSpec, profile, registry, resolvedPattern, publishedRules);
                 String bundleJson = serializer.toJson(bundle);
@@ -215,13 +217,13 @@ class KrdsQnaRuntimeResolverIntegrationTest {
                         "\"screenPattern\"", "\"variantRuleSet\"");
                 Files.writeString(outputDirectory.resolve(page.id() + ".json"), bundleJson);
             }
-            assertThat(resolverSuccessCount).isEqualTo(6);
+            assertThat(resolverSuccessCount).isEqualTo(7);
             assertThat(unresolvedCount).isZero();
-            assertThat(storedScreenIds).hasSize(6);
+            assertThat(storedScreenIds).hasSize(7);
             try (var files = Files.list(outputDirectory)) {
                 assertThat(files.filter(path -> path.getFileName().toString().endsWith(".json")).count())
                         .as("Plugin 입력 Root Frame Bundle 수")
-                        .isEqualTo(6L);
+                        .isEqualTo(7L);
             }
 
             FigmaRollbackRehearsalService rehearsal = new FigmaRollbackRehearsalService(
@@ -234,8 +236,8 @@ class KrdsQnaRuntimeResolverIntegrationTest {
                     businessSpecId, businessSpec.version(), profileId, profileVersion, registryVersion,
                     ruleSetId, ruleSetVersion, patternVersions));
             assertThat(preview.mode()).isEqualTo("PREVIEW_ONLY");
-            assertThat(preview.bundleCount()).isEqualTo(6);
-            assertThat(preview.contextHashes()).hasSize(6).doesNotContainValue("");
+            assertThat(preview.bundleCount()).isEqualTo(7);
+            assertThat(preview.contextHashes()).hasSize(7).doesNotContainValue("");
         } finally {
             storedScreenIds.forEach(screenId -> jdbcTemplate.update(
                     "DELETE FROM AI_FIGMA_SCREEN_SPEC WHERE SCREEN_ID = ?", screenId));
@@ -254,7 +256,7 @@ class KrdsQnaRuntimeResolverIntegrationTest {
 
     private ScreenSpecification readBusinessSpecification() throws Exception {
         ClassPathResource resource = new ClassPathResource(
-                "figma/contracts/qna/qna-screen-specification-v2.json");
+                    "figma/contracts/qna/qna-screen-specification-v3.json");
         try (var input = resource.getInputStream()) {
             return objectMapper.readValue(input, ScreenSpecification.class);
         }

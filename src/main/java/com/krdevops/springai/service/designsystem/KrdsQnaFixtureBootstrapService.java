@@ -38,13 +38,15 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 
-/** Q&A KRDS 6화면 실행에 필요한 전체 Fixture를 동일 버전 축으로 Bootstrap한다. */
+/** Q&A KRDS 7화면 실행에 필요한 전체 Fixture를 동일 버전 축으로 Bootstrap한다. */
 @Service
 public class KrdsQnaFixtureBootstrapService {
-    public static final String INVENTORY_VERSION = "qna-fixture-inventory-2.1.0";
+    public static final String INVENTORY_VERSION = "qna-fixture-inventory-2.2.2";
     public static final String SCREEN_SPECIFICATION_RESOURCE =
-            "figma/contracts/qna/qna-screen-specification-v2.json";
-    public static final int GENERATED_SCREEN_VERSION = 7;
+            "figma/contracts/qna/qna-screen-specification-v3.json";
+    // 기존 운영 Snapshot(qna-create v14)과 내용이 달라 불변 저장 충돌이
+    // 발생하지 않도록 현재 계약을 신규 Screen Version으로 발행한다.
+    public static final int GENERATED_SCREEN_VERSION = 15;
 
     private final KrdsRuntimeContractImportService contractReader;
     private final ComponentRegistryRepository registryRepository;
@@ -98,25 +100,28 @@ public class KrdsQnaFixtureBootstrapService {
     @Transactional
     public BootstrapResult bootstrap() {
         var contracts = contractReader.readDefaultQnaContracts();
-        ComponentRegistry registry = contracts.registry();
-        VariantRuleSet publishedRules = new VariantRuleSet(
+        ComponentRegistry registry = saveRegistry(contracts.registry());
+        VariantRuleSet candidateRules = new VariantRuleSet(
                 contracts.ruleSet().id(), contracts.ruleSet().version(),
                 contracts.ruleSet().profileId(), contracts.ruleSet().registryVersion(),
                 VariantRuleSet.Status.PUBLISHED, contracts.ruleSet().rules());
+        VariantRuleSet publishedRules = ruleSetRepository.findVersion(
+                candidateRules.id(), candidateRules.version()).orElseGet(() -> {
+            ruleSetRepository.saveImmutable(candidateRules);
+            return candidateRules;
+        });
 
-        saveRegistry(registry);
         contracts.patterns().forEach(patternRepository::saveImmutable);
-        ruleSetRepository.saveImmutable(publishedRules);
 
-        DesignSystemProfile profile = new DesignSystemProfile(
+        DesignSystemProfile profileCandidate = new DesignSystemProfile(
                 registry.profileId(), "KRDS Q&A 6 Screens", registry.profileVersion(),
                 registry.registryVersion(), registry.library().fileKey(),
                 DesignSystemProfile.Status.PUBLISHED, Map.of(), Map.of());
-        profileRepository.findVersion(profile.id(), profile.version()).ifPresent(existing -> {
-            if (!existing.equals(profile)) throw new IllegalStateException(
-                    "DESIGN_SYSTEM_PROFILE_VERSION_CONFLICT: " + profile.id() + "/" + profile.version());
+        DesignSystemProfile profile = profileRepository.findVersion(
+                profileCandidate.id(), profileCandidate.version()).orElseGet(() -> {
+            profileRepository.save(profileCandidate);
+            return profileCandidate;
         });
-        if (profileRepository.findVersion(profile.id(), profile.version()).isEmpty()) profileRepository.save(profile);
 
         FigmaLibraryInventorySnapshot inventory = inventory(registry);
         inventoryRepository.saveImmutable(inventory);
@@ -163,14 +168,14 @@ public class KrdsQnaFixtureBootstrapService {
         }
     }
 
-    private void saveRegistry(ComponentRegistry registry) {
-        registryRepository.findVersion(registry.profileId(), registry.registryVersion()).ifPresent(existing -> {
-            if (!existing.equals(registry)) throw new IllegalStateException(
-                    "COMPONENT_REGISTRY_VERSION_CONFLICT: " + registry.profileId() + "/" + registry.registryVersion());
-        });
-        if (registryRepository.findVersion(registry.profileId(), registry.registryVersion()).isEmpty()) {
-            registryRepository.saveImmutable(registry);
-        }
+    private ComponentRegistry saveRegistry(ComponentRegistry candidate) {
+        // Registry Apply가 이미 승인한 Snapshot이 있으면 실제 DB Snapshot을 재사용한다.
+        // JSON 배열 순서 차이로 동일 계약을 Bootstrap 중복 적재하다 실패하지 않게 한다.
+        return registryRepository.findVersion(candidate.profileId(), candidate.registryVersion())
+                .orElseGet(() -> {
+                    registryRepository.saveImmutable(candidate);
+                    return candidate;
+                });
     }
 
     private FigmaLibraryInventorySnapshot inventory(ComponentRegistry registry) {

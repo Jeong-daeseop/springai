@@ -21,9 +21,14 @@ public class KrdsRuntimeContractBootstrap implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        KrdsQnaFixtureBootstrapService.BootstrapResult result = importService.bootstrap();
-        log.info("KRDS Q&A Fixture 적재 완료: profile={}/{}, registry={}, ruleSet={}/{}, patterns={}, inventory={}, screens={}",
-                result.profileId(), result.profileVersion(), result.registryVersion(), result.ruleSetId(),
-                result.ruleSetVersion(), result.patternCount(), result.inventoryVersion(), result.screenIds());
+        try {
+            KrdsQnaFixtureBootstrapService.BootstrapResult result = importService.bootstrap();
+            log.info("KRDS Q&A Fixture 적재 완료: profile={}/{}, registry={}, ruleSet={}/{}, patterns={}, inventory={}, screens={}",
+                    result.profileId(), result.profileVersion(), result.registryVersion(), result.ruleSetId(),
+                    result.ruleSetVersion(), result.patternCount(), result.inventoryVersion(), result.screenIds());
+        } catch (RuntimeException exception) {
+            log.error("KRDS Q&A Fixture 적재 실패: {}", exception.getMessage());
+            throw exception;
+        }
     }
 }

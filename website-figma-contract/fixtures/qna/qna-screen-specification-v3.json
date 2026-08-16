@@ -1,6 +1,6 @@
 {
   "id": "qna-suite",
-  "version": 2,
+  "version": 3,
   "status": "APPROVED",
   "screenName": "Q&A 관리",
   "featureType": "QNA",
@@ -43,6 +43,20 @@
       ]
     },
     {
+      "id":"qna-update","template":"QNA_FORM","selectionSource":"EXPLICIT",
+      "fields":[
+        {"id":"writer","label":"등록자","dataRole":"AUTHOR","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"WRITER","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"contact","label":"연락처","dataRole":"CONTACT","semanticRole":"field.text","mode":"EDITABLE","source":{"type":"COLUMN","tableAlias":"q","column":"CONTACT","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"email","label":"이메일주소","dataRole":"EMAIL","semanticRole":"field.text","mode":"EDITABLE","source":{"type":"COLUMN","tableAlias":"q","column":"EMAIL","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"title","label":"질문제목","dataRole":"TITLE","semanticRole":"field.text","mode":"EDITABLE","source":{"type":"COLUMN","tableAlias":"q","column":"TITLE","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
+        {"id":"content","label":"질문내용","dataRole":"CONTENT","semanticRole":"field.textarea","mode":"EDITABLE","source":{"type":"COLUMN","tableAlias":"q","column":"CONTENT","expression":null,"codeGroup":null},"visible":true,"required":true,"searchable":false,"sortable":false,"control":"TEXTAREA","confidence":1.0}
+      ],
+      "actions":[
+        {"id":"update","command":"UPDATE","role":"action.primary","label":"수정","state":"DEFAULT"},
+        {"id":"list","command":"LIST","role":"action.secondary","label":"목록","state":"DEFAULT"}
+      ]
+    },
+    {
       "id":"qna-detail","template":"QNA_DETAIL","selectionSource":"EXPLICIT",
       "fields":[
         {"id":"writer","label":"작성자","dataRole":"AUTHOR","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"WRITER","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
@@ -76,6 +90,7 @@
     {
       "id":"qna-answer-detail","template":"QNA_ANSWER_DETAIL","selectionSource":"EXPLICIT",
       "fields":[
+        {"id":"questionNumber","label":"질문 번호","dataRole":"ID","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"QNA_ID","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"NUMBER","confidence":1.0},
         {"id":"writer","label":"등록자","dataRole":"AUTHOR","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"WRITER","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
         {"id":"contact","label":"연락처","dataRole":"CONTACT","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"CONTACT","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
         {"id":"email","label":"이메일주소","dataRole":"EMAIL","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"EMAIL","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
@@ -83,7 +98,8 @@
         {"id":"viewCount","label":"조회수","dataRole":"VIEW_COUNT","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"VIEW_COUNT","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"NUMBER","confidence":1.0},
         {"id":"status","label":"진행상태","dataRole":"STATUS","semanticRole":"field.select","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"STATUS","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"SELECT","confidence":1.0},
         {"id":"title","label":"질문제목","dataRole":"TITLE","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"TITLE","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
-        {"id":"content","label":"질문내용","dataRole":"CONTENT","semanticRole":"field.textarea","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"CONTENT","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXTAREA","confidence":1.0}
+        {"id":"content","label":"질문내용","dataRole":"CONTENT","semanticRole":"field.textarea","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"CONTENT","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXTAREA","confidence":1.0},
+        {"id":"answerContent","label":"답변 내용","dataRole":"CONTENT","semanticRole":"field.textarea","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"ANSWER_CONTENT","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXTAREA","confidence":1.0}
       ],
       "actions":[
         {"id":"reply","command":"CREATE","role":"action.primary","label":"답변 등록","state":"DEFAULT"},
@@ -93,6 +109,7 @@
     {
       "id":"qna-answer-create","template":"QNA_ANSWER_FORM","selectionSource":"EXPLICIT",
       "fields":[
+        {"id":"questionNumber","label":"질문 번호","dataRole":"ID","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"QNA_ID","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"NUMBER","confidence":1.0},
         {"id":"writer","label":"등록자","dataRole":"AUTHOR","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"WRITER","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
         {"id":"contact","label":"연락처","dataRole":"CONTACT","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"CONTACT","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},
         {"id":"email","label":"이메일주소","dataRole":"EMAIL","semanticRole":"field.text","mode":"READ_ONLY","source":{"type":"COLUMN","tableAlias":"q","column":"EMAIL","expression":null,"codeGroup":null},"visible":true,"required":false,"searchable":false,"sortable":false,"control":"TEXT","confidence":1.0},

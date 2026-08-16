@@ -49,6 +49,18 @@ public class DetailFigmaScreenBuilder implements FigmaScreenBuilder {
                 .toList();
         return new FigmaNodeSpec(
                 idFactory.section(pageId, "detail"), FigmaNodeSpec.NodeType.SECTION, "egov.detailSection",
-                Map.of("semanticRole", SemanticRole.FORM_SECTION.code()), children);
+                Map.ofEntries(
+                        Map.entry("semanticRole", SemanticRole.FORM_SECTION.code()),
+                        Map.entry("layoutPattern", "DETAIL_TABLE_GRID"),
+                        Map.entry("labelColumnWidth", 176),
+                        Map.entry("rowGap", 0),
+                        Map.entry("outerBorder", "1px solid #A8A8A8"),
+                        Map.entry("rowBorder", "1px solid #A8A8A8"),
+                        Map.entry("columnBorder", "1px solid #A8A8A8"),
+                        Map.entry("labelBackground", "#F1F3F5"),
+                        Map.entry("labelBorder", "#CDD1D5"),
+                        Map.entry("cellPaddingX", 16),
+                        Map.entry("contentRowPaddingTop", 24),
+                        Map.entry("contentRowMinHeight", 104)), children);
     }
 }

@@ -16,6 +16,9 @@ spring:
     banner-mode: off
     web-application-type: servlet   # SSE HTTP 서버 활성화
     allow-bean-definition-overriding: true  # Ollama(chat) + Transformers(embedding) 빈 공존
+  lifecycle:
+    # SIGTERM 수신 시 진행 중인 HTTP 요청을 정리한 뒤 ApplicationContext를 닫는다.
+    timeout-per-shutdown-phase: ${APP_SHUTDOWN_TIMEOUT:30s}
   ai:
     mcp:
       server:
@@ -90,9 +93,15 @@ spring:
 
 server:
   address: ${SERVER_ADDRESS:127.0.0.1}
-  port: 8080
+  # 운영 기본 포트는 MCP 클라이언트 설정과 동일하게 8080으로 고정한다.
+  # 테스트/격리 실행에서만 SERVER_PORT로 명시적으로 변경한다.
+  port: ${SERVER_PORT:8080}
+  # Tomcat Connector를 즉시 끊지 않고 graceful shutdown 순서로 종료한다.
+  shutdown: graceful
   tomcat:
-    connection-timeout: PT1H        # SSE 연결 유지 — 1시간
+    connection-timeout: ${SERVER_TOMCAT_CONNECTION_TIMEOUT:PT1H}        # SSE 연결 유지 — 기본 1시간
+    max-http-form-post-size: ${SERVER_TOMCAT_MAX_HTTP_FORM_POST_SIZE:2MB}   # MR-A08: Refinement Patch Set 등 JSON 본문 크기 상한
+    max-swallow-size: ${SERVER_TOMCAT_MAX_SWALLOW_SIZE:2MB}
 
 rag:
   similarity:

@@ -75,6 +75,18 @@ tasks.named('test') {
     jvmArgs '-Xmx2g'
 }
 
+// bootRun은 Gradle이 Java 자식 프로세스를 실행한다. 개발 중 DevTools 재시작
+// 프로세스까지 겹치면 종료 신호가 분산되어 Tomcat LISTEN 소켓이 남을 수 있으므로
+// 단일 JVM으로 실행하고 표준 입력/종료 신호를 유지한다.
+tasks.named('bootRun') {
+    standardInput = System.in
+    systemProperty 'spring.devtools.restart.enabled', 'false'
+    systemProperty 'spring.devtools.livereload.enabled', 'false'
+    systemProperty 'server.shutdown', 'graceful'
+    systemProperty 'spring.lifecycle.timeout-per-shutdown-phase',
+            providers.gradleProperty('shutdownTimeout').orElse('30s').get()
+}
+
 // CI의 기본 러너에는 로컬 전용 ONNX 임베딩 모델(약 400MB)이 없다.
 // 전체 테스트는 개발 환경에서 그대로 실행하고, 원격 CI에서는 모델·DB·Redis에
 // 의존하지 않는 빠른 회귀 세트만 선택한다. 통합 테스트는 별도 환경에서 ./gradlew test로 실행한다.
@@ -101,7 +113,7 @@ tasks.register('figmaContractTest', Exec) {
 
 tasks.register('qnaRuntimeResolverTest', Test) {
     group = 'verification'
-    description = 'Q&A 6개 계약을 DB에 적재하고 Runtime Resolver Bundle을 생성합니다.'
+    description = 'Q&A 7개 계약을 DB에 적재하고 Runtime Resolver Bundle을 생성합니다.'
     useJUnitPlatform()
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
@@ -110,7 +122,7 @@ tasks.register('qnaRuntimeResolverTest', Test) {
 
 tasks.register('figmaRuntimeBundlePluginTest', Exec) {
     group = 'verification'
-    description = 'Runtime Resolver가 생성한 Q&A 6개 Bundle을 Figma Plugin Preview로 검증합니다.'
+    description = 'Runtime Resolver가 생성한 Q&A 7개 Bundle을 Figma Plugin Preview로 검증합니다.'
     dependsOn tasks.named('qnaRuntimeResolverTest')
     workingDir file('figma-screen-spec-plugin')
     commandLine 'npm', 'run', 'test:runtime-bundles'
@@ -163,8 +175,12 @@ tasks.named('processResources') {
     }
     from('website-figma-contract/fixtures/qna') {
         include 'krds-component-registry-v2.json'
+        include 'krds-component-registry-v2.2.0-candidate.json'
+        include 'krds-component-registry-v2.2.2-candidate.json'
         include 'variant-rule-set-krds-v2-candidate.json'
+        include 'variant-rule-set-krds-v2.2.2-candidate.json'
         include 'qna-screen-specification-v2.json'
+        include 'qna-screen-specification-v3.json'
         into 'figma/contracts/qna'
     }
     from('website-figma-contract/fixtures/qna/v2') {

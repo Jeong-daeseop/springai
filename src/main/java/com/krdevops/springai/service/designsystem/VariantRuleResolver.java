@@ -44,7 +44,9 @@ public class VariantRuleResolver {
             VariantAxisDefinition axis = contract.variantAxes().get(result.getKey());
             if (axis == null) return failed("VARIANT_AXIS_NOT_DECLARED", winners);
             String figmaValue = mappedValue(contract, result.getKey(), result.getValue());
-            if (!axis.allowedValues().contains(figmaValue)) return failed("VARIANT_VALUE_NOT_ALLOWED", winners);
+            if (!containsIgnoreCase(axis.allowedValues(), figmaValue)) {
+                return failed("VARIANT_VALUE_NOT_ALLOWED", winners);
+            }
             figmaProperties.put(axis.figmaProperty(), figmaValue);
         }
         boolean missingRequired = contract.variantAxes().values().stream()
@@ -53,7 +55,7 @@ public class VariantRuleResolver {
         if (missingRequired) return failed("REQUIRED_VARIANT_AXIS_MISSING", winners);
 
         List<Map.Entry<String, String>> variants = contract.variants().entrySet().stream()
-                .filter(entry -> parseVariantName(entry.getKey()).equals(figmaProperties))
+                .filter(entry -> equalVariantValues(parseVariantName(entry.getKey()), figmaProperties))
                 .toList();
         if (variants.isEmpty()) return failed("VARIANT_NOT_RESOLVED", winners);
         if (variants.size() > 1) return failed("VARIANT_AMBIGUOUS", winners);
@@ -64,7 +66,30 @@ public class VariantRuleResolver {
     private String mappedValue(ComponentRegistryEntry contract, String logicalAxis, String logicalValue) {
         ComponentRegistryEntry.PropertyMapping mapping = contract.properties().get(logicalAxis);
         if (mapping == null || mapping.values() == null) return logicalValue;
-        return mapping.values().getOrDefault(logicalValue, logicalValue);
+        String exact = mapping.values().get(logicalValue);
+        if (exact != null) return exact;
+        // Rule Set은 계약 문서 관례상 Default/Focus처럼 표기될 수 있고,
+        // Figma Registry는 default/focus처럼 저장될 수 있으므로 논리값은
+        // 대소문자를 구분하지 않고 매핑한다.
+        return mapping.values().entrySet().stream()
+                .filter(entry -> entry.getKey().equalsIgnoreCase(logicalValue))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(logicalValue);
+    }
+
+    private boolean containsIgnoreCase(Iterable<String> values, String expected) {
+        for (String value : values) {
+            if (value.equalsIgnoreCase(expected)) return true;
+        }
+        return false;
+    }
+
+    private boolean equalVariantValues(Map<String, String> expected, Map<String, String> actual) {
+        if (expected.size() != actual.size()) return false;
+        return expected.entrySet().stream().allMatch(entry -> actual.entrySet().stream()
+                .anyMatch(candidate -> candidate.getKey().equalsIgnoreCase(entry.getKey())
+                        && candidate.getValue().equalsIgnoreCase(entry.getValue())));
     }
 
     static Map<String, String> parseVariantName(String variantName) {

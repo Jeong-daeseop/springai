@@ -105,6 +105,16 @@ export ONNX_TOKENIZER_PATH=/path/to/tokenizer.json
 
 기본 주소는 `http://localhost:8080`, Streamable HTTP MCP endpoint는 `http://localhost:8080/mcp`입니다.
 
+운영·장기 실행은 Gradle과 Java 자식 프로세스를 함께 추적하는 래퍼를 사용합니다.
+
+```bash
+./scripts/springai-server.sh start
+./scripts/springai-server.sh status
+./scripts/springai-server.sh stop
+```
+
+운영 기본 포트는 8080입니다. 8082·8083은 테스트 격리 실행에서만 `SERVER_PORT=8082`처럼 명시적으로 사용하고, 운영 프로세스와 섞지 않습니다.
+
 MCP 클라이언트는 모든 MCP 요청에 다음 헤더를 보내야 합니다.
 
 ```http

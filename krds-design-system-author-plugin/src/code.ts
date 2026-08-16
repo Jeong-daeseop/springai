@@ -113,15 +113,193 @@ function normalizedVariantName(properties: Record<string, string>): string {
   return Object.entries(properties).map(([name, value]) => `${name}=${value}`).join(", ");
 }
 
+function variantPropertiesFromName(component: ComponentNode): Record<string, string> {
+  let properties: Record<string, string> = {};
+  try {
+    properties = { ...(component.variantProperties ?? {}) } as Record<string, string>;
+  } catch {
+    properties = {};
+  }
+  if (Object.keys(properties).length > 0) return properties;
+  for (const part of component.name.split(",")) {
+    const separator = part.indexOf("=");
+    if (separator > 0) properties[part.slice(0, separator).trim()] = part.slice(separator + 1).trim();
+  }
+  return properties;
+}
+
+function normalizeFocusVariantNames(set: ComponentSetNode, ensureDefaultState = false): void {
+  const names = new Set(set.children.filter(child => child.type === "COMPONENT").map(child => child.name.toLowerCase()));
+  for (const child of set.children) {
+    if (child.type !== "COMPONENT") continue;
+    let variantProperties: Record<string, string> = {};
+    try { variantProperties = { ...(child.variantProperties ?? {}) } as Record<string, string>; } catch { variantProperties = {}; }
+    const stateEntry = Object.entries(variantProperties).find(([name, value]) =>
+      name.toLowerCase() === "state" && value.toLowerCase() === "focused");
+    let nextName = stateEntry
+      ? normalizedVariantName({ ...variantProperties, [stateEntry[0]]: "focus" })
+      : child.name.replace(/(State=)focused\b/gi, "$1focus");
+    if (ensureDefaultState && !/(?:^|,\s*)State\s*=/i.test(nextName)) {
+      nextName = `${nextName}, State=default`;
+    }
+    if (nextName === child.name) continue;
+    if (names.has(nextName.toLowerCase())) {
+      child.remove();
+      continue;
+    }
+    child.name = nextName;
+    names.add(nextName.toLowerCase());
+  }
+}
+
+function ensureVariantProperty(set: ComponentSetNode, name: string, defaultValue: string): boolean {
+  let definitions: ComponentPropertyDefinitions = {};
+  try {
+    definitions = set.componentPropertyDefinitions ?? {};
+  } catch {
+    // Figma는 기존 Component Set 오류가 있는 동안 Property API를 거부한다.
+    // 이 경우 원본을 더 손상시키지 않고 Inventory 수집 단계로 진행한다.
+    return false;
+  }
+  if (Object.keys(definitions).some(propertyName => propertyName.toLowerCase() === name.toLowerCase())) {
+    return false;
+  }
+  set.addComponentProperty(name, "VARIANT", defaultValue);
+  return true;
+}
+
+function rebuildCheckboxComponentSet(set: ComponentSetNode, logicalId: string): ComponentSetNode {
+  const page = set.parent?.type === "PAGE" ? set.parent as PageNode : figma.currentPage;
+  const clones = set.children
+    .filter(child => child.type === "COMPONENT")
+    .map(child => (child as ComponentNode).clone());
+  if (clones.length === 0) throw new Error("Checkbox Component Set에 재구성할 Variant가 없습니다.");
+  for (const clone of clones) {
+    page.appendChild(clone);
+    const props = variantPropertiesFromName(clone);
+    const state = Object.entries(props).find(([key]) => key.toLowerCase() === "state")?.[1] || "default";
+    const check = /checked/i.test(state) ? "on" : "off";
+    clone.name = normalizedVariantName({ State: state.toLowerCase(), Size: "medium", Check: check });
+  }
+  const oldName = set.name;
+  const owner = set.getPluginData(PLUGIN_DATA_NS_ID);
+  set.remove();
+  const rebuilt = figma.combineAsVariants(clones, page);
+  rebuilt.name = oldName;
+  if (owner) rebuilt.setPluginData(PLUGIN_DATA_NS_ID, owner);
+  rebuilt.setPluginData(PLUGIN_DATA_LOGICAL_ID, logicalId);
+  return rebuilt;
+}
+
+function repairSelectedCheckboxComponentSet(): { created: number; key: string } {
+  const selected = figma.currentPage.selection[0];
+  const set = selected?.type === "COMPONENT_SET"
+    ? selected
+    : selected?.parent?.type === "COMPONENT_SET"
+      ? selected.parent
+      : undefined;
+  if (!set || set.type !== "COMPONENT_SET") {
+    throw new Error("Checkbox Component Set 또는 그 Variant를 먼저 선택하세요.");
+  }
+  const page = set.parent?.type === "PAGE" ? set.parent as PageNode : figma.currentPage;
+  const sourceByKey = new Map<string, ComponentNode>();
+  for (const child of set.children) {
+    if (child.type !== "COMPONENT") continue;
+    const props = variantPropertiesFromName(child);
+    const rawState = Object.entries(props).find(([name]) => name.toLowerCase() === "state")?.[1]?.toLowerCase() ?? "default";
+    const rawCheck = Object.entries(props).find(([name]) => name.toLowerCase() === "check")?.[1]?.toLowerCase() ?? "off";
+    if (rawCheck === "indeterminate") continue;
+    const state = rawState === "default" ? (rawCheck === "on" ? "checked" : "unchecked") : rawState;
+    if (!["unchecked", "checked", "focus", "disabled", "error", "readonly"].includes(state)) continue;
+    const check = state === "unchecked" || state === "checked" ? "on" : (rawCheck === "on" ? "on" : "off");
+    const key = `State=${state}, Size=medium, Check=${check}`;
+    if (!sourceByKey.has(key)) sourceByKey.set(key, child);
+  }
+  const targets = [
+    "State=unchecked, Size=medium, Check=on",
+    "State=checked, Size=medium, Check=on",
+    "State=focus, Size=medium, Check=off",
+    "State=disabled, Size=medium, Check=off",
+    "State=error, Size=medium, Check=off",
+    "State=readonly, Size=medium, Check=off",
+    "State=focus, Size=medium, Check=on",
+    "State=disabled, Size=medium, Check=on",
+    "State=error, Size=medium, Check=on",
+    "State=readonly, Size=medium, Check=on",
+  ];
+  const fallback = [...sourceByKey.values()][0];
+  if (!fallback) throw new Error("Checkbox Component Set에 복제할 Component가 없습니다.");
+  const oldX = set.x;
+  const oldY = set.y;
+  const clones = targets.map(target => {
+    const source = sourceByKey.get(target) ?? sourceByKey.get(target.replace("Check=on", "Check=off")) ?? fallback;
+    const clone = source.clone();
+    page.appendChild(clone);
+    clone.name = target;
+    return clone;
+  });
+  const oldName = set.name;
+  const logicalId = set.getPluginData(PLUGIN_DATA_LOGICAL_ID) || "krds.checkbox";
+  set.remove();
+  const rebuilt = figma.combineAsVariants(clones, page);
+  rebuilt.name = oldName;
+  rebuilt.x = oldX;
+  rebuilt.y = oldY;
+  rebuilt.setPluginData(PLUGIN_DATA_LOGICAL_ID, logicalId);
+  rebuilt.setPluginData("checkboxRebuilt", "true");
+  figma.currentPage.selection = [rebuilt];
+  return { created: clones.length, key: rebuilt.key };
+}
+
 function desiredAccessibilityStates(entry: RegistryV2["components"][string]): string[] {
   const hasState = Object.values(entry.variantAxes ?? {}).some(axis => axis.logicalName.toLowerCase() === "state");
   if (!hasState) return [];
   const field = (entry.roles ?? []).some(role => role.startsWith("field."));
-  return field ? ["focus", "disabled", "error"] : ["focus", "disabled"];
+  // 입력 계열은 오류 표시뿐 아니라 조회 전용(Read-only) 상태도 계약상 필요하다.
+  // Figma의 State 값은 공백·하이픈을 피하기 위해 `readonly`로 통일하고,
+  // 서버 Validator가 `readonly`/`read-only`/`view`를 호환 처리한다.
+  return field ? ["focus", "disabled", "error", "readonly"] : ["focus", "disabled"];
+}
+
+async function ensureTextareaStructure(component: ComponentNode, state: string): Promise<boolean> {
+  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+  const existing = new Set(component.children.map(child => child.name));
+  const addText = (name: string, characters: string, x: number, y: number, color: RGB, visible = true): TextNode => {
+    const text = figma.createText();
+    text.name = name;
+    text.fontName = { family: "Inter", style: "Regular" };
+    text.fontSize = name === "Label" ? 14 : 12;
+    text.characters = characters;
+    text.fills = [{ type: "SOLID", color }];
+    text.opacity = visible ? 1 : 0;
+    try { text.layoutPositioning = "ABSOLUTE"; } catch { /* older Figma runtime */ }
+    text.x = x;
+    text.y = y;
+    component.appendChild(text);
+    return text;
+  };
+  let changed = false;
+  if (!existing.has("Label")) {
+    addText("Label", "내용", 12, 8, { r: 0.12, g: 0.14, b: 0.18 });
+    changed = true;
+  }
+  if (!existing.has("Placeholder")) {
+    addText("Placeholder", "여러 줄로 입력하세요", 16, 48, { r: 0.38, g: 0.41, b: 0.46 });
+    changed = true;
+  }
+  if (!existing.has("Helper")) {
+    addText("Helper", "최대 500자까지 입력할 수 있습니다.", 12, 136, { r: 0.38, g: 0.41, b: 0.46 }, state.toLowerCase() !== "error");
+    changed = true;
+  }
+  if (!existing.has("Error")) {
+    addText("Error", "내용을 입력해 주세요.", 12, 136, { r: 0.72, g: 0.12, b: 0.12 }, state.toLowerCase() === "error");
+    changed = true;
+  }
+  return changed;
 }
 
 async function repairAccessibilityStates(registry: RegistryV2): Promise<{
-  registry: RegistryV2; inventory: Record<string, unknown>; changedSets: number; createdVariants: number;
+  registry: RegistryV2; inventory: Record<string, unknown>; changedSets: number; createdVariants: number; skipped: string[];
 }> {
   if (!registry || registry.profileId !== "krds" || !registry.components) {
     throw new Error("KRDS Component Registry v2 JSON이 필요합니다.");
@@ -134,14 +312,28 @@ async function repairAccessibilityStates(registry: RegistryV2): Promise<{
   for (const set of sets) byName.set(normalizeName(set.name), set);
   let changedSets = 0;
   let createdVariants = 0;
+  const skipped: string[] = [];
   const inventoryComponents: Record<string, unknown> = {};
 
   for (const [logicalType, entry] of Object.entries(registry.components)) {
     const desired = desiredAccessibilityStates(entry);
-    const set = byKey.get(entry.componentSetKey)
-      ?? (entry.componentName ? byName.get(normalizeName(entry.componentName)) : undefined);
+    const logicalShortName = logicalType.replace(/^krds\./, "");
+    const nameAliases: Record<string, string[]> = {
+      searchPanel: ["Search Panel", "Search Filter Panel"],
+      textField: ["Text Field", "Text Input"],
+      textarea: ["Textarea", "Text Area"],
+      select: ["Select"],
+      checkbox: ["Checkbox"],
+      button: ["Button"],
+    };
+    const candidateNames = [entry.componentName ?? "", logicalShortName, ...(nameAliases[logicalShortName] ?? [])]
+      .map(normalizeName)
+      .filter(Boolean);
+    let set = byKey.get(entry.componentSetKey)
+      ?? candidateNames.map(name => byName.get(name)).find(Boolean);
     if (!set && desired.length > 0) {
-      throw new Error(`상태를 보강할 로컬 Component Set을 찾을 수 없습니다: ${logicalType} (${entry.componentName ?? entry.componentSetKey})`);
+      skipped.push(logicalType);
+      continue;
     }
     if (!set) {
       const actualProperties: Record<string, { type: string; values: string[] }> = {};
@@ -159,22 +351,92 @@ async function repairAccessibilityStates(registry: RegistryV2): Promise<{
       continue;
     }
     entry.componentSetKey = set.key;
+    if (logicalShortName === "checkbox" && set.getPluginData("checkboxRebuilt") !== "true") {
+      const rebuilt = rebuildCheckboxComponentSet(set, logicalType);
+      rebuilt.setPluginData("checkboxRebuilt", "true");
+      set = rebuilt;
+      entry.componentSetKey = rebuilt.key;
+    }
+    normalizeFocusVariantNames(set, Object.values(entry.variantAxes ?? {}).some(axis => axis.logicalName.toLowerCase() === "state"));
     let changed = false;
+    if (["checkbox", "textField", "select", "searchPanel"].includes(logicalShortName)) {
+      // 운영 Checkbox가 상태만 가지고 있어도 계약이 요구하는 축을 실제
+      // Component Set Property로 만든다. 추가 Property는 기존 Variant에
+      // 기본값을 부여하고, 이후 상태 복제도 동일 축을 유지한다.
+      changed = ensureVariantProperty(set, "Size", "medium") || changed;
+      if (logicalShortName === "checkbox") {
+        changed = ensureVariantProperty(set, "Check", "off") || changed;
+      }
+    }
     const components = set.children.filter(child => child.type === "COMPONENT") as ComponentNode[];
+    if (logicalShortName === "checkbox") {
+      // Property를 추가하면 기존 Variant에는 기본값(off)이 들어간다.
+      // 운영 원본의 Checked/Unchecked 의미를 유지하도록 Check 축을
+      // 실제 상태에 맞춰 정규화한다.
+      for (const component of components) {
+        const props = variantPropertiesFromName(component);
+        const state = Object.entries(props).find(([key]) => key.toLowerCase() === "state")?.[1]
+          ?? component.name;
+        const checkKey = Object.keys(props).find(key => key.toLowerCase() === "check") ?? "Check";
+        const sizeKey = Object.keys(props).find(key => key.toLowerCase() === "size") ?? "Size";
+        props[checkKey] = /checked/i.test(state) ? "on" : "off";
+        props[sizeKey] = "medium";
+        const nextName = normalizedVariantName(props);
+        if (nextName !== component.name) {
+          component.name = nextName;
+          changed = true;
+        }
+      }
+    }
+    if (logicalShortName === "textarea") {
+      for (const component of components) {
+        let properties = variantPropertiesFromName(component);
+        const state = Object.entries(properties).find(([name]) => name.toLowerCase() === "state")?.[1] ?? "default";
+        if (await ensureTextareaStructure(component, state)) changed = true;
+      }
+    }
     const existingNames = new Set(components.map(component => component.name.toLowerCase()));
-    const defaultSources = components.filter(component =>
-      (component.variantProperties?.State ?? component.variantProperties?.state ?? "default").toLowerCase() === "default");
+    const defaultSources = components.filter(component => {
+      let state = component.name.match(/(?:^|,\s*)State=([^,]+)/i)?.[1] ?? "default";
+      try { state = component.variantProperties?.State ?? component.variantProperties?.state ?? state; } catch { /* name fallback */ }
+      return state.toLowerCase() === "default";
+    });
+    // Checkbox처럼 기본 상태가 `Unchecked`/`Checked`로 표현되는 Set은
+    // State=default Variant가 없으므로 모든 기존 상태를 복제 원본으로 사용한다.
+    // 그래야 checked·unchecked 각각에 disabled/error/readonly를 생성할 수 있다.
+    if (defaultSources.length === 0 && logicalShortName === "checkbox") {
+      defaultSources.push(...components);
+    }
+    if (desired.includes("focus") && defaultSources.length === 0) {
+      const namedDefault = components.filter(component => /State\s*=\s*default/i.test(component.name));
+      if (namedDefault.length > 0) defaultSources.push(...namedDefault);
+    }
 
     for (const state of desired) {
       for (const source of defaultSources) {
-        const props = { ...(source.variantProperties ?? {}) } as Record<string, string>;
+        const props = variantPropertiesFromName(source);
         const stateKey = Object.keys(props).find(key => key.toLowerCase() === "state") ?? "State";
         props[stateKey] = state;
         const name = normalizedVariantName(props);
         if (existingNames.has(name.toLowerCase())) continue;
         const clone = source.clone();
+        if (clone.parent !== set) set.appendChild(clone);
         clone.name = name;
         existingNames.add(name.toLowerCase());
+        createdVariants++;
+        changed = true;
+      }
+    }
+    if (desired.includes("focus") && !set.children.some(child =>
+      child.type === "COMPONENT" && /(?:^|,\s*)State=focus(?:,|$)/i.test(child.name))) {
+      const source = defaultSources[0] ?? components[0];
+      if (source) {
+        const props = variantPropertiesFromName(source);
+        const stateKey = Object.keys(props).find(key => key.toLowerCase() === "state") ?? "State";
+        props[stateKey] = "focus";
+        const clone = source.clone();
+        if (clone.parent !== set) set.appendChild(clone);
+        clone.name = normalizedVariantName(props);
         createdVariants++;
         changed = true;
       }
@@ -186,7 +448,13 @@ async function repairAccessibilityStates(registry: RegistryV2): Promise<{
     const propertyValues: Record<string, Set<string>> = {};
     for (const component of refreshed) {
       variants[component.name] = component.key;
-      for (const [name, value] of Object.entries(component.variantProperties ?? {})) {
+      let variantProperties: Record<string, string> = {};
+      try { variantProperties = { ...(component.variantProperties ?? {}) } as Record<string, string>; } catch { variantProperties = variantPropertiesFromName(component); }
+      for (const [name, value] of Object.entries(variantProperties)) {
+        // Figma가 Component Property를 추가하는 과정에서 이름 없는
+        // 임시 Variant 축을 `undefined`로 반환하는 경우가 있다.
+        // Inventory 계약에는 실제 Property만 기록해야 하므로 제거한다.
+        if (!name || name === "undefined" || value == null || value === "undefined") continue;
         (propertyValues[name] ??= new Set()).add(value.toLowerCase());
       }
     }
@@ -209,7 +477,40 @@ async function repairAccessibilityStates(registry: RegistryV2): Promise<{
     inventoryComponents[logicalType] = { componentSetKey: set.key, properties: actualProperties, variants };
   }
 
+  // 운영 파일에 Foundation 변수가 아직 없으면 Registry 계약의 논리 ID와
+  // 타입으로 최소 변수를 생성한다. 실제 값은 Publish 전 디자인 토큰
+  // 검토자가 채우며, 여기서는 Collection Key가 Inventory에 남도록 한다.
+  const registryVariables = (registry as RegistryV2 & { variables?: Record<string, {
+    variableName?: string; collectionName?: string; resolvedType?: string;
+  }> }).variables ?? {};
+  for (const [logicalId, definition] of Object.entries(registryVariables)) {
+    const collectionName = definition.collectionName || "Foundation";
+    const collection = await findOrCreateCollection(collectionName, ["Default"]);
+    const variableName = definition.variableName || logicalId;
+    const resolvedType = (definition.resolvedType || "STRING") as VariableResolvedDataType;
+    const variable = await findOrCreateVariable(collection, variableName, resolvedType, registry.profileId);
+    variable.setPluginData(PLUGIN_DATA_NS_ID, registry.profileId);
+    variable.setPluginData(PLUGIN_DATA_LOGICAL_ID, logicalId);
+  }
+
   const stamp = new Date().toISOString();
+  const inventoryVariables: Record<string, unknown> = {};
+  for (const collection of await figma.variables.getLocalVariableCollectionsAsync()) {
+    for (const variableId of collection.variableIds) {
+      const variable = await figma.variables.getVariableByIdAsync(variableId);
+      if (!variable) continue;
+      const logicalId = variable.getPluginData(PLUGIN_DATA_LOGICAL_ID) || variable.name;
+      if (!logicalId) continue;
+      inventoryVariables[logicalId] = {
+        variableKey: variable.key,
+        variableName: variable.name,
+        collectionKey: collection.key,
+        collectionName: collection.name,
+        resolvedType: variable.resolvedType,
+        publishStatus: await variable.getPublishStatusAsync(),
+      };
+    }
+  }
   return {
     registry,
     inventory: {
@@ -218,9 +519,11 @@ async function repairAccessibilityStates(registry: RegistryV2): Promise<{
       inventoryVersion: `figma-${stamp.replace(/[-:.TZ]/g, "").slice(0, 14)}`,
       capturedAt: stamp,
       components: inventoryComponents,
+      variables: inventoryVariables,
     },
     changedSets,
     createdVariants,
+    skipped,
   };
 }
 
@@ -734,8 +1037,11 @@ async function buildRegistryExport(
     const collectionStatus = await collection.getPublishStatusAsync();
     for (const variableId of collection.variableIds) {
       const variable = await figma.variables.getVariableByIdAsync(variableId);
-      if (!variable || variable.getPluginData(PLUGIN_DATA_NS_ID) !== spec.id) continue;
-      const logicalId = variable.getPluginData(PLUGIN_DATA_LOGICAL_ID);
+      if (!variable) continue;
+      // 운영 Library에서 이미 생성·Publish된 Foundation 변수를 태그가
+      // 없다는 이유로 누락하지 않는다. 태그가 있으면 논리 ID를 우선하고,
+      // 없으면 이름을 계약 ID로 사용해 Collection Key를 보존한다.
+      const logicalId = variable.getPluginData(PLUGIN_DATA_LOGICAL_ID) || variable.name;
       if (!logicalId) continue;
       const variableStatus = await variable.getPublishStatusAsync();
       variables[logicalId] = {
@@ -820,6 +1126,7 @@ type IncomingMessage =
   | { type: "EXPORT_REVIEW"; eventType: ReviewExport["eventType"]; actor: string; comment: string }
   | { type: "EXPORT_REGISTRY"; options: RegistryExportOptions }
   | { type: "REPAIR_ACCESSIBILITY_STATES"; registry: RegistryV2 }
+  | { type: "REPAIR_SELECTED_CHECKBOX" }
   | { type: "FOCUS_ERROR"; index: number };
 
 let currentSpec: DesignSystemSpec | undefined;
@@ -931,6 +1238,12 @@ figma.ui.onmessage = async (message: IncomingMessage) => {
     if (message.type === "REPAIR_ACCESSIBILITY_STATES") {
       const result = await repairAccessibilityStates(message.registry);
       figma.ui.postMessage({ type: "ACCESSIBILITY_STATES_REPAIRED", ...result });
+      return;
+    }
+
+    if (message.type === "REPAIR_SELECTED_CHECKBOX") {
+      const result = repairSelectedCheckboxComponentSet();
+      figma.ui.postMessage({ type: "CHECKBOX_REPAIRED", message: `Checkbox Component Set을 ${result.created}개 계약 Variant로 재구성했습니다. 새 Component Set Key: ${result.key}` });
       return;
     }
 

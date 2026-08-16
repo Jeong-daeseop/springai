@@ -1,7 +1,7 @@
 {
   "profileId": "krds",
   "profileVersion": "2.0.0",
-  "registryVersion": "2.1.0",
+  "registryVersion":"2.2.0",
   "library": {"fileKey": "KRDS_PUBLISHED_LIBRARY", "name": "KRDS v1.0.0 Community"},
   "components": {
     "krds.pageHeader": {
@@ -23,14 +23,14 @@
       "variants": {"Size=medium, State=default": "f2ca6ba8381fa38c0a6bdc24bea228cf55623bec"},
       "properties": {
         "size": {"figmaProperty": "Size", "type": "VARIANT", "values": {"Medium": "medium"}},
-        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "Focus": "focus", "Completed": "completed", "Error": "error", "Disabled": "disabled"}},
         "label": {"figmaProperty": "Lable#723:0", "type": "TEXT", "values": {}},
         "placeholder": {"figmaProperty": "↪️Hint#1275:39", "type": "TEXT", "values": {}}
       },
       "roles": ["search.panel"], "supportedPlatforms": ["DESKTOP"],
       "variantAxes": {
         "size": {"logicalName": "size", "figmaProperty": "Size", "allowedValues": ["medium"], "required": true},
-        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default"], "required": true}
+        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "focus", "completed", "error", "disabled"], "required": true}
       },
       "requiredProperties": ["size", "state"], "codeComponent": "KrdsSearch", "documentationUrl": null,
       "contractVersion": "2.1.0"
@@ -87,14 +87,14 @@
       },
       "properties": {
         "size": {"figmaProperty": "Size", "type": "VARIANT", "values": {"Medium": "medium"}},
-        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "ReadOnly": "view", "Disabled": "disabled"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "Focus": "focus", "Completed": "completed", "Error": "error", "ReadOnly": "view", "Disabled": "disabled"}},
         "label": {"figmaProperty": "↪️Label#286:10", "type": "TEXT", "values": {}},
         "placeholder": {"figmaProperty": "Placeholder#286:9", "type": "TEXT", "values": {}}
       },
       "roles": ["field.text"], "supportedPlatforms": ["DESKTOP"],
       "variantAxes": {
         "size": {"logicalName": "size", "figmaProperty": "Size", "allowedValues": ["medium"], "required": true},
-        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "view", "disabled"], "required": true}
+        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "focus", "completed", "error", "view", "disabled"], "required": true}
       },
       "requiredProperties": ["size", "state", "label"], "codeComponent": "KrdsTextInput", "documentationUrl": null,
       "contractVersion": "2.1.0"
@@ -110,12 +110,12 @@
         "State=disabled": "c197bf0b5d8369c570cdef83416fcbf9e55d593b"
       },
       "properties": {
-        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "ReadOnly": "view", "Disabled": "disabled"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "Focus": "focus", "Error": "error", "ReadOnly": "view", "Disabled": "disabled"}},
         "label": {"figmaProperty": "Label#286:10", "type": "TEXT", "values": {}},
         "placeholder": {"figmaProperty": "Placeholder#286:9", "type": "TEXT", "values": {}}
       },
       "roles": ["field.textarea"], "supportedPlatforms": ["DESKTOP"],
-      "variantAxes": {"state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "view", "disabled"], "required": true}},
+      "variantAxes": {"state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "focus", "completed", "error", "view", "disabled"], "required": true}},
       "requiredProperties": ["state", "label"], "codeComponent": "KrdsTextarea", "documentationUrl": null,
       "contractVersion": "2.1.0"
     },
@@ -131,14 +131,14 @@
       },
       "properties": {
         "size": {"figmaProperty": "Size", "type": "VARIANT", "values": {"Medium": "medium"}},
-        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "ReadOnly": "view", "Disabled": "disabled"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "Focus": "focus", "Error": "error", "ReadOnly": "view", "Disabled": "disabled"}},
         "label": {"figmaProperty": "↪️Label#286:10", "type": "TEXT", "values": {}},
         "placeholder": {"figmaProperty": "Placeholder#286:9", "type": "TEXT", "values": {}}
       },
       "roles": ["field.select"], "supportedPlatforms": ["DESKTOP"],
       "variantAxes": {
         "size": {"logicalName": "size", "figmaProperty": "Size", "allowedValues": ["medium"], "required": true},
-        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "view", "disabled"], "required": true}
+        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "focus", "error", "view", "disabled"], "required": true}
       },
       "requiredProperties": ["size", "state", "label"], "codeComponent": "KrdsSelect", "documentationUrl": null,
       "contractVersion": "2.1.0"
@@ -156,14 +156,14 @@
       "properties": {
         "size": {"figmaProperty": "Size", "type": "VARIANT", "values": {"Medium": "medium"}},
         "check": {"figmaProperty": "Check", "type": "VARIANT", "values": {"Off": "off", "On": "on"}},
-        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "ReadOnly": "disabled", "Disabled": "disabled"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "Focus": "focus", "Error": "error", "Disabled": "disabled"}},
         "label": {"figmaProperty": "label#309:0", "type": "TEXT", "values": {}}
       },
       "roles": ["field.checkbox"], "supportedPlatforms": ["DESKTOP"],
       "variantAxes": {
         "size": {"logicalName": "size", "figmaProperty": "Size", "allowedValues": ["medium"], "required": true},
         "check": {"logicalName": "check", "figmaProperty": "Check", "allowedValues": ["off", "on"], "required": true},
-        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "disabled"], "required": true}
+        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "focus", "error", "disabled"], "required": true}
       },
       "requiredProperties": ["size", "check", "state", "label"], "codeComponent": "KrdsCheckbox", "documentationUrl": null,
       "contractVersion": "2.1.0"
@@ -181,14 +181,14 @@
       "properties": {
         "type": {"figmaProperty": "Type", "type": "VARIANT", "values": {"Primary": "primary", "Secondary": "secondary", "Tertiary": "tertiary"}},
         "size": {"figmaProperty": "Size", "type": "VARIANT", "values": {"Medium": "medium"}},
-        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"Default": "default", "Focus": "focus", "Disabled": "disabled"}},
         "label": {"figmaProperty": "Label#300:3", "type": "TEXT", "values": {}}
       },
       "roles": ["action.primary", "action.secondary", "action.destructive"], "supportedPlatforms": ["DESKTOP"],
       "variantAxes": {
         "type": {"logicalName": "type", "figmaProperty": "Type", "allowedValues": ["primary", "secondary", "tertiary"], "required": true},
         "size": {"logicalName": "size", "figmaProperty": "Size", "allowedValues": ["medium"], "required": true},
-        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default"], "required": true}
+        "state": {"logicalName": "state", "figmaProperty": "State", "allowedValues": ["default", "focus", "disabled"], "required": true}
       },
       "requiredProperties": ["type", "size", "state", "label"], "codeComponent": "KrdsButton", "documentationUrl": null,
       "contractVersion": "2.1.0"

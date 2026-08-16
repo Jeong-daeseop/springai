@@ -19,8 +19,8 @@ import java.util.List;
 public class KrdsRuntimeContractImportService {
 
     public static final String PATTERNS_RESOURCE = "figma/contracts/screen-patterns-v1.json";
-    public static final String REGISTRY_RESOURCE = "figma/contracts/qna/krds-component-registry-v2.json";
-    public static final String RULE_SET_RESOURCE = "figma/contracts/qna/variant-rule-set-krds-v2-candidate.json";
+    public static final String REGISTRY_RESOURCE = "figma/contracts/qna/krds-component-registry-v2.2.2-candidate.json";
+    public static final String RULE_SET_RESOURCE = "figma/contracts/qna/variant-rule-set-krds-v2.2.2-candidate.json";
 
     private final ComponentRegistryRepository registryRepository;
     private final ScreenPatternRepository patternRepository;
@@ -65,6 +65,21 @@ public class KrdsRuntimeContractImportService {
 
     public ImportResult importDefaultQnaContracts() {
         return importContracts(readDefaultQnaContracts());
+    }
+
+    /** 운영 Registry가 이미 승인된 경우 Rule Set만 별도 Import한다. */
+    public ImportResult importDefaultQnaRuleSet() {
+        ContractSet contracts = readDefaultQnaContracts();
+        ruleSetRepository.saveImmutable(contracts.ruleSet());
+        return new ImportResult(contracts.registry().profileId(), contracts.registry().registryVersion(),
+                contracts.ruleSet().id(), contracts.ruleSet().version(), contracts.patterns().size());
+    }
+
+    /** 운영 Registry 버전에 맞춘 Rule Set 후보를 외부 Fixture에서 Import한다. */
+    public ImportResult importRuleSet(VariantRuleSet ruleSet) {
+        ruleSetRepository.saveImmutable(ruleSet);
+        return new ImportResult(ruleSet.profileId(), ruleSet.registryVersion(),
+                ruleSet.id(), ruleSet.version(), ruleSet.rules().size());
     }
 
     public ImportResult importContracts(ContractSet contracts) {

@@ -1,0 +1,89 @@
+{
+  "screenId": "qna-update",
+  "screenSpecificationId": "qna-suite",
+  "screenSpecificationVersion": 2,
+  "source": "FIGMA_EGOVFRAME_QNA_UPDATE_PAGE",
+  "template": "QNA_FORM",
+  "semanticPattern": "crud.edit",
+  "formMode": "EDIT",
+  "screenName": "Q&A 수정",
+  "viewport": "DESKTOP",
+  "layout": {
+    "density": "STANDARD",
+    "formColumnLayout": "SINGLE_COLUMN",
+    "actionPlacement": "BOTTOM_RIGHT"
+  },
+  "fields": [
+    {
+      "id": "writer",
+      "label": "작성자",
+      "dataRole": "AUTHOR",
+      "semanticRole": "field.text",
+      "mode": "READ_ONLY",
+      "source": {"type": "COLUMN", "tableAlias": "q", "column": "WRITER"},
+      "control": "TEXT",
+      "required": false
+    },
+    {
+      "id": "contact",
+      "label": "연락처",
+      "dataRole": "CONTACT",
+      "semanticRole": "field.text",
+      "mode": "EDITABLE",
+      "source": {"type": "COLUMN", "tableAlias": "q", "column": "CONTACT"},
+      "control": "TEXT",
+      "required": true
+    },
+    {
+      "id": "title",
+      "label": "질문 제목",
+      "dataRole": "TITLE",
+      "semanticRole": "field.text",
+      "mode": "EDITABLE",
+      "source": {"type": "COLUMN", "tableAlias": "q", "column": "TITLE"},
+      "control": "TEXT",
+      "required": true
+    },
+    {
+      "id": "email",
+      "label": "이메일주소",
+      "dataRole": "EMAIL",
+      "semanticRole": "field.text",
+      "mode": "EDITABLE",
+      "source": {"type": "COLUMN", "tableAlias": "q", "column": "EMAIL"},
+      "control": "TEXT",
+      "required": true
+    },
+    {
+      "id": "content",
+      "label": "질문 내용",
+      "dataRole": "CONTENT",
+      "semanticRole": "field.textarea",
+      "mode": "EDITABLE",
+      "source": {"type": "COLUMN", "tableAlias": "q", "column": "CONTENT"},
+      "control": "TEXTAREA",
+      "required": true
+    }
+  ],
+  "actions": [
+    {"id": "update", "command": "UPDATE", "role": "action.primary", "label": "수정", "state": "DEFAULT"},
+    {"id": "list", "command": "LIST", "role": "action.secondary", "label": "목록", "state": "DEFAULT"}
+  ],
+  "requiredRoles": [
+    "page.header",
+    "form.container",
+    "form.section",
+    "field.text",
+    "field.textarea",
+    "action.primary",
+    "action.secondary"
+  ],
+  "figmaMapping": {
+    "pageType": "egov.formPage",
+    "header": "krds.pageHeader",
+    "textarea": "krds.textarea",
+    "actionArea": "egov.actionArea",
+    "observedFieldOrder": ["writer", "contact", "email", "title", "content"],
+    "observedActionOrder": ["update", "list"]
+  }
+}

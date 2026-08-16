@@ -1,5 +1,6 @@
 package com.krdevops.springai.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.model.designsystem.ComponentRegistry;
 import com.krdevops.springai.model.designsystem.ComponentRegistrySyncResult;
 import com.krdevops.springai.model.designsystem.DesignSystemProfile;
@@ -8,6 +9,7 @@ import com.krdevops.springai.model.designsystem.FigmaLibraryInventorySnapshot;
 import com.krdevops.springai.mapper.FigmaLibraryInventoryRepository;
 import com.krdevops.springai.service.designsystem.DesignSystemQueryService;
 import com.krdevops.springai.service.designsystem.FigmaContractApprovalService;
+import com.krdevops.springai.service.designsystem.KrdsRuntimeContractImportService;
 import com.krdevops.springai.model.design.role.ScreenPattern;
 import com.krdevops.springai.model.designsystem.ScreenPatternDefinition;
 import com.krdevops.springai.model.designsystem.VariantRuleSet;
@@ -32,7 +34,21 @@ public class DesignSystemController {
     private final DesignSystemQueryService queryService;
     private final FigmaLibraryInventoryRepository inventoryRepository;
     private final FigmaContractApprovalService contractApprovalService;
+    private final KrdsRuntimeContractImportService runtimeContractImportService;
     private final FigmaRollbackRehearsalService rollbackRehearsalService;
+    private final ObjectMapper objectMapper;
+
+    /** 운영 KRDS Runtime Registry/Rule Set 후보를 DB에 불변 Snapshot으로 Import한다. */
+    @PostMapping("/runtime-contracts/qna/import")
+    public KrdsRuntimeContractImportService.ImportResult importQnaRuntimeContracts() {
+        return runtimeContractImportService.importDefaultQnaRuleSet();
+    }
+
+    @PostMapping("/runtime-contracts/rule-set/import")
+    public KrdsRuntimeContractImportService.ImportResult importRuleSet(
+            @RequestBody VariantRuleSet ruleSet) {
+        return runtimeContractImportService.importRuleSet(ruleSet);
+    }
 
     @PostMapping("/rollback-rehearsals/preview")
     public FigmaRollbackRehearsalService.RehearsalResult previewRollback(
@@ -129,8 +145,9 @@ public class DesignSystemController {
     @PostMapping("/{profileId}/registries/preview")
     public ComponentRegistrySyncResult previewRegistry(
             @PathVariable String profileId,
-            @RequestBody ComponentRegistry registry
+            @RequestBody String body
     ) {
+        ComponentRegistry registry = parseRegistry(body);
         requireSameProfile(profileId, registry);
         try {
             return queryService.previewRegistry(registry);
@@ -145,8 +162,9 @@ public class DesignSystemController {
             @RequestParam(defaultValue = "false") boolean confirmed,
             @RequestParam(required = false) String actor,
             @RequestParam(required = false) String comment,
-            @RequestBody ComponentRegistry registry
+            @RequestBody String body
     ) {
+        ComponentRegistry registry = parseRegistry(body);
         requireSameProfile(profileId, registry);
         try {
             return queryService.applyRegistry(registry, confirmed, actor, comment);
@@ -160,8 +178,9 @@ public class DesignSystemController {
             @PathVariable String profileId,
             @RequestParam String retryToken,
             @RequestParam(defaultValue = "false") boolean confirmed,
-            @RequestBody ComponentRegistry registry
+            @RequestBody String body
     ) {
+        ComponentRegistry registry = parseRegistry(body);
         requireSameProfile(profileId, registry);
         try {
             return queryService.retryRegistry(registry, retryToken, confirmed);
@@ -224,6 +243,16 @@ public class DesignSystemController {
             throw new FigmaRequestException(
                     "COMPONENT_REGISTRY_PROFILE_MISMATCH",
                     "Path profileId와 Registry profileId가 다릅니다.");
+        }
+    }
+
+    private ComponentRegistry parseRegistry(String body) {
+        try {
+            return objectMapper.readValue(body, ComponentRegistry.class);
+        } catch (Exception exception) {
+            throw new FigmaRequestException(
+                    "COMPONENT_REGISTRY_JSON_INVALID",
+                    "Registry JSON을 읽을 수 없습니다: " + exception.getMessage());
         }
     }
 

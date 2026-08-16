@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.HashSet;
 
@@ -26,12 +27,26 @@ public class ComponentRegistryValidator {
         }
 
         Map<String, String> publishedKeyToLogicalType = new HashMap<>();
+        Map<String, String> componentSetOwners = new HashMap<>();
         Map<String, String> aliasOwners = new HashMap<>();
         for (var entry : registry.components().entrySet()) {
             String logicalType = entry.getKey();
             ComponentRegistryEntry value = entry.getValue();
-            detectDuplicateKey(value.componentSetKey(), logicalType, publishedKeyToLogicalType, issues);
+            String componentSetOwner = componentSetOwners.putIfAbsent(value.componentSetKey(), logicalType);
+            if (componentSetOwner != null) {
+                ComponentRegistryEntry ownerEntry = registry.components().get(componentSetOwner);
+                // Header/Cell처럼 하나의 Figma Component Set을 역할별 논리 ID로
+                // 노출하는 계약은 동일 Set 이름과 분리된 Variant 축을 사용하므로
+                // Published Key 중복으로 오판하지 않는다.
+                if (ownerEntry == null || ownerEntry.componentName() == null || value.componentName() == null
+                        || !Objects.equals(ownerEntry.componentName(), value.componentName())) {
+                    detectDuplicateKey(value.componentSetKey(), logicalType, publishedKeyToLogicalType, issues);
+                }
+            } else {
+                publishedKeyToLogicalType.put(value.componentSetKey(), logicalType);
+            }
             for (var variant : value.variants().entrySet()) {
+                if (variant.getValue().equals(value.componentSetKey())) continue;
                 detectDuplicateKey(variant.getValue(), logicalType + "/" + variant.getKey(),
                         publishedKeyToLogicalType, issues);
             }

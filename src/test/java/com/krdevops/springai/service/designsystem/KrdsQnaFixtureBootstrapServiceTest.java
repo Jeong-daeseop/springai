@@ -50,9 +50,9 @@ class KrdsQnaFixtureBootstrapServiceTest {
         FigmaScreenSpecRepository screens = mock(FigmaScreenSpecRepository.class);
         FigmaLibraryInventoryRepository inventories = mock(FigmaLibraryInventoryRepository.class);
         ScreenSpecRepository screenSpecifications = mock(ScreenSpecRepository.class);
-        when(registries.findVersion("krds", "2.1.0")).thenReturn(Optional.empty());
+        when(registries.findVersion("krds", "2.2.2")).thenReturn(Optional.empty());
         when(profiles.findVersion("krds", "2.0.0")).thenReturn(Optional.empty());
-        when(inventories.findVersion("krds", "2.1.0",
+        when(inventories.findVersion("krds", "2.2.2",
                 KrdsQnaFixtureBootstrapService.INVENTORY_VERSION)).thenReturn(Optional.empty());
 
         KrdsRuntimeContractImportService reader = new KrdsRuntimeContractImportService(
@@ -61,7 +61,7 @@ class KrdsQnaFixtureBootstrapServiceTest {
         VariantRuleSet publishedRules = new VariantRuleSet(
                 contracts.ruleSet().id(), contracts.ruleSet().version(), contracts.ruleSet().profileId(),
                 contracts.ruleSet().registryVersion(), VariantRuleSet.Status.PUBLISHED, contracts.ruleSet().rules());
-        when(rules.findPublished("krds", "2.1.0")).thenReturn(Optional.of(publishedRules));
+        when(rules.findPublished("krds", "2.2.2")).thenReturn(Optional.of(publishedRules));
         contracts.patterns().forEach(pattern -> when(patterns.findVersion(pattern.pattern(), pattern.version()))
                 .thenReturn(Optional.of(pattern)));
         contracts.patterns().forEach(pattern -> when(patterns.findLatest(pattern.pattern()))
@@ -81,25 +81,25 @@ class KrdsQnaFixtureBootstrapServiceTest {
         var result = service.bootstrap();
 
         assertThat(result.screenIds()).containsExactlyInAnyOrder(
-                "qna-list", "qna-create", "qna-detail",
+                "qna-list", "qna-create", "qna-update", "qna-detail",
                 "qna-answer-list", "qna-answer-detail", "qna-answer-create");
         assertThat(result.patternCount()).isEqualTo(4);
         ArgumentCaptor<ScreenSpecification> specificationCaptor =
                 ArgumentCaptor.forClass(ScreenSpecification.class);
         verify(screenSpecifications).save(specificationCaptor.capture());
         assertThat(specificationCaptor.getValue().id()).isEqualTo("qna-suite");
-        assertThat(specificationCaptor.getValue().pages()).hasSize(6);
+        assertThat(specificationCaptor.getValue().pages()).hasSize(7);
         ArgumentCaptor<VariantRuleSet> ruleCaptor = ArgumentCaptor.forClass(VariantRuleSet.class);
         verify(rules).saveImmutable(ruleCaptor.capture());
         assertThat(ruleCaptor.getValue().status()).isEqualTo(VariantRuleSet.Status.PUBLISHED);
         ArgumentCaptor<FigmaScreenSpec> screenCaptor = ArgumentCaptor.forClass(FigmaScreenSpec.class);
-        verify(screens, times(6)).save(screenCaptor.capture());
+        verify(screens, times(7)).save(screenCaptor.capture());
         assertThat(screenCaptor.getAllValues())
                 .allSatisfy(screen -> {
                     assertThat(screen.status()).isEqualTo("APPROVED");
                     assertThat(screen.designSystem().profileVersion()).isEqualTo("2.0.0");
-                    assertThat(screen.designSystem().registryVersion()).isEqualTo("2.1.0");
-                    assertThat(screen.variantRuleSetVersion()).isEqualTo("2.0.0-candidate");
+                    assertThat(screen.designSystem().registryVersion()).isEqualTo("2.2.2");
+                    assertThat(screen.variantRuleSetVersion()).isEqualTo("2.2.2-candidate");
                     assertThat(screen.componentContractVersion()).isEqualTo("2.1.0");
                 });
         FigmaScreenSpec list = screenCaptor.getAllValues().stream()

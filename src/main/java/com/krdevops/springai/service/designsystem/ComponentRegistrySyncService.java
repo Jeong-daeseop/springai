@@ -74,7 +74,8 @@ public class ComponentRegistrySyncService {
         ComponentRegistry previous = registryRepository.findLatest(candidate.profileId()).orElse(null);
         issues.addAll(validator.validateNewEntryLifecycle(candidate, previous));
         validateActualFigmaInventory(candidate, issues);
-        List<ComponentRegistryDiff.Change> changes = calculateChanges(previous, candidate, issues);
+        boolean migrationApproved = hasMigrationApproval(candidate);
+        List<ComponentRegistryDiff.Change> changes = calculateChanges(previous, candidate, issues, migrationApproved);
         boolean valid = issues.stream().noneMatch(issue ->
                 issue.severity() == DesignSystemIssue.Severity.FATAL
                         || issue.severity() == DesignSystemIssue.Severity.ERROR);
@@ -249,10 +250,20 @@ public class ComponentRegistrySyncService {
         }
     }
 
+    private boolean hasMigrationApproval(ComponentRegistry candidate) {
+        if (reviewRepository == null) return false;
+        return reviewRepository.findByTarget(
+                        FigmaReviewEvent.TargetType.COMPONENT_REGISTRY,
+                        candidate.profileId(), candidate.registryVersion()).stream()
+                .anyMatch(event -> event.eventType() == FigmaReviewEvent.EventType.APPROVAL
+                        && "MIGRATION_APPROVED".equalsIgnoreCase(event.status()));
+    }
+
     private List<ComponentRegistryDiff.Change> calculateChanges(
             ComponentRegistry previous,
             ComponentRegistry candidate,
-            List<DesignSystemIssue> issues
+            List<DesignSystemIssue> issues,
+            boolean migrationApproved
     ) {
         List<ComponentRegistryDiff.Change> changes = new ArrayList<>();
         Map<String, String> oldComponents = new LinkedHashMap<>();
@@ -266,27 +277,28 @@ public class ComponentRegistrySyncService {
                         "Library fileKey가 변경되었습니다. 파일 이동 또는 Library 교체를 명시적으로 검토해야 합니다.",
                         candidate.profileId()));
             }
-            detectComponentDrift(previous, candidate, issues);
+            detectComponentDrift(previous, candidate, issues, migrationApproved);
         }
         diffAssets(ComponentRegistryDiff.AssetType.COMPONENT, oldComponents,
                 candidate.components().entrySet().stream().collect(
                         LinkedHashMap::new,
                         (map, entry) -> map.put(entry.getKey(), entry.getValue().componentSetKey()),
                         LinkedHashMap::putAll),
-                changes, issues);
+                changes, issues, migrationApproved);
         diffAssets(ComponentRegistryDiff.AssetType.VARIABLE, oldVariables,
                 candidate.variables().entrySet().stream().collect(
                         LinkedHashMap::new,
                         (map, entry) -> map.put(entry.getKey(), entry.getValue().variableKey()),
                         LinkedHashMap::putAll),
-                changes, issues);
+                changes, issues, migrationApproved);
         return changes;
     }
 
     private void detectComponentDrift(
             ComponentRegistry previous,
             ComponentRegistry candidate,
-            List<DesignSystemIssue> issues
+            List<DesignSystemIssue> issues,
+            boolean migrationApproved
     ) {
         candidate.components().forEach((logicalType, current) -> {
             ComponentRegistryEntry before = previous.components().get(logicalType);
@@ -309,7 +321,7 @@ public class ComponentRegistrySyncService {
                     issues.add(issue("COMPONENT_PROPERTY_TYPE_CHANGED",
                             logicalType + "." + propertyName + " 속성 타입이 변경되었습니다.", logicalType));
                 }
-                if (oldMapping.type() == ComponentRegistryEntry.PropertyType.VARIANT
+                if (!migrationApproved && oldMapping.type() == ComponentRegistryEntry.PropertyType.VARIANT
                         && !newMapping.values().keySet().containsAll(oldMapping.values().keySet())) {
                     issues.add(issue("COMPONENT_VARIANT_VALUE_REMOVED",
                             logicalType + "." + propertyName + "의 기존 Variant 값이 제거되었습니다.", logicalType));
@@ -323,7 +335,8 @@ public class ComponentRegistrySyncService {
             Map<String, String> previous,
             Map<String, String> candidate,
             List<ComponentRegistryDiff.Change> changes,
-            List<DesignSystemIssue> issues
+            List<DesignSystemIssue> issues,
+            boolean migrationApproved
     ) {
         candidate.forEach((logicalId, candidateKey) -> {
             String previousKey = previous.remove(logicalId);
@@ -334,7 +347,7 @@ public class ComponentRegistrySyncService {
                 changeType = ComponentRegistryDiff.ChangeType.NO_CHANGE;
             } else {
                 changeType = ComponentRegistryDiff.ChangeType.UPDATE;
-                issues.add(issue(
+                if (!migrationApproved) issues.add(issue(
                         type == ComponentRegistryDiff.AssetType.COMPONENT
                                 ? "COMPONENT_KEY_CHANGED" : "VARIABLE_KEY_CHANGED",
                         logicalId + "의 Published Key가 변경되었습니다. Migration 승인 전에는 반영할 수 없습니다.",

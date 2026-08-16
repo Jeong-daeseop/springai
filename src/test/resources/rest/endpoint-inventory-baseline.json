@@ -28,6 +28,14 @@
   "path" : "/api/design-systems/rule-sets/{id}/versions/{version}/publish"
 }, {
   "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/runtime-contracts/qna/import"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/runtime-contracts/rule-set/import"
+}, {
+  "controller" : "DesignSystemController",
   "method" : "GET",
   "path" : "/api/design-systems/{profileId}"
 }, {
@@ -202,6 +210,14 @@
   "controller" : "RagController",
   "method" : "POST",
   "path" : "/api/rag/search"
+}, {
+  "controller" : "ScreenSpecificationController",
+  "method" : "POST",
+  "path" : "/api/screen-specifications/import"
+}, {
+  "controller" : "ScreenSpecificationController",
+  "method" : "GET",
+  "path" : "/api/screen-specifications/{id}/versions/{version}"
 }, {
   "controller" : "ThymeleafBindingGenerationController",
   "method" : "POST",

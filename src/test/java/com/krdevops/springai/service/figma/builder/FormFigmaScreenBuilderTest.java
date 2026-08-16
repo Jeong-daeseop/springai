@@ -1,11 +1,15 @@
 package com.krdevops.springai.service.figma.builder;
 
 import com.krdevops.springai.model.design.PageSpec;
+import com.krdevops.springai.model.design.ScreenFieldBinding;
 import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.model.design.UiFieldRole;
 import com.krdevops.springai.model.figma.FigmaNodeSpec;
 import com.krdevops.springai.service.figma.FigmaBuilderTestFixtures;
 import com.krdevops.springai.service.figma.LogicalNodeIdFactory;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,5 +43,41 @@ class FormFigmaScreenBuilderTest {
 
         FigmaNodeSpec validationSummary = root.children().get(2);
         assertThat(validationSummary.properties()).containsEntry("requiredFieldCount", 2L);
+    }
+
+    @Test
+    void exposesPagePurposeAndFieldValidationMetadata() {
+        ScreenSpecification spec = FigmaBuilderTestFixtures.userManagementSpec();
+        PageSpec answerCreate = new PageSpec(
+                "qna-answer-create", "QNA_ANSWER_FORM", spec.pages().get(1).fields(),
+                spec.pages().get(1).actions());
+
+        FigmaNodeSpec root = builder.build(spec, answerCreate, idFactory);
+        assertThat(root.children().get(0).properties()).containsEntry("title", "답변 등록");
+
+        FigmaNodeSpec field = root.children().get(1).children().get(0).children().get(0);
+        assertThat(field.properties())
+                .containsEntry("labelRequired", true)
+                .containsKey("helperText")
+                .containsKey("errorMessage");
+    }
+
+    @Test
+    void exposesDataRolesForEmailAndEmailReplyInlineLayout() {
+        ScreenSpecification spec = FigmaBuilderTestFixtures.userManagementSpec();
+        ScreenFieldBinding template = spec.pages().get(1).fields().get(0);
+        ScreenFieldBinding email = new ScreenFieldBinding(
+                "email", "이메일주소", UiFieldRole.EMAIL, template.semanticRole(), template.mode(),
+                template.source(), true, true, false, false, "TEXT", 1.0);
+        ScreenFieldBinding emailReply = new ScreenFieldBinding(
+                "emailReplyYn", "이메일답변여부", UiFieldRole.EMAIL_REPLY, template.semanticRole(), template.mode(),
+                template.source(), true, false, false, false, "CHECKBOX", 1.0);
+        PageSpec page = new PageSpec("qna-create", "QNA_FORM", List.of(email, emailReply), List.of());
+
+        FigmaNodeSpec root = builder.build(spec, page, idFactory);
+        FigmaNodeSpec form = root.children().get(1).children().get(0);
+
+        assertThat(form.children()).extracting(node -> node.properties().get("dataRole"))
+                .containsExactly("EMAIL", "EMAIL_REPLY");
     }
 }

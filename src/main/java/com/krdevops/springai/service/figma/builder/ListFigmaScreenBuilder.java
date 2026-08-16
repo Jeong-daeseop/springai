@@ -58,13 +58,13 @@ public class ListFigmaScreenBuilder implements FigmaScreenBuilder {
             String pageId, ScreenSpecification screenSpecification, List<ScreenFieldBinding> searchFields, LogicalNodeIdFactory idFactory) {
         return new FigmaNodeSpec(
                 idFactory.section(pageId, "search"), FigmaNodeSpec.NodeType.COMPONENT, "krds.searchPanel",
-                Map.of("semanticRole", SemanticRole.SEARCH_PANEL.code(),
-                        "placement", screenSpecification.searchPanelPlacement().name(),
-                        "fieldCount", searchFields.size(),
-                        "searchFieldIds", searchFields.stream().map(ScreenFieldBinding::id).toList(),
-                        "label", "검색어",
-                        "placeholder", "검색어를 입력하세요",
-                        "componentMaxWidth", 960), List.of());
+                Map.ofEntries(Map.entry("semanticRole", SemanticRole.SEARCH_PANEL.code()),
+                        Map.entry("label", "검색어"),
+                        Map.entry("placeholder", "검색어를 입력하세요"),
+                        Map.entry("placement", screenSpecification.searchPanelPlacement().name()),
+                        Map.entry("fieldCount", searchFields.size()),
+                        Map.entry("searchFieldIds", searchFields.stream().map(ScreenFieldBinding::id).toList()),
+                        Map.entry("componentMaxWidth", 960)), List.of());
     }
 
     private FigmaNodeSpec resultToolbar(String pageId, LogicalNodeIdFactory idFactory) {
@@ -126,9 +126,36 @@ public class ListFigmaScreenBuilder implements FigmaScreenBuilder {
         return java.util.stream.IntStream.range(0, columns.size())
                 .mapToObj(index -> {
                     FigmaNodeSpec source = columns.get(index);
+                    Map<String, Object> properties = new java.util.LinkedHashMap<>(source.properties());
+                    if (rowId.startsWith("row-")) {
+                        int rowNumber = Integer.parseInt(rowId.substring("row-".length()));
+                        properties.put("label", sampleRowValue(String.valueOf(source.properties().get("label")), rowNumber));
+                    }
                     return new FigmaNodeSpec(pageId + "/table/" + rowId + "/cell-" + (index + 1),
-                            source.nodeType(), source.type(), source.properties(), source.children());
+                            source.nodeType(), source.type(), properties, source.children());
                 }).toList();
+    }
+
+    private String sampleRowValue(String column, int row) {
+        return switch (column) {
+            case "번호" -> String.valueOf(row);
+            case "제목" -> switch (row) {
+                case 1 -> "시스템 이용 방법 문의";
+                case 2 -> "회원가입 절차 문의";
+                case 3 -> "비밀번호 변경 문의";
+                default -> "첨부파일 등록 문의";
+            };
+            case "작성자" -> switch (row) {
+                case 1 -> "홍길동";
+                case 2 -> "김민수";
+                case 3 -> "이지은";
+                default -> "박서준";
+            };
+            case "등록일" -> "2026-08-0" + (row + 1);
+            case "처리상태" -> row == 2 ? "처리중" : "답변완료";
+            case "조회수" -> String.valueOf(row * 7 + 5);
+            default -> column;
+        };
     }
 
     private int columnWidthPercent(int index) {

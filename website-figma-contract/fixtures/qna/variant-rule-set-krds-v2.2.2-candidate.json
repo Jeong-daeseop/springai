@@ -1,8 +1,8 @@
 {
   "id": "krds-role-variant",
-  "version": "2.2.0-candidate",
+  "version": "2.2.2-candidate",
   "profileId": "krds",
-  "registryVersion": "2.2.0",
+  "registryVersion": "2.2.2",
   "status": "DRAFT",
   "rules": [
 {"ruleId":"search-panel-default","priority":100,"role":"search.panel","when":{"pattern":"crud.list","platform":"DESKTOP"},"result":{"type":"simple","size":"Medium","state":"Default"}},
