@@ -1,16 +1,17 @@
 package com.krdevops.springai.controller;
 
+import com.krdevops.springai.config.AppProperties;
 import com.krdevops.springai.model.figma.FigmaExportIssue;
 import com.krdevops.springai.model.figma.FigmaExportResult;
 import com.krdevops.springai.model.figma.FigmaScreenExportRequest;
 import com.krdevops.springai.model.figma.FigmaScreenSpec;
 import com.krdevops.springai.service.figma.FigmaRestTokenService;
 import com.krdevops.springai.service.figma.FigmaScreenExportService;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,11 +27,26 @@ import java.util.Set;
 /** R6-001~004: FigmaScreenSpec 생성·조회·검증·Bundle 다운로드 API. */
 @RestController
 @RequestMapping("/api/figma")
-@RequiredArgsConstructor
 public class FigmaExportController {
 
     private final FigmaScreenExportService exportService;
     private final FigmaRestTokenService restTokenService;
+    private final AppProperties appProperties;
+
+    /** 기존 임베디드 호출부와의 호환을 위해 SSOT 전환은 기본적으로 꺼 둔다. */
+    @Autowired
+    public FigmaExportController(FigmaScreenExportService exportService,
+                                 FigmaRestTokenService restTokenService) {
+        this(exportService, restTokenService, new AppProperties());
+    }
+
+    public FigmaExportController(FigmaScreenExportService exportService,
+                                 FigmaRestTokenService restTokenService,
+                                 AppProperties appProperties) {
+        this.exportService = exportService;
+        this.restTokenService = restTokenService;
+        this.appProperties = appProperties;
+    }
 
     /** R6-012: DEC-10=REST에서 Plugin이 장기 X-API-Key 대신 쓸 단기 토큰 발급(호출 자체는 X-API-Key로 인증). */
     @PostMapping("/tokens")
@@ -91,9 +107,13 @@ public class FigmaExportController {
                     value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch
     ) {
         try {
-            String json = version == null
+            String json = appProperties.isFigmaSsotBundleEnabled()
+                    ? (version == null
+                    ? exportService.findLatestSsotBundleAsJson(screenId)
+                    : exportService.findSsotBundleVersionAsJson(screenId, version))
+                    : (version == null
                     ? exportService.findLatestBundleAsJson(screenId)
-                    : exportService.findBundleVersionAsJson(screenId, version);
+                    : exportService.findBundleVersionAsJson(screenId, version));
             String etag = etag(json);
             if (etag.equals(ifNoneMatch)) {
                 return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_MODIFIED)
@@ -114,6 +134,43 @@ public class FigmaExportController {
         } catch (IllegalArgumentException exception) {
             throw notFound(screenId, version);
         }
+    }
+
+    /** R4-003: Preview도 기본 다운로드와 동일한 SSOT 전환 Flag를 사용한다. */
+    @GetMapping("/screens/{screenId}/preview")
+    public ResponseEntity<String> preview(@PathVariable String screenId,
+                                          @RequestParam(required = false) Integer version) {
+        String json = appProperties.isFigmaSsotBundleEnabled()
+                ? (version == null ? exportService.findLatestSsotBundleAsJson(screenId)
+                : exportService.findSsotBundleVersionAsJson(screenId, version))
+                : (version == null ? exportService.findLatestBundleAsJson(screenId)
+                : exportService.findBundleVersionAsJson(screenId, version));
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(json);
+    }
+
+    /** Catalog SSOT + Registry v3 검증을 통과한 Bundle만 다운로드한다. Legacy 자동 fallback은 없다. */
+    @GetMapping("/screens/{screenId}/download-ssot")
+    public ResponseEntity<byte[]> downloadSsot(
+            @PathVariable String screenId,
+            @RequestParam(required = false) Integer version,
+            @org.springframework.web.bind.annotation.RequestHeader(
+                    value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch
+    ) {
+        String json = version == null
+                ? exportService.findLatestSsotBundleAsJson(screenId)
+                : exportService.findSsotBundleVersionAsJson(screenId, version);
+        String etag = etag(json);
+        if (etag.equals(ifNoneMatch)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.NOT_MODIFIED).eTag(etag).build();
+        }
+        String filename = screenId + (version == null ? "" : "-v" + version)
+                + ".figma-export-bundle-ssot.json";
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .eTag(etag)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(filename, StandardCharsets.UTF_8).build().toString())
+                .body(json.getBytes(StandardCharsets.UTF_8));
     }
 
     private String etag(String json) {

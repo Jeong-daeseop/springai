@@ -7,6 +7,7 @@ import com.krdevops.springai.model.designsystem.DesignSystemProfile;
 import com.krdevops.springai.model.designsystem.ScreenPatternDefinition;
 import com.krdevops.springai.model.designsystem.VariantRule;
 import com.krdevops.springai.model.designsystem.VariantRuleSet;
+import com.krdevops.springai.model.designsystem.ResolvedComponentRegistry;
 import com.krdevops.springai.model.figma.FigmaNodeSpec;
 import com.krdevops.springai.model.figma.FigmaScreenSpec;
 import com.krdevops.springai.model.figma.FigmaScreenType;
@@ -31,6 +32,21 @@ class FigmaExportBundleAssemblerV2Test {
         assertThat(bundle.variantRuleSet().ruleSet()).isEqualTo(rules("2.0.0"));
         assertThat(bundle.metadata().screenPatternVersion()).isEqualTo("1.0.0");
         assertThat(bundle.metadata().variantRuleSetVersion()).isEqualTo("2.0.0");
+    }
+
+    @Test
+    void ssotBundleContainsCatalogAndRegistryHashEvidence() {
+        var resolved = new ResolvedComponentRegistry(
+                "2.0.0", "a".repeat(64), "krds", "2.0.0", "registry-1",
+                "b".repeat(64), Map.of());
+
+        var bundle = assembler.assemble(
+                spec(), profile(), registry(), pattern("1.0.0"), rules("2.0.0"), resolved);
+
+        assertThat(bundle.metadata().hasSsotEvidence()).isTrue();
+        assertThat(bundle.metadata().catalogVersion()).isEqualTo("2.0.0");
+        assertThat(bundle.metadata().catalogHash()).isEqualTo("a".repeat(64));
+        assertThat(bundle.metadata().registryHash()).isEqualTo("b".repeat(64));
     }
 
     @Test

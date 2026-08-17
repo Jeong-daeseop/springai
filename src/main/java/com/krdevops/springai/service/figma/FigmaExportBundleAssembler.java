@@ -11,6 +11,8 @@ import com.krdevops.springai.model.figma.FigmaExportMetadata;
 import com.krdevops.springai.model.figma.FigmaScreenSpec;
 import com.krdevops.springai.model.figma.ScreenPatternSnapshot;
 import com.krdevops.springai.model.figma.VariantRuleSetSnapshot;
+import com.krdevops.springai.model.designsystem.ResolvedComponentRegistry;
+import com.krdevops.springai.model.figma.ResolvedComponentRegistrySnapshot;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -83,6 +85,35 @@ public class FigmaExportBundleAssembler {
                 new ScreenPatternSnapshot(pattern, now),
                 new VariantRuleSetSnapshot(ruleSet, now),
                 metadata);
+    }
+
+    /** SSOT 경로: 기존 Bundle 모양을 유지하면서 검증된 Catalog/Registry 버전·Hash를 증적으로 고정한다. */
+    public FigmaExportBundle assemble(
+            FigmaScreenSpec spec,
+            DesignSystemProfile profile,
+            ComponentRegistry registry,
+            ScreenPatternDefinition pattern,
+            VariantRuleSet ruleSet,
+            ResolvedComponentRegistry resolvedRegistry
+    ) {
+        if (resolvedRegistry == null || !resolvedRegistry.profileId().equals(profile.id())
+                || !resolvedRegistry.profileVersion().equals(profile.version())
+                || !resolvedRegistry.registryVersion().equals(registry.registryVersion())) {
+            throw new IllegalArgumentException(
+                    "BUNDLE_SSOT_VERSION_MISMATCH: Resolved Registry와 Profile/Registry Snapshot이 다릅니다.");
+        }
+        FigmaExportBundle legacy = assemble(spec, profile, registry, pattern, ruleSet);
+        FigmaExportMetadata current = legacy.metadata();
+        FigmaExportMetadata metadata = new FigmaExportMetadata(
+                current.exportedAt(), current.figmaScreenSpecSchemaVersion(),
+                current.screenSpecificationVersion(), current.designSystemProfileVersion(),
+                current.registryVersion(), current.screenPatternVersion(), current.variantRuleSetVersion(),
+                current.componentContractVersion(), resolvedRegistry.catalogVersion(),
+                resolvedRegistry.catalogHash(), resolvedRegistry.registryHash());
+        return new FigmaExportBundle(
+                legacy.figmaScreenSpec(), legacy.designSystemProfile(), legacy.componentRegistry(),
+                ResolvedComponentRegistrySnapshot.from(resolvedRegistry),
+                legacy.screenPattern(), legacy.variantRuleSet(), metadata);
     }
 
     private void validateProfileAndRegistry(

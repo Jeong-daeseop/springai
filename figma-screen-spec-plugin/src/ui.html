@@ -41,6 +41,7 @@ button{padding:9px}.section{margin-top:14px;padding-top:12px;border-top:1px soli
     <button id="close">닫기</button>
   </div>
   <button id="previewMigration">선택한 기존 Frame Migration Preview</button>
+  <button id="exportRegistryV3">Registry v3 Binding 후보 다운로드</button>
   <div id="migration" class="section" style="display:none">
     <strong>Legacy Frame Migration</strong>
     <div class="hint">적용 전에 선택한 Root Frame 전체를 숨김 Backup으로 복제합니다.</div>
@@ -93,6 +94,7 @@ const result = document.getElementById('result');
 const reportSummary = document.getElementById('reportSummary');
 const downloadReport = document.getElementById('downloadReport');
 const previewMigration = document.getElementById('previewMigration');
+const exportRegistryV3 = document.getElementById('exportRegistryV3');
 const migration = document.getElementById('migration');
 const migrationChanges = document.getElementById('migrationChanges');
 const applyMigration = document.getElementById('applyMigration');
@@ -149,6 +151,10 @@ previewMigration.onclick = () => {
   migration.style.display = 'none';
   status.textContent = '선택한 Legacy Frame의 Migration Preview 계산 중…';
   parent.postMessage({ pluginMessage: { type: 'PREVIEW_MIGRATION' } }, '*');
+};
+exportRegistryV3.onclick = () => {
+  status.textContent = 'Registry v3 Binding 후보 생성 중…';
+  parent.postMessage({ pluginMessage: { type: 'EXPORT_REGISTRY_V3' } }, '*');
 };
 applyMigration.onclick = () => {
   applyMigration.disabled = true;
@@ -280,6 +286,16 @@ function renderIssues(values) {
 onmessage = ({data}) => {
   const message = data.pluginMessage;
   if (!message) return;
+  if (message.type === 'REGISTRY_V3_EXPORT_RESULT') {
+    const blob = new Blob([JSON.stringify(message.candidate, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `component-registry-v3-${message.candidate.registryVersion}.json`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    status.textContent = 'Registry v3 Binding 후보를 다운로드했습니다. 서버 Preview 후 승인하세요.';
+    return;
+  }
   if (message.type === 'VALIDATION_ERROR') {
     status.innerHTML = '<span class="fatal">Bundle 검증에 실패했습니다.</span>';
     renderIssues(message.issues);

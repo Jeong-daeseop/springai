@@ -1,0 +1,613 @@
+{
+  "reportId": "figma-qna-answer-create-it-c579be69-v1-1786940875405",
+  "status": "SUCCESS",
+  "figmaScreenSpec": {
+    "screenId": "qna-answer-create-it-c579be69",
+    "screenVersion": 1,
+    "screenSpecificationId": "qna-suite-it-c579be69",
+    "screenSpecificationVersion": 3,
+    "screenType": "FORM",
+    "layoutPattern": "STANDARD",
+    "name": "Q&A 관리",
+    "route": null,
+    "viewport": "DESKTOP",
+    "status": "APPROVED",
+    "designSystem": {
+      "profileId": "krds-qna-it-c579be69",
+      "profileVersion": "2.0.0-it-c579be69",
+      "registryVersion": "2.1.0-it-c579be69"
+    },
+    "content": {
+      "logicalNodeId": "qna-answer-create",
+      "nodeType": "PAGE",
+      "type": "egov.formPage",
+      "properties": {
+        "density": "STANDARD"
+      },
+      "children": [
+        {
+          "logicalNodeId": "qna-answer-create/header",
+          "nodeType": "COMPONENT",
+          "type": "krds.pageHeader",
+          "properties": {
+            "semanticRole": "page.header",
+            "title": "답변 등록"
+          },
+          "componentResolution": {
+            "role": "page.header",
+            "logicalType": "krds.pageHeader",
+            "componentSetKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980",
+            "variantKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980",
+            "variantProperties": {},
+            "componentProperties": {
+              "Title#259:4": "답변 등록"
+            },
+            "contractVersion": "2.1.0",
+            "ruleSetVersion": "2.0.0-it-c579be69",
+            "ruleId": null,
+            "contextHash": "99e21dd8577635ccca6b8d90ec43182a1047129cd4ae76115ef0665edb1ade6f"
+          },
+          "children": []
+        },
+        {
+          "logicalNodeId": "qna-answer-create/form-container",
+          "nodeType": "SECTION",
+          "type": "egov.formContainer",
+          "properties": {
+            "semanticRole": "form.container"
+          },
+          "children": [
+            {
+              "logicalNodeId": "qna-answer-create/form",
+              "nodeType": "SECTION",
+              "type": "egov.formSection",
+              "properties": {
+                "semanticRole": "form.section",
+                "columnLayout": "SINGLE_COLUMN"
+              },
+              "children": [
+                {
+                  "logicalNodeId": "qna-answer-create/form/questionNumber",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textField",
+                  "properties": {
+                    "mode": "READ_ONLY",
+                    "errorMessage": "",
+                    "required": false,
+                    "sampleValue": "질문 번호 입력 예시",
+                    "helperText": "질문 번호을(를) 확인하세요.",
+                    "labelRequired": false,
+                    "label": "질문 번호",
+                    "placeholder": "질문 번호 입력 예시",
+                    "state": "READ_ONLY",
+                    "dataRole": "ID",
+                    "control": "NUMBER",
+                    "semanticRole": "field.text"
+                  },
+                  "componentResolution": {
+                    "role": "field.text",
+                    "logicalType": "krds.textField",
+                    "componentSetKey": "f55c5801028025f13b9931f33b111fb21ec2fb39",
+                    "variantKey": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d",
+                    "variantProperties": {
+                      "State": "readonly",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "Placeholder#286:9": "질문 번호 입력 예시",
+                      "↪️Label#286:10": "질문 번호"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "text-readonly",
+                    "contextHash": "8a77c70c89e8bf13cc8668d1b46410d1062d3e4e9df4d5a39f8bdee4a4222470"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-create/form/writer",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textField",
+                  "properties": {
+                    "mode": "READ_ONLY",
+                    "errorMessage": "",
+                    "required": false,
+                    "sampleValue": "홍길동",
+                    "helperText": "등록자을(를) 확인하세요.",
+                    "labelRequired": false,
+                    "label": "등록자",
+                    "placeholder": "홍길동",
+                    "state": "READ_ONLY",
+                    "dataRole": "AUTHOR",
+                    "control": "TEXT",
+                    "semanticRole": "field.text"
+                  },
+                  "componentResolution": {
+                    "role": "field.text",
+                    "logicalType": "krds.textField",
+                    "componentSetKey": "f55c5801028025f13b9931f33b111fb21ec2fb39",
+                    "variantKey": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d",
+                    "variantProperties": {
+                      "State": "readonly",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "Placeholder#286:9": "홍길동",
+                      "↪️Label#286:10": "등록자"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "text-readonly",
+                    "contextHash": "8a77c70c89e8bf13cc8668d1b46410d1062d3e4e9df4d5a39f8bdee4a4222470"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-create/form/contact",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textField",
+                  "properties": {
+                    "mode": "READ_ONLY",
+                    "errorMessage": "",
+                    "required": false,
+                    "sampleValue": "012-0000-1234",
+                    "helperText": "연락처을(를) 확인하세요.",
+                    "labelRequired": false,
+                    "label": "연락처",
+                    "placeholder": "012-0000-1234",
+                    "state": "READ_ONLY",
+                    "dataRole": "CONTACT",
+                    "control": "TEXT",
+                    "semanticRole": "field.text"
+                  },
+                  "componentResolution": {
+                    "role": "field.text",
+                    "logicalType": "krds.textField",
+                    "componentSetKey": "f55c5801028025f13b9931f33b111fb21ec2fb39",
+                    "variantKey": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d",
+                    "variantProperties": {
+                      "State": "readonly",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "Placeholder#286:9": "012-0000-1234",
+                      "↪️Label#286:10": "연락처"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "text-readonly",
+                    "contextHash": "8a77c70c89e8bf13cc8668d1b46410d1062d3e4e9df4d5a39f8bdee4a4222470"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-create/form/email",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textField",
+                  "properties": {
+                    "mode": "READ_ONLY",
+                    "errorMessage": "",
+                    "required": false,
+                    "sampleValue": "hong@example.com",
+                    "helperText": "이메일주소을(를) 확인하세요.",
+                    "labelRequired": false,
+                    "label": "이메일주소",
+                    "placeholder": "hong@example.com",
+                    "state": "READ_ONLY",
+                    "dataRole": "EMAIL",
+                    "control": "TEXT",
+                    "semanticRole": "field.text"
+                  },
+                  "componentResolution": {
+                    "role": "field.text",
+                    "logicalType": "krds.textField",
+                    "componentSetKey": "f55c5801028025f13b9931f33b111fb21ec2fb39",
+                    "variantKey": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d",
+                    "variantProperties": {
+                      "State": "readonly",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "Placeholder#286:9": "hong@example.com",
+                      "↪️Label#286:10": "이메일주소"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "text-readonly",
+                    "contextHash": "8a77c70c89e8bf13cc8668d1b46410d1062d3e4e9df4d5a39f8bdee4a4222470"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-create/form/title",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textField",
+                  "properties": {
+                    "mode": "READ_ONLY",
+                    "errorMessage": "",
+                    "required": false,
+                    "sampleValue": "시스템 이용 방법 문의",
+                    "helperText": "질문제목을(를) 확인하세요.",
+                    "labelRequired": false,
+                    "label": "질문제목",
+                    "placeholder": "시스템 이용 방법 문의",
+                    "state": "READ_ONLY",
+                    "dataRole": "TITLE",
+                    "control": "TEXT",
+                    "semanticRole": "field.text"
+                  },
+                  "componentResolution": {
+                    "role": "field.text",
+                    "logicalType": "krds.textField",
+                    "componentSetKey": "f55c5801028025f13b9931f33b111fb21ec2fb39",
+                    "variantKey": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d",
+                    "variantProperties": {
+                      "State": "readonly",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "Placeholder#286:9": "시스템 이용 방법 문의",
+                      "↪️Label#286:10": "질문제목"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "text-readonly",
+                    "contextHash": "8a77c70c89e8bf13cc8668d1b46410d1062d3e4e9df4d5a39f8bdee4a4222470"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-create/form/content",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textarea",
+                  "properties": {
+                    "mode": "READ_ONLY",
+                    "errorMessage": "",
+                    "required": false,
+                    "sampleValue": "Q&A 서비스 이용 방법을 문의합니다.",
+                    "helperText": "질문내용을(를) 확인하세요.",
+                    "labelRequired": false,
+                    "label": "질문내용",
+                    "placeholder": "Q&A 서비스 이용 방법을 문의합니다.",
+                    "state": "READ_ONLY",
+                    "dataRole": "CONTENT",
+                    "control": "TEXTAREA",
+                    "semanticRole": "field.textarea"
+                  },
+                  "componentResolution": {
+                    "role": "field.textarea",
+                    "logicalType": "krds.textarea",
+                    "componentSetKey": "2b440cecd92043fc8347bbab1fc9ab6a90729435",
+                    "variantKey": "a39c10cfc5b3e962e251a8b591f38f88223f8cbe",
+                    "variantProperties": {
+                      "State": "readonly"
+                    },
+                    "componentProperties": {
+                      "Label#286:10": "질문내용",
+                      "Placeholder#286:9": "Q&A 서비스 이용 방법을 문의합니다."
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "textarea-readonly",
+                    "contextHash": "90afab82174e56c8f069d208e98cd3c0401e5e3860aaf072443b34c6c28ac2c3"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-create/form/status",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.select",
+                  "properties": {
+                    "mode": "EDITABLE",
+                    "errorMessage": "처리 상태을(를) 입력하세요.",
+                    "required": true,
+                    "sampleValue": "답변대기",
+                    "helperText": "처리 상태은(는) 필수 입력 항목입니다.",
+                    "labelRequired": true,
+                    "label": "처리 상태",
+                    "placeholder": "답변대기",
+                    "state": "DEFAULT",
+                    "dataRole": "STATUS",
+                    "control": "SELECT",
+                    "semanticRole": "field.select"
+                  },
+                  "componentResolution": {
+                    "role": "field.select",
+                    "logicalType": "krds.select",
+                    "componentSetKey": "57fa7703261fe74ae982edba68e50e4a7a741485",
+                    "variantKey": "583541ea4a6c130fe6c446d1159a9938b25b248b",
+                    "variantProperties": {
+                      "State": "default",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "Placeholder#286:9": "답변대기",
+                      "↪️Label#286:10": "처리 상태"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "select-editable",
+                    "contextHash": "f4003d26548d76479030e459624bec84b8a4a40a220f180f32d207e0affcb013"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-create/form/answerContent",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textarea",
+                  "properties": {
+                    "mode": "EDITABLE",
+                    "errorMessage": "답변 내용을(를) 입력하세요.",
+                    "required": true,
+                    "sampleValue": "Q&A 서비스 이용 방법을 문의합니다.",
+                    "helperText": "답변 내용은(는) 필수 입력 항목입니다.",
+                    "labelRequired": true,
+                    "label": "답변 내용",
+                    "placeholder": "Q&A 서비스 이용 방법을 문의합니다.",
+                    "state": "DEFAULT",
+                    "dataRole": "CONTENT",
+                    "control": "TEXTAREA",
+                    "semanticRole": "field.textarea"
+                  },
+                  "componentResolution": {
+                    "role": "field.textarea",
+                    "logicalType": "krds.textarea",
+                    "componentSetKey": "2b440cecd92043fc8347bbab1fc9ab6a90729435",
+                    "variantKey": "49fac55bd12165e2cc423ea88c3e1e23ad6ef741",
+                    "variantProperties": {
+                      "State": "default"
+                    },
+                    "componentProperties": {
+                      "Label#286:10": "답변 내용",
+                      "Placeholder#286:9": "Q&A 서비스 이용 방법을 문의합니다."
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "textarea-editable",
+                    "contextHash": "acbfed38ef2c7dbd11ee3394df468d8ecea008c0edaaa3f3bc04754895d724bb"
+                  },
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "logicalNodeId": "qna-answer-create/validation",
+          "nodeType": "SECTION",
+          "type": "egov.validationSummary",
+          "properties": {
+            "requiredFieldCount": 2
+          },
+          "children": []
+        },
+        {
+          "logicalNodeId": "qna-answer-create/action",
+          "nodeType": "SECTION",
+          "type": "egov.actionArea",
+          "properties": {
+            "placement": "BOTTOM_RIGHT"
+          },
+          "children": [
+            {
+              "logicalNodeId": "qna-answer-create/action/save",
+              "nodeType": "COMPONENT",
+              "type": "krds.button",
+              "properties": {
+                "state": "DEFAULT",
+                "actionType": "SAVE",
+                "label": "저장",
+                "semanticRole": "action.primary"
+              },
+              "componentResolution": {
+                "role": "action.primary",
+                "logicalType": "krds.button",
+                "componentSetKey": "401090e03acd1062033e52471c65fd5f8666c23a",
+                "variantKey": "6237cff0545cc51ddcd657a49b5fb6186d1c4090",
+                "variantProperties": {
+                  "Style": "primary",
+                  "State": "default",
+                  "Size": "medium"
+                },
+                "componentProperties": {
+                  "Label#300:3": "저장"
+                },
+                "contractVersion": "2.1.0",
+                "ruleSetVersion": "2.0.0-it-c579be69",
+                "ruleId": "action-primary",
+                "contextHash": "591126add13b35444373f4749585d01b7c3a4a8116ceb07b351cff9fd18e0e49"
+              },
+              "children": []
+            },
+            {
+              "logicalNodeId": "qna-answer-create/action/cancel",
+              "nodeType": "COMPONENT",
+              "type": "krds.button",
+              "properties": {
+                "state": "DEFAULT",
+                "actionType": "CANCEL",
+                "label": "취소",
+                "semanticRole": "action.secondary"
+              },
+              "componentResolution": {
+                "role": "action.secondary",
+                "logicalType": "krds.button",
+                "componentSetKey": "401090e03acd1062033e52471c65fd5f8666c23a",
+                "variantKey": "a554af98520754543085d516077b9541ea754552",
+                "variantProperties": {
+                  "Style": "secondary",
+                  "State": "default",
+                  "Size": "medium"
+                },
+                "componentProperties": {
+                  "Label#300:3": "취소"
+                },
+                "contractVersion": "2.1.0",
+                "ruleSetVersion": "2.0.0-it-c579be69",
+                "ruleId": "action-secondary",
+                "contextHash": "86ddbea6cd3ba2b6078c7e5b71e83d3bee1e6468b28743849dfee0ad88aab8e2"
+              },
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "semanticPattern": "crud.create",
+    "screenPatternVersion": "1.0.0-it-c579be69",
+    "variantRuleSetVersion": "2.0.0-it-c579be69",
+    "componentContractVersion": "2.1.0"
+  },
+  "generatedAt": "2026-08-17T04:27:55.405Z",
+  "screenId": "qna-answer-create-it-c579be69",
+  "screenVersion": 1,
+  "mode": "MERGE",
+  "startedAt": "2026-08-17T04:27:53.249Z",
+  "completedAt": "2026-08-17T04:27:55.405Z",
+  "success": true,
+  "reusedInstanceCount": 0,
+  "createdInstanceCount": 16,
+  "archivedNodeCount": 0,
+  "fallbackCount": 0,
+  "changes": [
+    {
+      "logicalNodeId": "qna-answer-create",
+      "logicalType": "egov.formPage",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-create/header",
+      "logicalType": "krds.pageHeader",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980"
+    },
+    {
+      "logicalNodeId": "qna-answer-create/form-container",
+      "logicalType": "egov.formContainer",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-create/form",
+      "logicalType": "egov.formSection",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-create/form/questionNumber",
+      "logicalType": "krds.textField",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d"
+    },
+    {
+      "logicalNodeId": "qna-answer-create/form/writer",
+      "logicalType": "krds.textField",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d"
+    },
+    {
+      "logicalNodeId": "qna-answer-create/form/contact",
+      "logicalType": "krds.textField",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d"
+    },
+    {
+      "logicalNodeId": "qna-answer-create/form/email",
+      "logicalType": "krds.textField",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d"
+    },
+    {
+      "logicalNodeId": "qna-answer-create/form/title",
+      "logicalType": "krds.textField",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "fb9077d8d1a6f2a9e80123121bf9e69836790b1d"
+    },
+    {
+      "logicalNodeId": "qna-answer-create/form/content",
+      "logicalType": "krds.textarea",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "a39c10cfc5b3e962e251a8b591f38f88223f8cbe"
+    },
+    {
+      "logicalNodeId": "qna-answer-create/form/status",
+      "logicalType": "krds.select",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "583541ea4a6c130fe6c446d1159a9938b25b248b"
+    },
+    {
+      "logicalNodeId": "qna-answer-create/form/answerContent",
+      "logicalType": "krds.textarea",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "49fac55bd12165e2cc423ea88c3e1e23ad6ef741"
+    },
+    {
+      "logicalNodeId": "qna-answer-create/validation",
+      "logicalType": "egov.validationSummary",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-create/action",
+      "logicalType": "egov.actionArea",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-create/action/save",
+      "logicalType": "krds.button",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "6237cff0545cc51ddcd657a49b5fb6186d1c4090"
+    },
+    {
+      "logicalNodeId": "qna-answer-create/action/cancel",
+      "logicalType": "krds.button",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "a554af98520754543085d516077b9541ea754552"
+    }
+  ],
+  "issues": [],
+  "qualityGates": [
+    {
+      "gate": "LAYOUT",
+      "status": "PASSED",
+      "issueCodes": []
+    },
+    {
+      "gate": "ACCESSIBILITY",
+      "status": "PASSED",
+      "issueCodes": []
+    },
+    {
+      "gate": "VISUAL_REGRESSION",
+      "status": "BASELINE_CREATED",
+      "issueCodes": [],
+      "evidenceHash": "fnv1a32:e9ba2be9:149",
+      "baselineHash": null,
+      "diffRatio": 0,
+      "threshold": 0,
+      "sectionEvidenceJson": "[{\"sectionId\":\"qna-answer-create/header\",\"hash\":\"fnv1a32:e9ba2be9:149\"},{\"sectionId\":\"qna-answer-create/form-container\",\"hash\":\"fnv1a32:e9ba2be9:149\"},{\"sectionId\":\"qna-answer-create/validation\",\"hash\":\"fnv1a32:e9ba2be9:149\"},{\"sectionId\":\"qna-answer-create/action\",\"hash\":\"fnv1a32:e9ba2be9:149\"}]",
+      "changedSections": []
+    }
+  ],
+  "refinement": null,
+  "ssotEvidence": null
+}

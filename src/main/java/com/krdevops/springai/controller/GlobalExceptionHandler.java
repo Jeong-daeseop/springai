@@ -74,6 +74,16 @@ public class GlobalExceptionHandler {
                 ex.code(), ex.getMessage(), request.getRequestURI(), java.time.OffsetDateTime.now()));
     }
 
+    /** R6-041: 허용되지 않은 Figma fileKey/nodeId 접근 → 코드가 포함된 403 표준 오류. */
+    @ExceptionHandler(com.krdevops.springai.service.figma.FigmaFileAllowlistValidator.FigmaAllowlistException.class)
+    public ResponseEntity<FigmaApiError> handleFigmaAllowlistViolation(
+            com.krdevops.springai.service.figma.FigmaFileAllowlistValidator.FigmaAllowlistException ex,
+            jakarta.servlet.http.HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new FigmaApiError(
+                ex.getCode(), ex.getMessage(), request.getRequestURI(), java.time.OffsetDateTime.now()));
+    }
+
     /** 잘못된 인수 → 400 Bad Request */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {

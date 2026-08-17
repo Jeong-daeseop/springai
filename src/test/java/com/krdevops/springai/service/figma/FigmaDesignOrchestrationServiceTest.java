@@ -172,6 +172,60 @@ class FigmaDesignOrchestrationServiceTest {
         verify(repository).createOrReuse(expected);
     }
 
+    /**
+     * R6-041: editableNodeIds만 정규화되고 referenceNodeIds는 형식 검증 없이 저장되던 격차를
+     * 막는다. 형식이 어긋난 referenceNodeIds도 Operation이 저장되기 전에 거부해야 한다.
+     */
+    @Test
+    void malformedReferenceNodeIdIsRejectedBeforeRepositoryAccess() {
+        FigmaDesignOperationRepository repository = mock(FigmaDesignOperationRepository.class);
+        FigmaDesignRequest request = FigmaDesignRequest.referenceStyle(
+                "기존 화면과 같은 목록", "allowed-file", List.of("not-a-node-id"));
+
+        assertThatThrownBy(() -> service(mock(FigmaContextAnalyzer.class),
+                mock(FigmaFileAllowlistValidator.class), mock(FigmaScreenExportService.class),
+                mock(DesignArtifactService.class), repository).processExplicitRequest(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("nodeId");
+        verify(repository, never()).createOrReuse(org.mockito.ArgumentMatchers.any());
+    }
+
+    /** R6-041: imageNodeIds도 referenceNodeIds/editableNodeIds와 동일한 규칙으로 검증해야 한다. */
+    @Test
+    void malformedImageNodeIdIsRejectedBeforeRepositoryAccess() {
+        FigmaDesignOperationRepository repository = mock(FigmaDesignOperationRepository.class);
+        FigmaDesignRequest request = FigmaDesignRequest.imageReference(
+                "이미지 기반 생성", "allowed-file", List.of("123"));
+
+        assertThatThrownBy(() -> service(mock(FigmaContextAnalyzer.class),
+                mock(FigmaFileAllowlistValidator.class), mock(FigmaScreenExportService.class),
+                mock(DesignArtifactService.class), repository).processExplicitRequest(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("nodeId");
+        verify(repository, never()).createOrReuse(org.mockito.ArgumentMatchers.any());
+    }
+
+    /** URL 표기(1-2)로 들어온 referenceNodeIds도 REST 표기(1:2)로 정규화해 저장한다. */
+    @Test
+    void urlStyleReferenceNodeIdIsNormalizedBeforePersisting() {
+        FigmaContextAnalyzer analyzer = mock(FigmaContextAnalyzer.class);
+        FigmaDesignOperationRepository repository = mock(FigmaDesignOperationRepository.class);
+        FigmaDesignRequest incoming = FigmaDesignRequest.referenceStyle(
+                "기존 화면과 같은 목록", "allowed-file", List.of("1-2"));
+        FigmaDesignRequest expected = FigmaDesignRequest.referenceStyle(
+                "기존 화면과 같은 목록", "allowed-file", List.of("1:2"));
+        when(analyzer.analyze(incoming.prompt(), null)).thenReturn(highConfidence());
+        when(repository.createOrReuse(expected))
+                .thenReturn(operation(expected, FigmaDesignOperationStatus.ANALYZED, List.of()));
+
+        var result = service(analyzer, mock(FigmaFileAllowlistValidator.class),
+                mock(FigmaScreenExportService.class), mock(DesignArtifactService.class), repository)
+                .processExplicitRequest(incoming);
+
+        assertThat(result.request().referenceNodeIds()).containsExactly("1:2");
+        verify(repository).createOrReuse(expected);
+    }
+
     private FigmaDesignOrchestrationService service(
             FigmaContextAnalyzer analyzer,
             FigmaFileAllowlistValidator allowlist,
@@ -190,7 +244,9 @@ class FigmaDesignOrchestrationServiceTest {
 
     private FigmaContextAnalyzer.FigmaContextAnalysis highConfidence() {
         return new FigmaContextAnalyzer.FigmaContextAnalysis(
-                "LIST", "STANDARD", List.of("krds.table"), 0.1, "명확함", false);
+                "user", com.krdevops.springai.model.figma.FigmaScreenType.LIST,
+                com.krdevops.springai.model.figma.LayoutPattern.STANDARD,
+                List.of("krds.table"), 0.1, "명확함", false);
     }
 
     private com.krdevops.springai.model.figma.contract.FigmaDesignOperation operation(

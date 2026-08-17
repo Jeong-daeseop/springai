@@ -53,14 +53,17 @@ public class DesignSystemTool {
     @Tool(description = """
             화면 생성 전에 Registry/Profile 드리프트와 필수 논리 컴포넌트의 alias·replacement 해석 가능 여부를 점검합니다.
             figmaMcpSecret 인증값이 반드시 필요하며 Published Component Key 원문은 응답하지 않습니다.
+            expectedLayoutPolicyVersion을 지정하면 Profile의 layoutPolicyVersion과 다를 때 실패합니다(생략 가능, R1-015).
             """)
     public String preflightComponentRegistry(
             String figmaMcpSecret,
             String profileId,
             String registryVersion,
-            List<String> requiredLogicalTypes
+            List<String> requiredLogicalTypes,
+            String expectedLayoutPolicyVersion
     ) {
         authorization.authorize(figmaMcpSecret);
-        return facadeService.preflightRegistry(profileId, registryVersion, requiredLogicalTypes);
+        return facadeService.preflightRegistry(
+                profileId, registryVersion, requiredLogicalTypes, expectedLayoutPolicyVersion);
     }
 }

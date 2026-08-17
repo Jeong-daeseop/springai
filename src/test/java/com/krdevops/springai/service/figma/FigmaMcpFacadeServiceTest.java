@@ -35,7 +35,7 @@ class FigmaMcpFacadeServiceTest {
     @Test
     void registryPreflightReturnsLogicalResolutionWithoutPublishedKeys() {
         DesignSystemQueryService queryService = mock(DesignSystemQueryService.class);
-        when(queryService.preflightRegistry("ftc-krds", "registry-2", List.of("egov.button")))
+        when(queryService.preflightRegistry("ftc-krds", "registry-2", List.of("egov.button"), null))
                 .thenReturn(new DesignSystemQueryService.RegistryPreflightResult(
                         "ftc-krds", "registry-2", true,
                         java.util.Map.of("egov.button", "krds.action-button"),
@@ -46,7 +46,7 @@ class FigmaMcpFacadeServiceTest {
                 new ObjectMapper());
 
         String json = service.preflightRegistry(
-                "ftc-krds", "registry-2", List.of("egov.button"));
+                "ftc-krds", "registry-2", List.of("egov.button"), null);
 
         assertThat(json).contains("egov.button", "krds.action-button", "\"valid\":true");
         assertThat(json).doesNotContain("componentSetKey", "variableKey");

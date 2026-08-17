@@ -1,0 +1,16 @@
+{
+  "requiredComponentKeys": [
+    "egov.actionArea",
+    "egov.dataTable",
+    "egov.formSection",
+    "egov.pageHeader",
+    "krds.searchPanel",
+    "krds.select",
+    "krds.checkbox",
+    "krds.pagination",
+    "krds.textField",
+    "krds.button"
+  ],
+  "dataTableComposition": ["krds.tableHeader", "krds.tableCell"],
+  "requiredIssueCodes": ["COMPOSITION_TARGET_MISSING"]
+}

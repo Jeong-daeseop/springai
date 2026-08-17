@@ -1,11 +1,27 @@
 [ {
   "controller" : "DesignSystemController",
   "method" : "POST",
+  "path" : "/api/design-systems/catalog/migrate-v2/preview"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
   "path" : "/api/design-systems/patterns/{pattern}/versions/{version}/approve"
 }, {
   "controller" : "DesignSystemController",
   "method" : "POST",
   "path" : "/api/design-systems/patterns/{pattern}/versions/{version}/publish"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/registries/dual-read-v3"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/registries/observe-v3"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "GET",
+  "path" : "/api/design-systems/registries/validate-v3"
 }, {
   "controller" : "DesignSystemController",
   "method" : "POST",
@@ -66,6 +82,22 @@
   "controller" : "DesignSystemController",
   "method" : "POST",
   "path" : "/api/design-systems/{profileId}/registries/{registryVersion}/inventory"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "GET",
+  "path" : "/api/design-systems/{profileId}/registries/{registryVersion}/inventory/validate-v3"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/{profileId}/registries/{registryVersion}/migrate-v3/apply"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/{profileId}/registries/{registryVersion}/migrate-v3/preview"
+}, {
+  "controller" : "DesignSystemController",
+  "method" : "POST",
+  "path" : "/api/design-systems/{profileId}/registries/{registryVersion}/rollback-v3"
 }, {
   "controller" : "DesignSystemController",
   "method" : "GET",
@@ -170,6 +202,14 @@
   "controller" : "FigmaExportController",
   "method" : "GET",
   "path" : "/api/figma/screens/{screenId}/download"
+}, {
+  "controller" : "FigmaExportController",
+  "method" : "GET",
+  "path" : "/api/figma/screens/{screenId}/download-ssot"
+}, {
+  "controller" : "FigmaExportController",
+  "method" : "GET",
+  "path" : "/api/figma/screens/{screenId}/preview"
 }, {
   "controller" : "FigmaExportController",
   "method" : "POST",

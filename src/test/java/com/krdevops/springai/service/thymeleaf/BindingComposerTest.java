@@ -9,6 +9,7 @@ import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.thymeleaf.BindingContractStatus;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenAnalysis;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenRole;
+import com.krdevops.springai.model.thymeleaf.ResolvedDesignTokens;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingContract;
 import com.krdevops.springai.model.thymeleaf.ThymeleafFieldBinding;
 import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult;
@@ -27,6 +28,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -72,6 +74,40 @@ class BindingComposerTest {
         for (String field : contract.displayFieldNames()) {
             assertThat(html).contains("th:text=\"${item." + field + "}\"");
         }
+    }
+
+    /** R6-057: 회사 Design Token이 주어지면 참조된 CSS 변수 이름이 provenance 주석으로 남는다. */
+    @Test
+    void listContractWithDesignTokensEmitsProvenanceComment() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.LIST);
+        ResolvedDesignTokens tokens = new ResolvedDesignTokens(
+                "krds", "2.2.2", null,
+                Map.of("primary-60", "--krds-color-primary-60"),
+                Map.of(),
+                Map.of("sm", "--krds-spacing-sm"),
+                Map.of(), Map.of(), Map.of(), List.of());
+
+        ThymeleafGenerationStageResult<String> result = composer.compose(
+                contract, "직원 목록", "layout/default", null, null, tokens);
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        String html = result.value();
+        assertThat(html).contains("<!-- egov-design-token-provenance:");
+        assertThat(html).contains("--krds-color-primary-60");
+        assertThat(html).contains("--krds-spacing-sm");
+    }
+
+    /** Design Token이 없으면(null) provenance 주석 자체를 만들지 않는다. */
+    @Test
+    void listContractWithoutDesignTokensOmitsProvenanceComment() throws IOException {
+        ThymeleafBindingContract contract = assembleFixture(
+                "EgovEmployerList.jsp", "EgovEmployerController.java", "EmployerVO.java", LegacyScreenRole.LIST);
+
+        ThymeleafGenerationStageResult<String> result = composer.compose(contract, "직원 목록", "layout/default");
+
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        assertThat(result.value()).doesNotContain("egov-design-token-provenance");
     }
 
     @Test

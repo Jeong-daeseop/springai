@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/component-catalog-v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "contractVersion", "components", "fallbackPolicy"],
+  "properties": {
+    "schemaVersion": {"const": "component-catalog-v2"},
+    "contractVersion": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "components": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[a-z][a-z0-9]*(?:\\.[A-Za-z][A-Za-z0-9]*)+$"},
+      "additionalProperties": {"$ref": "#/$defs/component"}
+    },
+    "fallbackPolicy": {"$ref": "#/$defs/fallbackPolicy"}
+  },
+  "$defs": {
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "requirement", "aliases", "replacementLogicalType", "properties", "composition", "roles", "supportedPlatforms", "requiredProperties"],
+      "properties": {
+        "kind": {"enum": ["COMPONENT", "PATTERN", "PAGE_TEMPLATE"]},
+        "requirement": {"enum": ["REQUIRED", "OPTIONAL"]},
+        "aliases": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "replacementLogicalType": {"type": ["string", "null"]},
+        "properties": {"type": "object", "additionalProperties": {"$ref": "#/$defs/property"}},
+        "composition": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "roles": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "supportedPlatforms": {"type": "array", "uniqueItems": true, "items": {"enum": ["DESKTOP", "TABLET", "MOBILE"]}},
+        "requiredProperties": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "codeComponent": {"type": ["string", "null"]},
+        "documentationUrl": {"type": ["string", "null"], "format": "uri"}
+      }
+    },
+    "property": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "figmaProperty", "codeProperty", "values"],
+      "properties": {
+        "type": {"enum": ["TEXT", "BOOLEAN", "VARIANT", "INSTANCE_SWAP"]},
+        "figmaProperty": {"type": "string", "minLength": 1},
+        "codeProperty": {"type": ["string", "null"]},
+        "values": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "fallbackPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required", "optional", "unsupportedProperty", "deprecated"],
+      "properties": {
+        "required": {"const": "FATAL"},
+        "optional": {"enum": ["PREVIEW_ONLY", "SKIP"]},
+        "unsupportedProperty": {"const": "PRESERVE_AS_METADATA"},
+        "deprecated": {"const": "RESOLVE_REPLACEMENT_OR_FAIL"}
+      }
+    }
+  }
+}

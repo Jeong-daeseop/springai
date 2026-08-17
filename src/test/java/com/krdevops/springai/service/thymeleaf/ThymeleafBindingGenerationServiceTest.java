@@ -273,12 +273,75 @@ class ThymeleafBindingGenerationServiceTest {
         org.mockito.Mockito.verifyNoInteractions(workflow);
     }
 
+    /** R6-057: designSystemProfileId가 주어지면 해석된 Design Token이 provenance 주석으로 반영된다. */
+    @Test
+    void designSystemProfileIdResolvesTokensIntoGeneratedHtml() {
+        CompanyDesignTokenResolver designTokenResolver = mock(CompanyDesignTokenResolver.class);
+        when(designTokenResolver.resolve("krds", null)).thenReturn(
+                com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult.success(
+                        new com.krdevops.springai.model.thymeleaf.ResolvedDesignTokens(
+                                "krds", "2.2.2", null,
+                                java.util.Map.of("primary-60", "--krds-color-primary-60"),
+                                java.util.Map.of(), java.util.Map.of(), java.util.Map.of(), java.util.Map.of(),
+                                java.util.Map.of(), java.util.List.of()),
+                        java.util.List.of()));
+        ThymeleafBindingGenerationService withTokens = serviceWith(workflow, designTokenResolver);
+        ThymeleafBindingPreviewRequest base = validRequest();
+        ThymeleafBindingPreviewRequest request = new ThymeleafBindingPreviewRequest(
+                base.projectRootPath(), base.screenId(), base.screenRole(), base.jspRelativePath(),
+                base.controllerRelativePath(), base.voRelativePath(), base.voSuperclassRelativePath(),
+                base.secondaryVoRelativePath(), base.outputRelativePath(), base.pageTitle(), base.layoutView(),
+                base.screenSpecificationId(), base.registRoute(), "krds");
+
+        var result = withTokens.preview(request);
+
+        assertThat(result.successful()).isTrue();
+        assertThat(result.workflow().operation().previewArtifacts().get(result.outputRelativePath()))
+                .contains("--krds-color-primary-60");
+    }
+
+    /** Design Token 해석이 실패해도(FATAL) Preview 전체를 막지 않고 토큰 없이 계속 진행한다. */
+    @Test
+    void failedDesignTokenResolutionDoesNotBlockPreview() {
+        CompanyDesignTokenResolver designTokenResolver = mock(CompanyDesignTokenResolver.class);
+        when(designTokenResolver.resolve("missing-profile", null)).thenReturn(
+                com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult.failure(
+                        java.util.List.of(new com.krdevops.springai.model.contract.GenerationIssue(
+                                "DESIGN_SYSTEM_PROFILE_NOT_FOUND",
+                                com.krdevops.springai.model.contract.GenerationIssue.Severity.FATAL,
+                                "R6-056", null, "찾을 수 없음", null))));
+        ThymeleafBindingGenerationService withTokens = serviceWith(workflow, designTokenResolver);
+        ThymeleafBindingPreviewRequest base = validRequest();
+        ThymeleafBindingPreviewRequest request = new ThymeleafBindingPreviewRequest(
+                base.projectRootPath(), base.screenId(), base.screenRole(), base.jspRelativePath(),
+                base.controllerRelativePath(), base.voRelativePath(), base.voSuperclassRelativePath(),
+                base.secondaryVoRelativePath(), base.outputRelativePath(), base.pageTitle(), base.layoutView(),
+                base.screenSpecificationId(), base.registRoute(), "missing-profile");
+
+        var result = withTokens.preview(request);
+
+        assertThat(result.successful()).isTrue();
+        assertThat(result.workflow().operation().previewArtifacts().get(result.outputRelativePath()))
+                .doesNotContain("egov-design-token-provenance");
+    }
+
     private ThymeleafBindingGenerationService serviceWith(ThymeleafProjectWorkflowService workflow) {
-        return serviceWith(workflow, mock(ScreenSpecificationService.class));
+        return serviceWith(workflow, mock(ScreenSpecificationService.class), mock(CompanyDesignTokenResolver.class));
     }
 
     private ThymeleafBindingGenerationService serviceWith(
             ThymeleafProjectWorkflowService workflow, ScreenSpecificationService specifications) {
+        return serviceWith(workflow, specifications, mock(CompanyDesignTokenResolver.class));
+    }
+
+    private ThymeleafBindingGenerationService serviceWith(
+            ThymeleafProjectWorkflowService workflow, CompanyDesignTokenResolver designTokenResolver) {
+        return serviceWith(workflow, mock(ScreenSpecificationService.class), designTokenResolver);
+    }
+
+    private ThymeleafBindingGenerationService serviceWith(
+            ThymeleafProjectWorkflowService workflow, ScreenSpecificationService specifications,
+            CompanyDesignTokenResolver designTokenResolver) {
         Configuration configuration = new Configuration(Configuration.VERSION_2_3_33);
         try {
             configuration.setDirectoryForTemplateLoading(
@@ -293,6 +356,7 @@ class ThymeleafBindingGenerationServiceTest {
                 new LegacySourceInventoryService(hashFactory), new JspSourceReader(),
                 new ControllerSourceReader(), new VoSourceReader(),
                 new BindingContractAssembler(issueFactory), new BindingComposer(configuration, issueFactory),
+                designTokenResolver,
                 specifications, workflow, new RegenerationDiffService());
     }
 

@@ -17,10 +17,12 @@ const schemaNames = [
   "design-system-profile-v1.schema.json",
   "component-registry-v1.schema.json",
   "component-registry-v2.schema.json",
+  "component-registry-v3.schema.json",
   "screen-patterns-v1.schema.json",
   "screen-suite-manifest-v1.schema.json",
   "variant-rule-set-v1.schema.json",
   "component-catalog-v1.schema.json",
+  "component-catalog-v2.schema.json",
   "figma-generation-report-v1.schema.json",
   "figma-export-bundle-v1.schema.json",
   "figma-export-bundle-v2.schema.json",
@@ -51,10 +53,12 @@ const validateDesignSystemSpec = validator("design-system-spec-v1.schema.json");
 const validateProfile = validator("design-system-profile-v1.schema.json");
 const validateRegistry = validator("component-registry-v1.schema.json");
 const validateRegistryV2 = validator("component-registry-v2.schema.json");
+const validateRegistryV3 = validator("component-registry-v3.schema.json");
 const validatePatterns = validator("screen-patterns-v1.schema.json");
 const validateScreenSuite = validator("screen-suite-manifest-v1.schema.json");
 const validateVariantRules = validator("variant-rule-set-v1.schema.json");
 const validateCatalog = validator("component-catalog-v1.schema.json");
+const validateCatalogV2 = validator("component-catalog-v2.schema.json");
 const validateGenerationReport = validator("figma-generation-report-v1.schema.json");
 const validateGenerationReportV2 = validator("figma-generation-report-v2.schema.json");
 const validateRefinementPatchSet = validator("figma-refinement-patch-set-v1.schema.json");
@@ -119,6 +123,7 @@ expectValid(validateProfile, "valid-design-system-profile.json");
 expectValid(validateRegistry, "valid-krds-component-registry.json");
 expectValid(validateRegistryV2, "valid-component-registry-v2.json");
 expectInvalid(validateRegistryV2, "invalid-component-registry-v2-no-role.json");
+expectValid(validateRegistryV3, "valid-component-registry-v3.json");
 assert.equal(validatePatterns(read("screen-patterns-v1.json")), true,
   `screen-patterns-v1.json: ${JSON.stringify(validatePatterns.errors)}`);
 assert.equal(validateVariantRules(read("variant-rule-set-krds-v1.json")), true,
@@ -270,6 +275,33 @@ expectInvalid(validateLegacyScreenAnalysis, "invalid-legacy-screen-analysis-bad-
 expectValid(validateBindingContract, "valid-thymeleaf-binding-contract.json");
 expectInvalid(validateBindingContract, "invalid-thymeleaf-binding-contract-bad-confidence.json");
 expectValid(validateCatalog, "../component-catalog-v1.json");
+assert.equal(validateCatalogV2(read("component-catalog-v2.json")), true,
+  `component-catalog-v2.json: ${JSON.stringify(validateCatalogV2.errors)}`);
+const catalogV2 = read("component-catalog-v2.json");
+const registryV3 = read("fixtures/valid-component-registry-v3.json");
+assert.deepEqual(catalogV2Issues(catalogV2), []);
+assert.deepEqual(registryV3Issues(catalogV2, registryV3), []);
+for (const binding of Object.values(registryV3.bindings)) {
+  assert.deepEqual(Object.keys(binding).sort(),
+    ["componentName", "componentSetKey", "lifecycleStatus", "publishStatus", "variants"].sort(),
+    "Registry v3 Binding은 Catalog 논리 계약 필드를 중복 저장하지 않아야 한다");
+}
+const aliasConflictCatalogV2 = structuredClone(catalogV2);
+aliasConflictCatalogV2.components["krds.checkbox"].aliases.push("button");
+assert.deepEqual(catalogV2Issues(aliasConflictCatalogV2),
+  ["ALIAS_CONFLICT:krds.checkbox:button"]);
+const compositionCycleCatalogV2 = structuredClone(catalogV2);
+compositionCycleCatalogV2.components["krds.button"].composition.push("egov.actionArea");
+assert.deepEqual(catalogV2Issues(compositionCycleCatalogV2),
+  ["COMPOSITION_CYCLE:krds.button"]);
+assert.deepEqual(
+  registryV3Issues(catalogV2, read("fixtures/invalid-component-registry-v3-unknown-binding.json")),
+  ["REQUIRED_BINDING_MISSING:krds.button", "REQUIRED_BINDING_MISSING:krds.checkbox",
+    "REQUIRED_BINDING_MISSING:krds.pageHeader",
+    "REQUIRED_BINDING_MISSING:krds.pagination", "REQUIRED_BINDING_MISSING:krds.searchPanel",
+    "REQUIRED_BINDING_MISSING:krds.select", "REQUIRED_BINDING_MISSING:krds.tableCell",
+    "REQUIRED_BINDING_MISSING:krds.tableHeader", "REQUIRED_BINDING_MISSING:krds.textField",
+    "UNKNOWN_LOGICAL_TYPE:krds.unknown"]);
 
 const validBundle = read("fixtures/valid-figma-export-bundle.json");
 assert.deepEqual(bundleConsistencyIssues(validBundle), []);
@@ -383,6 +415,57 @@ function catalogIssues(value) {
     }
   }
   return issues;
+}
+
+function catalogV2Issues(value) {
+  const issues = [];
+  const entries = value.components;
+  const aliasOwners = new Map();
+  for (const [logicalType, entry] of Object.entries(entries)) {
+    for (const alias of entry.aliases) {
+      const owner = aliasOwners.get(alias);
+      if (entries[alias] || owner) issues.push(`ALIAS_CONFLICT:${logicalType}:${alias}`);
+      aliasOwners.set(alias, logicalType);
+    }
+    if (entry.replacementLogicalType && !entries[entry.replacementLogicalType]) {
+      issues.push(`UNKNOWN_REPLACEMENT:${logicalType}:${entry.replacementLogicalType}`);
+    }
+    for (const target of entry.composition) {
+      if (!entries[target]) issues.push(`COMPOSITION_TARGET_MISSING:${logicalType}:${target}`);
+    }
+    for (const required of entry.requiredProperties) {
+      if (!entry.properties[required]) issues.push(`REQUIRED_PROPERTY_MISSING:${logicalType}:${required}`);
+    }
+  }
+  const visiting = new Set();
+  const visited = new Set();
+  const visit = logicalType => {
+    if (visiting.has(logicalType)) {
+      issues.push(`COMPOSITION_CYCLE:${logicalType}`);
+      return;
+    }
+    if (visited.has(logicalType)) return;
+    visiting.add(logicalType);
+    for (const target of entries[logicalType]?.composition ?? []) visit(target);
+    visiting.delete(logicalType);
+    visited.add(logicalType);
+  };
+  Object.keys(entries).forEach(visit);
+  return [...new Set(issues)].sort();
+}
+
+function registryV3Issues(catalogValue, registry) {
+  const issues = [];
+  const bindings = registry.bindings;
+  for (const logicalType of Object.keys(bindings)) {
+    if (!catalogValue.components[logicalType]) issues.push(`UNKNOWN_LOGICAL_TYPE:${logicalType}`);
+  }
+  for (const [logicalType, entry] of Object.entries(catalogValue.components)) {
+    if (entry.kind === "COMPONENT" && entry.requirement === "REQUIRED" && !bindings[logicalType]) {
+      issues.push(`REQUIRED_BINDING_MISSING:${logicalType}`);
+    }
+  }
+  return issues.sort();
 }
 
 function screenCatalogIssues(screen, catalogValue) {

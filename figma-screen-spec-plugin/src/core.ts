@@ -40,15 +40,25 @@ export function validateBundle(bundle: unknown): {
   const candidate = bundle as Partial<FigmaExportBundle>;
   const screen = candidate.figmaScreenSpec;
   const profile = candidate.designSystemProfile?.profile;
-  const registry = candidate.componentRegistry?.registry;
+  const legacyRegistry = candidate.componentRegistry?.registry;
+  const resolvedRegistry = candidate.resolvedComponentRegistry;
   const pattern = candidate.screenPattern?.pattern;
   const ruleSet = candidate.variantRuleSet?.ruleSet;
   const metadata = candidate.metadata;
   if (!screen?.screenId || !screen.content) issues.push(fatal("SCREEN_SPEC_MISSING", "FigmaScreenSpec이 없습니다."));
   if (!profile?.id || !profile.version) issues.push(fatal("PROFILE_MISSING", "DesignSystemProfile Snapshot이 없습니다."));
-  if (!registry?.profileId || !registry.registryVersion) issues.push(fatal("REGISTRY_MISSING", "ComponentRegistry Snapshot이 없습니다."));
+  if (!legacyRegistry?.profileId || !legacyRegistry.registryVersion) issues.push(fatal("REGISTRY_MISSING", "ComponentRegistry Snapshot이 없습니다."));
   if (!metadata?.figmaScreenSpecSchemaVersion) issues.push(fatal("METADATA_MISSING", "Export Metadata가 없습니다."));
-  if (issues.length || !screen || !profile || !registry || !metadata) return { issues };
+  if (issues.length || !screen || !profile || !legacyRegistry || !metadata) return { issues };
+  const hasCompleteSsotEvidence = Boolean(metadata.catalogVersion && metadata.catalogHash && metadata.registryHash);
+  const registry: ComponentRegistry = hasCompleteSsotEvidence && resolvedRegistry
+    ? {
+        profileId: resolvedRegistry.profileId,
+        profileVersion: resolvedRegistry.profileVersion,
+        registryVersion: resolvedRegistry.registryVersion,
+        components: resolvedRegistry.components,
+      }
+    : legacyRegistry;
 
   const schemaVersion = metadata.figmaScreenSpecSchemaVersion;
   const contractMode: BundleContractMode | undefined = schemaVersion === FIGMA_SCREEN_SPEC_V2
@@ -114,6 +124,28 @@ export function validateBundle(bundle: unknown): {
   ];
   for (const [left, right, code] of versions) {
     if (left !== right) issues.push(fatal(code, `${left} != ${right}`));
+  }
+  const ssotValues = [metadata.catalogVersion, metadata.catalogHash, metadata.registryHash];
+  const ssotValueCount = ssotValues.filter(value => typeof value === "string" && value.length > 0).length;
+  if (ssotValueCount > 0 && ssotValueCount !== ssotValues.length) {
+    issues.push(fatal("SSOT_EVIDENCE_INCOMPLETE", "Catalog/Registry SSOT 증적은 전부 함께 제공해야 합니다."));
+  }
+  if (ssotValueCount === ssotValues.length
+      && (!/^[a-f0-9]{64}$/.test(metadata.catalogHash ?? "")
+        || !/^[a-f0-9]{64}$/.test(metadata.registryHash ?? ""))) {
+    issues.push(fatal("SSOT_EVIDENCE_HASH_INVALID", "Catalog/Registry Hash 형식이 올바르지 않습니다."));
+  }
+  if (ssotValueCount === ssotValues.length && !resolvedRegistry) {
+    issues.push(fatal("RESOLVED_COMPONENT_REGISTRY_MISSING",
+      "SSOT Bundle에는 서버가 결합한 resolvedComponentRegistry가 필요합니다."));
+  }
+  if (ssotValueCount === ssotValues.length && resolvedRegistry
+      && (resolvedRegistry.catalogVersion !== metadata.catalogVersion
+        || resolvedRegistry.catalogHash !== metadata.catalogHash
+        || resolvedRegistry.registryVersion !== metadata.registryVersion
+        || resolvedRegistry.registryHash !== metadata.registryHash)) {
+    issues.push(fatal("RESOLVED_COMPONENT_REGISTRY_EVIDENCE_MISMATCH",
+      "Resolved Registry와 Bundle Metadata의 버전·Hash가 다릅니다."));
   }
   if (profile.registryVersion !== registry.registryVersion) {
     issues.push(fatal("PROFILE_REGISTRY_VERSION_MISMATCH", `${profile.registryVersion} != ${registry.registryVersion}`));
@@ -444,10 +476,25 @@ function change(
   changeType: ReconciliationChange["changeType"],
   detail: string,
 ): ReconciliationChange {
-  return { logicalNodeId: node.logicalNodeId, logicalType: node.type, changeType, detail };
+  return {
+    logicalNodeId: node.logicalNodeId,
+    logicalType: node.type,
+    changeType,
+    detail,
+    componentKey: node.componentResolution?.variantKey ?? null,
+  };
 }
 
 export function registryFor(bundle: FigmaExportBundle): ComponentRegistry {
+  const resolved = bundle.resolvedComponentRegistry;
+  if (resolved && bundle.metadata.catalogVersion && bundle.metadata.catalogHash && bundle.metadata.registryHash) {
+    return {
+      profileId: resolved.profileId,
+      profileVersion: resolved.profileVersion,
+      registryVersion: resolved.registryVersion,
+      components: resolved.components,
+    };
+  }
   return bundle.componentRegistry.registry;
 }
 
@@ -576,4 +623,18 @@ export function contrastRatio(foreground: ContrastColor, background: ContrastCol
 export function meetsWcagAaContrast(ratio: number, fontSizePx: number, bold: boolean): boolean {
   const isLargeText = fontSizePx >= 24 || (bold && fontSizePx >= 18.66);
   return ratio >= (isLargeText ? 3 : 4.5);
+}
+
+/**
+ * R5-T04: USER_OVERRIDE 보존 판정을 담당하는 순수 함수. 이전에 서버가 적용한 값
+ * (`previousManagedValue`, `DATA_MANAGED_PROPERTIES` pluginData 기록)과 현재 Figma
+ * Instance/TextNode 값(`currentValue`)이 다르면 사람이 그 값을 직접 바꾼 것으로 판단해
+ * `true`를 반환한다. `applyOwnedProperties()`가 이 결과가 `true`인 속성은 재동기화 때
+ * 덮어쓰지 않는다(CONTRACT_RULES.md §3 USER_OVERRIDE).
+ */
+export function isUserOverridden(
+  previousManagedValue: string | boolean | undefined,
+  currentValue: string | boolean | undefined,
+): boolean {
+  return previousManagedValue !== undefined && currentValue !== previousManagedValue;
 }

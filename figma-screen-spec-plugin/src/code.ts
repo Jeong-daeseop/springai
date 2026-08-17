@@ -2,6 +2,7 @@ import {
   describeLayoutAnnotations,
   flattenSpec,
   generationStatus,
+  isUserOverridden,
   previewLegacyMigration,
   reconcile,
   registryFor,
@@ -9,6 +10,8 @@ import {
   sectionVisualRegression,
   contrastRatio,
   meetsWcagAaContrast,
+  planFallback,
+  requiresPublishedComponent,
   validateBundle,
 } from "./core";
 import type { SectionEvidence } from "./core";
@@ -36,6 +39,7 @@ import { captureSnapshot } from "./refinement/snapshot";
 import { diffSnapshots } from "./refinement/diff";
 import { planPatchApplication, type ApplyDecision } from "./refinement/apply-planner";
 import { applyPatchToNode } from "./refinement/property-writer";
+import { buildRegistryV3BindingCandidate } from "./registry-export";
 
 const DATA_SCREEN_ID = "figmaScreenSpec.screenId";
 const DATA_SCREEN_VERSION = "figmaScreenSpec.screenVersion";
@@ -76,6 +80,7 @@ type Message =
   | { type: "LOAD_BUNDLE"; bundle: unknown }
   | { type: "FETCH_BUNDLE"; baseUrl: string; screenId: string; version?: number; apiKey?: string; token?: string }
   | { type: "APPLY"; mode: Exclude<SyncMode, "PREVIEW"> }
+  | { type: "EXPORT_REGISTRY_V3" }
   | { type: "PREVIEW_MIGRATION" }
   | { type: "APPLY_MIGRATION" }
   | { type: "REFINEMENT_START" }
@@ -154,6 +159,24 @@ figma.ui.onmessage = async (message: Message) => {
         pending.bundle, message.mode, pending.issues, approvedRefinement);
       if (reportTarget) await uploadGenerationReport(reportTarget, report);
       figma.ui.postMessage({ type: "APPLY_RESULT", report, refinementOutcome });
+    }
+    if (message.type === "EXPORT_REGISTRY_V3") {
+      if (!pending) throw new Error("먼저 SSOT Bundle을 불러오세요.");
+      const registry = registryFor(pending.bundle);
+      const metadata = pending.bundle.metadata;
+      const candidate = buildRegistryV3BindingCandidate({
+        profileId: registry.profileId,
+        profileVersion: registry.profileVersion,
+        registryVersion: registry.registryVersion,
+        catalogVersion: metadata.catalogVersion || pending.bundle.figmaScreenSpec.componentContractVersion || "unknown",
+        library: { fileKey: registry.library?.fileKey || "UNKNOWN_LIBRARY", name: registry.library?.name || "Figma Library" },
+        sourceRevision: `figma-plugin:${new Date().toISOString()}`,
+        observations: Object.entries(registry.components).map(([logicalType, entry]) => ({
+          logicalType, componentSetKey: entry.componentSetKey, componentName: entry.componentName, variants: entry.variants,
+        })),
+      });
+      figma.ui.postMessage({ type: "REGISTRY_V3_EXPORT_RESULT", candidate });
+      return;
     }
     if (message.type === "REFINEMENT_START") {
       startRefinementCapture();
@@ -918,6 +941,7 @@ async function applyBundle(
     issues,
     qualityGates,
     refinement: summarizeRefinementOutcome(approvedRefinement, refinementOutcome),
+    ssotEvidence: ssotEvidence(bundle),
   };
   return { report, refinementOutcome };
 }
@@ -1213,6 +1237,7 @@ async function syncNode(
   counts: { reused: number; created: number; archived: number; fallback: number },
 ): Promise<FrameNode> {
   let wrapper = existing.get(spec.logicalNodeId);
+  const reused = Boolean(wrapper);
   const typeChanged = wrapper && wrapper.getPluginData(DATA_LOGICAL_TYPE) !== spec.type;
   if (wrapper && typeChanged) {
     counts.archived++;
@@ -1223,10 +1248,8 @@ async function syncNode(
 
   if (!wrapper) {
     wrapper = figma.createFrame();
-    counts.created++;
     changes.push(change(spec, "ADD", typeChanged ? "타입 변경으로 신규 생성" : "신규 생성"));
   } else {
-    counts.reused++;
     existing.delete(spec.logicalNodeId);
     changes.push(change(spec, "REUSE", "기존 Wrapper와 Instance 재사용"));
   }
@@ -1269,6 +1292,14 @@ async function syncNode(
   }
 
   const entry = registry.components[spec.type];
+  if (!entry && spec.nodeType === "COMPONENT" && !requiresPublishedComponent(spec)) {
+    const fallback = planFallback(spec, registry);
+    if (fallback) {
+      wrapper.setPluginData(DATA_FALLBACK, "true");
+      counts.fallback++;
+      issues.push(fallback.issue);
+    }
+  }
   if (spec.componentResolution && entry) {
     removeFallbackPlaceholder(wrapper);
     const published = await ensurePublishedInstance(wrapper, spec, entry, importedComponents, issues);
@@ -1290,6 +1321,11 @@ async function syncNode(
   if (spec.type === "egov.formSection") {
     applyEmailReplyInlinePair(wrapper, spec.children);
   }
+  // Materialization이 모든 자식·Published Instance·허용 레이아웃 적용까지
+  // 완료된 뒤에만 Generation Report 집계에 반영한다. 중간 예외로 원자 Apply가
+  // Rollback되면 성공 건수에 남지 않는다.
+  if (reused && !typeChanged) counts.reused++;
+  else counts.created++;
   return wrapper;
 }
 
@@ -2136,8 +2172,7 @@ async function applyOwnedProperties(
         throw new Error(`Component Property를 찾을 수 없습니다: ${baseName} (${logicalNodeId})`);
       }
       const managedKey = `text:${normalizePropertyName(baseName)}`;
-      const userOverrode = previous[managedKey] !== undefined
-        && textNode.characters !== previous[managedKey];
+      const userOverrode = isUserOverridden(previous[managedKey], textNode.characters);
       if (!userOverrode) {
         await loadTextNodeFonts(textNode);
         textNode.characters = value;
@@ -2146,7 +2181,7 @@ async function applyOwnedProperties(
       continue;
     }
     const current = instance.componentProperties[actualKey]?.value;
-    const userOverrode = previous[actualKey] !== undefined && current !== previous[actualKey];
+    const userOverrode = isUserOverridden(previous[actualKey], current);
     if (userOverrode) continue;
     updates[actualKey] = value;
     next[actualKey] = value;
@@ -2266,5 +2301,22 @@ function change(
   changeType: ReconciliationChange["changeType"],
   detail: string,
 ): ReconciliationChange {
-  return { logicalNodeId: spec.logicalNodeId, logicalType: spec.type, changeType, detail };
+  return {
+    logicalNodeId: spec.logicalNodeId,
+    logicalType: spec.type,
+    changeType,
+    detail,
+    componentKey: spec.componentResolution?.variantKey ?? null,
+  };
+}
+
+function ssotEvidence(bundle: FigmaExportBundle): GenerationReport["ssotEvidence"] {
+  const metadata = bundle.metadata;
+  if (!metadata.catalogVersion || !metadata.catalogHash || !metadata.registryHash) return null;
+  return {
+    catalogVersion: metadata.catalogVersion,
+    catalogHash: metadata.catalogHash,
+    registryVersion: metadata.registryVersion,
+    registryHash: metadata.registryHash,
+  };
 }

@@ -6,6 +6,7 @@ import com.krdevops.springai.mapper.FigmaScreenSpecRepository;
 import com.krdevops.springai.mapper.ScreenSpecRepository;
 import com.krdevops.springai.mapper.ScreenPatternRepository;
 import com.krdevops.springai.mapper.VariantRuleSetRepository;
+import com.krdevops.springai.mapper.ComponentRegistrySnapshotV3Repository;
 import com.krdevops.springai.model.design.PageSpec;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.designsystem.ComponentRegistry;
@@ -21,6 +22,7 @@ import com.krdevops.springai.model.figma.FigmaScreenSpec;
 import com.krdevops.springai.model.figma.FigmaScreenType;
 import com.krdevops.springai.model.figma.LayoutPattern;
 import com.krdevops.springai.service.designsystem.ComponentRegistryResolver;
+import com.krdevops.springai.service.designsystem.ResolvedComponentRegistryService;
 import com.krdevops.springai.service.figma.builder.FigmaScreenBuilder;
 import org.springframework.stereotype.Service;
 
@@ -56,6 +58,8 @@ public class FigmaScreenExportService {
     private final FigmaInventoryExportGate inventoryExportGate;
     private final ScreenPatternRepository screenPatternRepository;
     private final VariantRuleSetRepository variantRuleSetRepository;
+    private final ComponentRegistrySnapshotV3Repository registryV3Repository;
+    private final ResolvedComponentRegistryService resolvedRegistryService;
 
     @org.springframework.beans.factory.annotation.Autowired
     public FigmaScreenExportService(
@@ -73,7 +77,9 @@ public class FigmaScreenExportService {
             KrdsComponentResolutionService componentResolutionService,
             FigmaInventoryExportGate inventoryExportGate,
             ScreenPatternRepository screenPatternRepository,
-            VariantRuleSetRepository variantRuleSetRepository) {
+            VariantRuleSetRepository variantRuleSetRepository,
+            ComponentRegistrySnapshotV3Repository registryV3Repository,
+            ResolvedComponentRegistryService resolvedRegistryService) {
         this.screenSpecRepository = screenSpecRepository;
         this.builderRegistry = builderRegistry;
         this.typeResolver = typeResolver;
@@ -89,6 +95,8 @@ public class FigmaScreenExportService {
         this.inventoryExportGate = inventoryExportGate;
         this.screenPatternRepository = screenPatternRepository;
         this.variantRuleSetRepository = variantRuleSetRepository;
+        this.registryV3Repository = registryV3Repository;
+        this.resolvedRegistryService = resolvedRegistryService;
     }
 
     /** 테스트와 기존 직접 생성 호출의 하위 호환 생성자. */
@@ -105,7 +113,7 @@ public class FigmaScreenExportService {
             FigmaScreenSpecSerializer serializer) {
         this(screenSpecRepository, builderRegistry, typeResolver, idFactory, specValidator,
                 profileRepository, registryRepository, figmaScreenSpecRepository,
-                bundleAssembler, serializer, null, null, null, null, null);
+                bundleAssembler, serializer, null, null, null, null, null, null, null);
     }
 
     /** 결정형 Resolution 서비스 도입 전 Artifact 저장 테스트 호환. */
@@ -123,7 +131,7 @@ public class FigmaScreenExportService {
             com.krdevops.springai.service.DesignArtifactService artifactService) {
         this(screenSpecRepository, builderRegistry, typeResolver, idFactory, specValidator,
                 profileRepository, registryRepository, figmaScreenSpecRepository,
-                bundleAssembler, serializer, artifactService, null, null, null, null);
+                bundleAssembler, serializer, artifactService, null, null, null, null, null, null);
     }
 
     public FigmaExportResult export(FigmaScreenExportRequest request) {
@@ -268,6 +276,28 @@ public class FigmaScreenExportService {
         return serializer.toJson(findBundleVersion(screenId, version));
     }
 
+    /** SSOT 전환 경로: Registry v3가 없거나 검증에 실패하면 Legacy Bundle로 되돌아가지 않고 차단한다. */
+    public FigmaExportBundle findLatestSsotBundle(String screenId) {
+        FigmaScreenSpec spec = findLatest(screenId)
+                .orElseThrow(() -> new IllegalArgumentException("FigmaScreenSpec을 찾을 수 없습니다: " + screenId));
+        return assembleStoredSsotBundle(spec);
+    }
+
+    public FigmaExportBundle findSsotBundleVersion(String screenId, int version) {
+        FigmaScreenSpec spec = findVersion(screenId, version)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "FigmaScreenSpec 버전을 찾을 수 없습니다: " + screenId + " v" + version));
+        return assembleStoredSsotBundle(spec);
+    }
+
+    public String findLatestSsotBundleAsJson(String screenId) {
+        return serializer.toJson(findLatestSsotBundle(screenId));
+    }
+
+    public String findSsotBundleVersionAsJson(String screenId, int version) {
+        return serializer.toJson(findSsotBundleVersion(screenId, version));
+    }
+
     /** 저장된 Spec의 기존 Issue와 현재 의미 검증 결과를 함께 반환한다. */
     public List<FigmaExportIssue> validateStored(String screenId, Integer version) {
         FigmaScreenSpec spec = version == null
@@ -298,6 +328,45 @@ public class FigmaScreenExportService {
                         "ComponentRegistry 버전을 찾을 수 없습니다: " + reference.profileId()
                                 + " v" + reference.registryVersion()));
         return assembleVersionedBundle(spec, profile, registry);
+    }
+
+    private FigmaExportBundle assembleStoredSsotBundle(FigmaScreenSpec spec) {
+        if (registryV3Repository == null || resolvedRegistryService == null) {
+            throw new IllegalStateException("SSOT_RESOLVER_NOT_CONFIGURED: Registry v3 Resolver가 없습니다.");
+        }
+        FigmaScreenSpec.DesignSystemRef reference = spec.designSystem();
+        DesignSystemProfile profile = profileRepository.findVersion(reference.profileId(), reference.profileVersion())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "DesignSystemProfile 버전을 찾을 수 없습니다: " + reference.profileId()
+                                + " v" + reference.profileVersion()));
+        ComponentRegistry legacyRegistry = registryRepository
+                .findVersion(reference.profileId(), reference.registryVersion())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Legacy ComponentRegistry 버전을 찾을 수 없습니다: " + reference.profileId()
+                                + " v" + reference.registryVersion()));
+        var registryV3 = registryV3Repository.findVersion(reference.profileId(), reference.registryVersion())
+                .orElseThrow(() -> new IllegalStateException(
+                        "REGISTRY_V3_NOT_FOUND: " + reference.profileId() + "/" + reference.registryVersion()));
+        Set<String> requiredLogicalTypes = new HashSet<>();
+        collectComponentTypes(spec.content(), requiredLogicalTypes);
+        var resolved = resolvedRegistryService.resolve(registryV3, requiredLogicalTypes);
+
+        if (spec.semanticPattern() == null) {
+            throw new IllegalStateException("SSOT_BUNDLE_REQUIRES_V2_SCREEN_SPEC: Pattern Snapshot이 필요합니다.");
+        }
+        if (screenPatternRepository == null || variantRuleSetRepository == null) {
+            throw new IllegalStateException("BUNDLE_SNAPSHOT_REPOSITORY_MISSING: v2 Bundle Snapshot 저장소가 없습니다.");
+        }
+        ScreenPatternDefinition pattern = screenPatternRepository
+                .findVersion(spec.semanticPattern(), spec.screenPatternVersion())
+                .orElseThrow(() -> new IllegalStateException("SCREEN_PATTERN_VERSION_NOT_FOUND: "
+                        + spec.semanticPattern().code() + "/" + spec.screenPatternVersion()));
+        VariantRuleSet ruleSet = variantRuleSetRepository.findPublishedVersion(
+                        reference.profileId(), reference.registryVersion(), spec.variantRuleSetVersion())
+                .orElseThrow(() -> new IllegalStateException("PUBLISHED_RULE_SET_VERSION_NOT_FOUND: "
+                        + reference.profileId() + "/" + reference.registryVersion()
+                        + "/" + spec.variantRuleSetVersion()));
+        return bundleAssembler.assemble(spec, profile, legacyRegistry, pattern, ruleSet, resolved);
     }
 
     private FigmaExportBundle assembleVersionedBundle(

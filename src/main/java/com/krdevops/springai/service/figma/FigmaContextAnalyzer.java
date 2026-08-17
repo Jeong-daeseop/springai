@@ -1,65 +1,59 @@
 package com.krdevops.springai.service.figma;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.model.figma.FigmaScreenType;
+import com.krdevops.springai.model.figma.LayoutPattern;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Figma 디자인 컨텍스트를 LLM으로 분석.
- * 2-A3 FigmaContextAnalyzer 구현
+ * Figma 디자인 컨텍스트를 LLM 구조화 출력으로 분석한다.
+ * R6-042: FigmaContextAnalyzer 구현
  *
  * 입력: 자연어 요청 + Figma 노드 정보
- * 출력: 화면 타입, 필드 역할, 불확실성 판정
+ * 출력: 업무 도메인, 화면 유형, Layout 패턴, 필수 컴포넌트, 불확실성 판정
  */
 @Service
 public class FigmaContextAnalyzer {
 
     private final ChatClient chatClient;
-    private final ObjectMapper objectMapper;
+    private final FigmaResponseRedactor redactor;
 
     public FigmaContextAnalyzer(
             @Qualifier("openAiChatClient") ChatClient chatClient,
-            ObjectMapper objectMapper) {
+            FigmaResponseRedactor redactor) {
         this.chatClient = chatClient;
-        this.objectMapper = objectMapper;
+        this.redactor = redactor;
     }
 
     /**
-     * 자연어 요청과 Figma 노드를 분석해서 화면 타입, 필드 역할, 필수 컴포넌트를 판정한다.
+     * 자연어 요청과 Figma 노드를 분석해서 domain, screenType, layoutPattern, 필수 컴포넌트를
+     * 판정한다. Spring AI `.entity()` 구조화 출력을 사용해 LLM 응답을 {@link FigmaScreenType}/
+     * {@link LayoutPattern} enum으로 직접 역직렬화하며, 수동 JSON 문자열 파싱을 하지 않는다.
      */
     public FigmaContextAnalysis analyze(String prompt, JsonNode figmaNodeData) {
         if (prompt == null || prompt.isBlank()) {
             throw new IllegalArgumentException("prompt는 필수입니다");
         }
-
         try {
-            // LJavaScript 프롬프트 구성
-            String analysisPrompt = buildAnalysisPrompt(prompt, figmaNodeData);
-
-            // Spring AI ChatClient로 구조화된 출력 요청
-            String response = chatClient.prompt()
-                    .user(analysisPrompt)
+            LlmAnalysisResponse response = chatClient.prompt()
+                    .user(buildAnalysisPrompt(prompt, figmaNodeData))
                     .call()
-                    .content();
-
-            // 응답 파싱
-            return parseAnalysisResponse(response);
+                    .entity(LlmAnalysisResponse.class);
+            if (response == null) {
+                return FigmaContextAnalysis.uncertain("비전 모델이 빈 분석 결과를 반환했습니다.");
+            }
+            return FigmaContextAnalysis.from(response);
         } catch (Exception e) {
-            // LLM 호출 실패 시 UNCERTAIN으로 기본값 반환
-            return FigmaContextAnalysis.uncertain(
-                    "LLM 분석 실패: " + e.getMessage()
-            );
+            // LLM 호출 실패 시 UNCERTAIN으로 기본값 반환. R6-041: 예외 메시지에
+            // LLM key·Figma access token·image URL이 섞여 나올 수 있어 reason에 담기 전에 redact한다.
+            return FigmaContextAnalysis.uncertain("LLM 분석 실패: " + redactor.redact(e.getMessage()));
         }
     }
 
-    /**
-     * LLM 분석 프롬프트 구성.
-     */
     private String buildAnalysisPrompt(String prompt, JsonNode figmaNodeData) {
         StringBuilder sb = new StringBuilder();
         sb.append("Figma 디자인 분석 요청:\n\n");
@@ -70,85 +64,56 @@ public class FigmaContextAnalyzer {
             sb.append(figmaNodeData.toPrettyString()).append("\n\n");
         }
 
-        sb.append("다음을 JSON 형식으로 분석하세요:\n");
-        sb.append("{\n");
-        sb.append("  \"screenType\": \"LIST|FORM|DETAIL\",\n");
-        sb.append("  \"layoutPattern\": \"STANDARD|MASTER_DETAIL|DASHBOARD\",\n");
-        sb.append("  \"requiredComponentLogicalTypes\": [\"krds.button\", ...],\n");
-        sb.append("  \"fieldRoles\": {\"필드명\": \"SEARCH_INPUT|DISPLAY_FIELD|ACTION_BUTTON|...\"...},\n");
-        sb.append("  \"uncertainty\": 0.0,\n");
-        sb.append("  \"reason\": \"분석 근거\"\n");
-        sb.append("}\n");
+        sb.append("다음을 분석하세요.\n");
+        sb.append("domain: 업무 도메인을 나타내는 짧은 영문 소문자 단어(예: user, order, payment, board).\n");
+        sb.append("screenType: 화면 유형.\n");
+        sb.append("layoutPattern: Layout 패턴.\n");
+        sb.append("requiredComponentLogicalTypes: 필요한 KRDS 논리 컴포넌트 타입 목록(예: krds.button).\n");
+        sb.append("uncertainty: 판단 불확실도(0.0=확실, 1.0=매우 불확실).\n");
+        sb.append("reason: 판단 근거.\n");
 
         return sb.toString();
     }
 
-    /**
-     * LLM 응답 파싱.
-     */
-    private FigmaContextAnalysis parseAnalysisResponse(String response) {
-        try {
-            // JSON 추출 (응답에 JSON이 포함되어 있을 수 있음)
-            String jsonPart = extractJsonFromResponse(response);
-            JsonNode analysisNode = objectMapper.readTree(jsonPart);
-
-            String screenType = analysisNode.path("screenType").asText("FORM");
-            String layoutPattern = analysisNode.path("layoutPattern").asText("STANDARD");
-            double uncertainty = analysisNode.path("uncertainty").asDouble(0.5);
-            String reason = analysisNode.path("reason").asText("분석 완료");
-
-            List<String> requiredTypes = new ArrayList<>();
-            analysisNode.path("requiredComponentLogicalTypes").forEach(node ->
-                    requiredTypes.add(node.asText())
-            );
-
-            return new FigmaContextAnalysis(
-                    screenType,
-                    layoutPattern,
-                    requiredTypes,
-                    uncertainty,
-                    reason,
-                    false
-            );
-        } catch (Exception e) {
-            return FigmaContextAnalysis.uncertain("응답 파싱 실패: " + e.getMessage());
-        }
-    }
-
-    /**
-     * 응답에서 JSON 부분 추출.
-     */
-    private String extractJsonFromResponse(String response) {
-        int start = response.indexOf('{');
-        int end = response.lastIndexOf('}');
-
-        if (start == -1 || end == -1) {
-            throw new IllegalArgumentException("응답에 JSON이 없습니다");
-        }
-
-        return response.substring(start, end + 1);
+    /** LLM 구조화 출력 스키마 — Spring AI {@code .entity()}가 이 record 형태로 응답을 강제한다. */
+    record LlmAnalysisResponse(
+            String domain,
+            FigmaScreenType screenType,
+            LayoutPattern layoutPattern,
+            List<String> requiredComponentLogicalTypes,
+            double uncertainty,
+            String reason
+    ) {
     }
 
     /**
      * Figma 컨텍스트 분석 결과.
      */
     public record FigmaContextAnalysis(
-            String screenType,           // LIST, FORM, DETAIL
-            String layoutPattern,        // STANDARD, MASTER_DETAIL, DASHBOARD
+            String domain,
+            FigmaScreenType screenType,
+            LayoutPattern layoutPattern,
             List<String> requiredComponentLogicalTypes,
-            double uncertainty,          // 0.0 ~ 1.0
+            double uncertainty,
             String reason,
             boolean uncertain            // 신뢰도 낮음
     ) {
+        static FigmaContextAnalysis from(LlmAnalysisResponse response) {
+            double uncertainty = clamp(response.uncertainty());
+            return new FigmaContextAnalysis(
+                    response.domain(),
+                    response.screenType() == null ? FigmaScreenType.FORM : response.screenType(),
+                    response.layoutPattern() == null ? LayoutPattern.STANDARD : response.layoutPattern(),
+                    response.requiredComponentLogicalTypes() == null
+                            ? List.of() : List.copyOf(response.requiredComponentLogicalTypes()),
+                    uncertainty,
+                    response.reason(),
+                    uncertainty > 0.5);
+        }
+
         public static FigmaContextAnalysis uncertain(String reason) {
             return new FigmaContextAnalysis(
-                    "FORM",
-                    "STANDARD",
-                    List.of(),
-                    0.9,
-                    reason,
-                    true
-            );
+                    null, FigmaScreenType.FORM, LayoutPattern.STANDARD, List.of(), 0.9, reason, true);
         }
 
         public boolean hasHighConfidence() {
@@ -157,6 +122,13 @@ public class FigmaContextAnalyzer {
 
         public boolean requiresReview() {
             return uncertainty > 0.5 || uncertain;
+        }
+
+        private static double clamp(double value) {
+            if (Double.isNaN(value)) {
+                return 0.9;
+            }
+            return Math.max(0.0, Math.min(1.0, value));
         }
     }
 }

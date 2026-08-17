@@ -1886,11 +1886,14 @@
   }
 }, {
   "name" : "preflightComponentRegistry",
-  "description" : "화면 생성 전에 Registry/Profile 드리프트와 필수 논리 컴포넌트의 alias·replacement 해석 가능 여부를 점검합니다.\nfigmaMcpSecret 인증값이 반드시 필요하며 Published Component Key 원문은 응답하지 않습니다.\n",
+  "description" : "화면 생성 전에 Registry/Profile 드리프트와 필수 논리 컴포넌트의 alias·replacement 해석 가능 여부를 점검합니다.\nfigmaMcpSecret 인증값이 반드시 필요하며 Published Component Key 원문은 응답하지 않습니다.\nexpectedLayoutPolicyVersion을 지정하면 Profile의 layoutPolicyVersion과 다를 때 실패합니다(생략 가능, R1-015).\n",
   "inputSchema" : {
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
     "properties" : {
+      "expectedLayoutPolicyVersion" : {
+        "type" : "string"
+      },
       "figmaMcpSecret" : {
         "type" : "string"
       },
@@ -1907,7 +1910,7 @@
         "type" : "array"
       }
     },
-    "required" : [ "figmaMcpSecret", "profileId", "registryVersion", "requiredLogicalTypes" ],
+    "required" : [ "figmaMcpSecret", "profileId", "registryVersion", "requiredLogicalTypes", "expectedLayoutPolicyVersion" ],
     "type" : "object"
   }
 }, {
@@ -1935,6 +1938,9 @@
         "additionalProperties" : false,
         "properties" : {
           "controllerRelativePath" : {
+            "type" : "string"
+          },
+          "designSystemProfileId" : {
             "type" : "string"
           },
           "jspRelativePath" : {
@@ -1975,7 +1981,7 @@
             "type" : "string"
           }
         },
-        "required" : [ "controllerRelativePath", "jspRelativePath", "layoutView", "outputRelativePath", "pageTitle", "projectRootPath", "registRoute", "screenId", "screenRole", "screenSpecificationId", "secondaryVoRelativePath", "voRelativePath", "voSuperclassRelativePath" ],
+        "required" : [ "controllerRelativePath", "designSystemProfileId", "jspRelativePath", "layoutView", "outputRelativePath", "pageTitle", "projectRootPath", "registRoute", "screenId", "screenRole", "screenSpecificationId", "secondaryVoRelativePath", "voRelativePath", "voSuperclassRelativePath" ],
         "type" : "object"
       },
       "sharedSecret" : {

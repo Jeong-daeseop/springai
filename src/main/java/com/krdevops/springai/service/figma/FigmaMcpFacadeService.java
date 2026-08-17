@@ -58,11 +58,12 @@ public class FigmaMcpFacadeService {
     public String preflightRegistry(
             String profileId,
             String registryVersion,
-            List<String> requiredLogicalTypes
+            List<String> requiredLogicalTypes,
+            String expectedLayoutPolicyVersion
     ) {
         // 해석 결과에는 논리 ID만 포함하고 Published Key 원문은 반환하지 않는다.
         return toJson(designSystemQueryService.preflightRegistry(
-                profileId, registryVersion, requiredLogicalTypes));
+                profileId, registryVersion, requiredLogicalTypes, expectedLayoutPolicyVersion));
     }
 
     private String toJson(Object value) {

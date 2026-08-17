@@ -1,5 +1,6 @@
 package com.krdevops.springai.controller;
 
+import com.krdevops.springai.config.AppProperties;
 import com.krdevops.springai.service.figma.FigmaRestTokenService;
 import com.krdevops.springai.service.figma.FigmaScreenExportService;
 import org.junit.jupiter.api.BeforeEach;
@@ -95,6 +96,36 @@ class FigmaExportControllerTest {
                 .andExpect(status().isNotModified())
                 .andExpect(header().string("ETag", etag))
                 .andExpect(content().string(""));
+    }
+
+    @Test
+    void ssotFeatureFlagUsesOnlyValidatedSsotBundle() throws Exception {
+        AppProperties properties = new AppProperties();
+        properties.setFigmaSsotBundleEnabled(true);
+        when(exportService.findSsotBundleVersionAsJson("user-list", 3))
+                .thenReturn("{\"resolvedComponentRegistry\":{\"catalogVersion\":\"v2\"}}");
+        MockMvc ssotMvc = MockMvcBuilders
+                .standaloneSetup(new FigmaExportController(exportService, restTokenService, properties))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+
+        ssotMvc.perform(get("/api/figma/screens/user-list/download").param("version", "3"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        org.hamcrest.Matchers.containsString("user-list-v3.figma-export-bundle.json")))
+                .andExpect(content().json("{\"resolvedComponentRegistry\":{\"catalogVersion\":\"v2\"}}"));
+    }
+
+    @Test
+    void previewUsesSameSsotFeatureFlagAsDownload() throws Exception {
+        AppProperties properties = new AppProperties();
+        properties.setFigmaSsotBundleEnabled(true);
+        when(exportService.findSsotBundleVersionAsJson("user-list", 3)).thenReturn("{\"ssot\":true}");
+        MockMvc ssotMvc = MockMvcBuilders.standaloneSetup(
+                        new FigmaExportController(exportService, restTokenService, properties))
+                .setControllerAdvice(new GlobalExceptionHandler()).build();
+        ssotMvc.perform(get("/api/figma/screens/user-list/preview").param("version", "3"))
+                .andExpect(status().isOk()).andExpect(content().json("{\"ssot\":true}"));
     }
 
     @Test

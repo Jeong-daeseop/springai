@@ -51,7 +51,8 @@
           "logicalNodeId": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/logicalNodeId"},
           "logicalType": {"type": "string", "minLength": 1},
           "changeType": {"enum": ["ADD", "REUSE", "MOVE", "UPDATE", "ARCHIVE", "CONFLICT"]},
-          "detail": {"type": "string", "minLength": 1}
+          "detail": {"type": "string", "minLength": 1},
+          "componentKey": {"type": ["string", "null"], "minLength": 1}
         }
       }
     },
@@ -73,6 +74,17 @@
         }
       ],
       "description": "이번 적용에 사용된 Manual Refinement Patch Set 증적. Refinement가 적용되지 않은 실행은 null이다."
+    },
+    "ssotEvidence": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["catalogVersion", "catalogHash", "registryVersion", "registryHash"],
+      "properties": {
+        "catalogVersion": {"type": "string", "minLength": 1},
+        "catalogHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "registryVersion": {"type": "string", "minLength": 1},
+        "registryHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
     }
   }
 }

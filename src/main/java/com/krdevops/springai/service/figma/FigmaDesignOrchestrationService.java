@@ -98,7 +98,7 @@ public class FigmaDesignOrchestrationService {
             throw new IllegalArgumentException("request는 필수입니다");
         }
         validateAdvancedRequest(incoming);
-        FigmaDesignRequest request = normalizeEditableNodeIds(incoming);
+        FigmaDesignRequest request = normalizeNodeIdFields(incoming);
         allowlistValidator.validateFileKey(request.fileKey());
         var analysis = contextAnalyzer.analyze(request.prompt(), null);
         FigmaDesignOperation operation = operationRepository.createOrReuse(request);
@@ -115,18 +115,23 @@ public class FigmaDesignOrchestrationService {
      * {@code 1-2}/{@code 1:2} 표기를 정규화하고 형식이 어긋나면 여기서 거부한다. 잘못된 nodeId를
      * 통과시키면 Apply에서 오탐 CONFLICT가 나는데, CONFLICT는 종단 상태이고 동일 requestHash는
      * {@code createOrReuse}가 재사용하므로 해당 요청이 영구히 복구 불가가 된다.
+     *
+     * <p>R6-041: {@code editableNodeIds}만 정규화되고 {@code referenceNodeIds}/{@code
+     * imageNodeIds}는 형식 검증 없이 그대로 저장되던 격차를 닫는다 — 세 필드 모두 같은
+     * {@link FigmaNodeIds} 단일 규칙을 통과해야 한다.
      */
-    private FigmaDesignRequest normalizeEditableNodeIds(FigmaDesignRequest request) {
-        if (request.editableNodeIds() == null || request.editableNodeIds().isEmpty()) {
-            return request;
-        }
-        List<String> normalized = FigmaNodeIds.normalizeAll(request.editableNodeIds(), "editableNodeIds");
-        if (normalized.equals(request.editableNodeIds())) {
+    private FigmaDesignRequest normalizeNodeIdFields(FigmaDesignRequest request) {
+        List<String> referenceNodeIds = FigmaNodeIds.normalizeAll(request.referenceNodeIds(), "referenceNodeIds");
+        List<String> editableNodeIds = FigmaNodeIds.normalizeAll(request.editableNodeIds(), "editableNodeIds");
+        List<String> imageNodeIds = FigmaNodeIds.normalizeAll(request.imageNodeIds(), "imageNodeIds");
+        if (java.util.Objects.equals(referenceNodeIds, request.referenceNodeIds())
+                && java.util.Objects.equals(editableNodeIds, request.editableNodeIds())
+                && java.util.Objects.equals(imageNodeIds, request.imageNodeIds())) {
             return request;
         }
         return new FigmaDesignRequest(
-                request.type(), request.prompt(), request.fileKey(), request.referenceNodeIds(),
-                normalized, request.imageNodeIds(), request.targetPlatform(),
+                request.type(), request.prompt(), request.fileKey(), referenceNodeIds,
+                editableNodeIds, imageNodeIds, request.targetPlatform(),
                 request.components(), request.screens());
     }
 

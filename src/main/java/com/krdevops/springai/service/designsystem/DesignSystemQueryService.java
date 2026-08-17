@@ -156,11 +156,36 @@ public class DesignSystemQueryService {
             String registryVersion,
             List<String> requiredLogicalTypes
     ) {
+        return preflightRegistry(profileId, registryVersion, requiredLogicalTypes, null);
+    }
+
+    /**
+     * R1-015/R0-T08: {@code expectedLayoutPolicyVersion}이 주어지면 Profile의 실제
+     * {@code layoutPolicyVersion}과 비교해 불일치 시 Preflight를 실패시킨다. {@code null}이면
+     * Layout Policy 검증을 건너뛴다(기존 호출자 호환).
+     */
+    public RegistryPreflightResult preflightRegistry(
+            String profileId,
+            String registryVersion,
+            List<String> requiredLogicalTypes,
+            String expectedLayoutPolicyVersion
+    ) {
         ComponentRegistry registry = registryVersion == null || registryVersion.isBlank()
                 ? findLatestRegistry(profileId)
                 : findRegistryVersion(profileId, registryVersion);
         RegistryAuditResult audit = auditRegistry(profileId, registry.registryVersion());
         List<DesignSystemIssue> issues = new ArrayList<>(audit.issues());
+        if (expectedLayoutPolicyVersion != null && !expectedLayoutPolicyVersion.isBlank()) {
+            DesignSystemProfile profile = findLatestProfile(profileId);
+            if (!expectedLayoutPolicyVersion.equals(profile.layoutPolicyVersion())) {
+                issues.add(new DesignSystemIssue(
+                        "LAYOUT_POLICY_VERSION_MISMATCH",
+                        DesignSystemIssue.Severity.ERROR,
+                        "Profile의 layoutPolicyVersion이 예상 값과 다릅니다: 예상=" + expectedLayoutPolicyVersion
+                                + ", 실제=" + profile.layoutPolicyVersion(),
+                        profileId));
+            }
+        }
         Map<String, String> resolutions = new LinkedHashMap<>();
         for (String required : requiredLogicalTypes == null ? List.<String>of() : requiredLogicalTypes) {
             ComponentRegistryResolver.Resolution resolution = registryResolver.resolve(registry, required);

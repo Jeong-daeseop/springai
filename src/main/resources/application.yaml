@@ -116,6 +116,8 @@ chat:
     max-messages: 8       # 20 → 8: 토큰 예산 확보 (num-ctx 8192 기준)
 
 app:
+  # R5-004: 명시적으로 켠 경우에만 기본 다운로드가 Catalog+Registry v3 SSOT를 요구한다.
+  figma-ssot-bundle-enabled: ${APP_FIGMA_SSOT_BUNDLE_ENABLED:false}
   templates:
     # 운영 중 교체가 필요한 템플릿만 이 절대 경로에서 우선 탐색한다. 비어 있으면 jar classpath만 사용한다.
     external-directory: ${EXTERNAL_TEMPLATE_DIRECTORY:}

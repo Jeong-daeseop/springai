@@ -20,6 +20,44 @@
         "snapshotAt": {"type": "string", "format": "date-time"}
       }
     },
+    "resolvedComponentRegistry": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["profileId", "profileVersion", "registryVersion", "catalogVersion", "catalogHash", "registryHash", "components"],
+      "properties": {
+        "profileId": {"type": "string", "minLength": 1},
+        "profileVersion": {"type": "string", "minLength": 1},
+        "registryVersion": {"type": "string", "minLength": 1},
+        "catalogVersion": {"type": "string", "minLength": 1},
+        "catalogHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "registryHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "components": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["componentSetKey", "componentName", "variants", "properties"],
+            "properties": {
+              "componentSetKey": {"type": "string", "minLength": 1},
+              "componentName": {"type": ["string", "null"]},
+              "variants": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}},
+              "properties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object", "additionalProperties": false,
+                  "required": ["figmaProperty", "type", "values"],
+                  "properties": {
+                    "figmaProperty": {"type": "string", "minLength": 1},
+                    "type": {"enum": ["TEXT", "BOOLEAN", "VARIANT", "INSTANCE_SWAP"]},
+                    "values": {"type": "object", "additionalProperties": {"type": "string"}}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "screenPattern": {
       "type": "object", "additionalProperties": false, "required": ["pattern", "snapshotAt"],
       "properties": {
@@ -45,7 +83,10 @@
         "registryVersion": {"type": "string", "minLength": 1},
         "screenPatternVersion": {"type": "string", "minLength": 1},
         "variantRuleSetVersion": {"type": "string", "minLength": 1},
-        "componentContractVersion": {"type": "string", "minLength": 1}
+        "componentContractVersion": {"type": "string", "minLength": 1},
+        "catalogVersion": {"type": ["string", "null"], "minLength": 1},
+        "catalogHash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "registryHash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
       }
     }
   }

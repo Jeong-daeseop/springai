@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/component-registry-v3",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "profileId", "profileVersion", "registryVersion", "catalogVersion", "catalogHash", "library", "bindings", "variables", "sourceRevision", "approvedBy", "approvedAt", "contentHash"],
+  "properties": {
+    "schemaVersion": {"const": "component-registry-v3"},
+    "profileId": {"type": "string", "minLength": 1},
+    "profileVersion": {"type": "string", "minLength": 1},
+    "registryVersion": {"type": "string", "minLength": 1},
+    "catalogVersion": {"type": "string", "minLength": 1},
+    "catalogHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "library": {"$ref": "#/$defs/library"},
+    "bindings": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/binding"}},
+    "variables": {"type": "object"},
+    "sourceRevision": {"type": "string", "minLength": 1},
+    "approvedBy": {"type": ["string", "null"], "minLength": 1},
+    "approvedAt": {"type": ["string", "null"], "format": "date-time"},
+    "contentHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "$defs": {
+    "library": {
+      "type": "object", "additionalProperties": false, "required": ["fileKey", "name"],
+      "properties": {"fileKey": {"type": "string", "minLength": 1}, "name": {"type": "string", "minLength": 1}}
+    },
+    "binding": {
+      "type": "object", "additionalProperties": false,
+      "required": ["componentSetKey", "componentName", "publishStatus", "lifecycleStatus", "variants"],
+      "properties": {
+        "componentSetKey": {"type": "string", "minLength": 1},
+        "componentName": {"type": "string", "minLength": 1},
+        "publishStatus": {"const": "CURRENT"},
+        "lifecycleStatus": {"enum": ["CURRENT", "DEPRECATED"]},
+        "variants": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}}
+      }
+    }
+  }
+}

@@ -11,7 +11,10 @@ public record FigmaExportMetadata(
         String registryVersion,
         String screenPatternVersion,
         String variantRuleSetVersion,
-        String componentContractVersion
+        String componentContractVersion,
+        String catalogVersion,
+        String catalogHash,
+        String registryHash
 ) {
     public FigmaExportMetadata {
         exportedAt = exportedAt == null ? LocalDateTime.now() : exportedAt;
@@ -28,6 +31,29 @@ public record FigmaExportMetadata(
             String registryVersion
     ) {
         this(exportedAt, figmaScreenSpecSchemaVersion, screenSpecificationVersion,
-                designSystemProfileVersion, registryVersion, null, null, null);
+                designSystemProfileVersion, registryVersion, null, null, null,
+                null, null, null);
+    }
+
+    /** SSOT 증적 도입 전 Role·Variant v2 호출자 호환. */
+    public FigmaExportMetadata(
+            LocalDateTime exportedAt,
+            String figmaScreenSpecSchemaVersion,
+            int screenSpecificationVersion,
+            String designSystemProfileVersion,
+            String registryVersion,
+            String screenPatternVersion,
+            String variantRuleSetVersion,
+            String componentContractVersion
+    ) {
+        this(exportedAt, figmaScreenSpecSchemaVersion, screenSpecificationVersion,
+                designSystemProfileVersion, registryVersion, screenPatternVersion,
+                variantRuleSetVersion, componentContractVersion, null, null, null);
+    }
+
+    public boolean hasSsotEvidence() {
+        return catalogVersion != null && !catalogVersion.isBlank()
+                && catalogHash != null && catalogHash.matches("[a-f0-9]{64}")
+                && registryHash != null && registryHash.matches("[a-f0-9]{64}");
     }
 }

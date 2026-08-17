@@ -10,6 +10,18 @@ import com.krdevops.springai.mapper.FigmaLibraryInventoryRepository;
 import com.krdevops.springai.service.designsystem.DesignSystemQueryService;
 import com.krdevops.springai.service.designsystem.FigmaContractApprovalService;
 import com.krdevops.springai.service.designsystem.KrdsRuntimeContractImportService;
+import com.krdevops.springai.service.designsystem.ComponentRegistryMigrationService;
+import com.krdevops.springai.service.designsystem.ComponentCatalogMigrationService;
+import com.krdevops.springai.service.designsystem.ComponentCatalogV1ToV2Converter;
+import com.krdevops.springai.service.designsystem.ComponentRegistryRollbackService;
+import com.krdevops.springai.service.designsystem.ComponentRegistryOperationalValidationService;
+import com.krdevops.springai.service.designsystem.ComponentRegistryObservationService;
+import com.krdevops.springai.service.designsystem.ComponentRegistryDualReadService;
+import com.krdevops.springai.service.designsystem.ComponentRegistryInventoryValidator;
+import com.krdevops.springai.service.designsystem.ComponentCatalogLoader;
+import com.krdevops.springai.mapper.ComponentRegistrySnapshotV3Repository;
+import com.krdevops.springai.model.designsystem.ComponentRegistryResolutionComparisonReport;
+import com.krdevops.springai.model.designsystem.ComponentRegistrySnapshotV3;
 import com.krdevops.springai.model.design.role.ScreenPattern;
 import com.krdevops.springai.model.designsystem.ScreenPatternDefinition;
 import com.krdevops.springai.model.designsystem.VariantRuleSet;
@@ -36,7 +48,89 @@ public class DesignSystemController {
     private final FigmaContractApprovalService contractApprovalService;
     private final KrdsRuntimeContractImportService runtimeContractImportService;
     private final FigmaRollbackRehearsalService rollbackRehearsalService;
+    private final ComponentRegistryMigrationService registryMigrationService;
+    private final ComponentCatalogMigrationService catalogMigrationService;
+    private final ComponentRegistryRollbackService registryRollbackService;
+    private final ComponentRegistryOperationalValidationService operationalValidationService;
+    private final ComponentRegistryObservationService observationService;
+    private final ComponentRegistryDualReadService dualReadService;
+    private final ComponentRegistrySnapshotV3Repository registryV3Repository;
+    private final ComponentRegistryInventoryValidator inventoryValidator;
+    private final ComponentCatalogLoader catalogLoader;
     private final ObjectMapper objectMapper;
+
+    /** Legacy Catalog v1을 v2 후보로 변환하고 누락 합성 대상·계약 오류를 보여준다. */
+    @PostMapping("/catalog/migrate-v2/preview")
+    public ComponentCatalogV1ToV2Converter.Conversion previewCatalogV2Migration() {
+        return catalogMigrationService.preview();
+    }
+
+    /** 기존 Registry v2를 저장하지 않고 v3 후보로 변환·교차검증한다. */
+    @PostMapping("/{profileId}/registries/{registryVersion}/migrate-v3/preview")
+    public ComponentRegistryMigrationService.MigrationPreview previewRegistryV3Migration(
+            @PathVariable String profileId,
+            @PathVariable String registryVersion,
+            @RequestParam(defaultValue = "2.0.0") String catalogVersion) {
+        return registryMigrationService.preview(profileId, registryVersion, catalogVersion);
+    }
+
+    /** Preview와 동일 후보를 사람 승인 후 Registry v3 불변 Snapshot으로 저장한다. */
+    @PostMapping("/{profileId}/registries/{registryVersion}/migrate-v3/apply")
+    public ComponentRegistrySnapshotV3 applyRegistryV3Migration(
+            @PathVariable String profileId,
+            @PathVariable String registryVersion,
+            @RequestParam(defaultValue = "2.0.0") String catalogVersion,
+            @RequestParam(defaultValue = "false") boolean confirmed,
+            @RequestParam(defaultValue = "false") boolean breakingChangeConfirmed,
+            @RequestParam String actor) {
+        return registryMigrationService.apply(
+                profileId, registryVersion, catalogVersion, confirmed, breakingChangeConfirmed, actor);
+    }
+
+    /** 운영자가 대상 버전을 명시하고 확인한 경우에만 이전 승인 Snapshot을 연결한다. */
+    @PostMapping("/{profileId}/registries/{registryVersion}/rollback-v3")
+    public ComponentRegistrySnapshotV3 rollbackRegistryV3(
+            @PathVariable String profileId,
+            @PathVariable String registryVersion,
+            @RequestParam(defaultValue = "false") boolean confirmed,
+            @RequestParam String actor) {
+        return registryRollbackService.rollback(profileId, registryVersion, confirmed, actor);
+    }
+
+    /** 운영 중인 승인 Registry v3 Snapshot 전체를 Catalog·Hash 기준으로 일괄 검증한다. */
+    @GetMapping("/registries/validate-v3")
+    public ComponentRegistryOperationalValidationService.BatchResult validateAllRegistryV3() {
+        return operationalValidationService.validateAll();
+    }
+
+    /** Legacy/v3 Resolver 관찰 비교를 실행하고 결과 Report를 저장한다. */
+    @PostMapping("/registries/observe-v3")
+    public ComponentRegistryResolutionComparisonReport observeRegistryV3(
+            @RequestBody ObservationRequest request) {
+        return observationService.compare(request.profileId(), request.legacyVersion(), request.resolvedVersion(),
+                request.logicalTypes() == null ? java.util.Set.of() : new java.util.LinkedHashSet<>(request.logicalTypes()));
+    }
+
+    /** Legacy 결과를 선택값으로 유지하면서 v3 Resolver를 병렬 실행하고 차이를 저장한다. */
+    @PostMapping("/registries/dual-read-v3")
+    public ComponentRegistryDualReadService.DualReadResult dualReadRegistryV3(
+            @RequestBody ObservationRequest request) {
+        return dualReadService.read(request.profileId(), request.legacyVersion(), request.resolvedVersion(),
+                request.logicalTypes() == null ? java.util.Set.of() : new java.util.LinkedHashSet<>(request.logicalTypes()));
+    }
+
+    /** Registry v3 Binding의 Published Component/Variant Key를 최신 Figma Inventory와 교차 검증한다. */
+    @GetMapping("/{profileId}/registries/{registryVersion}/inventory/validate-v3")
+    public InventoryValidationResponse validateRegistryV3Inventory(
+            @PathVariable String profileId, @PathVariable String registryVersion) {
+        var registry = registryV3Repository.findVersion(profileId, registryVersion)
+                .orElseThrow(() -> new FigmaRequestException("REGISTRY_V3_NOT_FOUND", "Registry v3 Snapshot이 없습니다."));
+        var inventory = inventoryRepository.findLatest(profileId, registryVersion)
+                .orElseThrow(() -> new FigmaRequestException("FIGMA_INVENTORY_SNAPSHOT_MISSING", "Figma Inventory가 없습니다."));
+        var issues = inventoryValidator.validate(registry, inventory,
+                catalogLoader.load(registry.catalogVersion()).catalog());
+        return new InventoryValidationResponse(profileId, registryVersion, issues.isEmpty(), issues);
+    }
 
     /** 운영 KRDS Runtime Registry/Rule Set 후보를 DB에 불변 Snapshot으로 Import한다. */
     @PostMapping("/runtime-contracts/qna/import")
@@ -237,6 +331,12 @@ public class DesignSystemController {
     ) {}
 
     public record ApprovalRequest(String actor, String comment) {}
+
+    public record ObservationRequest(String profileId, String legacyVersion,
+                                     String resolvedVersion, List<String> logicalTypes) {}
+
+    public record InventoryValidationResponse(String profileId, String registryVersion,
+                                               boolean valid, List<com.krdevops.springai.model.designsystem.DesignSystemIssue> issues) {}
 
     private void requireSameProfile(String profileId, ComponentRegistry registry) {
         if (!profileId.equals(registry.profileId())) {

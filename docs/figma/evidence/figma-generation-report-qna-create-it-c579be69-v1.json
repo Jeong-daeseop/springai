@@ -1,0 +1,569 @@
+{
+  "reportId": "figma-qna-create-it-c579be69-v1-1786937116320",
+  "status": "SUCCESS",
+  "figmaScreenSpec": {
+    "screenId": "qna-create-it-c579be69",
+    "screenVersion": 1,
+    "screenSpecificationId": "qna-suite-it-c579be69",
+    "screenSpecificationVersion": 3,
+    "screenType": "FORM",
+    "layoutPattern": "STANDARD",
+    "name": "Q&A 관리",
+    "route": null,
+    "viewport": "DESKTOP",
+    "status": "APPROVED",
+    "designSystem": {
+      "profileId": "krds-qna-it-c579be69",
+      "profileVersion": "2.0.0-it-c579be69",
+      "registryVersion": "2.1.0-it-c579be69"
+    },
+    "content": {
+      "logicalNodeId": "qna-create",
+      "nodeType": "PAGE",
+      "type": "egov.formPage",
+      "properties": {
+        "density": "STANDARD"
+      },
+      "children": [
+        {
+          "logicalNodeId": "qna-create/header",
+          "nodeType": "COMPONENT",
+          "type": "krds.pageHeader",
+          "properties": {
+            "semanticRole": "page.header",
+            "title": "Q&A 등록"
+          },
+          "componentResolution": {
+            "role": "page.header",
+            "logicalType": "krds.pageHeader",
+            "componentSetKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980",
+            "variantKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980",
+            "variantProperties": {},
+            "componentProperties": {
+              "Title#259:4": "Q&A 등록"
+            },
+            "contractVersion": "2.1.0",
+            "ruleSetVersion": "2.0.0-it-c579be69",
+            "ruleId": null,
+            "contextHash": "99e21dd8577635ccca6b8d90ec43182a1047129cd4ae76115ef0665edb1ade6f"
+          },
+          "children": []
+        },
+        {
+          "logicalNodeId": "qna-create/form-container",
+          "nodeType": "SECTION",
+          "type": "egov.formContainer",
+          "properties": {
+            "semanticRole": "form.container"
+          },
+          "children": [
+            {
+              "logicalNodeId": "qna-create/form",
+              "nodeType": "SECTION",
+              "type": "egov.formSection",
+              "properties": {
+                "semanticRole": "form.section",
+                "columnLayout": "SINGLE_COLUMN"
+              },
+              "children": [
+                {
+                  "logicalNodeId": "qna-create/form/writer",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textField",
+                  "properties": {
+                    "mode": "EDITABLE",
+                    "errorMessage": "작성자을(를) 입력하세요.",
+                    "required": true,
+                    "sampleValue": "홍길동",
+                    "helperText": "작성자은(는) 필수 입력 항목입니다.",
+                    "labelRequired": true,
+                    "label": "작성자",
+                    "placeholder": "홍길동",
+                    "state": "DEFAULT",
+                    "dataRole": "AUTHOR",
+                    "control": "TEXT",
+                    "semanticRole": "field.text"
+                  },
+                  "componentResolution": {
+                    "role": "field.text",
+                    "logicalType": "krds.textField",
+                    "componentSetKey": "f55c5801028025f13b9931f33b111fb21ec2fb39",
+                    "variantKey": "a5ca68facd04b78a246233b668590f81de5f0a31",
+                    "variantProperties": {
+                      "State": "default",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "Placeholder#286:9": "홍길동",
+                      "↪️Label#286:10": "작성자"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "text-editable",
+                    "contextHash": "6861e93f6619b0c66c04600283cdcb207c7027ed8484a2be937e56fd77cb1848"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-create/form/contact",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textField",
+                  "properties": {
+                    "mode": "EDITABLE",
+                    "errorMessage": "연락처을(를) 입력하세요.",
+                    "required": true,
+                    "sampleValue": "012-0000-1234",
+                    "helperText": "연락처은(는) 필수 입력 항목입니다.",
+                    "labelRequired": true,
+                    "label": "연락처",
+                    "placeholder": "012-0000-1234",
+                    "state": "DEFAULT",
+                    "dataRole": "CONTACT",
+                    "control": "TEXT",
+                    "semanticRole": "field.text"
+                  },
+                  "componentResolution": {
+                    "role": "field.text",
+                    "logicalType": "krds.textField",
+                    "componentSetKey": "f55c5801028025f13b9931f33b111fb21ec2fb39",
+                    "variantKey": "a5ca68facd04b78a246233b668590f81de5f0a31",
+                    "variantProperties": {
+                      "State": "default",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "Placeholder#286:9": "012-0000-1234",
+                      "↪️Label#286:10": "연락처"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "text-editable",
+                    "contextHash": "6861e93f6619b0c66c04600283cdcb207c7027ed8484a2be937e56fd77cb1848"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-create/form/email",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textField",
+                  "properties": {
+                    "mode": "EDITABLE",
+                    "errorMessage": "이메일주소을(를) 입력하세요.",
+                    "required": true,
+                    "sampleValue": "hong@example.com",
+                    "helperText": "이메일주소은(는) 필수 입력 항목입니다.",
+                    "labelRequired": true,
+                    "label": "이메일주소",
+                    "placeholder": "hong@example.com",
+                    "state": "DEFAULT",
+                    "dataRole": "EMAIL",
+                    "control": "TEXT",
+                    "semanticRole": "field.text"
+                  },
+                  "componentResolution": {
+                    "role": "field.text",
+                    "logicalType": "krds.textField",
+                    "componentSetKey": "f55c5801028025f13b9931f33b111fb21ec2fb39",
+                    "variantKey": "a5ca68facd04b78a246233b668590f81de5f0a31",
+                    "variantProperties": {
+                      "State": "default",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "Placeholder#286:9": "hong@example.com",
+                      "↪️Label#286:10": "이메일주소"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "text-editable",
+                    "contextHash": "6861e93f6619b0c66c04600283cdcb207c7027ed8484a2be937e56fd77cb1848"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-create/form/emailReplyYn",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.checkbox",
+                  "properties": {
+                    "mode": "EDITABLE",
+                    "errorMessage": "",
+                    "required": false,
+                    "sampleValue": "hong@example.com",
+                    "helperText": "이메일답변여부을(를) 확인하세요.",
+                    "labelRequired": false,
+                    "label": "이메일답변여부",
+                    "placeholder": "hong@example.com",
+                    "state": "DEFAULT",
+                    "dataRole": "EMAIL_REPLY",
+                    "control": "CHECKBOX",
+                    "semanticRole": "field.checkbox"
+                  },
+                  "componentResolution": {
+                    "role": "field.checkbox",
+                    "logicalType": "krds.checkbox",
+                    "componentSetKey": "c1cbdf3a7eefa16b8e2f3d67e36f5df7a0e06d9c",
+                    "variantKey": "5f8874cd0d1f357c692c2f32ae657d7f53e036e1",
+                    "variantProperties": {
+                      "State": "unchecked",
+                      "Check": "on",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "label#309:0": "이메일답변여부"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "checkbox-editable",
+                    "contextHash": "77b3d24847aa60e7384c7d872cfd6aca7fb3a8e0071be4d12689d037accd11df"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-create/form/title",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textField",
+                  "properties": {
+                    "mode": "EDITABLE",
+                    "errorMessage": "질문 제목을(를) 입력하세요.",
+                    "required": true,
+                    "sampleValue": "시스템 이용 방법 문의",
+                    "helperText": "질문 제목은(는) 필수 입력 항목입니다.",
+                    "labelRequired": true,
+                    "label": "질문 제목",
+                    "placeholder": "시스템 이용 방법 문의",
+                    "state": "DEFAULT",
+                    "dataRole": "TITLE",
+                    "control": "TEXT",
+                    "semanticRole": "field.text"
+                  },
+                  "componentResolution": {
+                    "role": "field.text",
+                    "logicalType": "krds.textField",
+                    "componentSetKey": "f55c5801028025f13b9931f33b111fb21ec2fb39",
+                    "variantKey": "a5ca68facd04b78a246233b668590f81de5f0a31",
+                    "variantProperties": {
+                      "State": "default",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "Placeholder#286:9": "시스템 이용 방법 문의",
+                      "↪️Label#286:10": "질문 제목"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "text-editable",
+                    "contextHash": "6861e93f6619b0c66c04600283cdcb207c7027ed8484a2be937e56fd77cb1848"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-create/form/content",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.textarea",
+                  "properties": {
+                    "mode": "EDITABLE",
+                    "errorMessage": "질문 내용을(를) 입력하세요.",
+                    "required": true,
+                    "sampleValue": "Q&A 서비스 이용 방법을 문의합니다.",
+                    "helperText": "질문 내용은(는) 필수 입력 항목입니다.",
+                    "labelRequired": true,
+                    "label": "질문 내용",
+                    "placeholder": "Q&A 서비스 이용 방법을 문의합니다.",
+                    "state": "DEFAULT",
+                    "dataRole": "CONTENT",
+                    "control": "TEXTAREA",
+                    "semanticRole": "field.textarea"
+                  },
+                  "componentResolution": {
+                    "role": "field.textarea",
+                    "logicalType": "krds.textarea",
+                    "componentSetKey": "2b440cecd92043fc8347bbab1fc9ab6a90729435",
+                    "variantKey": "49fac55bd12165e2cc423ea88c3e1e23ad6ef741",
+                    "variantProperties": {
+                      "State": "default"
+                    },
+                    "componentProperties": {
+                      "Label#286:10": "질문 내용",
+                      "Placeholder#286:9": "Q&A 서비스 이용 방법을 문의합니다."
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "textarea-editable",
+                    "contextHash": "acbfed38ef2c7dbd11ee3394df468d8ecea008c0edaaa3f3bc04754895d724bb"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-create/form/privateYn",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.checkbox",
+                  "properties": {
+                    "mode": "EDITABLE",
+                    "errorMessage": "",
+                    "required": false,
+                    "sampleValue": "답변대기",
+                    "helperText": "비공개 여부을(를) 확인하세요.",
+                    "labelRequired": false,
+                    "label": "비공개 여부",
+                    "placeholder": "답변대기",
+                    "state": "DEFAULT",
+                    "dataRole": "STATUS",
+                    "control": "CHECKBOX",
+                    "semanticRole": "field.checkbox"
+                  },
+                  "componentResolution": {
+                    "role": "field.checkbox",
+                    "logicalType": "krds.checkbox",
+                    "componentSetKey": "c1cbdf3a7eefa16b8e2f3d67e36f5df7a0e06d9c",
+                    "variantKey": "5f8874cd0d1f357c692c2f32ae657d7f53e036e1",
+                    "variantProperties": {
+                      "State": "unchecked",
+                      "Check": "on",
+                      "Size": "medium"
+                    },
+                    "componentProperties": {
+                      "label#309:0": "비공개 여부"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "checkbox-editable",
+                    "contextHash": "77b3d24847aa60e7384c7d872cfd6aca7fb3a8e0071be4d12689d037accd11df"
+                  },
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "logicalNodeId": "qna-create/validation",
+          "nodeType": "SECTION",
+          "type": "egov.validationSummary",
+          "properties": {
+            "requiredFieldCount": 5
+          },
+          "children": []
+        },
+        {
+          "logicalNodeId": "qna-create/action",
+          "nodeType": "SECTION",
+          "type": "egov.actionArea",
+          "properties": {
+            "placement": "BOTTOM_RIGHT"
+          },
+          "children": [
+            {
+              "logicalNodeId": "qna-create/action/save",
+              "nodeType": "COMPONENT",
+              "type": "krds.button",
+              "properties": {
+                "state": "DEFAULT",
+                "actionType": "SAVE",
+                "label": "저장",
+                "semanticRole": "action.primary"
+              },
+              "componentResolution": {
+                "role": "action.primary",
+                "logicalType": "krds.button",
+                "componentSetKey": "401090e03acd1062033e52471c65fd5f8666c23a",
+                "variantKey": "6237cff0545cc51ddcd657a49b5fb6186d1c4090",
+                "variantProperties": {
+                  "Style": "primary",
+                  "State": "default",
+                  "Size": "medium"
+                },
+                "componentProperties": {
+                  "Label#300:3": "저장"
+                },
+                "contractVersion": "2.1.0",
+                "ruleSetVersion": "2.0.0-it-c579be69",
+                "ruleId": "action-primary",
+                "contextHash": "591126add13b35444373f4749585d01b7c3a4a8116ceb07b351cff9fd18e0e49"
+              },
+              "children": []
+            },
+            {
+              "logicalNodeId": "qna-create/action/cancel",
+              "nodeType": "COMPONENT",
+              "type": "krds.button",
+              "properties": {
+                "state": "DEFAULT",
+                "actionType": "CANCEL",
+                "label": "취소",
+                "semanticRole": "action.secondary"
+              },
+              "componentResolution": {
+                "role": "action.secondary",
+                "logicalType": "krds.button",
+                "componentSetKey": "401090e03acd1062033e52471c65fd5f8666c23a",
+                "variantKey": "a554af98520754543085d516077b9541ea754552",
+                "variantProperties": {
+                  "Style": "secondary",
+                  "State": "default",
+                  "Size": "medium"
+                },
+                "componentProperties": {
+                  "Label#300:3": "취소"
+                },
+                "contractVersion": "2.1.0",
+                "ruleSetVersion": "2.0.0-it-c579be69",
+                "ruleId": "action-secondary",
+                "contextHash": "86ddbea6cd3ba2b6078c7e5b71e83d3bee1e6468b28743849dfee0ad88aab8e2"
+              },
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    "issues": [],
+    "semanticPattern": "crud.create",
+    "screenPatternVersion": "1.0.0-it-c579be69",
+    "variantRuleSetVersion": "2.0.0-it-c579be69",
+    "componentContractVersion": "2.1.0"
+  },
+  "generatedAt": "2026-08-17T03:25:16.320Z",
+  "screenId": "qna-create-it-c579be69",
+  "screenVersion": 1,
+  "mode": "MERGE",
+  "startedAt": "2026-08-17T03:25:14.238Z",
+  "completedAt": "2026-08-17T03:25:16.320Z",
+  "success": true,
+  "reusedInstanceCount": 0,
+  "createdInstanceCount": 15,
+  "archivedNodeCount": 0,
+  "fallbackCount": 0,
+  "changes": [
+    {
+      "logicalNodeId": "qna-create",
+      "logicalType": "egov.formPage",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-create/header",
+      "logicalType": "krds.pageHeader",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980"
+    },
+    {
+      "logicalNodeId": "qna-create/form-container",
+      "logicalType": "egov.formContainer",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-create/form",
+      "logicalType": "egov.formSection",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-create/form/writer",
+      "logicalType": "krds.textField",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "a5ca68facd04b78a246233b668590f81de5f0a31"
+    },
+    {
+      "logicalNodeId": "qna-create/form/contact",
+      "logicalType": "krds.textField",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "a5ca68facd04b78a246233b668590f81de5f0a31"
+    },
+    {
+      "logicalNodeId": "qna-create/form/email",
+      "logicalType": "krds.textField",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "a5ca68facd04b78a246233b668590f81de5f0a31"
+    },
+    {
+      "logicalNodeId": "qna-create/form/emailReplyYn",
+      "logicalType": "krds.checkbox",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5f8874cd0d1f357c692c2f32ae657d7f53e036e1"
+    },
+    {
+      "logicalNodeId": "qna-create/form/title",
+      "logicalType": "krds.textField",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "a5ca68facd04b78a246233b668590f81de5f0a31"
+    },
+    {
+      "logicalNodeId": "qna-create/form/content",
+      "logicalType": "krds.textarea",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "49fac55bd12165e2cc423ea88c3e1e23ad6ef741"
+    },
+    {
+      "logicalNodeId": "qna-create/form/privateYn",
+      "logicalType": "krds.checkbox",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5f8874cd0d1f357c692c2f32ae657d7f53e036e1"
+    },
+    {
+      "logicalNodeId": "qna-create/validation",
+      "logicalType": "egov.validationSummary",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-create/action",
+      "logicalType": "egov.actionArea",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-create/action/save",
+      "logicalType": "krds.button",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "6237cff0545cc51ddcd657a49b5fb6186d1c4090"
+    },
+    {
+      "logicalNodeId": "qna-create/action/cancel",
+      "logicalType": "krds.button",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "a554af98520754543085d516077b9541ea754552"
+    }
+  ],
+  "issues": [],
+  "qualityGates": [
+    {
+      "gate": "LAYOUT",
+      "status": "PASSED",
+      "issueCodes": []
+    },
+    {
+      "gate": "ACCESSIBILITY",
+      "status": "PASSED",
+      "issueCodes": []
+    },
+    {
+      "gate": "VISUAL_REGRESSION",
+      "status": "BASELINE_CREATED",
+      "issueCodes": [],
+      "evidenceHash": "fnv1a32:e9ba2be9:149",
+      "baselineHash": null,
+      "diffRatio": 0,
+      "threshold": 0,
+      "sectionEvidenceJson": "[{\"sectionId\":\"qna-create/header\",\"hash\":\"fnv1a32:e9ba2be9:149\"},{\"sectionId\":\"qna-create/form-container\",\"hash\":\"fnv1a32:e9ba2be9:149\"},{\"sectionId\":\"qna-create/validation\",\"hash\":\"fnv1a32:e9ba2be9:149\"},{\"sectionId\":\"qna-create/action\",\"hash\":\"fnv1a32:e9ba2be9:149\"}]",
+      "changedSections": []
+    }
+  ],
+  "refinement": null,
+  "ssotEvidence": null
+}

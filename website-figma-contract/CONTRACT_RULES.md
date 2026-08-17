@@ -84,6 +84,19 @@ JSON Schema 검증 후 다음 값의 동일성을 의미 검증한다.
 
 `component-catalog-v1.json`이 논리 컴포넌트, Figma Property, 코드 속성, fallback의 기준이다.
 
+### 5.1 논리 계약 단일 원천화(v2)
+
+신규 계약은 `component-catalog-v2.json`을 논리 컴포넌트 정의의 단일 진실 공급원으로 사용한다.
+`logicalType`, 별칭, 대체 관계, Property, Role, 지원 Platform, 합성 관계와 fallback은 Catalog만
+소유한다. `component-registry-v3`는 해당 Catalog 버전에 대해 실제 Publish된 Figma
+Component Set·Variant·Variable Key와 승인 증적만 보존하는 불변 Binding Snapshot이다.
+
+- Preview/Apply는 `catalogVersion`과 `registryVersion`을 명시해야 한다.
+- Apply 시 `catalogHash`가 다르거나 필수 원자 Component Binding이 없으면 fail-closed 한다.
+- Pattern과 Page Template은 `composition`을 재귀적으로 해석하되 순환 참조를 허용하지 않는다.
+- 승인된 Registry Snapshot은 제자리 변경하지 않고 새 `registryVersion`으로 저장한다.
+- 과거 산출물 재현과 Rollback을 위해 Catalog/Registry 버전과 Hash를 함께 보존한다.
+
 - `requiredComponents`: 1차 생성에 반드시 존재해야 하는 KRDS/eGovFrame 컴포넌트
 - `optionalComponents`: 없어도 fallback 가능한 확장 컴포넌트
 - `patterns`: 여러 컴포넌트의 의미 조합

@@ -96,6 +96,15 @@ export type FigmaExportBundle = {
   figmaScreenSpec: FigmaScreenSpec;
   designSystemProfile: { profile: DesignSystemProfile; snapshotAt: string };
   componentRegistry: { registry: ComponentRegistry; snapshotAt: string };
+  resolvedComponentRegistry?: {
+    profileId: string;
+    profileVersion: string;
+    registryVersion: string;
+    catalogVersion: string;
+    catalogHash: string;
+    registryHash: string;
+    components: Record<string, RegistryEntry>;
+  } | null;
   screenPattern: { pattern: ScreenPatternDefinition; snapshotAt: string };
   variantRuleSet: { ruleSet: VariantRuleSet; snapshotAt: string };
   metadata: {
@@ -107,6 +116,9 @@ export type FigmaExportBundle = {
     screenPatternVersion?: string | null;
     variantRuleSetVersion?: string | null;
     componentContractVersion?: string | null;
+    catalogVersion?: string | null;
+    catalogHash?: string | null;
+    registryHash?: string | null;
   };
 };
 
@@ -130,6 +142,8 @@ export type ReconciliationChange = {
   logicalType: string;
   changeType: "ADD" | "REUSE" | "MOVE" | "UPDATE" | "ARCHIVE" | "CONFLICT";
   detail: string;
+  /** 실제 import/재사용된 Published Variant Component Key. 비 Component 변경은 생략한다. */
+  componentKey?: string | null;
 };
 
 export type GenerationReport = {
@@ -152,6 +166,14 @@ export type GenerationReport = {
   qualityGates: QualityGateResult[];
   /** MR-Q05: 이번 적용에 사용된 Manual Refinement Patch Set 증적. 미적용 시 null/undefined. */
   refinement?: GenerationReportRefinementSummary | null;
+  ssotEvidence?: GenerationReportSsotEvidence | null;
+};
+
+export type GenerationReportSsotEvidence = {
+  catalogVersion: string;
+  catalogHash: string;
+  registryVersion: string;
+  registryHash: string;
 };
 
 export type GenerationReportRefinementSummary = {

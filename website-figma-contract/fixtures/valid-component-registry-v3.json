@@ -1,0 +1,25 @@
+{
+  "schemaVersion":"component-registry-v3",
+  "profileId":"krds",
+  "profileVersion":"2.0.0",
+  "registryVersion":"3.0.0",
+  "catalogVersion":"2.0.0",
+  "catalogHash":"0000000000000000000000000000000000000000000000000000000000000000",
+  "library":{"fileKey":"KRDS_LIBRARY_FILE_KEY","name":"KRDS Library"},
+  "bindings":{
+    "krds.button":{"componentSetKey":"BUTTON_SET_KEY","componentName":"Button","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{"primary":"BUTTON_PRIMARY_KEY"}},
+    "krds.textField":{"componentSetKey":"TEXT_FIELD_SET_KEY","componentName":"TextField","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
+    "krds.select":{"componentSetKey":"SELECT_SET_KEY","componentName":"Select","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
+    "krds.checkbox":{"componentSetKey":"CHECKBOX_SET_KEY","componentName":"Checkbox","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
+    "krds.pagination":{"componentSetKey":"PAGINATION_SET_KEY","componentName":"Pagination","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
+    "krds.searchPanel":{"componentSetKey":"SEARCH_PANEL_SET_KEY","componentName":"SearchPanel","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
+    "krds.pageHeader":{"componentSetKey":"PAGE_HEADER_SET_KEY","componentName":"PageHeader","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
+    "krds.tableHeader":{"componentSetKey":"TABLE_HEADER_SET_KEY","componentName":"TableHeader","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
+    "krds.tableCell":{"componentSetKey":"TABLE_CELL_SET_KEY","componentName":"TableCell","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}}
+  },
+  "variables":{},
+  "sourceRevision":"publish-2026-08-17",
+  "approvedBy":"design-system-owner",
+  "approvedAt":"2026-08-17T00:00:00Z",
+  "contentHash":"1111111111111111111111111111111111111111111111111111111111111111"
+}

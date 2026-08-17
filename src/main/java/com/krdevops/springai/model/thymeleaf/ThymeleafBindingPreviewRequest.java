@@ -18,8 +18,21 @@ public record ThymeleafBindingPreviewRequest(
         String pageTitle,
         String layoutView,
         String screenSpecificationId,
-        String registRoute
+        String registRoute,
+        String designSystemProfileId
 ) {
+    /** R6-057 이전 12-필드 호출자 호환 — Design Token provenance 없이 생성한다. */
+    public ThymeleafBindingPreviewRequest(
+            String projectRootPath, String screenId, LegacyScreenRole screenRole,
+            String jspRelativePath, String controllerRelativePath, String voRelativePath,
+            String voSuperclassRelativePath, String secondaryVoRelativePath, String outputRelativePath,
+            String pageTitle, String layoutView, String screenSpecificationId, String registRoute
+    ) {
+        this(projectRootPath, screenId, screenRole, jspRelativePath, controllerRelativePath, voRelativePath,
+                voSuperclassRelativePath, secondaryVoRelativePath, outputRelativePath, pageTitle, layoutView,
+                screenSpecificationId, registRoute, null);
+    }
+
     public ThymeleafBindingPreviewRequest {
         requireText(projectRootPath, "projectRootPath");
         requireText(screenId, "screenId");
@@ -36,6 +49,7 @@ public record ThymeleafBindingPreviewRequest(
         layoutView = layoutView == null || layoutView.isBlank() ? "layout/default" : layoutView;
         screenSpecificationId = blankToNull(screenSpecificationId);
         registRoute = blankToNull(registRoute);
+        designSystemProfileId = blankToNull(designSystemProfileId);
     }
 
     private static void requireText(String value, String name) {

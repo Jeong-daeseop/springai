@@ -3,6 +3,7 @@ package com.krdevops.springai.service.designsystem;
 import com.krdevops.springai.model.design.role.SemanticRole;
 import com.krdevops.springai.model.designsystem.ComponentRegistry;
 import com.krdevops.springai.model.designsystem.ComponentRegistryEntry;
+import com.krdevops.springai.model.designsystem.ComponentRegistrySnapshotV3;
 import com.krdevops.springai.model.designsystem.VariantRule;
 import com.krdevops.springai.model.designsystem.VariantRuleSet;
 import org.springframework.stereotype.Component;
@@ -27,6 +28,35 @@ import java.util.Objects;
  */
 @Component
 public class ComponentRegistryBreakingChangeAnalyzer {
+
+    /** Registry v3의 Published Component/Variant Key 제거·교체를 Apply 차단용으로 분석한다. */
+    public List<BreakingChange> analyzeRegistryV3(ComponentRegistrySnapshotV3 previous,
+                                                   ComponentRegistrySnapshotV3 candidate) {
+        if (previous == null || candidate == null) return List.of();
+        List<BreakingChange> changes = new ArrayList<>();
+        previous.bindings().forEach((logicalType, before) -> {
+            ComponentRegistrySnapshotV3.Binding after = candidate.bindings().get(logicalType);
+            if (after == null) {
+                changes.add(new BreakingChange(logicalType, ChangeType.COMPONENT_REMOVED,
+                        before.componentSetKey()));
+                return;
+            }
+            if (!Objects.equals(before.componentSetKey(), after.componentSetKey())) {
+                changes.add(new BreakingChange(logicalType, ChangeType.COMPONENT_KEY_CHANGED,
+                        before.componentSetKey() + " -> " + after.componentSetKey()));
+            }
+            before.variants().forEach((variant, beforeKey) -> {
+                String afterKey = after.variants().get(variant);
+                if (afterKey == null) {
+                    changes.add(new BreakingChange(logicalType, ChangeType.VARIANT_REMOVED, variant));
+                } else if (!Objects.equals(beforeKey, afterKey)) {
+                    changes.add(new BreakingChange(logicalType, ChangeType.VARIANT_KEY_CHANGED,
+                            variant + ": " + beforeKey + " -> " + afterKey));
+                }
+            });
+        });
+        return List.copyOf(changes);
+    }
 
     public List<BreakingChange> analyzeRegistry(ComponentRegistry previous, ComponentRegistry candidate) {
         List<BreakingChange> changes = new ArrayList<>();
@@ -93,7 +123,8 @@ public class ComponentRegistryBreakingChangeAnalyzer {
                 .orElse("");
     }
 
-    public enum ChangeType { ROLE_REMOVED, AXIS_REMOVED, PROPERTY_RENAMED, RULE_REMOVED, RULE_RESULT_CHANGED, RULE_CONDITION_CHANGED }
+    public enum ChangeType { ROLE_REMOVED, AXIS_REMOVED, PROPERTY_RENAMED, RULE_REMOVED, RULE_RESULT_CHANGED,
+        RULE_CONDITION_CHANGED, COMPONENT_REMOVED, COMPONENT_KEY_CHANGED, VARIANT_REMOVED, VARIANT_KEY_CHANGED }
 
     public record BreakingChange(String subjectId, ChangeType type, String detail) {}
 }

@@ -9,6 +9,7 @@ public record FigmaExportBundle(
         FigmaScreenSpec figmaScreenSpec,
         DesignSystemProfileSnapshot designSystemProfile,
         ComponentRegistrySnapshot componentRegistry,
+        ResolvedComponentRegistrySnapshot resolvedComponentRegistry,
         ScreenPatternSnapshot screenPattern,
         VariantRuleSetSnapshot variantRuleSet,
         FigmaExportMetadata metadata
@@ -28,6 +29,17 @@ public record FigmaExportBundle(
         if (metadata == null) {
             throw new IllegalArgumentException("metadata는 필수입니다.");
         }
+        if (metadata.hasSsotEvidence()) {
+            if (resolvedComponentRegistry == null) {
+                throw new IllegalArgumentException("SSOT Bundle에는 resolvedComponentRegistry가 필수입니다.");
+            }
+            if (!java.util.Objects.equals(metadata.catalogVersion(), resolvedComponentRegistry.catalogVersion())
+                    || !java.util.Objects.equals(metadata.catalogHash(), resolvedComponentRegistry.catalogHash())
+                    || !java.util.Objects.equals(metadata.registryVersion(), resolvedComponentRegistry.registryVersion())
+                    || !java.util.Objects.equals(metadata.registryHash(), resolvedComponentRegistry.registryHash())) {
+                throw new IllegalArgumentException("BUNDLE_SSOT_EVIDENCE_MISMATCH: Metadata와 Resolved Registry 증적이 다릅니다.");
+            }
+        }
         if (FigmaScreenSpec.SCHEMA_VERSION_V2.equals(metadata.figmaScreenSpecSchemaVersion())
                 && (screenPattern == null || variantRuleSet == null)) {
             throw new IllegalArgumentException("v2 Bundle에는 Pattern과 Variant Rule Set Snapshot이 필수입니다.");
@@ -39,8 +51,20 @@ public record FigmaExportBundle(
             FigmaScreenSpec figmaScreenSpec,
             DesignSystemProfileSnapshot designSystemProfile,
             ComponentRegistrySnapshot componentRegistry,
+            ScreenPatternSnapshot screenPattern,
+            VariantRuleSetSnapshot variantRuleSet,
             FigmaExportMetadata metadata
     ) {
-        this(figmaScreenSpec, designSystemProfile, componentRegistry, null, null, metadata);
+        this(figmaScreenSpec, designSystemProfile, componentRegistry, null,
+                screenPattern, variantRuleSet, metadata);
+    }
+
+    public FigmaExportBundle(
+            FigmaScreenSpec figmaScreenSpec,
+            DesignSystemProfileSnapshot designSystemProfile,
+            ComponentRegistrySnapshot componentRegistry,
+            FigmaExportMetadata metadata
+    ) {
+        this(figmaScreenSpec, designSystemProfile, componentRegistry, null, null, null, metadata);
     }
 }

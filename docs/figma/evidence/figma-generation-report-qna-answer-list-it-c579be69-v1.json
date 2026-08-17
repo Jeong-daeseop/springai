@@ -1,0 +1,1153 @@
+{
+  "reportId": "figma-qna-answer-list-it-c579be69-v1-1786937505037",
+  "status": "SUCCESS",
+  "figmaScreenSpec": {
+    "screenId": "qna-answer-list-it-c579be69",
+    "screenVersion": 1,
+    "screenSpecificationId": "qna-suite-it-c579be69",
+    "screenSpecificationVersion": 3,
+    "screenType": "LIST",
+    "layoutPattern": "STANDARD",
+    "name": "Q&A 관리",
+    "route": null,
+    "viewport": "DESKTOP",
+    "status": "APPROVED",
+    "designSystem": {
+      "profileId": "krds-qna-it-c579be69",
+      "profileVersion": "2.0.0-it-c579be69",
+      "registryVersion": "2.1.0-it-c579be69"
+    },
+    "content": {
+      "logicalNodeId": "qna-answer-list",
+      "nodeType": "PAGE",
+      "type": "egov.listPage",
+      "properties": {
+        "density": "STANDARD",
+        "layoutRecipe": "krds.listPage.v1",
+        "sectionGap": 40,
+        "contentMinWidth": 960,
+        "contentMaxWidth": 1280
+      },
+      "children": [
+        {
+          "logicalNodeId": "qna-answer-list/header",
+          "nodeType": "COMPONENT",
+          "type": "krds.pageHeader",
+          "properties": {
+            "semanticRole": "page.header",
+            "title": "답변 목록"
+          },
+          "componentResolution": {
+            "role": "page.header",
+            "logicalType": "krds.pageHeader",
+            "componentSetKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980",
+            "variantKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980",
+            "variantProperties": {},
+            "componentProperties": {
+              "Title#259:4": "답변 목록"
+            },
+            "contractVersion": "2.1.0",
+            "ruleSetVersion": "2.0.0-it-c579be69",
+            "ruleId": null,
+            "contextHash": "3d48c9cef5319453a8276342e390a7e8030ae254118e18f4a5c0651371ab2abf"
+          },
+          "children": []
+        },
+        {
+          "logicalNodeId": "qna-answer-list/search",
+          "nodeType": "COMPONENT",
+          "type": "krds.searchPanel",
+          "properties": {
+            "label": "검색어",
+            "placeholder": "검색어를 입력하세요",
+            "componentMaxWidth": 960,
+            "semanticRole": "search.panel",
+            "placement": "ABOVE_TABLE",
+            "searchFieldIds": [
+              "title",
+              "writer",
+              "status"
+            ],
+            "fieldCount": 3
+          },
+          "componentResolution": {
+            "role": "search.panel",
+            "logicalType": "krds.searchPanel",
+            "componentSetKey": "b49f8e5b0ad1749a6c72b00da8378c71aaeea39b",
+            "variantKey": "b99a5f8d431b4cf21b14cbf51a126385b2069c69",
+            "variantProperties": {
+              "State": "default",
+              "Type": "Simple",
+              "Size": "medium"
+            },
+            "componentProperties": {
+              "↪️Hint#1275:39": "검색어를 입력하세요",
+              "Lable#723:0": "검색어"
+            },
+            "contractVersion": "2.1.0",
+            "ruleSetVersion": "2.0.0-it-c579be69",
+            "ruleId": "search-panel-default",
+            "contextHash": "4d36df21f1ad0556a63f7226feb14cbf1bb3fb9155fdfcf6fa0b3b8b6ac09052"
+          },
+          "children": []
+        },
+        {
+          "logicalNodeId": "qna-answer-list/toolbar",
+          "nodeType": "SECTION",
+          "type": "egov.resultToolbar",
+          "properties": {},
+          "children": []
+        },
+        {
+          "logicalNodeId": "qna-answer-list/table",
+          "nodeType": "SECTION",
+          "type": "krds.dataTable",
+          "properties": {
+            "emptyStateMessage": "조회된 데이터가 없습니다.",
+            "semanticRole": "data.table",
+            "loadingStateSupported": true,
+            "layoutRecipe": "krds.dataTable.v1",
+            "sampleRowCount": 3,
+            "columnCount": 6
+          },
+          "children": [
+            {
+              "logicalNodeId": "qna-answer-list/table/header",
+              "nodeType": "SECTION",
+              "type": "krds.dataTable.header",
+              "properties": {
+                "rowType": "HEADER"
+              },
+              "children": [
+                {
+                  "logicalNodeId": "qna-answer-list/table/header/cell-1",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 8,
+                    "label": "번호"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "번호"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/header/cell-2",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": true,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 32,
+                    "label": "질문 제목"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "질문 제목"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/header/cell-3",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "작성자"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "작성자"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/header/cell-4",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": true,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "등록일"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "등록일"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/header/cell-5",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "처리상태"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "처리상태"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/header/cell-6",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "조회수"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "조회수"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "logicalNodeId": "qna-answer-list/table/row-1",
+              "nodeType": "REPEAT",
+              "type": "krds.dataTable.row",
+              "properties": {
+                "rowType": "BODY",
+                "sampleRow": 1
+              },
+              "children": [
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-1/cell-1",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 8,
+                    "label": "1"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "1"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-1/cell-2",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": true,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 32,
+                    "label": "질문 제목"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "질문 제목"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-1/cell-3",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "홍길동"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "홍길동"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-1/cell-4",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": true,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "2026-08-02"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "2026-08-02"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-1/cell-5",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "답변완료"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "답변완료"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-1/cell-6",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "12"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "12"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "logicalNodeId": "qna-answer-list/table/row-2",
+              "nodeType": "REPEAT",
+              "type": "krds.dataTable.row",
+              "properties": {
+                "rowType": "BODY",
+                "sampleRow": 2
+              },
+              "children": [
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-2/cell-1",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 8,
+                    "label": "2"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "2"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-2/cell-2",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": true,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 32,
+                    "label": "질문 제목"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "질문 제목"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-2/cell-3",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "김민수"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "김민수"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-2/cell-4",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": true,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "2026-08-03"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "2026-08-03"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-2/cell-5",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "처리중"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "처리중"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-2/cell-6",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "19"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "19"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                }
+              ]
+            },
+            {
+              "logicalNodeId": "qna-answer-list/table/row-3",
+              "nodeType": "REPEAT",
+              "type": "krds.dataTable.row",
+              "properties": {
+                "rowType": "BODY",
+                "sampleRow": 3
+              },
+              "children": [
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-3/cell-1",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 8,
+                    "label": "3"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "3"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-3/cell-2",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": true,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 32,
+                    "label": "질문 제목"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "질문 제목"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-3/cell-3",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "이지은"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "이지은"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-3/cell-4",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": true,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "2026-08-04"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "2026-08-04"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-3/cell-5",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "답변완료"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "답변완료"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                },
+                {
+                  "logicalNodeId": "qna-answer-list/table/row-3/cell-6",
+                  "nodeType": "COMPONENT",
+                  "type": "krds.tableCell",
+                  "properties": {
+                    "sortable": false,
+                    "semanticRole": "data.table.cell",
+                    "columnWidthPercent": 15,
+                    "label": "26"
+                  },
+                  "componentResolution": {
+                    "role": "data.table.cell",
+                    "logicalType": "krds.tableCell",
+                    "componentSetKey": "194a582dc105671593355376a992d90ab42ca7ce",
+                    "variantKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b",
+                    "variantProperties": {
+                      "Type": "body"
+                    },
+                    "componentProperties": {
+                      "Body#288:22": "26"
+                    },
+                    "contractVersion": "2.1.0",
+                    "ruleSetVersion": "2.0.0-it-c579be69",
+                    "ruleId": "table-cell-body",
+                    "contextHash": "60e3ae76aa6d38cc9c8445f82724adbcf381ff8f9768d758a48e85a0f67e35e5"
+                  },
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "logicalNodeId": "qna-answer-list/pagination",
+          "nodeType": "COMPONENT",
+          "type": "krds.pagination",
+          "properties": {
+            "semanticRole": "data.pagination"
+          },
+          "componentResolution": {
+            "role": "data.pagination",
+            "logicalType": "krds.pagination",
+            "componentSetKey": "0bd34989017991e94c73147e823ef53a6aaac39f",
+            "variantKey": "0bd34989017991e94c73147e823ef53a6aaac39f",
+            "variantProperties": {},
+            "componentProperties": {},
+            "contractVersion": "2.1.0",
+            "ruleSetVersion": "2.0.0-it-c579be69",
+            "ruleId": null,
+            "contextHash": "cc775c1229dec0bc2cd16a8e348dd4c7227958042a9f7c4455e3bd970e7c2ac9"
+          },
+          "children": []
+        },
+        {
+          "logicalNodeId": "qna-answer-list/action",
+          "nodeType": "SECTION",
+          "type": "egov.actionArea",
+          "properties": {
+            "placement": "BOTTOM_RIGHT"
+          },
+          "children": []
+        }
+      ]
+    },
+    "issues": [],
+    "semanticPattern": "crud.list",
+    "screenPatternVersion": "1.0.0-it-c579be69",
+    "variantRuleSetVersion": "2.0.0-it-c579be69",
+    "componentContractVersion": "2.1.0"
+  },
+  "generatedAt": "2026-08-17T03:31:45.037Z",
+  "screenId": "qna-answer-list-it-c579be69",
+  "screenVersion": 1,
+  "mode": "MERGE",
+  "startedAt": "2026-08-17T03:31:44.230Z",
+  "completedAt": "2026-08-17T03:31:45.037Z",
+  "success": true,
+  "reusedInstanceCount": 0,
+  "createdInstanceCount": 35,
+  "archivedNodeCount": 0,
+  "fallbackCount": 0,
+  "changes": [
+    {
+      "logicalNodeId": "qna-answer-list",
+      "logicalType": "egov.listPage",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-list/header",
+      "logicalType": "krds.pageHeader",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "18b8d3ffdbc9d4824e0d756e87a8f7af684ae980"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/search",
+      "logicalType": "krds.searchPanel",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "b99a5f8d431b4cf21b14cbf51a126385b2069c69"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/toolbar",
+      "logicalType": "egov.resultToolbar",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table",
+      "logicalType": "krds.dataTable",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/header",
+      "logicalType": "krds.dataTable.header",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/header/cell-1",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/header/cell-2",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/header/cell-3",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/header/cell-4",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/header/cell-5",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/header/cell-6",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-1",
+      "logicalType": "krds.dataTable.row",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-1/cell-1",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-1/cell-2",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-1/cell-3",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-1/cell-4",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-1/cell-5",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-1/cell-6",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-2",
+      "logicalType": "krds.dataTable.row",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-2/cell-1",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-2/cell-2",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-2/cell-3",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-2/cell-4",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-2/cell-5",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-2/cell-6",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-3",
+      "logicalType": "krds.dataTable.row",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-3/cell-1",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-3/cell-2",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-3/cell-3",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-3/cell-4",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-3/cell-5",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/table/row-3/cell-6",
+      "logicalType": "krds.tableCell",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "5e56406b21518d3ae03b4f77f69e4c8849da290b"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/pagination",
+      "logicalType": "krds.pagination",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": "0bd34989017991e94c73147e823ef53a6aaac39f"
+    },
+    {
+      "logicalNodeId": "qna-answer-list/action",
+      "logicalType": "egov.actionArea",
+      "changeType": "ADD",
+      "detail": "신규 생성",
+      "componentKey": null
+    }
+  ],
+  "issues": [],
+  "qualityGates": [
+    {
+      "gate": "LAYOUT",
+      "status": "PASSED",
+      "issueCodes": []
+    },
+    {
+      "gate": "ACCESSIBILITY",
+      "status": "PASSED",
+      "issueCodes": []
+    },
+    {
+      "gate": "VISUAL_REGRESSION",
+      "status": "BASELINE_CREATED",
+      "issueCodes": [],
+      "evidenceHash": "fnv1a32:e9ba2be9:149",
+      "baselineHash": null,
+      "diffRatio": 0,
+      "threshold": 0,
+      "sectionEvidenceJson": "[{\"sectionId\":\"qna-answer-list/header\",\"hash\":\"fnv1a32:e9ba2be9:149\"},{\"sectionId\":\"qna-answer-list/search\",\"hash\":\"fnv1a32:e9ba2be9:149\"},{\"sectionId\":\"qna-answer-list/toolbar\",\"hash\":\"fnv1a32:e9ba2be9:149\"},{\"sectionId\":\"qna-answer-list/table\",\"hash\":\"fnv1a32:e9ba2be9:149\"},{\"sectionId\":\"qna-answer-list/pagination\",\"hash\":\"fnv1a32:e9ba2be9:149\"},{\"sectionId\":\"qna-answer-list/action\",\"hash\":\"fnv1a32:e9ba2be9:149\"}]",
+      "changedSections": []
+    }
+  ],
+  "refinement": null,
+  "ssotEvidence": null
+}

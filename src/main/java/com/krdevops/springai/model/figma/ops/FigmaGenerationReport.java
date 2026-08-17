@@ -27,7 +27,8 @@ public record FigmaGenerationReport(
         @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<Change> changes,
         @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<FigmaExportIssue> issues,
         @jakarta.validation.Valid @jakarta.validation.constraints.NotNull List<QualityGateResult> qualityGates,
-        @jakarta.validation.Valid RefinementSummary refinement
+        @jakarta.validation.Valid RefinementSummary refinement,
+        @jakarta.validation.Valid SsotEvidence ssotEvidence
 ) {
     public FigmaGenerationReport {
         if (reportId == null || reportId.isBlank()) {
@@ -78,7 +79,7 @@ public record FigmaGenerationReport(
     ) {
         this(reportId, status, figmaScreenSpec, screenId, screenVersion, mode,
                 startedAt, completedAt, success, reusedInstanceCount, createdInstanceCount,
-                archivedNodeCount, fallbackCount, changes, issues, List.of(), null);
+                archivedNodeCount, fallbackCount, changes, issues, List.of(), null, null);
     }
 
     /** MR-Q05 Refinement 필드 도입 전 Java 호출자 호환. */
@@ -91,8 +92,29 @@ public record FigmaGenerationReport(
     ) {
         this(reportId, status, figmaScreenSpec, screenId, screenVersion, mode,
                 startedAt, completedAt, success, reusedInstanceCount, createdInstanceCount,
-                archivedNodeCount, fallbackCount, changes, issues, qualityGates, null);
+                archivedNodeCount, fallbackCount, changes, issues, qualityGates, null, null);
     }
+
+    /** SSOT 증적 도입 전 Manual Refinement 호출자 호환. */
+    public FigmaGenerationReport(
+            String reportId, Status status, FigmaScreenSpec figmaScreenSpec,
+            String screenId, int screenVersion, FigmaSyncMode mode,
+            Instant startedAt, Instant completedAt, boolean success,
+            int reusedInstanceCount, int createdInstanceCount, int archivedNodeCount, int fallbackCount,
+            List<Change> changes, List<FigmaExportIssue> issues,
+            List<QualityGateResult> qualityGates, RefinementSummary refinement
+    ) {
+        this(reportId, status, figmaScreenSpec, screenId, screenVersion, mode,
+                startedAt, completedAt, success, reusedInstanceCount, createdInstanceCount,
+                archivedNodeCount, fallbackCount, changes, issues, qualityGates, refinement, null);
+    }
+
+    public record SsotEvidence(
+            @jakarta.validation.constraints.NotBlank String catalogVersion,
+            @jakarta.validation.constraints.Pattern(regexp = "[a-f0-9]{64}") String catalogHash,
+            @jakarta.validation.constraints.NotBlank String registryVersion,
+            @jakarta.validation.constraints.Pattern(regexp = "[a-f0-9]{64}") String registryHash
+    ) {}
 
     /** MR-Q05: 이번 적용에 사용된 Manual Refinement Patch Set 증적. */
     public record RefinementSummary(
@@ -133,8 +155,13 @@ public record FigmaGenerationReport(
             String logicalNodeId,
             String logicalType,
             ChangeType changeType,
-            String detail
+            String detail,
+            String componentKey
     ) {
+        public Change(String logicalNodeId, String logicalType, ChangeType changeType, String detail) {
+            this(logicalNodeId, logicalType, changeType, detail, null);
+        }
+
         public enum ChangeType { ADD, REUSE, MOVE, UPDATE, ARCHIVE, CONFLICT }
     }
 }

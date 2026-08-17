@@ -13,7 +13,19 @@
   "createdInstanceCount": 0,
   "archivedNodeCount": 0,
   "fallbackCount": 0,
-  "changes": [],
+  "changes": [{
+    "logicalNodeId": "qna-detail/root/action/save",
+    "logicalType": "krds.button",
+    "changeType": "REUSE",
+    "detail": "Published Button Instance 재사용",
+    "componentKey": "BUTTON_PRIMARY_KEY"
+  }],
+  "ssotEvidence": {
+    "catalogVersion": "2.0.0",
+    "catalogHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "registryVersion": "3.0.0",
+    "registryHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
   "refinement": {
     "patchSetId": "qna-detail-refine-1",
     "patchSetVersion": 1,

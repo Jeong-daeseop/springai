@@ -7,6 +7,7 @@ import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenAnalysis;
 import com.krdevops.springai.model.thymeleaf.LegacySourceManifest;
 import com.krdevops.springai.model.thymeleaf.RegenerationDiffResult;
+import com.krdevops.springai.model.thymeleaf.ResolvedDesignTokens;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingContract;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingPreviewRequest;
 import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult;
@@ -14,6 +15,7 @@ import com.krdevops.springai.model.thymeleaf.ThymeleafOperationSnapshot;
 import com.krdevops.springai.model.thymeleaf.VoEvidence;
 import com.krdevops.springai.service.ScreenSpecificationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.nio.file.Path;
@@ -28,6 +30,7 @@ import java.util.Optional;
  * HTML로 조립한 뒤, 성공한 결과만 기존 {@link ThymeleafProjectWorkflowService#preview}에 넘긴다.
  * 승인·Apply·rollback 상태기계는 새로 만들지 않고 기존 Project Workflow를 그대로 재사용한다.
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ThymeleafBindingGenerationService {
@@ -43,6 +46,7 @@ public class ThymeleafBindingGenerationService {
     private final VoSourceReader voSourceReader;
     private final BindingContractAssembler contractAssembler;
     private final BindingComposer bindingComposer;
+    private final CompanyDesignTokenResolver designTokenResolver;
     private final ScreenSpecificationService screenSpecificationService;
     private final ThymeleafProjectWorkflowService workflowService;
     private final RegenerationDiffService regenerationDiffService;
@@ -88,9 +92,10 @@ public class ThymeleafBindingGenerationService {
 
         ThymeleafBindingContract candidate = contractResult.value();
         ScreenSpecification screenSpecification = approvedSpecification(request.screenSpecificationId());
+        ResolvedDesignTokens resolvedDesignTokens = resolveDesignTokens(request);
         ThymeleafGenerationStageResult<String> composeResult = bindingComposer.compose(
                 candidate, request.pageTitle(), request.layoutView(),
-                screenSpecification, request.registRoute());
+                screenSpecification, request.registRoute(), resolvedDesignTokens);
         if (!composeResult.successful()) {
             return BindingPreviewResult.blocked(COMPOSE_STAGE, request.outputRelativePath(),
                     candidate, composeResult.issues());
@@ -147,6 +152,26 @@ public class ThymeleafBindingGenerationService {
             Path root, String relativePath, SourceReadBudget budget,
             List<LegacySourceInventoryService.ReadSourceFile> legacySources) {
         return relativePath == null ? null : read(root, relativePath, budget, legacySources);
+    }
+
+    /**
+     * R6-057: {@code designSystemProfileId}가 주어진 경우에만 회사 Design Token을 해석해
+     * provenance 주석 재료로 쓴다. 이 화면이 생성되는지 여부는 업무 Binding Contract만으로
+     * 결정되므로(Design Token은 부가 정보) 해석 실패는 FATAL로 전체 Preview를 막지 않고
+     * 경고만 남긴 뒤 토큰 없이 계속 진행한다.
+     */
+    private ResolvedDesignTokens resolveDesignTokens(ThymeleafBindingPreviewRequest request) {
+        if (request.designSystemProfileId() == null) {
+            return null;
+        }
+        ThymeleafGenerationStageResult<ResolvedDesignTokens> result =
+                designTokenResolver.resolve(request.designSystemProfileId(), null);
+        if (!result.successful()) {
+            log.warn("Design Token 해석 실패, provenance 없이 진행합니다: profileId={}, issues={}",
+                    request.designSystemProfileId(), result.issues());
+            return null;
+        }
+        return result.value();
     }
 
     private ScreenSpecification approvedSpecification(String specificationId) {

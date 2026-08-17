@@ -8,11 +8,13 @@ import {
   sectionVisualRegression,
   contrastRatio,
   meetsWcagAaContrast,
+  isUserOverridden,
   mappedProperties,
   planFallback,
   previewLegacyMigration,
   reconcile,
   runAtomicApply,
+  registryFor,
   selectVariantName,
   validateBundle
 } from "../dist-test/core.mjs";
@@ -291,6 +293,86 @@ test("valid published bundle passes validation", () => {
   assert.deepEqual(result.issues, []);
 });
 
+test("SSOT evidence must be complete and use SHA-256 hashes", () => {
+  const incomplete = validBundle();
+  incomplete.metadata.catalogVersion = "2.0.0";
+  assert.equal(validateBundle(incomplete).issues.some(issue =>
+    issue.code === "SSOT_EVIDENCE_INCOMPLETE"), true);
+
+  const invalidHash = validBundle();
+  invalidHash.metadata.catalogVersion = "2.0.0";
+  invalidHash.metadata.catalogHash = "not-a-sha256";
+  invalidHash.metadata.registryHash = "b".repeat(64);
+  assert.equal(validateBundle(invalidHash).issues.some(issue =>
+    issue.code === "SSOT_EVIDENCE_HASH_INVALID"), true);
+
+  const valid = validBundle();
+  valid.metadata.catalogVersion = "2.0.0";
+  valid.metadata.catalogHash = "a".repeat(64);
+  valid.metadata.registryHash = "b".repeat(64);
+  valid.resolvedComponentRegistry = {
+    profileId: "ftc-krds",
+    profileVersion: "1.0.0",
+    registryVersion: "registry-1",
+    catalogVersion: "2.0.0",
+    catalogHash: "a".repeat(64),
+    registryHash: "b".repeat(64),
+    components: valid.componentRegistry.registry.components,
+  };
+  assert.equal(validateBundle(valid).issues.some(issue =>
+    issue.code.startsWith("SSOT_EVIDENCE_")), false);
+  assert.equal(validateBundle(valid).issues.some(issue =>
+    issue.code.startsWith("RESOLVED_COMPONENT_REGISTRY_")), false);
+});
+
+test("SSOT bundle rejects missing or mismatched resolved registry projection", () => {
+  const missing = validBundle();
+  missing.metadata.catalogVersion = "2.0.0";
+  missing.metadata.catalogHash = "a".repeat(64);
+  missing.metadata.registryHash = "b".repeat(64);
+  assert.equal(validateBundle(missing).issues.some(issue =>
+    issue.code === "RESOLVED_COMPONENT_REGISTRY_MISSING"), true);
+
+  const mismatched = validBundle();
+  mismatched.metadata.catalogVersion = "2.0.0";
+  mismatched.metadata.catalogHash = "a".repeat(64);
+  mismatched.metadata.registryHash = "b".repeat(64);
+  mismatched.resolvedComponentRegistry = {
+    profileId: "ftc-krds", profileVersion: "1.0.0", registryVersion: "registry-1",
+    catalogVersion: "2.0.0", catalogHash: "c".repeat(64), registryHash: "b".repeat(64),
+    components: mismatched.componentRegistry.registry.components,
+  };
+  assert.equal(validateBundle(mismatched).issues.some(issue =>
+    issue.code === "RESOLVED_COMPONENT_REGISTRY_EVIDENCE_MISMATCH"), true);
+});
+
+test("SSOT preview and apply registry selection both prefer the server-resolved projection", () => {
+  const bundle = validBundle();
+  bundle.metadata.catalogVersion = "2.0.0";
+  bundle.metadata.catalogHash = "a".repeat(64);
+  bundle.metadata.registryHash = "b".repeat(64);
+  bundle.resolvedComponentRegistry = {
+    profileId: "ftc-krds", profileVersion: "1.0.0", registryVersion: "registry-1",
+    catalogVersion: "2.0.0", catalogHash: "a".repeat(64), registryHash: "b".repeat(64),
+    components: {
+      ...bundle.componentRegistry.registry.components,
+      "krds.button": {
+        ...bundle.componentRegistry.registry.components["krds.button"],
+        componentSetKey: "SERVER_RESOLVED_BUTTON_SET",
+      },
+    },
+  };
+  for (const {node} of flattenForTest(bundle.figmaScreenSpec.content)) {
+    if (node.type === "krds.button" && node.componentResolution) {
+      node.componentResolution.componentSetKey = "SERVER_RESOLVED_BUTTON_SET";
+    }
+  }
+
+  assert.deepEqual(validateBundle(bundle).issues, []);
+  assert.equal(registryFor(bundle).components["krds.button"].componentSetKey,
+    "SERVER_RESOLVED_BUTTON_SET");
+});
+
 test("v2 bundle requires pattern and rule set snapshots", () => {
   const bundle = validBundle();
   delete bundle.screenPattern;
@@ -434,6 +516,46 @@ test("reconciliation reuses, moves, adds and archives deterministically", () => 
       ["user-list/removed", "ARCHIVE"]
     ]
   );
+});
+
+test("R5-T05: MERGE(existing populated)과 REPLACE(existing=[])가 동일한 logicalNodeId 집합을 부여한다", () => {
+  const root = validBundle().figmaScreenSpec.content;
+  root.children.push(node("user-list/action/delete", "krds.button"));
+
+  const mergeChanges = reconcile(root, [
+    {logicalNodeId:"user-list", logicalType:"egov.listPage", parentLogicalNodeId:null, order:0},
+    {logicalNodeId:"user-list/action/create", logicalType:"krds.button", parentLogicalNodeId:"user-list", order:0}
+  ]);
+  const replaceChanges = reconcile(root, []);
+
+  const mergeIds = mergeChanges
+    .filter(change => change.changeType !== "ARCHIVE")
+    .map(change => change.logicalNodeId)
+    .sort();
+  const replaceIds = replaceChanges
+    .filter(change => change.changeType !== "ARCHIVE")
+    .map(change => change.logicalNodeId)
+    .sort();
+
+  // 17번 문서 MR-R09가 의존하는 전제: logicalNodeId는 desired 트리(flattenSpec)에서만
+  // 파생되고 existing(MERGE의 기존 노드 목록)과 무관하다. REPLACE는 existing=[]이므로
+  // 모든 노드가 ADD로 판정되지만, 그 노드들의 logicalNodeId 집합은 MERGE와 완전히 동일해야
+  // Manual Refinement Patch(logicalNodeId 키 기준)가 REPLACE 후에도 정확히 같은 노드를
+  // 찾아 재적용할 수 있다. 12번 문서 R5-T05(MERGE·REPLACE 결과 비교 검증)를 해소한다.
+  assert.deepEqual(replaceIds, mergeIds);
+  assert.equal(replaceChanges.every(change => change.changeType === "ADD"), true);
+});
+
+test("R5-T04: isUserOverridden은 이전 관리값과 현재값이 다를 때만 true를 반환한다", () => {
+  // 서버가 아직 이 속성을 적용한 적 없음(undefined) → 사용자 override 아님, 서버가 정상 적용
+  assert.equal(isUserOverridden(undefined, "저장"), false);
+  // 서버가 적용한 값과 현재 값이 동일 → 사용자가 안 바꿈, 서버가 재적용해도 무방
+  assert.equal(isUserOverridden("저장", "저장"), false);
+  // 서버가 적용한 값과 현재 값이 다름 → 사용자가 직접 바꾼 것으로 판단해 보존
+  assert.equal(isUserOverridden("저장", "저장하기"), true);
+  // boolean 속성(Checkbox 등)에도 동일하게 적용
+  assert.equal(isUserOverridden(false, true), true);
+  assert.equal(isUserOverridden(true, true), false);
 });
 
 test("logical properties map to figma properties and select published variant", () => {

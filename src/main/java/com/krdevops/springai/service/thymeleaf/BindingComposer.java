@@ -7,6 +7,7 @@ import com.krdevops.springai.model.design.LayoutDensity;
 import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.thymeleaf.BindingContractStatus;
+import com.krdevops.springai.model.thymeleaf.ResolvedDesignTokens;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingContract;
 import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult;
 import com.krdevops.springai.service.contract.GenerationIssueFactory;
@@ -21,6 +22,7 @@ import java.io.StringWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 
 /**
  * WP6/ARCH-0610~0613/0621: {@link ThymeleafBindingContract}을 LIST/FORM/DETAIL FreeMarker
@@ -117,6 +119,23 @@ public class BindingComposer {
     public ThymeleafGenerationStageResult<String> compose(
             ThymeleafBindingContract contract, String pageTitle, String layoutView,
             ScreenSpecification approvedScreenSpecification, String registRoute) {
+        return compose(contract, pageTitle, layoutView, approvedScreenSpecification, registRoute, null);
+    }
+
+    /**
+     * @param resolvedDesignTokens R6-057(2026-08-17): {@link CompanyDesignTokenResolver}가 해석한
+     *                              회사 표준 Design Token. {@code null}이거나 비어 있으면 provenance
+     *                              주석을 생성하지 않는다. 이 값은 논리 토큰→CSS 변수 "이름" 매핑만
+     *                              담고 있고 실제 색상·간격 값은 갖고 있지 않으므로(값은 별도로
+     *                              배포되는 회사 표준 CSS가 정의) {@code :root{}} 선언은 만들 수 없다
+     *                              — 대신 이 화면이 어떤 CSS Variable을 근거로 참조했는지만 HTML
+     *                              주석으로 추적 가능하게 남긴다(기존 {@code egov-authority-provenance}
+     *                              주석과 같은 패턴).
+     */
+    public ThymeleafGenerationStageResult<String> compose(
+            ThymeleafBindingContract contract, String pageTitle, String layoutView,
+            ScreenSpecification approvedScreenSpecification, String registRoute,
+            ResolvedDesignTokens resolvedDesignTokens) {
         if (contract.status() == BindingContractStatus.REVIEW_REQUIRED) {
             GenerationIssue blocked = issueFactory.issue(
                     "BINDING_REVIEW_REQUIRED_BLOCKS_COMPOSE", GenerationIssue.Severity.FATAL, STAGE,
@@ -136,7 +155,7 @@ public class BindingComposer {
         }
 
         Map<String, Object> dataModel = buildDataModel(
-                contract, pageTitle, layoutView, approvedScreenSpecification, registRoute);
+                contract, pageTitle, layoutView, approvedScreenSpecification, registRoute, resolvedDesignTokens);
         try {
             Template template = boardFreemarkerConfiguration.getTemplate(templateName);
             StringWriter writer = new StringWriter();
@@ -160,11 +179,13 @@ public class BindingComposer {
 
     private Map<String, Object> buildDataModel(
             ThymeleafBindingContract contract, String pageTitle, String layoutView,
-            ScreenSpecification approvedScreenSpecification, String registRoute) {
+            ScreenSpecification approvedScreenSpecification, String registRoute,
+            ResolvedDesignTokens resolvedDesignTokens) {
         Map<String, Object> model = new HashMap<>();
         model.put("pageTitle", pageTitle);
         model.put("layoutView", layoutView);
         model.put("screenId", contract.screenId());
+        model.put("designTokenCssVariableNames", designTokenCssVariableNames(resolvedDesignTokens));
         // LIST/DETAIL은 Assembler가 고른 표시 필드만(ARCH-0622로 발견: 전체 VO 필드를 그대로 쓰면
         // pageIndex 등 표시 대상이 아닌 필드까지 th:text 대상이 되어 실제 렌더 시 존재하지 않는
         // 속성을 참조하게 된다), FORM은 VO 전체 바인딩 가능 필드를 그대로 쓴다.
@@ -200,6 +221,27 @@ public class BindingComposer {
     private ActionPlacement resolveActionPlacement(ScreenSpecification approvedScreenSpecification) {
         return isApproved(approvedScreenSpecification)
                 ? approvedScreenSpecification.actionPlacement() : ActionPlacement.TOP_RIGHT;
+    }
+
+    /**
+     * R6-057: {@code resolvedDesignTokens}가 참조하는 CSS 변수 이름을 결정적 순서(정렬)로 모은다.
+     * 템플릿이 이 목록을 기존 {@code egov-authority-provenance}와 같은 방식으로 HTML 주석 안에
+     * 문자 그대로(리터럴 {@code <!-- -->}) 감싼다 — Java 쪽에서 주석 구분자까지 문자열로 만들면
+     * FreeMarker HTML 출력 형식의 auto-escape에 걸려 {@code &lt;!--}로 깨질 수 있어 피한다. 실제
+     * 색상·간격 값은 여기 없다 — {@link ResolvedDesignTokens}는 논리 토큰이 어떤 CSS 변수
+     * "이름"에 묶였는지만 알 뿐, 값은 별도 배포되는 회사 표준 CSS가 정의한다.
+     */
+    private List<String> designTokenCssVariableNames(ResolvedDesignTokens resolvedDesignTokens) {
+        if (resolvedDesignTokens == null) {
+            return List.of();
+        }
+        TreeSet<String> cssVariableNames = new TreeSet<>();
+        cssVariableNames.addAll(resolvedDesignTokens.colorTokens().values());
+        cssVariableNames.addAll(resolvedDesignTokens.typographyTokens().values());
+        cssVariableNames.addAll(resolvedDesignTokens.spacingTokens().values());
+        cssVariableNames.addAll(resolvedDesignTokens.radiusTokens().values());
+        cssVariableNames.addAll(resolvedDesignTokens.layoutTokens().values());
+        return List.copyOf(cssVariableNames);
     }
 
     private List<com.krdevops.springai.model.thymeleaf.ThymeleafFieldBinding> resolveDisplayFieldBindings(

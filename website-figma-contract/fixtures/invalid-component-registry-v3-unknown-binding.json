@@ -1,0 +1,6 @@
+{
+  "schemaVersion":"component-registry-v3","profileId":"krds","profileVersion":"2.0.0","registryVersion":"3.0.0","catalogVersion":"2.0.0","catalogHash":"0000000000000000000000000000000000000000000000000000000000000000",
+  "library":{"fileKey":"KEY","name":"Library"},
+  "bindings":{"krds.unknown":{"componentSetKey":"UNKNOWN","componentName":"Unknown","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}}},
+  "variables":{},"sourceRevision":"revision","approvedBy":"owner","approvedAt":"2026-08-17T00:00:00Z","contentHash":"1111111111111111111111111111111111111111111111111111111111111111"
+}

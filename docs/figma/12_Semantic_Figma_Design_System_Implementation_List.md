@@ -29,6 +29,10 @@
 8. JSP·Controller·VO 분석부터 `DESIGN.md`·회사 Token 적용, 반응형 Thymeleaf 생성, 빌드·렌더 검증까지 하나의 추적 가능한 Generator로 연결한다.
 
 > 관련 후속 문서: [17_Semantic_Figma_Generation_Pipeline_Manual_Refinement_Implementation_List.md](./17_Semantic_Figma_Generation_Pipeline_Manual_Refinement_Implementation_List.md)가 이 문서(R1~R5)가 생성하는 `FigmaScreenSpec`을 baseline으로 재사용해, Figma에서 사람이 직접 조정한 속성을 승인 후 재적용하는 Manual Refinement 계층을 그 위에 추가한다.
+>
+> Catalog 논리 계약과 Published Registry Binding의 단일 원천화 후속 작업은
+> [18_Component_Catalog_Registry_SSOT_Impact_and_Implementation_Specification.md](./18_Component_Catalog_Registry_SSOT_Impact_and_Implementation_Specification.md)와
+> [19_Component_Catalog_Registry_SSOT_Implementation_List.md](./19_Component_Catalog_Registry_SSOT_Implementation_List.md)를 따른다.
 
 ---
 
@@ -125,7 +129,7 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 | DEC-06 | P0 | [x] | Registry 버전 정책 | `CONTRACT_RULES.md` §1(`registryVersion`은 "Figma Library Publish 단위로 신규 발급") + §5(Screen/Profile/Registry/Bundle metadata 간 버전 불일치를 `*_MISMATCH` 오류로 차단) + `ComponentRegistryResolver`로 구현·검증 완료 |
 | DEC-07 | P0 | [x] | API 및 산출물 보안 정책 | `X-API-Key`(R6-010) + 단기 토큰(R6-012, `FigmaRestTokenService`) + CORS(R6-012) + MCP 전용 인증(DEC-11) 구현·테스트 완료. 2026-07-28 redaction 감사([13번 문서](./13_Semantic_Figma_Operations_Runbook.md) §11) 결과 MCP 응답·로그·저장 산출물·메시지 문자열·Plugin 어디에서도 Component/Variable Key 노출 없음을 확인. REST 전용 Registry 검토 API(원문 Key 포함, 사람 승인용)와 MCP 채널(redaction됨)이 코드 수준에서 분리돼 있음도 확인 |
 | DEC-08 | P1 | [ ] | 플러그인 배포 방식 | 개발용 manifest import 방식만 존재(`krds-design-system-author-plugin`/`figma-screen-spec-plugin` 둘 다). 조직 내부 Plugin 배포 채널(Figma Organization/Enterprise 여부, 사내 배포 절차)은 코드로 대신할 수 없는 순수 조직 IT 정책이라 여전히 미결. 선택지 비교와 권장안은 [13_Semantic_Figma_Operations_Runbook.md](./13_Semantic_Figma_Operations_Runbook.md) §7 참고 |
-| DEC-09 | P0 | [x] | 초기 필수 Component·Pattern 목록 | `component-catalog-v1.json`에 필수 Component 5종(button/textField/select/checkbox/pagination)·Pattern 5종·Page Template 2종이 기술 기준안으로 이미 확정돼 Schema 검증까지 통과(R0-025와 동일 게이트). 조직 Library 담당자의 최종 Preview 승인이 완료되어 운영 기준으로 확정 — 승인 요청 문서: [14_DEC02_DEC09_Component_Catalog_Approval_Request.md](./14_DEC02_DEC09_Component_Catalog_Approval_Request.md) |
+| DEC-09 | P0 | [x] | 초기 필수 Component·Pattern 목록 | `component-catalog-v1.json`의 현재 최상위 분류는 `requiredComponents` 12종, `optionalComponents` 2종, `patterns` 4종, `pageTemplates` 3종이다. 필수 12종은 원자 Component와 조합용 Pattern/Page 항목을 함께 포함한다. Schema 검증과 조직 Library 담당자 최종 Preview 승인이 완료되어 운영 기준으로 확정 — 승인 요청 문서: [14_DEC02_DEC09_Component_Catalog_Approval_Request.md](./14_DEC02_DEC09_Component_Catalog_Approval_Request.md) |
 | DEC-10 | P0 | [x] | Plugin 입력 연결 방식 | **FILE 우선, REST 선택 기능**으로 최종 확정. 기본은 `.figma-export-bundle.json` import이며 REST는 배포 환경이 도메인·CORS·단기 토큰을 명시적으로 설정한 경우에만 활성화한다. 운영 도메인은 아키텍처 결정이 아닌 환경별 배포 값으로 관리 — [최종 결정](./15_DEC10_DEC12_Final_Decision.md) §2 |
 | DEC-11 | P0 | [x] | 신규 Figma/DesignSystem MCP Tool 인증 방식 | `FigmaToolAuthorizationService` + `app.figma.mcp-shared-secret` + `FigmaExportTool`/`DesignSystemTool` 양쪽 모두 `figmaMcpSecret` 파라미터를 필수로 강제하도록 구현·테스트 완료. 기존 21개 Tool이 걸린 `/mcp/**` 전역 무인증 정책은 그대로 유지(신규 Tool에만 추가 인가) |
 | DEC-12 | P1 | [x] | Removed Node 예외 처리 정책 | **ARCHIVE 단일 정책**으로 최종 확정. `reconcile()`/`archiveNode()`가 구현한 동작을 v1 계약으로 삼고 DELETE·ASK는 범위에서 제외한다. 영구 삭제는 동기화와 분리된 사람의 운영 작업이며, 실제 요구가 생길 때 별도 DEC로 재검토 — [최종 결정](./15_DEC10_DEC12_Final_Decision.md) §3 |
@@ -170,9 +174,9 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R0-024 · P1** 컴포넌트 대체·폐기·별칭 규칙 정의
 - [x] **R0-025 · P0** 초기 필수 Component·Pattern·Page Template 카탈로그 승인 — 기술 기준선과 Schema 검증 완료, 조직 Library 담당자 최종 승인(DEC-09) 반영 완료
 - [x] **R0-026 · P0** 7가지 요청 공통 `FigmaDesignRequest`·`FigmaDesignOperation` 계약과 RequestType enum 정의 — `figma-design-request-v1.schema.json`/`figma-design-operation-v1.schema.json` + Java `FigmaDesignRequestType`/`FigmaDesignRequest`/`FigmaDesignOperation`(요청 라우팅·유형별 필수값 검증은 I-3 범위로 남김)
-- [~] **R0-027 · P0** `designSystemProfileId`가 Token/Variable·Component Registry·Default Layout Policy 버전을 원자적으로 결합하는 계약 정의 — `DesignSystemProfile`과 `DesignSystemProfileSnapshot`에 `layoutPolicyVersion`과 `layoutPolicy` 필드로 구현되어 있으나 Default Layout Policy 정식 모델(`DefaultLayoutPolicy`) 미구현(I-1 후속)
+- [~] **R0-027 · P0** `designSystemProfileId`가 Token/Variable·Component Registry·Default Layout Policy 버전을 원자적으로 결합하는 계약 정의 — (2026-08-17 정정) 이전 버전은 `DesignSystemProfile`에 `layoutPolicyVersion`/`layoutPolicy` 필드가 "이미 구현돼 있다"고 잘못 기록돼 있었으나 실제로는 존재하지 않았다. R1-015에서 두 필드와 `DefaultLayoutPolicy` 정식 모델을 실제로 추가했다. 다만 `profileId:profileVersion:registryVersion` 형식처럼 `layoutPolicyVersion`까지 하나의 원자적 `designSystemProfileId` 문자열로 결합하는 계약은 아직 없어 `[~]`로 유지
 - [~] **R0-028 · P1** FORM/LIST/DETAIL/DASHBOARD 기본 Layout과 Desktop/Tablet/Mobile 변환·Component Swap 정책 Schema 작성 — `figma-screen-spec-v1.schema.json`의 viewport/layout/navigation 필드로 Layout 정보는 저장되나 Platform 변환 정책 Schema와 Component Swap 정책은 I-1/2-A6 범위로 남김
-- [~] **R0-029 · P1** 원본 명세서의 KRDS 색·타이포그래피·간격·radius 및 11개 예시 컴포넌트를 샘플 fixture로 변환하되 운영 fileKey/Node ID와 분리 — `component-catalog-v1.json`의 requiredComponents 5종·patterns 5종·pageTemplates 2종이 기술 기준선으로 존재하고 DEC-02/DEC-09 조직 승인 완료. 추가 11개 예시 컴포넌트와 색·타이포 완전 카탈로그는 Design System Library 정식 Publish 이후 자동 동기화로 진행(현재는 샘플 5종+5종 기준)
+- [~] **R0-029 · P1** 원본 명세서의 KRDS 색·타이포그래피·간격·radius 및 11개 예시 컴포넌트를 샘플 fixture로 변환하되 운영 fileKey/Node ID와 분리 — `component-catalog-v1.json`의 현재 최상위 분류(`requiredComponents` 12종·`optionalComponents` 2종·`patterns` 4종·`pageTemplates` 3종)가 기술 기준선으로 존재하고 DEC-02/DEC-09 조직 승인 완료. 추가 예시 컴포넌트와 색·타이포 완전 카탈로그는 Design System Library 정식 Publish 이후 자동 동기화로 진행
 
 초기 매핑 후보는 `screenType`과 `layoutPattern`을 서로 다른 필드로 독립 판정한다.
 하나의 archetype 문자열이 두 표에 동시에 걸려도(예: `MASTER_DETAIL`) 서로 다른 필드에
@@ -213,7 +217,7 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R0-T05** `screenType` 접미사 판정에 실패한 archetype이 조용히 임의 값으로 변환되지 않는다.
 - [x] **R0-T06** `MASTER_DETAIL`처럼 `screenType`과 `layoutPattern` 매핑에 동시에 걸리는 archetype도 두 필드가 충돌 없이 각각 유일하게 결정된다.
 - [x] **R0-T07** 7가지 RequestType별 정상·경계·오류 fixture가 공통 요청 Schema를 통과한다. — `website-figma-contract/fixtures/*-figma-design-request-*.json` 7종 valid + 2종 invalid, `contract-test.mjs`에서 검증
-- [~] **R0-T08** Profile·Registry·Default Layout Policy 중 하나라도 버전이 다르면 교체/변환 Preflight가 실패한다. — `ComponentRegistryResolver`와 `FigmaScreenExportService.preflightComponentRegistry()`가 Registry 버전 검증을 구현했으나 layoutPolicyVersion 검증은 I-1 `DefaultLayoutPolicy` 모델 후속
+- [x] **R0-T08** Profile·Registry·Default Layout Policy 중 하나라도 버전이 다르면 교체/변환 Preflight가 실패한다. — (2026-08-17) `ComponentRegistryResolver`가 Registry 버전 검증을 구현했고, `DesignSystemQueryService.preflightRegistry(profileId, registryVersion, requiredLogicalTypes, expectedLayoutPolicyVersion)`가 `expectedLayoutPolicyVersion` 불일치 시 `LAYOUT_POLICY_VERSION_MISMATCH` ERROR로 Preflight를 실패시킴. 실제 호출 경로는 `DesignSystemTool.preflightComponentRegistry()`(MCP)이며(이전 버전이 잘못 인용했던 `FigmaScreenExportService.preflightComponentRegistry()`는 존재하지 않음), `DesignSystemRegistryPreflightTest`의 `preflightFailsWhenLayoutPolicyVersionDiffersFromExpected`/`preflightSkipsLayoutPolicyCheckWhenExpectedVersionIsNull`로 검증
 
 ---
 
@@ -235,7 +239,7 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R1-012 · P1** DTO Bean Validation 제약 추가 — Export 요청·Screen/Node/Issue·생성 보고서 DTO 제약 및 REST `@Valid` 적용
 - [x] **R1-013 · P0** `FigmaExportBundle`, `DesignSystemProfileSnapshot`, `ComponentRegistrySnapshot`, `FigmaExportMetadata` 구현
 - [x] **R1-014 · P0** `FigmaDesignRequest`, `FigmaDesignOperation`, `FigmaDesignOperationStatus`, `FigmaDesignScreenRequest` 구현 — `com.krdevops.springai.model.figma.request` 패키지, 공통 값 객체는 `com.krdevops.springai.model.contract`(`DesignSystemSnapshotRef`/`GenerationIssue`/`ArtifactRef`/`SourceRevisionRef`) 재사용
-- [ ] **R1-015 · P1** `DefaultLayoutPolicy`, `PlatformLayoutPolicy`, `ComponentSwapPolicy` 구현 — 미착수(후속 I-1 작업으로 남김)
+- [x] **R1-015 · P1** `DefaultLayoutPolicy`, `PlatformLayoutPolicy`, `ComponentSwapPolicy` 구현 — (2026-08-17) `DefaultLayoutPolicy`(LIST/FORM/DETAIL/DASHBOARD별 `ScreenLayoutSpec`) 신규 구현. 기존에 정의만 있고 아무도 참조하지 않던 `PlatformLayoutPolicy`를 실제로 소비하는 `ComponentSwapPolicyResolver`(플랫폼·컴포넌트별 Swap 규칙 해석, 중복 규칙은 `COMPONENT_SWAP_AMBIGUOUS`로 차단) 신규 구현. `DesignSystemProfile`에 `layoutPolicyVersion`/`layoutPolicy` 필드 추가(8-필드 기존 호출자 호환 생성자 유지). `DefaultLayoutPolicyTest`/`ComponentSwapPolicyResolverTest`로 검증
 
 ### 6.2 저장 모델
 
@@ -435,11 +439,11 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 
 ### 10.5 R5 테스트
 
-- [ ] **R5-T01** 모든 공통 컴포넌트가 Published Instance로 생성되는지 검증
+- [x] **R5-T01** 모든 공통 컴포넌트가 Published Instance로 생성되는지 검증 — (2026-08-17 확인) `test/runtime-bundle-preview.test.mjs`가 실제 Q&A 7화면 Runtime Bundle에서 `unresolvedCount`/`fallbackCount`가 모두 0임을 이미 검증하고 있었음(신규 테스트 아님, 체크박스만 갱신되지 않았던 기존 증거)
 - [~] **R5-T02** 순수 Reconciliation 테스트에서 동일 논리 노드 `REUSE` 판정 검증. Figma Desktop 런타임 재실행 검증 필요
 - [~] **R5-T03** 순수 Reconciliation 테스트에서 신규 논리 노드만 `ADD` 판정 검증. Figma Desktop 런타임 검증 필요
-- [ ] **R5-T04** 사용자 텍스트·위치 override 보존 검증
-- [ ] **R5-T05** MERGE와 REPLACE 결과 비교 검증
+- [x] **R5-T04** 사용자 텍스트·위치 override 보존 검증 — (2026-08-17) `applyOwnedProperties()`의 판정 로직을 `core.ts`의 순수 함수 `isUserOverridden(previousManagedValue, currentValue)`로 추출해 `code.ts`가 재사용하도록 리팩터링, `core.test.mjs`에 단위테스트 추가. Figma Desktop 실제 Instance에서의 재실행 검증은 R5-T02/T03과 동일하게 별도 수동 QA 필요
+- [x] **R5-T05** MERGE와 REPLACE 결과 비교 검증 — (2026-08-17) `core.ts`의 `reconcile()`이 `existing`(MERGE의 기존 노드 목록)과 무관하게 desired 트리(`flattenSpec`)에서만 `logicalNodeId`를 부여함을 `core.test.mjs`의 신규 테스트로 증명 — MERGE(existing 채움)와 REPLACE(existing=[])가 ARCHIVE를 제외한 동일 `logicalNodeId` 집합을 생성함을 확인. `17_Semantic_Figma_Generation_Pipeline_Manual_Refinement_Implementation_List.md`의 `MR-R09`가 의존하던 전제를 직접 검증함(단, Figma Desktop에서 실제 REPLACE를 실행한 E2E는 아직 없음 — MR-R09 자체 근거 참고)
 - [x] **R5-T06** 필수 Component 누락 FATAL·적용 차단, 선택 Component 시각 fallback(Placeholder 생성·Registry 갱신 시 정식 Instance로 교체) `core.ts` 순수 로직 검증 완료. Figma Desktop 실제 렌더(Placeholder 시각 확인)는 수동 QA 필요
 
 ### 10.6 디자인 Operation 적용
@@ -500,10 +504,10 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [~] **R6-040 · P0** 기존 `FigmaApiClient` 확장: 현재 단일 Node 조회·timeout·retry/backoff를 재사용하고 files/images/styles/components·pagination·오류 정규화 추가 — `FigmaApiQuery`, `FigmaStylesResponse`, `FigmaComponentsResponse`, `queryStyles()`, `queryComponents()`, 제네릭 `callApi<T>()` 추가. `queryNodesPaginated()` 실제 구현·retry/backoff 통합 테스트·응답 크기 제한 검증 필요
 
 **2-A2: Allowlist 검증 (2시간)**
-- [ ] **R6-041 · P0** Figma access token·LLM key·image URL·node/file 식별자의 로그/응답/산출물 redaction 및 allowlist 검증
+- [x] **R6-041 · P0** Figma access token·LLM key·image URL·node/file 식별자의 로그/응답/산출물 redaction 및 allowlist 검증 — (2026-08-17) 조사 결과 이미 3개의 부분 구현이 흩어져 있었음: `FigmaResponseRedactor`(정규식 기반 마스킹)는 정의만 있고 아무 데서도 호출되지 않는 죽은 코드였고, `FigmaFileAllowlistValidator`의 fileKey allowlist는 `FigmaDesignOrchestrationService`에 이미 연결돼 있었으나 `validateNodeId()`는 정의만 있고 `referenceNodeIds`/`imageNodeIds`에는 형식 검증이 전혀 적용되지 않고 있었음(더 정확한 기존 `FigmaNodeIds` 정규화기가 `editableNodeIds`에만 적용됨). 이번에 (1) `FigmaContextAnalyzer`의 LLM 실패·파싱 실패 예외 메시지를 `FigmaResponseRedactor`로 redact, (2) `referenceNodeIds`/`imageNodeIds`도 `FigmaNodeIds.normalizeAll()`로 정규화·형식 검증하도록 확장, (3) 지금까지 핸들러가 없어 일반 500으로 새던 `FigmaAllowlistException`에 403 표준 오류 핸들러 추가. `FigmaResponseRedactorTest`/`FigmaContextAnalyzerTest`/`GlobalExceptionHandlerTest`/`FigmaDesignOrchestrationServiceTest` 신규·확장 테스트로 검증
 
 **2-A3: FigmaContextAnalyzer (3시간)**
-- [ ] **R6-042 · P0** `FigmaContextAnalyzer` 구현: Spring AI 구조화 출력으로 domain, screenType, layoutPattern, required logical types, uncertainty 반환
+- [x] **R6-042 · P0** `FigmaContextAnalyzer` 구현: Spring AI 구조화 출력으로 domain, screenType, layoutPattern, required logical types, uncertainty 반환 — (2026-08-17) 이전 버전은 이미 존재했으나 `.content()`로 원문 문자열을 받아 `{`/`}` 위치로 수동 JSON 추출·`ObjectMapper.readTree()`로 파싱하고, `screenType`/`layoutPattern`도 enum이 아닌 자유 문자열이었으며 `domain` 필드 자체가 없었음. `.entity(LlmAnalysisResponse.class)` 구조화 출력으로 전환하고 기존 `FigmaScreenType`/`LayoutPattern` enum을 직접 역직렬화하도록 변경, `domain` 필드 추가. `FigmaContextAnalyzerTest`로 정상/불확실성/빈응답/redaction 경로 검증
 
 **2-A4: FigmaStyleExtractor (2시간)**
 - [~] **R6-043 · P1** `FigmaStyleExtractor` 구현: 기존 `FigmaDesignSpecMapper`의 layout/token 추출을 재사용해 공통 color/typography/spacing/layout을 Profile 변경이 아닌 Token 후보로 확장
@@ -541,13 +545,13 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 
 - [x] **R6-050 · P0** 10단계 Generator 입출력 계약과 단계별 FATAL/WARNING·중단·재시도·입력 Hash 정책 정의 — (2026-08-17) `ThymeleafGenerationStage`로 Source Analysis→Build/Render/Parity Validation의 고정 순서·입출력·재시도 정책을 폐쇄 enum으로 확정하고, `ThymeleafGenerationStageStatus`의 허용 전이, `ThymeleafGenerationStageExecution`의 Hash·시간·Artifact·Issue 증적 불변조건, `ThymeleafGenerationPipelineContract`의 `FATAL→FAILED`/`ERROR→REVIEW_REQUIRED`/`WARNING→SUCCEEDED`, 후속 단계 차단, 선행 output chain을 포함한 canonical SHA-256 input Hash와 명시적 재시도 정책을 구현했다. `ThymeleafGenerationPipelineContractTest`로 10단계 순서·상태 오류·Hash 결정성·재시도·SKIPPED 증적을 검증했으며 상세 계약은 `R6-050_Thymeleaf_10단계_파이프라인_계약.md`에 고정했다. 실제 10단계 오케스트레이션·Report 영속화는 R6-061, 서비스 미호출 결정성 검증은 R6-T20 범위로 유지
 - [x] **R6-051 · P0** JSP·Controller·VO 화면 단위 분석 구현 — `LegacySourceInventoryService`(안전한 경로·예산) + `JspSourceReader`(taglib/form/EL/forEach/표시필드, 정규식 기반) + `ControllerSourceReader`(매핑/모델/반환뷰/redirect/보안, JavaParser AST) + `VoSourceReader`(필드/Lombok 접근자/Bean Validation, JavaParser AST)로 신규 구현. CSS/JS Frontend Source Graph(I-2D, `jsp-design-extractor` 모듈화)는 범위 밖으로 남김
-- [~] **R6-052 · P0** `ThymeleafBindingContract` 모델과 JSP·Controller·VO reader는 유지. 기존 `LegacyBindingContractAssembler` 구현/테스트가 현재 작업 트리에서 제거되어 새 Workflow와의 재연결 필요
+- [x] **R6-052 · P0** `ThymeleafBindingContract` 모델과 JSP·Controller·VO reader는 유지. (2026-08-17 정정) "제거되어 재연결 필요"라던 이전 판정은 부정확했다 — 삭제된 `LegacyBindingContractAssembler`는 실제로는 `BindingContractAssembler`(468줄, `BindingContractAssemblerTest`로 검증됨)로 재구현돼 이미 `ThymeleafBindingGenerationService.preview()`에 연결돼 있었다. 이 서비스는 REST(`ThymeleafBindingGenerationController`)와 MCP(`ThymeleafBindingGenerationTool`) 양쪽에서 호출되고, 결과를 `ThymeleafProjectWorkflowService.preview()`로 그대로 넘겨 Preview→승인→Apply 흐름과도 연결된다
 - [~] **R6-053 · P0** 화면 유형 판단 — `FigmaScreenTypeResolver`·`ScreenSpecAssembler`·CRUD/Board/MasterDetail 판정을 재사용하고 근거·confidence 포함
 - [~] **R6-054 · P0** Component Inventory 선택 — `ComponentCandidate`·`ComponentRegistryResolver`를 재사용하고 field role별 선택 근거·fallback·Published 상태 검증 추가
 - [x] **R6-055 · P0** 프로젝트 루트 `DESIGN.md` 탐색·파싱·버전·규칙 우선순위·위반 위치를 제공하는 `DesignMdRuleLoader` 구현 및 정상/경계/오류 fixture 테스트 완료
 - [~] **R6-056 · P0** 회사 표준 Design Token 로드·매핑 — `DesignSystemProfile`·`DesignSystemSpec`·`VariableBinding`을 CSS Variable/Thymeleaf class/Component Property로 해석
-- [~] **R6-057 · P0** `ScreenHtmlSkeletonGenerator`로 LIST/FORM/DETAIL 구조와 Binding 없는 slot을 생성. 제거된 구형 `ThymeleafSkeletonPlanner`/FreeMarker legacy renderer 대신 새 Workflow에 Component Registry/Token을 주입하는 단계는 미완료
-- [ ] **R6-058 · P0** 제거된 `LegacyThymeleafViewComposer`/`LegacyThymeleafRenderer`를 대체해 `ThymeleafBindingContract`를 새 Skeleton에 결합하는 구현 필요
+- [x] **R6-057 · P0** (2026-08-17 정정 및 구현) `ScreenHtmlSkeletonGenerator`는 실제로 채택된 경로가 아니다 — `BindingComposer` Javadoc이 "`ScreenHtmlSkeletonGenerator`(ARCH-0609)는 이 pass에서 쓰지 않는다(ARCH-WP6 스코프 컷)"라고 명시. 실제 구조 생성은 `BindingComposer`가 기존 `CrudTemplateRenderer`/`BoardTemplateRenderer`/FreeMarker `.ftl`을 직접 재사용해 처리하며 이미 동작한다(R6-058 참고). "Component Registry/Token을 주입하는 단계는 미완료"라는 지적은 실제로 유효했다 — `CompanyDesignTokenResolver`(R6-056)가 구현·테스트는 됐으나 어디서도 호출되지 않는 죽은 코드였다. `ResolvedDesignTokens`는 논리 토큰→CSS 변수 "이름" 매핑만 갖고 실제 색상·간격 값은 없어(값은 별도 배포되는 회사 표준 CSS가 정의) `:root{}` 선언은 만들 수 없으므로, `ThymeleafBindingPreviewRequest.designSystemProfileId`가 주어지면 `BindingComposer`가 참조된 CSS 변수 이름을 `<!-- egov-design-token-provenance: --krds-color-primary-60, ... -->` HTML 주석(기존 `egov-authority-provenance`와 동일 패턴)으로 `legacy-thymeleaf/*.html.ftl` 3종에 남기도록 구현. 토큰 해석 실패는 FATAL로 전체 Preview를 막지 않고 경고 후 계속 진행. `BindingComposerTest`/`ThymeleafBindingGenerationServiceTest`로 검증
+- [x] **R6-058 · P0** 제거된 `LegacyThymeleafViewComposer`/`LegacyThymeleafRenderer`를 대체해 `ThymeleafBindingContract`를 새 Skeleton에 결합하는 구현 필요 — (2026-08-17 정정) 실제로는 이미 구현돼 있었다. `BindingComposer`(214줄) Javadoc에 "옛 `LegacyThymeleafViewComposer`+`LegacyThymeleafRenderer`(162bb3c에서 삭제)를 하나로 합쳐 재구현한다"고 명시돼 있으며, `ThymeleafBindingContract`를 LIST/FORM/DETAIL FreeMarker 템플릿(`templates/legacy-thymeleaf/*.html.ftl`)에 결합해 실제 Thymeleaf HTML을 만든다. `ScreenHtmlSkeletonGenerator`는 "이 pass에서 쓰지 않는다"는 의도적 설계 결정(ARCH-WP6 스코프 컷)이 이미 남아 있음 — "Skeleton에 결합"이라는 이전 항목 문구 자체가 실제 채택된 아키텍처와 달랐다. `BindingComposerTest`/`BindingComposerTemplateEngineParityTest`로 검증됨
 - [x] **R6-059 · P1** Desktop·Tablet·Mobile 변환 — 1440/768/390 grid, navigation swap, table→card, form/detail 재배치와 Binding 수 동일성 검증 테스트 완료
 - [~] **R6-060 · P0** Preview/재검증에 Thymeleaf 정적 parse와 1440px overflow Gate 연결. 실제 TemplateEngine render, 고정 offline build, Playwright 접근성·visual regression은 미완료
 - [x] **R6-061 · P0** `ThymeleafProjectWorkflowService`의 Preview→canonical hash 승인→source/DESIGN.md revision 재검증→원자 Apply/전체 rollback→재검증 상태 흐름에 10단계 `ThymeleafGenerationReport` 영속 저장을 연결했다 — (2026-08-17) 기존 미사용 4단계 프로토타입 Report를 R6-050 계약의 정확한 10개 `ThymeleafGenerationStageExecution`, request/project/source fingerprint, 계약 버전, 생성 파일 hash, Operation 최종 상태를 갖는 불변 모델로 교체. `ThymeleafGenerationReportService`가 Binding Generator Preview에서 1~9단계 Hash chain과 10단계 PENDING을 만들고 Approve/Apply/Conflict/Failed revision마다 상태를 보존하며 Revalidate 성공/실패에서 10단계를 SUCCEEDED/FAILED로 종결한다. Report는 `ThymeleafOperationSnapshot` JSON에 포함돼 기존 MySQL revision/CAS/재시작 복구 경로를 그대로 사용하고 `THYMELEAF_GENERATION_REPORT` Artifact도 revision별 연결된다. `WorkflowResult`/`GET /api/thymeleaf/operations/{id}/report`에서도 조회 가능하며, `ThymeleafGenerationReportServiceTest`가 전체 단계 증적·성공/실패 종결·Snapshot JSON 복구를 검증
