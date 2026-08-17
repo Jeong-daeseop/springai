@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class CanonicalJsonHasher {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
     private static final String HASH_PREFIX = "sha256:";
     private static final int HASH_HEX_LENGTH = 64;
 

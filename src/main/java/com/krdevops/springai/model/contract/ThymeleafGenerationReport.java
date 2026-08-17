@@ -1,260 +1,86 @@
 package com.krdevops.springai.model.contract;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.krdevops.springai.model.artifact.ContentHashes;
+import com.krdevops.springai.model.thymeleaf.ProjectOperationStatus;
+import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationPipelineContract;
+import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStage;
+import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageExecution;
+
 import java.time.Instant;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
 /**
- * I-5: Thymeleaf 생성 보고서.
- * JSP → Thymeleaf 전환의 단계별 결과, 기능 일치도, 적용 파일을 기록합니다.
+ * R6-061: 10단계 Thymeleaf Generator와 Preview→Approve→Apply→Validate 상태를 함께 보존하는
+ * 불변 보고서. Operation Snapshot에 포함되어 MySQL revision 저장소와 동일한 재시작 복구·CAS
+ * 보장을 받는다.
  */
 public record ThymeleafGenerationReport(
-        @JsonProperty("conversionId")
-        String conversionId,
-
-        @JsonProperty("operationId")
-        String operationId,  // nullable: Figma ScreenSpecification 결합 시만 설정
-
-        @JsonProperty("stage")
-        String stage,  // "ANALYZED" | "CONTRACT_READY" | "PREVIEW_READY" | "APPROVED" | "APPLIED" | "VALIDATED"
-
-        @JsonProperty("results")
-        List<StageResult> results,
-
-        @JsonProperty("parity")
-        ParityCheckResult parity,
-
-        @JsonProperty("appliedFiles")
-        List<AppliedFile> appliedFiles,  // APPLIED 이후 채워짐
-
-        @JsonProperty("generatedAt")
-        String generatedAt,  // ISO 8601 instant
-
-        @JsonProperty("duration")
-        long duration  // milliseconds
+        String generationId,
+        String operationId,
+        String requestHash,
+        String projectFingerprint,
+        String sourceRevision,
+        String targetRuntimeProfile,
+        Map<String, String> contractVersions,
+        List<ThymeleafGenerationStageExecution> stages,
+        List<GeneratedFile> generatedFiles,
+        ProjectOperationStatus finalStatus,
+        Instant createdAt,
+        Instant updatedAt
 ) {
-    /**
-     * 단축 생성자: 필수값 검증
-     */
     public ThymeleafGenerationReport {
-        if (conversionId == null || !conversionId.matches("^thymeleaf-conv-[a-f0-9\\-]+$")) {
-            throw new IllegalArgumentException("conversionId 형식이 잘못되었습니다");
+        requireText(generationId, "generationId");
+        requireText(operationId, "operationId");
+        ContentHashes.requireValid(requestHash);
+        requireText(projectFingerprint, "projectFingerprint");
+        requireText(sourceRevision, "sourceRevision");
+        targetRuntimeProfile = targetRuntimeProfile == null || targetRuntimeProfile.isBlank()
+                ? "SPRING_BOOT_THYMELEAF" : targetRuntimeProfile;
+        contractVersions = contractVersions == null ? Map.of() : Map.copyOf(contractVersions);
+        stages = stages == null ? List.of() : List.copyOf(stages);
+        generatedFiles = generatedFiles == null ? List.of() : List.copyOf(generatedFiles);
+        if (finalStatus == null || createdAt == null || updatedAt == null) {
+            throw new IllegalArgumentException("finalStatus/createdAt/updatedAt은 필수입니다.");
         }
-        if (!stage.matches("ANALYZED|CONTRACT_READY|PREVIEW_READY|APPROVED|APPLIED|VALIDATED")) {
-            throw new IllegalArgumentException("stage가 유효하지 않습니다");
+        if (updatedAt.isBefore(createdAt)) {
+            throw new IllegalArgumentException("updatedAt은 createdAt보다 빠를 수 없습니다.");
         }
-        if (results == null || results.isEmpty()) {
-            throw new IllegalArgumentException("results는 최소 1개 이상 필수입니다");
-        }
-        if (parity == null) {
-            throw new IllegalArgumentException("parity는 필수입니다");
-        }
-        if (generatedAt == null || generatedAt.isBlank()) {
-            throw new IllegalArgumentException("generatedAt은 필수입니다 (ISO 8601)");
-        }
-        if (duration < 0 || duration > 3_600_000L) {
-            throw new IllegalArgumentException("duration은 0~3600000ms 범위여야 합니다");
-        }
-    }
-
-    /**
-     * Figma ScreenSpecification 결합 여부
-     */
-    public boolean hasFigmaReference() {
-        return operationId != null && !operationId.isBlank();
-    }
-
-    /**
-     * 모든 parity 검증 통과 여부
-     */
-    public boolean isParityComplete() {
-        return parity.routeMatched() && parity.fieldBindingMatched() && parity.validationMatched() &&
-               parity.csrfMatched() && parity.authorityMatched();
-    }
-
-    /**
-     * 모든 stage 성공 여부
-     */
-    public boolean isAllStagesSuccess() {
-        return results.stream().allMatch(r -> "SUCCESS".equals(r.status()));
-    }
-
-    /**
-     * Stage별 결과
-     */
-    public record StageResult(
-            @JsonProperty("stageName")
-            String stageName,  // "ANALYZE" | "RENDER" | "BUILD" | "VALIDATE"
-
-            @JsonProperty("status")
-            String status,  // "SUCCESS" | "FAILED" | "SKIPPED" | "PARTIAL"
-
-            @JsonProperty("inputHash")
-            String inputHash,  // nullable, "sha256:..."
-
-            @JsonProperty("outputHash")
-            String outputHash,  // nullable, "sha256:..."
-
-            @JsonProperty("duration")
-            long duration,  // milliseconds
-
-            @JsonProperty("issues")
-            List<GenerationIssue> issues,  // empty if success
-
-            @JsonProperty("details")
-            Map<String, Object> details  // stage-specific info
-    ) {
-        /**
-         * Stage 결과 검증
-         */
-        public StageResult {
-            if (stageName == null || !stageName.matches("ANALYZE|RENDER|BUILD|VALIDATE")) {
-                throw new IllegalArgumentException("stageName이 유효하지 않습니다");
-            }
-            if (status == null || !status.matches("SUCCESS|FAILED|SKIPPED|PARTIAL")) {
-                throw new IllegalArgumentException("status가 유효하지 않습니다");
-            }
-            if (duration < 0) {
-                throw new IllegalArgumentException("duration은 음수가 될 수 없습니다");
-            }
-            if (issues == null) {
-                throw new IllegalArgumentException("issues는 필수입니다 (빈 리스트 가능)");
-            }
-            if (details == null) {
-                throw new IllegalArgumentException("details는 필수입니다 (빈 맵 가능)");
-            }
-        }
-
-        /**
-         * 성공 여부
-         */
-        public boolean isSuccess() {
-            return "SUCCESS".equals(status);
-        }
-
-        /**
-         * 해시 완정성: 입출력 모두 있어야 함
-         */
-        public boolean hasCompleteHash() {
-            return inputHash != null && outputHash != null &&
-                   inputHash.matches("^sha256:[a-f0-9]{64}$") &&
-                   outputHash.matches("^sha256:[a-f0-9]{64}$");
+        validateStages(stages);
+        if (!ThymeleafGenerationPipelineContract.CONTRACT_VERSION.equals(
+                contractVersions.get("pipeline"))) {
+            throw new IllegalArgumentException("pipeline contractVersion이 누락되거나 다릅니다.");
         }
     }
 
-    /**
-     * JSP vs Thymeleaf 기능 일치도 검증
-     */
-    public record ParityCheckResult(
-            @JsonProperty("routeMatched")
-            boolean routeMatched,
-
-            @JsonProperty("fieldBindingMatched")
-            boolean fieldBindingMatched,
-
-            @JsonProperty("validationMatched")
-            boolean validationMatched,
-
-            @JsonProperty("csrfMatched")
-            boolean csrfMatched,
-
-            @JsonProperty("authorityMatched")
-            boolean authorityMatched,
-
-            @JsonProperty("issues")
-            List<GenerationIssue> issues  // parity 불일치 상세
-    ) {
-        /**
-         * Parity 검증 생성자
-         */
-        public ParityCheckResult {
-            if (issues == null) {
-                throw new IllegalArgumentException("issues는 필수입니다 (빈 리스트 가능)");
+    private static void validateStages(List<ThymeleafGenerationStageExecution> stages) {
+        if (stages.size() != ThymeleafGenerationPipelineContract.stages().size()) {
+            throw new IllegalArgumentException("보고서는 정확히 10개 단계 증적을 포함해야 합니다.");
+        }
+        HashSet<ThymeleafGenerationStage> unique = new HashSet<>();
+        for (int index = 0; index < stages.size(); index++) {
+            ThymeleafGenerationStageExecution execution = stages.get(index);
+            ThymeleafGenerationStage expected = ThymeleafGenerationPipelineContract.stages().get(index);
+            if (execution.stage() != expected || !unique.add(execution.stage())) {
+                throw new IllegalArgumentException("보고서 단계는 중복 없이 계약 순서와 일치해야 합니다.");
             }
-        }
-
-        /**
-         * 모든 parity 검증 통과 여부
-         */
-        public boolean isComplete() {
-            return routeMatched && fieldBindingMatched && validationMatched &&
-                   csrfMatched && authorityMatched;
-        }
-
-        /**
-         * 불일치 개수
-         */
-        public int getMismatchCount() {
-            int count = 0;
-            if (!routeMatched) count++;
-            if (!fieldBindingMatched) count++;
-            if (!validationMatched) count++;
-            if (!csrfMatched) count++;
-            if (!authorityMatched) count++;
-            return count;
         }
     }
 
-    /**
-     * 프로젝트에 적용된 파일
-     */
-    public record AppliedFile(
-            @JsonProperty("path")
-            String path,  // relative path (src/main/webapp/...)
+    private static void requireText(String value, String name) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(name + "는 필수입니다.");
+        }
+    }
 
-            @JsonProperty("action")
-            String action,  // "CREATED" | "REPLACED" | "BACKUP" | "ROLLBACK"
-
-            @JsonProperty("hash")
-            String hash,  // "sha256:...", 적용 후 파일의 해시
-
-            @JsonProperty("previousHash")
-            String previousHash,  // nullable, "sha256:...", 교체 전 원본
-
-            @JsonProperty("size")
-            long size  // bytes
-    ) {
-        /**
-         * 적용 파일 검증
-         */
-        public AppliedFile {
-            if (path == null || path.isBlank()) {
-                throw new IllegalArgumentException("path는 필수입니다");
-            }
-            if (!action.matches("CREATED|REPLACED|BACKUP|ROLLBACK")) {
-                throw new IllegalArgumentException("action이 유효하지 않습니다");
-            }
-            if (!hash.matches("^sha256:[a-f0-9]{64}$")) {
-                throw new IllegalArgumentException("hash 형식이 잘못되었습니다");
-            }
+    public record GeneratedFile(String relativePath, String contentHash, long size) {
+        public GeneratedFile {
+            requireText(relativePath, "relativePath");
+            ContentHashes.requireValid(contentHash);
             if (size < 0) {
-                throw new IllegalArgumentException("size는 음수가 될 수 없습니다");
+                throw new IllegalArgumentException("size는 음수일 수 없습니다.");
             }
-            if ("REPLACED".equals(action) && (previousHash == null || previousHash.isBlank())) {
-                throw new IllegalArgumentException("REPLACED 액션은 previousHash가 필수입니다");
-            }
-        }
-
-        /**
-         * 생성 여부
-         */
-        public boolean isCreated() {
-            return "CREATED".equals(action);
-        }
-
-        /**
-         * 교체 여부
-         */
-        public boolean isReplaced() {
-            return "REPLACED".equals(action);
-        }
-
-        /**
-         * 교체 추적 가능 여부 (previousHash 있음)
-         */
-        public boolean isTrackable() {
-            return previousHash != null && !previousHash.isBlank();
         }
     }
 }

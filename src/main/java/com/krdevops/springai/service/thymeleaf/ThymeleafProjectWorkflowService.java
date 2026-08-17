@@ -7,10 +7,12 @@ import com.krdevops.springai.model.thymeleaf.GateSeverity;
 import com.krdevops.springai.model.thymeleaf.LegacySourceManifest;
 import com.krdevops.springai.model.thymeleaf.ProjectOperationStatus;
 import com.krdevops.springai.model.thymeleaf.ThymeleafBindingContract;
+import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationPipelineContract;
 import com.krdevops.springai.model.thymeleaf.ThymeleafOperationSnapshot;
 import com.krdevops.springai.model.thymeleaf.ThymeleafProjectOperation;
 import com.krdevops.springai.model.thymeleaf.ValidationGateResult;
 import com.krdevops.springai.model.thymeleaf.ValidationReport;
+import com.krdevops.springai.model.contract.ThymeleafGenerationReport;
 import com.krdevops.springai.model.write.ProjectChangeSet;
 import com.krdevops.springai.model.write.ProjectWritePolicy;
 import com.krdevops.springai.service.contract.OperationHashFactory;
@@ -72,6 +74,7 @@ public class ThymeleafProjectWorkflowService {
     private final ApprovedProjectWritePort writePort;
     private final BrowserValidationGateExecutor browserValidationGate;
     private final BrowserGateDirectoryResolver browserGateDirectories;
+    private final ThymeleafGenerationReportService generationReportService;
     private final ObjectMapper reportMapper = new ObjectMapper().findAndRegisterModules();
 
     @Autowired
@@ -102,6 +105,7 @@ public class ThymeleafProjectWorkflowService {
         this.writePort = writePort;
         this.browserValidationGate = browserValidationGate;
         this.browserGateDirectories = browserGateDirectories;
+        this.generationReportService = new ThymeleafGenerationReportService(hashFactory);
     }
 
     /** legacy source manifest 도입 전 직접 생성 호출부 호환. */
@@ -195,11 +199,21 @@ public class ThymeleafProjectWorkflowService {
         if (manifest.tracked()) {
             previewBasis.put("legacySourceFingerprint", manifest.fingerprint());
         }
+        if (bindingContract != null) {
+            previewBasis.put("pipelineContractVersion", ThymeleafGenerationPipelineContract.CONTRACT_VERSION);
+            previewBasis.put("bindingContractRef", Map.of(
+                    "screenId", bindingContract.screenId(),
+                    "screenRole", bindingContract.screenRole().name(),
+                    "sourceRevisionToken", bindingContract.sourceRevision() == null
+                            ? "UNTRACKED" : bindingContract.sourceRevision().revisionToken()));
+        }
         String previewHash = hashFactory.canonicalHash(previewBasis);
 
+        ThymeleafGenerationReport generationReport = generationReportService.previewReport(
+                operation, previewHash, root.toString(), designRevision, manifest, bindingContract, files);
         ThymeleafOperationSnapshot initial = new ThymeleafOperationSnapshot(
                 1, operation, root.toString(), sourceHashes, designRevision, previewHash,
-                manifest, bindingContract);
+                manifest, bindingContract, generationReport);
         ThymeleafOperationSnapshot saved = store.createOrReuse(initial);
         recordEvent(saved, null, saved.operation().status(), "PREVIEW_CREATED");
         if (artifactService != null) {
@@ -207,8 +221,9 @@ public class ThymeleafProjectWorkflowService {
                     content.getBytes(StandardCharsets.UTF_8), mediaType(name), "THYMELEAF_PREVIEW",
                     designRevision, saved.operation().operationId(), "THYMELEAF_PROJECT"));
             persistBindingContract(saved);
+            persistGenerationReport(saved);
         }
-        return new WorkflowResult(saved.operation(), saved.previewHash());
+        return result(saved);
     }
 
     public WorkflowResult approve(String operationId, String expectedPreviewHash) {
@@ -232,7 +247,7 @@ public class ThymeleafProjectWorkflowService {
                 approved.backupPath(), approved.conflictingFiles(), approved.validationErrors(), true, null);
         ThymeleafOperationSnapshot saved = nextRevision(snapshot, approved);
         recordEvent(saved, snapshot.operation().status(), approved.status(), "APPROVED");
-        return new WorkflowResult(saved.operation(), saved.previewHash());
+        return result(saved);
     }
 
     public WorkflowResult apply(String operationId) {
@@ -295,7 +310,7 @@ public class ThymeleafProjectWorkflowService {
         ThymeleafOperationSnapshot saved = nextRevision(snapshot, applied);
         indexScreenOperationIfBound(root, saved);
         recordEvent(saved, operation.status(), applied.status(), "APPLIED");
-        return new WorkflowResult(saved.operation(), saved.previewHash());
+        return result(saved);
         } finally {
             lockPort.release(lock);
         }
@@ -308,7 +323,7 @@ public class ThymeleafProjectWorkflowService {
                 null, conflicts, conflicted.validationErrors(), false, null);
         ThymeleafOperationSnapshot saved = nextRevision(snapshot, conflicted);
         recordEvent(saved, operation.status(), conflicted.status(), "CONFLICT");
-        return new WorkflowResult(saved.operation(), saved.previewHash());
+        return result(saved);
     }
 
     /** preview 시점 hash(승인 기준 원본)를 {@code beforeHash}로 실어 공용 {@link ProjectChangeSet}을 만든다. */
@@ -396,12 +411,12 @@ public class ThymeleafProjectWorkflowService {
                     failed.backupPath(), List.of(), errors, false, failed.appliedAt());
             ThymeleafOperationSnapshot saved = nextRevision(snapshot, failed);
             recordEvent(saved, snapshot.operation().status(), failed.status(), "VALIDATION_FAILED");
-            return new WorkflowResult(saved.operation(), saved.previewHash());
+            return result(saved);
         }
         ThymeleafProjectOperation validated = stateService.markAsValidated(snapshot.operation());
         ThymeleafOperationSnapshot saved = nextRevision(snapshot, validated);
         recordEvent(saved, snapshot.operation().status(), validated.status(), "VALIDATED");
-        return new WorkflowResult(saved.operation(), saved.previewHash());
+        return result(saved);
     }
 
     /**
@@ -467,8 +482,20 @@ public class ThymeleafProjectWorkflowService {
         }
     }
 
+    private void persistGenerationReport(ThymeleafOperationSnapshot snapshot) {
+        if (artifactService == null || snapshot.generationReport() == null) return;
+        try {
+            artifactService.ingestAndLink(reportMapper.writeValueAsBytes(snapshot.generationReport()),
+                    "application/json", "THYMELEAF_GENERATION_REPORT",
+                    snapshot.generationReport().requestHash(), snapshot.operation().operationId(),
+                    "THYMELEAF_PROJECT");
+        } catch (IOException exception) {
+            throw new IllegalStateException("THYMELEAF_GENERATION_REPORT_SERIALIZATION_FAILED", exception);
+        }
+    }
+
     public Optional<WorkflowResult> find(String operationId) {
-        return store.findLatest(operationId).map(s -> new WorkflowResult(s.operation(), s.previewHash()));
+        return store.findLatest(operationId).map(this::result);
     }
 
     /**
@@ -500,10 +527,14 @@ public class ThymeleafProjectWorkflowService {
 
     /** 이전 snapshot의 문맥(projectRoot·sourceHashes·designRevision·previewHash)을 유지한 채 다음 revision을 저장한다. */
     private ThymeleafOperationSnapshot nextRevision(ThymeleafOperationSnapshot previous, ThymeleafProjectOperation operation) {
-        return store.save(new ThymeleafOperationSnapshot(
+        ThymeleafGenerationReport report = generationReportService.transition(
+                previous.generationReport(), previous.operation().status(), operation);
+        ThymeleafOperationSnapshot saved = store.save(new ThymeleafOperationSnapshot(
                 previous.revision() + 1, operation, previous.projectRoot(),
                 previous.sourceHashes(), previous.designRevision(), previous.previewHash(),
-                previous.legacySourceManifest(), previous.bindingContract()));
+                previous.legacySourceManifest(), previous.bindingContract(), report));
+        persistGenerationReport(saved);
+        return saved;
     }
 
     private void recordEvent(ThymeleafOperationSnapshot snapshot, ProjectOperationStatus from,
@@ -556,7 +587,19 @@ public class ThymeleafProjectWorkflowService {
                 previews, targets, backup, conflicts, errors, ready, source.createdAt(), appliedAt);
     }
 
-    public record WorkflowResult(ThymeleafProjectOperation operation, String previewHash) {}
+    private WorkflowResult result(ThymeleafOperationSnapshot snapshot) {
+        return new WorkflowResult(snapshot.operation(), snapshot.previewHash(), snapshot.generationReport());
+    }
+
+    public record WorkflowResult(
+            ThymeleafProjectOperation operation,
+            String previewHash,
+            ThymeleafGenerationReport generationReport) {
+        /** R6-061 이전 직접 생성 호출자 호환. */
+        public WorkflowResult(ThymeleafProjectOperation operation, String previewHash) {
+            this(operation, previewHash, null);
+        }
+    }
 
     /** 비어 있거나 {@code null}이면 재검증은 브라우저 Gate를 아예 실행하지 않는다. */
     public record RevalidateBrowserOptions(List<BrowserScreenValidationRequest> screens) {

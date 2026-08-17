@@ -1,5 +1,7 @@
 package com.krdevops.springai.model.thymeleaf;
 
+import com.krdevops.springai.model.contract.ThymeleafGenerationReport;
+
 import java.util.Map;
 
 /**
@@ -21,7 +23,8 @@ public record ThymeleafOperationSnapshot(
         String designRevision,
         String previewHash,
         LegacySourceManifest legacySourceManifest,
-        ThymeleafBindingContract bindingContract) {
+        ThymeleafBindingContract bindingContract,
+        ThymeleafGenerationReport generationReport) {
 
     public ThymeleafOperationSnapshot {
         sourceHashes = sourceHashes == null ? Map.of() : Map.copyOf(sourceHashes);
@@ -34,7 +37,16 @@ public record ThymeleafOperationSnapshot(
             int revision, ThymeleafProjectOperation operation, String projectRoot,
             Map<String, String> sourceHashes, String designRevision, String previewHash) {
         this(revision, operation, projectRoot, sourceHashes, designRevision, previewHash,
-                LegacySourceManifest.empty(), null);
+                LegacySourceManifest.empty(), null, null);
+    }
+
+    /** R6-061 보고서 도입 전 8-필드 snapshot 호출자 호환. */
+    public ThymeleafOperationSnapshot(
+            int revision, ThymeleafProjectOperation operation, String projectRoot,
+            Map<String, String> sourceHashes, String designRevision, String previewHash,
+            LegacySourceManifest legacySourceManifest, ThymeleafBindingContract bindingContract) {
+        this(revision, operation, projectRoot, sourceHashes, designRevision, previewHash,
+                legacySourceManifest, bindingContract, null);
     }
 
     public String operationId() {
