@@ -93,4 +93,35 @@ class FigmaPropertyDriftValidatorTest {
 
         assertThat(issues).extracting(DesignSystemIssue::code).doesNotContain("COMPONENT_VARIANT_NAME_DRIFT");
     }
+
+    /**
+     * R4-020: Registry에 등록된 componentSetKey가 실제 Figma Library Inventory Snapshot에
+     * 존재하지 않으면(원격 import 결과 actual=null) FATAL로 차단해야 한다.
+     */
+    @Test
+    void componentSetKeyAbsentFromRemoteInventoryIsFlaggedAsDrift() {
+        ComponentRegistryEntry contract = contract(Set.of(), Map.of());
+
+        List<DesignSystemIssue> issues = validator.validate("krds.button", contract, null);
+
+        assertThat(issues).singleElement().satisfies(issue -> {
+            assertThat(issue.code()).isEqualTo("COMPONENT_PROPERTY_DRIFT");
+            assertThat(issue.severity()).isEqualTo(DesignSystemIssue.Severity.FATAL);
+        });
+    }
+
+    /** Registry Key가 실제 Figma Library의 다른 Component Set Key로 바뀌어 있으면 FATAL로 차단한다. */
+    @Test
+    void componentSetKeyMismatchWithRemoteInventoryIsFlaggedAsDrift() {
+        ComponentRegistryEntry contract = contract(Set.of(), Map.of());
+        FigmaPropertyDriftValidator.LibraryComponentSnapshot actual =
+                new FigmaPropertyDriftValidator.LibraryComponentSnapshot("DIFFERENT_SET_KEY", Map.of(), Map.of());
+
+        List<DesignSystemIssue> issues = validator.validate("krds.button", contract, actual);
+
+        assertThat(issues).singleElement().satisfies(issue -> {
+            assertThat(issue.code()).isEqualTo("COMPONENT_PROPERTY_DRIFT");
+            assertThat(issue.severity()).isEqualTo(DesignSystemIssue.Severity.FATAL);
+        });
+    }
 }

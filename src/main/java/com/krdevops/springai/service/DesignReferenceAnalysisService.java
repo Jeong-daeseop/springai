@@ -267,6 +267,16 @@ public class DesignReferenceAnalysisService {
     }
 
     private UiDesignSpec analyzeWithTimeout(VisionAnalysisRequest request) {
+        // R6-045/R6-T09: 실제 API 호출(과 그에 따른 과금·rate limit 소모) 전에 모델이 이미지
+        // 입력을 지원하는지 사전 점검한다. 미지원 모델은 provider별로 제각각인 런타임 예외
+        // 대신 명확한 코드로 즉시 실패한다.
+        if (!visionAnalysisClient.supportsVision()) {
+            throw new IllegalStateException("VISION_MODEL_NOT_SUPPORTED: "
+                    + visionAnalysisClient.providerId() + "/" + visionAnalysisClient.modelId()
+                    + "은(는) 이미지 분석을 지원하지 않는 모델입니다. "
+                    + "app.design-vision.openai-model 또는 app.design-vision.ollama-model 설정을 "
+                    + "Vision 지원 모델로 변경하세요.");
+        }
         // 생성형 POST는 중복 실행 부작용이 있어 자동 retry하지 않는다. retry는 Figma GET에만 적용한다.
         try {
             return CompletableFuture.supplyAsync(() -> analyzeVisionOnce(request), visionExecutor)

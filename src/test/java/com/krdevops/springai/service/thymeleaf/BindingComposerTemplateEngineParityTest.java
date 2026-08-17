@@ -58,6 +58,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 class BindingComposerTemplateEngineParityTest {
 
     private static final Path BASELINE = Path.of("src/test/resources/generation/baseline/crud-jsp");
+    private static final Path BOARD_BASELINE = Path.of("src/test/resources/generation/baseline/board-jsp");
 
     private final JspSourceReader jspReader = new JspSourceReader();
     private final ControllerSourceReader controllerReader = new ControllerSourceReader();
@@ -170,6 +171,126 @@ class BindingComposerTemplateEngineParityTest {
         String rendered = templateEngine.process(contentFragment, context);
 
         assertThat(rendered).contains("bbs-1").contains("bbs-2").contains("Y").contains("N");
+    }
+
+    /**
+     * R6-T17: DETAIL 화면은 GET route를 쓰지만 기존 parity 테스트는 실제 렌더 결과에서
+     * {@code method="get"}을 검증한 적이 없었다(POST만 확인). GET 화면에 method 속성이
+     * "post"로 잘못 나오면 이 테스트가 잡아낸다.
+     */
+    @Test
+    void detailHtml_rendersGetMethodAttributeThroughRealTemplateEngine() {
+        ThymeleafRouteBinding route = new ThymeleafRouteBinding(
+                "/bbsMaster/bbsMasterDetail.do", "GET", "selectBbsMaster", null, null, false, false, List.of());
+        ThymeleafFieldBinding bbsIdField = new ThymeleafFieldBinding(
+                "bbsId", "String", true, false, List.of(), null, "VO_ONLY", 0.6);
+        ThymeleafBindingContract contract = new ThymeleafBindingContract(
+                "bbs-master-detail-method", LegacyScreenRole.DETAIL, route, List.of(bbsIdField),
+                List.of("bbsId"), "result", List.of("bbsId"), null,
+                List.of(), List.of(), BindingContractStatus.RESOLVED, List.of(), null, Instant.now());
+
+        ThymeleafGenerationStageResult<String> composed = composer.compose(contract, "BBSMASTER 상세", "layout/default");
+        assertThat(composed.successful()).as("issues: %s", composed.issues()).isTrue();
+        String contentFragment = extractContentFragment(composed.value());
+
+        WebContext context = springAwareContext(Map.of());
+        context.setVariable("result", new BbsMasterRow("BBSMASTER-1"));
+
+        String rendered = templateEngine.process(contentFragment, context);
+
+        assertThat(rendered).contains("href=\"/bbsMaster/bbsMasterDetail.do\"");
+        assertThat(rendered).doesNotContain("method=\"post\"");
+    }
+
+    /**
+     * R6-T17: 지금까지 parity 테스트는 crud-jsp/master-detail-jsp fixture만 써서 board fixture
+     * 특유의 상속 SearchVO·searchVO model attribute 조합이 실제 Thymeleaf 엔진에서도 렌더되는지
+     * 검증한 적이 없었다.
+     */
+    @Test
+    void boardListHtml_rendersThEachRowsAndGetSearchFormThroughRealTemplateEngine() throws IOException {
+        ThymeleafBindingContract contract = assembleBoardFixture(
+                "EgovBbsList.jsp", "EgovBbsController.java", "BbsVO.java", "BbsSearchVO.java", LegacyScreenRole.LIST);
+        assertThat(contract.route().httpMethod()).isEqualTo("GET");
+
+        ThymeleafGenerationStageResult<String> composed = composer.compose(contract, "게시판 목록", "layout/default");
+        assertThat(composed.successful()).as("issues: %s", composed.issues()).isTrue();
+        String contentFragment = extractContentFragment(composed.value());
+
+        List<BbsRow> rows = List.of(new BbsRow("bbs-1"), new BbsRow("bbs-2"));
+        WebContext context = springAwareContext(Map.of());
+        context.setVariable("resultList", rows);
+        context.setVariable("message", null);
+        context.setVariable("param", Map.of("searchKeyword", ""));
+
+        String rendered = templateEngine.process(contentFragment, context);
+
+        assertThat(rendered).isNotBlank();
+        assertThat(rendered).doesNotContain("method=\"post\"");
+        long rowCount = rendered.lines().filter(line -> line.contains("bbs-1") || line.contains("bbs-2")).count();
+        assertThat(rowCount).isGreaterThanOrEqualTo(2);
+        assertThat(rendered).contains("action=\"/bbs/bbsList.do\"");
+    }
+
+    private ThymeleafBindingContract assembleBoardFixture(
+            String jspFile, String controllerFile, String voFile, String superVoFile, LegacyScreenRole role)
+            throws IOException {
+        var jspEvidence = jspReader.read(jspFile, Files.readString(BOARD_BASELINE.resolve(jspFile)));
+        var controllerEvidence = controllerReader.read(
+                controllerFile, Files.readString(BOARD_BASELINE.resolve(controllerFile)));
+        var voEvidence = voReader.read(
+                voFile, Files.readString(BOARD_BASELINE.resolve(voFile)),
+                Files.readString(BOARD_BASELINE.resolve(superVoFile)));
+        LegacyScreenAnalysis analysis = new LegacyScreenAnalysis(
+                "bbs-" + role.name().toLowerCase(Locale.ROOT), role,
+                jspEvidence, controllerEvidence, voEvidence,
+                new SourceRevisionRef("bbs-project", "rev-1", Instant.now()), List.of(), Instant.now());
+        ThymeleafGenerationStageResult<ThymeleafBindingContract> result = assembler.assemble(analysis);
+        assertThat(result.successful()).as("issues: %s", result.issues()).isTrue();
+        return result.value();
+    }
+
+    /** {@code EgovBbsList.jsp} fixture의 displayFieldNames와 동일한 필드를 가진 게시판 목록 row. */
+    public static class BbsRow {
+        private final String noticeAt;
+        private final String nttId;
+        private final String nttSj;
+        private final String ntcrNm;
+        private final String frstRegistPnttm;
+        private final String bbsId;
+
+        BbsRow(String value) {
+            this.noticeAt = value;
+            this.nttId = value;
+            this.nttSj = value;
+            this.ntcrNm = value;
+            this.frstRegistPnttm = value;
+            this.bbsId = value;
+        }
+
+        public String getNoticeAt() {
+            return noticeAt;
+        }
+
+        public String getNttId() {
+            return nttId;
+        }
+
+        public String getNttSj() {
+            return nttSj;
+        }
+
+        public String getNtcrNm() {
+            return ntcrNm;
+        }
+
+        public String getFrstRegistPnttm() {
+            return frstRegistPnttm;
+        }
+
+        public String getBbsId() {
+            return bbsId;
+        }
     }
 
     /** 옛 {@code LegacyThymeleafRenderer}가 만들던 layout:decorate 래핑을 제거하고 content fragment만 남긴다. */

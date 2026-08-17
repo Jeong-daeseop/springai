@@ -84,6 +84,58 @@ class ComponentRegistrySyncServiceTest {
                 event.eventType() == FigmaReviewEvent.EventType.REGISTRY_SYNC));
     }
 
+    /**
+     * R4-020: Registry 승인 전에 실제 Figma Library Inventory Snapshot(Plugin이 원격에서 가져와
+     * 저장한 것)이 없으면 Key 존재 여부를 확인할 수 없으므로 반려한다.
+     */
+    @Test
+    void registryWithoutRemoteInventorySnapshotIsRejectedBeforeApply() {
+        FigmaLibraryInventoryRepository inventories = mock(FigmaLibraryInventoryRepository.class);
+        FigmaReviewHistoryRepository reviews = mock(FigmaReviewHistoryRepository.class);
+        ComponentRegistrySyncService serviceWithInventory = new ComponentRegistrySyncService(
+                registryRepository, profileRepository, new ComponentRegistryValidator(), inventories,
+                new FigmaPropertyDriftValidator(), reviews);
+        ComponentRegistry candidate = registry("registry-1", "BUTTON_SET_KEY", "VARIABLE_KEY");
+        when(profileRepository.findVersion("ftc-krds", "1.0.0")).thenReturn(Optional.of(approvedProfile()));
+        when(registryRepository.findLatest("ftc-krds")).thenReturn(Optional.empty());
+        when(inventories.findLatest("ftc-krds", "registry-1")).thenReturn(Optional.empty());
+
+        ComponentRegistrySyncResult result = serviceWithInventory.apply(candidate, true);
+
+        assertThat(result.status()).isEqualTo(ComponentRegistrySyncResult.Status.REJECTED);
+        assertThat(result.diff().issues()).extracting(issue -> issue.code())
+                .contains("FIGMA_INVENTORY_SNAPSHOT_MISSING");
+        verify(registryRepository, never()).saveImmutable(candidate);
+    }
+
+    /**
+     * R4-020: Registry에 등록된 componentSetKey가 실제 Figma에서 원격으로 가져온 Inventory
+     * Snapshot의 Key와 다르면(원격에 없거나 바뀐 Key) COMPONENT_PROPERTY_DRIFT로 차단한다.
+     */
+    @Test
+    void registryKeyNotMatchingRemoteInventoryIsRejected() {
+        FigmaLibraryInventoryRepository inventories = mock(FigmaLibraryInventoryRepository.class);
+        FigmaReviewHistoryRepository reviews = mock(FigmaReviewHistoryRepository.class);
+        ComponentRegistrySyncService serviceWithInventory = new ComponentRegistrySyncService(
+                registryRepository, profileRepository, new ComponentRegistryValidator(), inventories,
+                new FigmaPropertyDriftValidator(), reviews);
+        ComponentRegistry candidate = registry("registry-1", "BUTTON_SET_KEY", "VARIABLE_KEY");
+        when(profileRepository.findVersion("ftc-krds", "1.0.0")).thenReturn(Optional.of(approvedProfile()));
+        when(registryRepository.findLatest("ftc-krds")).thenReturn(Optional.empty());
+        FigmaLibraryInventorySnapshot snapshotWithDifferentKey = new FigmaLibraryInventorySnapshot(
+                candidate.profileId(), candidate.registryVersion(), "inventory-1", Instant.now(),
+                Map.of("krds.button", new LibraryComponentSnapshot(
+                        "KEY_NOT_IN_REGISTRY", Map.of(), Map.of())));
+        when(inventories.findLatest("ftc-krds", "registry-1")).thenReturn(Optional.of(snapshotWithDifferentKey));
+
+        ComponentRegistrySyncResult result = serviceWithInventory.apply(candidate, true);
+
+        assertThat(result.status()).isEqualTo(ComponentRegistrySyncResult.Status.REJECTED);
+        assertThat(result.diff().issues()).extracting(issue -> issue.code())
+                .contains("COMPONENT_PROPERTY_DRIFT");
+        verify(registryRepository, never()).saveImmutable(candidate);
+    }
+
     @Test
     void changedPublishedComponentKeyIsReportedAsBreakingAndRejected() {
         ComponentRegistry previous = registry("registry-1", "OLD_BUTTON_KEY", "VARIABLE_KEY");

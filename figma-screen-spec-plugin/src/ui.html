@@ -16,6 +16,23 @@ button{padding:9px}.section{margin-top:14px;padding-top:12px;border-top:1px soli
 <input id="file" type="file" accept=".json,application/json">
 
 <div class="section">
+  <strong>멀티 스크린 일괄 Apply</strong>
+  <div class="hint">여러 화면의 Bundle(.json)을 한 번에 선택하세요. 전체 검증을 통과해야 Apply를 시작하며, 화면 하나가 실패하면 이 배치에서 이미 적용된 화면도 모두 되돌립니다.</div>
+  <input id="multiFile" type="file" accept=".json,application/json" multiple>
+  <div id="multiPreview" class="section" style="display:none">
+    <div id="multiScreens"></div>
+    <select id="multiMode">
+      <option value="MERGE">MERGE — 기존 노드 재사용</option>
+      <option value="REPLACE">REPLACE — 기존 화면 Archive 후 재생성</option>
+    </select>
+    <button id="applyMulti" disabled>일괄 Apply</button>
+  </div>
+  <div id="multiResult" class="section" style="display:none">
+    <pre id="multiResultSummary"></pre>
+  </div>
+</div>
+
+<div class="section">
   <strong>선택 기능: Spring 서버에서 직접 조회</strong>
   <div class="hint">DEC-10 기본값은 위 파일 입력입니다. REST는 manifest 허용 도메인·CORS·단기 토큰이 설정된 환경에서만 사용하세요.</div>
   <input id="baseUrl" type="text" placeholder="서버 주소 (예: http://localhost:8080)" value="http://localhost:8080">
@@ -30,6 +47,7 @@ button{padding:9px}.section{margin-top:14px;padding-top:12px;border-top:1px soli
 
 <div id="preview" class="section" style="display:none">
   <strong>변경 Preview</strong>
+  <div id="operationInfo" class="hint" style="display:none"></div>
   <div id="changes"></div>
   <div id="issues"></div>
   <select id="mode">
@@ -93,6 +111,14 @@ const close = document.getElementById('close');
 const result = document.getElementById('result');
 const reportSummary = document.getElementById('reportSummary');
 const downloadReport = document.getElementById('downloadReport');
+const operationInfo = document.getElementById('operationInfo');
+const multiFile = document.getElementById('multiFile');
+const multiPreview = document.getElementById('multiPreview');
+const multiScreens = document.getElementById('multiScreens');
+const multiMode = document.getElementById('multiMode');
+const applyMulti = document.getElementById('applyMulti');
+const multiResult = document.getElementById('multiResult');
+const multiResultSummary = document.getElementById('multiResultSummary');
 const previewMigration = document.getElementById('previewMigration');
 const exportRegistryV3 = document.getElementById('exportRegistryV3');
 const migration = document.getElementById('migration');
@@ -118,12 +144,30 @@ file.onchange = async () => {
   result.style.display = 'none';
   try {
     const bundle = JSON.parse(await selected.text());
-    parent.postMessage({ pluginMessage: { type: 'LOAD_BUNDLE', bundle } }, '*');
+    parent.postMessage({ pluginMessage: { type: 'LOAD_BUNDLE', bundle, target: refinementTarget() } }, '*');
   } catch (error) {
     status.innerHTML = `<span class="fatal">JSON 파싱 실패: ${error.message || error}</span>`;
   }
 };
 
+multiFile.onchange = async () => {
+  const selected = [...multiFile.files];
+  if (selected.length === 0) return;
+  multiPreview.style.display = 'none';
+  multiResult.style.display = 'none';
+  status.textContent = `멀티 스크린 Bundle ${selected.length}개 검증 및 Preview 계산 중…`;
+  try {
+    const bundles = await Promise.all(selected.map(async item => JSON.parse(await item.text())));
+    parent.postMessage({ pluginMessage: { type: 'LOAD_MULTI_BUNDLE', bundles, target: refinementTarget() } }, '*');
+  } catch (error) {
+    status.innerHTML = `<span class="fatal">JSON 파싱 실패: ${error.message || error}</span>`;
+  }
+};
+applyMulti.onclick = () => {
+  applyMulti.disabled = true;
+  status.textContent = `멀티 스크린 ${multiMode.value} 일괄 적용 중…`;
+  parent.postMessage({ pluginMessage: { type: 'APPLY_MULTI', mode: multiMode.value } }, '*');
+};
 fetchBundle.onclick = () => {
   if (!screenIdInput.value.trim()) {
     status.innerHTML = '<span class="fatal">screenId를 입력하세요.</span>';
@@ -304,6 +348,14 @@ onmessage = ({data}) => {
   }
   if (message.type === 'PREVIEW_READY') {
     status.textContent = message.summary;
+    if (message.operation) {
+      operationInfo.style.display = 'block';
+      operationInfo.textContent = `Operation ${message.operation.operationId} · ${message.operation.requestType || '-'} · ${message.operation.status || '-'}`
+        + (message.operation.sourceRevision ? ` · sourceRevision=${message.operation.sourceRevision.revisionToken}` : '');
+    } else {
+      operationInfo.style.display = 'none';
+      operationInfo.textContent = '';
+    }
     renderChanges(message.changes);
     renderIssues(message.issues);
     preview.style.display = 'block';
@@ -312,6 +364,34 @@ onmessage = ({data}) => {
     previewMigration.textContent = message.contractMode === 'V1_MIGRATION_PREVIEW'
       ? '선택한 기존 Frame Migration Preview (v1 전용)'
       : '선택한 기존 Frame Migration Preview';
+    return;
+  }
+  if (message.type === 'MULTI_PREVIEW_READY') {
+    status.textContent = message.summary;
+    multiScreens.replaceChildren();
+    for (const screen of message.screens) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const fatalCount = screen.issues.filter(issue => issue.severity === 'FATAL' || issue.severity === 'ERROR').length;
+      row.textContent = `${screen.screenId} v${screen.screenVersion}` + (fatalCount ? ` — 오류 ${fatalCount}건` : ' — OK');
+      row.className += fatalCount ? ' fatal' : ' ok';
+      multiScreens.append(row);
+    }
+    multiPreview.style.display = 'block';
+    applyMulti.disabled = !message.canApply;
+    return;
+  }
+  if (message.type === 'APPLY_MULTI_RESULT') {
+    applyMulti.disabled = false;
+    multiResult.style.display = 'block';
+    if (message.failedScreenId) {
+      status.innerHTML = '<span class="fatal">멀티 스크린 적용이 실패해 이미 적용된 화면을 모두 되돌렸습니다.</span>';
+      multiResultSummary.textContent =
+        `실패 화면: ${message.failedScreenId}\n되돌린 화면: ${message.rolledBackScreenIds.join(', ') || '(없음)'}`;
+    } else {
+      status.innerHTML = '<span class="ok">멀티 스크린 일괄 적용이 완료되었습니다.</span>';
+      multiResultSummary.textContent = `적용된 화면: ${message.committedScreenIds.join(', ')}`;
+    }
     return;
   }
   if (message.type === 'APPLY_RESULT') {

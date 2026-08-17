@@ -6,6 +6,7 @@ import com.krdevops.springai.model.designsystem.DesignSystemSpec;
 import com.krdevops.springai.model.figma.FigmaExportIssue;
 import com.krdevops.springai.model.figma.FigmaExportResult;
 import com.krdevops.springai.model.figma.FigmaScreenExportRequest;
+import com.krdevops.springai.service.FigmaApiClient;
 import com.krdevops.springai.service.designsystem.DesignSystemQueryService;
 import org.springframework.stereotype.Service;
 
@@ -17,15 +18,24 @@ public class FigmaMcpFacadeService {
 
     private final FigmaScreenExportService exportService;
     private final DesignSystemQueryService designSystemQueryService;
+    private final FigmaApiClient figmaApiClient;
+    private final FigmaStyleExtractor styleExtractor;
+    private final StyleTokenDiffService styleTokenDiffService;
     private final ObjectMapper objectMapper;
 
     public FigmaMcpFacadeService(
             FigmaScreenExportService exportService,
             DesignSystemQueryService designSystemQueryService,
+            FigmaApiClient figmaApiClient,
+            FigmaStyleExtractor styleExtractor,
+            StyleTokenDiffService styleTokenDiffService,
             ObjectMapper objectMapper
     ) {
         this.exportService = exportService;
         this.designSystemQueryService = designSystemQueryService;
+        this.figmaApiClient = figmaApiClient;
+        this.styleExtractor = styleExtractor;
+        this.styleTokenDiffService = styleTokenDiffService;
         this.objectMapper = objectMapper.copy().findAndRegisterModules();
     }
 
@@ -48,6 +58,18 @@ public class FigmaMcpFacadeService {
                 issue.severity() == DesignSystemIssue.Severity.FATAL
                         || issue.severity() == DesignSystemIssue.Severity.ERROR);
         return toJson(new DesignSystemValidationSummary(spec.id(), spec.version(), valid, issues));
+    }
+
+    /**
+     * R5-045: 참조 fileKey의 Figma Styles에서 뽑은 Token 후보와 profileId의 운영 Profile Token
+     * 차이를 반환한다. 조회 전용이며 Profile·Figma Library 어느 쪽도 쓰지 않는다.
+     */
+    public String previewStyleTokenDiff(String fileKey, String profileId) {
+        var stylesResponse = figmaApiClient.queryStyles(fileKey);
+        var candidates = styleExtractor.extractTokens(stylesResponse);
+        var profile = designSystemQueryService.findLatestProfile(profileId);
+        StyleTokenDiffService.StyleTokenDiffResult diff = styleTokenDiffService.diff(candidates, profile);
+        return toJson(diff);
     }
 
     public String auditRegistry(String profileId, String registryVersion) {

@@ -160,6 +160,10 @@
   "path" : "/api/figma/operations/{operationId}/applied-report"
 }, {
   "controller" : "FigmaOperationsController",
+  "method" : "POST",
+  "path" : "/api/figma/operations/{operationId}/apply-requested"
+}, {
+  "controller" : "FigmaOperationsController",
   "method" : "GET",
   "path" : "/api/figma/operations/{operationId}/info"
 }, {

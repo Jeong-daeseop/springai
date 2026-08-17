@@ -67,4 +67,14 @@ public record FigmaExportBundle(
     ) {
         this(figmaScreenSpec, designSystemProfile, componentRegistry, null, null, null, metadata);
     }
+
+    /**
+     * R5-040: 7가지 요청 오케스트레이션이 Bundle을 Operation의 Artifact로 저장하기 직전,
+     * Plugin이 Preview에서 읽을 수 있도록 metadata에 operationId를 새겨 넣는다.
+     */
+    public FigmaExportBundle withOperationId(String operationId) {
+        return new FigmaExportBundle(
+                figmaScreenSpec, designSystemProfile, componentRegistry, resolvedComponentRegistry,
+                screenPattern, variantRuleSet, metadata.withOperationId(operationId));
+    }
 }

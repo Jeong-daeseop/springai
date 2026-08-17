@@ -8,9 +8,11 @@ import {
   sectionVisualRegression,
   contrastRatio,
   meetsWcagAaContrast,
+  applyComponentSwaps,
   isUserOverridden,
   mappedProperties,
   planFallback,
+  planMultiScreenApply,
   previewLegacyMigration,
   reconcile,
   runAtomicApply,
@@ -688,4 +690,80 @@ test("ambiguous legacy migration remains manual review and cannot apply", () => 
     preview.issues.some(issue => issue.code === "MIGRATION_MAPPING_INCOMPLETE"),
     true
   );
+});
+
+// R5-T09: 멀티 스크린 Apply는 전체 Preview 성공 확인 후에만 시작한다(하나라도 실패하면 어떤
+// 화면도 건드리지 않는다). 실제 캔버스 mutation(applyMultiScreenBundles)은 Figma Desktop
+// 런타임이 필요해 여기서는 그 진입 조건을 결정하는 순수 함수만 검증한다.
+test("R5-043/T09: planMultiScreenApply approves only when every screen is APPROVED with no FATAL/ERROR issues", () => {
+  const plan = planMultiScreenApply([
+    { screenId: "user-list", issues: [], status: "APPROVED" },
+    { screenId: "user-detail", issues: [{ code: "X", severity: "WARNING", message: "경고" }], status: "APPROVED" },
+  ]);
+  assert.equal(plan.canApply, true);
+});
+
+test("R5-043/T09: planMultiScreenApply blocks the whole batch when one screen has a FATAL issue", () => {
+  const plan = planMultiScreenApply([
+    { screenId: "user-list", issues: [], status: "APPROVED" },
+    { screenId: "user-detail", issues: [{ code: "X", severity: "FATAL", message: "치명적 오류" }], status: "APPROVED" },
+  ]);
+  assert.equal(plan.canApply, false);
+  assert.equal(plan.blockingScreenId, "user-detail");
+});
+
+test("R5-043/T09: planMultiScreenApply blocks the whole batch when one screen is not APPROVED", () => {
+  const plan = planMultiScreenApply([
+    { screenId: "user-list", issues: [], status: "APPROVED" },
+    { screenId: "user-detail", issues: [], status: "REVIEW_REQUIRED" },
+  ]);
+  assert.equal(plan.canApply, false);
+  assert.equal(plan.blockingScreenId, "user-detail");
+});
+
+test("R5-043/T09: planMultiScreenApply rejects an empty screen list without touching anything", () => {
+  const plan = planMultiScreenApply([]);
+  assert.equal(plan.canApply, false);
+  assert.equal(plan.blockingScreenId, undefined);
+});
+
+// R5-044: FigmaPlatformConversionService.convert()가 계산한 Component Swap 결정을 노드 트리에
+// 실제로 반영하는 순수 함수. Java 쪽 결과 shape({requestedLogicalType, resolvedLogicalType, swapped})을 그대로 받는다.
+test("R5-044: applyComponentSwaps rewrites logicalType and componentSetKey when a swap rule matches", () => {
+  const bundle = validBundle();
+  const registry = bundle.componentRegistry.registry;
+  registry.components["krds.card-list"] = { ...registryEntry, componentSetKey: "CARD_LIST_SET_KEY" };
+
+  const swapped = applyComponentSwaps(bundle.figmaScreenSpec.content, registry, [
+    { requestedLogicalType: "krds.button", resolvedLogicalType: "krds.card-list", swapped: true },
+  ]);
+
+  const swappedChild = swapped.children[0];
+  assert.equal(swappedChild.componentResolution.logicalType, "krds.card-list");
+  assert.equal(swappedChild.componentResolution.componentSetKey, "CARD_LIST_SET_KEY");
+  assert.equal(swappedChild.componentResolution.variantKey, "");
+});
+
+test("R5-044: applyComponentSwaps leaves the tree untouched when no decision is marked swapped", () => {
+  const bundle = validBundle();
+  const registry = bundle.componentRegistry.registry;
+
+  const result = applyComponentSwaps(bundle.figmaScreenSpec.content, registry, [
+    { requestedLogicalType: "krds.button", resolvedLogicalType: "krds.card-list", swapped: false },
+  ]);
+
+  assert.equal(result.children[0].componentResolution.logicalType, "krds.button");
+  assert.equal(result.children[0].componentResolution.componentSetKey, "BUTTON_SET_KEY");
+});
+
+test("R5-044: applyComponentSwaps keeps the original component when the swap target is missing from the registry", () => {
+  const bundle = validBundle();
+  const registry = bundle.componentRegistry.registry;
+
+  const result = applyComponentSwaps(bundle.figmaScreenSpec.content, registry, [
+    { requestedLogicalType: "krds.button", resolvedLogicalType: "krds.not-published-yet", swapped: true },
+  ]);
+
+  assert.equal(result.children[0].componentResolution.logicalType, "krds.button");
+  assert.equal(result.children[0].componentResolution.componentSetKey, "BUTTON_SET_KEY");
 });

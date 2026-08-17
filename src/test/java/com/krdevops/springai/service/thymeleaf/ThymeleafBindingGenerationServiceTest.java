@@ -98,6 +98,47 @@ class ThymeleafBindingGenerationServiceTest {
                 .isEqualTo(result.bindingContract().sourceRevision().revisionToken());
     }
 
+    /**
+     * R6-T20: BINDING_CONTRACT 단계에서 FATAL(FORM_FIELD_WITHOUT_VO_FIELD)이 나면 파이프라인이
+     * 거기서 멈추고 BINDING_COMPOSE/PREVIEW_READY로 넘어가지 않아야 한다 — 이후 단계가 실행됐다는
+     * 증거(Artifact·Workflow Operation)가 하나도 남지 않아야 진짜 컷오프다.
+     */
+    @Test
+    void fatalContractIssueStopsPipelineBeforeComposeStageAndLeavesNoLaterArtifacts() throws Exception {
+        Path legacy = projectRoot.resolve("legacy");
+        Files.copy(FIXTURE.resolve("EgovEmployerRegist.jsp"), legacy.resolve("EgovEmployerRegist.jsp"));
+        // ofcpsNm 필드를 뺀 VO — EgovEmployerRegist.jsp의 form:input path="ofcpsNm"이 바인딩할 곳이 없어진다.
+        Files.writeString(legacy.resolve("EmployerVOBroken.java"), """
+                package egovframework.let.emp.vo;
+                public class EmployerVOBroken {
+                    private String emplyrId;
+                    private String emplyrNm;
+                    private String emailAdres;
+                    public String getEmplyrId() { return emplyrId; }
+                    public void setEmplyrId(String emplyrId) { this.emplyrId = emplyrId; }
+                    public String getEmplyrNm() { return emplyrNm; }
+                    public void setEmplyrNm(String emplyrNm) { this.emplyrNm = emplyrNm; }
+                    public String getEmailAdres() { return emailAdres; }
+                    public void setEmailAdres(String emailAdres) { this.emailAdres = emailAdres; }
+                }
+                """);
+        ThymeleafBindingPreviewRequest request = new ThymeleafBindingPreviewRequest(
+                projectRoot.toString(), "employer-regist-broken", LegacyScreenRole.FORM,
+                "legacy/EgovEmployerRegist.jsp", "legacy/EgovEmployerController.java", "legacy/EmployerVOBroken.java",
+                null, null, "src/main/resources/templates/employer/EgovEmployerRegist.html",
+                "직원 등록", "layout/default", null, "/emp/employerList.do");
+
+        ThymeleafBindingGenerationService.BindingPreviewResult result = service.preview(request);
+
+        assertThat(result.successful()).isFalse();
+        assertThat(result.completedStage()).isEqualTo("BINDING_CONTRACT");
+        assertThat(result.issues()).anyMatch(issue -> issue.code().equals("FORM_FIELD_WITHOUT_VO_FIELD"));
+        // 컷오프 증거: 이후 단계(Compose/Workflow Preview)가 만드는 산출물이 전혀 없다.
+        assertThat(result.workflow()).isNull();
+        assertThat(artifactCatalog.ofType("THYMELEAF_PREVIEW")).isEmpty();
+        assertThat(artifactCatalog.ofType("THYMELEAF_BINDING_CONTRACT")).isEmpty();
+    }
+
     @Test
     void changedLegacySourceAfterApprovalProducesConflictWithoutWritingGeneratedFile() throws Exception {
         var preview = service.preview(validRequest());

@@ -130,11 +130,13 @@ public class GeneratedProjectBuildValidator {
 
     private BuildCommand detect(Path root) {
         if (Files.isRegularFile(root.resolve("pom.xml"))) {
-            return new BuildCommand("maven", List.of("mvn", "-o", "-DskipTests", "compile"));
+            return new BuildCommand("maven", List.of(
+                    properties.getValidation().getMavenCommand(), "-o", "-DskipTests", "compile"));
         }
         if (Files.isRegularFile(root.resolve("build.gradle"))
                 || Files.isRegularFile(root.resolve("build.gradle.kts"))) {
-            return new BuildCommand("gradle", List.of("gradle", "--offline", "compileJava"));
+            return new BuildCommand("gradle", List.of(
+                    properties.getValidation().getGradleCommand(), "--offline", "compileJava"));
         }
         return null;
     }

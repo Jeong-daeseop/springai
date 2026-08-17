@@ -23,6 +23,9 @@ class FigmaMcpFacadeServiceTest {
         FigmaMcpFacadeService service = new FigmaMcpFacadeService(
                 mock(FigmaScreenExportService.class),
                 queryService,
+                mock(com.krdevops.springai.service.FigmaApiClient.class),
+                new FigmaStyleExtractor(),
+                new StyleTokenDiffService(),
                 new ObjectMapper());
 
         String json = service.auditRegistry("ftc-krds", "registry-1");
@@ -43,6 +46,9 @@ class FigmaMcpFacadeServiceTest {
         FigmaMcpFacadeService service = new FigmaMcpFacadeService(
                 mock(FigmaScreenExportService.class),
                 queryService,
+                mock(com.krdevops.springai.service.FigmaApiClient.class),
+                new FigmaStyleExtractor(),
+                new StyleTokenDiffService(),
                 new ObjectMapper());
 
         String json = service.preflightRegistry(

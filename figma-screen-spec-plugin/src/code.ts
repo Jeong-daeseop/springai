@@ -3,6 +3,7 @@ import {
   flattenSpec,
   generationStatus,
   isUserOverridden,
+  planMultiScreenApply,
   previewLegacyMigration,
   reconcile,
   registryFor,
@@ -26,6 +27,7 @@ import type {
   GenerationReportRefinementSummary,
   LegacyFrameNode,
   MigrationPreview,
+  OperationInfo,
   ReconciliationChange,
   RegistryEntry,
   QualityGateResult,
@@ -77,9 +79,11 @@ type ApplyBackup = {
 type ApplyStaging = { container: FrameNode; root?: FrameNode };
 type RefinementTarget = { baseUrl: string; apiKey?: string; token?: string };
 type Message =
-  | { type: "LOAD_BUNDLE"; bundle: unknown }
+  | { type: "LOAD_BUNDLE"; bundle: unknown; target?: RefinementTarget }
   | { type: "FETCH_BUNDLE"; baseUrl: string; screenId: string; version?: number; apiKey?: string; token?: string }
   | { type: "APPLY"; mode: Exclude<SyncMode, "PREVIEW"> }
+  | { type: "LOAD_MULTI_BUNDLE"; bundles: unknown[]; target?: RefinementTarget }
+  | { type: "APPLY_MULTI"; mode: Exclude<SyncMode, "PREVIEW"> }
   | { type: "EXPORT_REGISTRY_V3" }
   | { type: "PREVIEW_MIGRATION" }
   | { type: "APPLY_MIGRATION" }
@@ -92,8 +96,14 @@ type Message =
   | { type: "CLOSE" };
 
 let pending: Pending | undefined;
+/** R5-043: 멀티 스크린 Operation의 화면별 Bundle. 단일 pending과 별도로 유지된다. */
+let pendingMultiScreen: Pending[] | undefined;
 let pendingMigration: { rootId: string; preview: MigrationPreview } | undefined;
 let reportTarget: { baseUrl: string; apiKey?: string; token?: string } | undefined;
+/** R5-040/041: Operation info 조회·apply-requested·applied-report 호출에 쓰는 서버 연결 정보.
+ *  reportTarget(기존 GenerationReport 업로드)과 달리 LOAD_BUNDLE(파일 업로드) 경로에서도 채워진다 —
+ *  UI가 baseUrl/token 입력을 항상 노출하므로 Bundle을 어떻게 불러왔든 Operation 조회는 시도할 수 있다. */
+let operationTarget: { baseUrl: string; apiKey?: string; token?: string } | undefined;
 let refinementTargets: SceneNode[] | undefined;
 let refinementBaseline: RefinementSnapshotEntry[] | undefined;
 let refinementCandidate: RefinementPatchSet | undefined;
@@ -108,12 +118,14 @@ figma.ui.onmessage = async (message: Message) => {
     }
     if (message.type === "LOAD_BUNDLE") {
       reportTarget = undefined;
+      operationTarget = message.target && message.target.baseUrl ? message.target : undefined;
       await loadBundleAndPreview(message.bundle);
       return;
     }
     if (message.type === "FETCH_BUNDLE") {
       const bundle = await fetchBundleWithRetry(message);
       reportTarget = { baseUrl: message.baseUrl, apiKey: message.apiKey, token: message.token };
+      operationTarget = reportTarget;
       await loadBundleAndPreview(bundle);
       return;
     }
@@ -155,10 +167,32 @@ figma.ui.onmessage = async (message: Message) => {
       const approvedRefinement = reportTarget
         ? await fetchLatestApprovedRefinement(reportTarget, pending.bundle.figmaScreenSpec.screenId)
         : undefined;
+      // R5-041: 캔버스를 건드리기 전에 PREVIEW_READY → APPLY_REQUIRED로 먼저 전이한다.
+      // 이 호출이 실패하면(Operation 없음/이미 종단 상태 등) 캔버스는 아직 그대로이므로 안전하게 중단된다.
+      const operationId = pending.bundle.metadata.operationId;
+      if (operationId && operationTarget) {
+        await requestOperationApply(operationTarget, operationId);
+      }
       const { report, refinementOutcome } = await applyBundle(
         pending.bundle, message.mode, pending.issues, approvedRefinement);
       if (reportTarget) await uploadGenerationReport(reportTarget, report);
+      // R5-041: 실제 캔버스 적용이 끝난 뒤에만 APPLY_REQUIRED → APPLIED로 전이한다.
+      if (operationId && operationTarget) {
+        await reportOperationApplied(operationTarget, operationId, report);
+      }
       figma.ui.postMessage({ type: "APPLY_RESULT", report, refinementOutcome });
+    }
+    if (message.type === "LOAD_MULTI_BUNDLE") {
+      operationTarget = message.target && message.target.baseUrl ? message.target : undefined;
+      await loadMultiBundleAndPreview(message.bundles);
+      return;
+    }
+    if (message.type === "APPLY_MULTI") {
+      if (!pendingMultiScreen || pendingMultiScreen.length === 0) {
+        throw new Error("먼저 멀티 스크린 Bundle을 불러오세요.");
+      }
+      const result = await applyMultiScreenBundles(pendingMultiScreen, message.mode);
+      figma.ui.postMessage({ type: "APPLY_MULTI_RESULT", ...result });
     }
     if (message.type === "EXPORT_REGISTRY_V3") {
       if (!pending) throw new Error("먼저 SSOT Bundle을 불러오세요.");
@@ -235,6 +269,9 @@ async function loadBundleAndPreview(rawBundle: unknown): Promise<void> {
   const screen = validated.parsed.figmaScreenSpec;
   const existing = findExistingNodes(screen.screenId);
   const changes = reconcile(screen.content, existing);
+  // R5-040: Bundle이 operationId를 담고 있고 서버 연결 정보가 있으면 Operation 상세를 조회해 표시한다.
+  // 실패해도(오프라인 파일 검토 등) Bundle 자체의 Preview는 막지 않는 best-effort 조회다.
+  const operation = await fetchOperationInfo(validated.parsed.metadata.operationId);
   figma.ui.postMessage({
     type: "PREVIEW_READY",
     summary: `${screen.name} v${screen.screenVersion} · ${screen.screenType} · 논리 노드 ${changes.length}개`
@@ -245,7 +282,199 @@ async function loadBundleAndPreview(rawBundle: unknown): Promise<void> {
     canApply: validated.contractMode === "V2_APPLY"
       && screen.status === "APPROVED"
       && !validated.issues.some(issue => issue.severity === "FATAL" || issue.severity === "ERROR"),
+    operation,
   });
+}
+
+/** R5-040: operationId가 있으면 GET /api/figma/operations/{operationId}/info로 상세를 조회한다. */
+async function fetchOperationInfo(operationId?: string | null): Promise<OperationInfo | undefined> {
+  if (!operationId || !operationTarget) return undefined;
+  try {
+    const response = await fetch(
+      `${operationTarget.baseUrl.replace(/\/+$/, "")}/api/figma/operations/${encodeURIComponent(operationId)}/info`,
+      { headers: operationAuthHeaders(operationTarget) },
+    );
+    if (!response.ok) return undefined;
+    const op = (await response.json()) as {
+      operationId: string;
+      request?: { type?: string | null } | null;
+      status?: string | null;
+      sourceRevision?: OperationInfo["sourceRevision"];
+    };
+    return {
+      operationId: op.operationId,
+      requestType: op.request?.type ?? null,
+      status: op.status ?? null,
+      sourceRevision: op.sourceRevision ?? null,
+    };
+  } catch {
+    return undefined;
+  }
+}
+
+/** R5-041: Apply 시작 직전 PREVIEW_READY → APPLY_REQUIRED로 전이시킨다. */
+async function requestOperationApply(
+  target: { baseUrl: string; apiKey?: string; token?: string },
+  operationId: string,
+): Promise<void> {
+  const response = await fetch(
+    `${target.baseUrl.replace(/\/+$/, "")}/api/figma/operations/${encodeURIComponent(operationId)}/apply-requested`,
+    { method: "POST", headers: operationAuthHeaders(target) },
+  );
+  if (!response.ok) throw new Error(`Operation Apply 요청 실패(${response.status})`);
+}
+
+/** R5-041: 실제 캔버스 적용이 끝난 뒤 APPLY_REQUIRED → APPLIED로 전이시킨다. */
+async function reportOperationApplied(
+  target: { baseUrl: string; apiKey?: string; token?: string },
+  operationId: string,
+  report: GenerationReport,
+): Promise<void> {
+  const headers = operationAuthHeaders(target);
+  headers["Content-Type"] = "application/json";
+  const body = {
+    screenId: report.screenId,
+    affectedNodeIds: report.changes.map(change => change.logicalNodeId),
+    reuseCount: report.reusedInstanceCount,
+    createdCount: report.createdInstanceCount,
+    fallbackCount: report.fallbackCount,
+    summary: `${report.screenId} v${report.screenVersion} ${report.mode} 적용 완료`
+      + `(재사용 ${report.reusedInstanceCount}, 신규 ${report.createdInstanceCount})`,
+  };
+  const response = await fetch(
+    `${target.baseUrl.replace(/\/+$/, "")}/api/figma/operations/${encodeURIComponent(operationId)}/applied-report`,
+    { method: "POST", headers, body: JSON.stringify(body) },
+  );
+  if (!response.ok) throw new Error(`Operation Applied 보고 실패(${response.status})`);
+}
+
+function operationAuthHeaders(target: { apiKey?: string; token?: string }): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (target.token) headers.Authorization = `Bearer ${target.token}`;
+  else if (target.apiKey) headers["X-API-Key"] = target.apiKey;
+  return headers;
+}
+
+/** R5-043: MULTI_SCREEN_FLOW Operation의 여러 Bundle을 한 번에 검증하고 Preview로 표시한다. */
+async function loadMultiBundleAndPreview(rawBundles: unknown[]): Promise<void> {
+  await figma.loadAllPagesAsync();
+  const parsedEntries: Pending[] = [];
+  const allIssues: ExportIssue[] = [];
+  for (const rawBundle of rawBundles) {
+    const validated = validateBundle(rawBundle);
+    allIssues.push(...validated.issues);
+    if (!validated.parsed || !validated.contractMode) {
+      pendingMultiScreen = undefined;
+      figma.ui.postMessage({ type: "VALIDATION_ERROR", issues: allIssues });
+      return;
+    }
+    parsedEntries.push({
+      bundle: validated.parsed, issues: validated.issues, contractMode: validated.contractMode,
+    });
+  }
+  pendingMultiScreen = parsedEntries;
+  const plan = planMultiScreenApply(parsedEntries.map(entry => ({
+    screenId: entry.bundle.figmaScreenSpec.screenId,
+    issues: entry.issues,
+    status: entry.bundle.figmaScreenSpec.status,
+  })));
+  figma.ui.postMessage({
+    type: "MULTI_PREVIEW_READY",
+    summary: `화면 ${parsedEntries.length}개 · `
+      + (plan.canApply ? "전체 검증 통과, 일괄 Apply 가능" : `${plan.blockingScreenId ?? ""} ${plan.reason ?? ""}`),
+    screens: parsedEntries.map(entry => ({
+      screenId: entry.bundle.figmaScreenSpec.screenId,
+      screenVersion: entry.bundle.figmaScreenSpec.screenVersion,
+      issues: entry.issues,
+    })),
+    canApply: plan.canApply,
+  });
+}
+
+type BatchScreenSnapshot = {
+  screenId: string;
+  existingRoot?: FrameNode;
+  parent?: PageNode | FrameNode;
+  index: number;
+  x: number;
+  y: number;
+  visible: boolean;
+  opacity: number;
+};
+
+/** R5-043: 배치 시작 전 화면의 현재 Root를 기억해 둔다(있으면). applyBundle의 내부 원자 Apply와
+ *  달리, 이 배치 Snapshot은 "이미 성공적으로 커밋된 다른 화면"을 나중에 되돌리는 용도다. */
+function snapshotScreenForBatch(screenId: string): BatchScreenSnapshot {
+  const existingRoot = findScreenRoot(screenId);
+  if (!existingRoot || !existingRoot.parent
+    || (existingRoot.parent.type !== "PAGE" && existingRoot.parent.type !== "FRAME")) {
+    return { screenId, index: -1, x: 0, y: 0, visible: true, opacity: 1 };
+  }
+  const parent = existingRoot.parent as PageNode | FrameNode;
+  return {
+    screenId, existingRoot, parent, index: parent.children.indexOf(existingRoot),
+    x: existingRoot.x, y: existingRoot.y, visible: existingRoot.visible, opacity: existingRoot.opacity,
+  };
+}
+
+/** R5-043: 이 배치에서 새로 커밋된 Root를 지우고, 배치 시작 전 Root가 있었으면 원래 자리로 복원한다. */
+function rollbackCommittedBatchScreen(snapshot: BatchScreenSnapshot): void {
+  const committed = findScreenRoot(snapshot.screenId);
+  if (committed) committed.remove();
+  if (snapshot.existingRoot && snapshot.parent) {
+    const restoreIndex = Math.min(snapshot.index, snapshot.parent.children.length);
+    snapshot.parent.insertChild(restoreIndex, snapshot.existingRoot);
+    snapshot.existingRoot.x = snapshot.x;
+    snapshot.existingRoot.y = snapshot.y;
+    snapshot.existingRoot.visible = snapshot.visible;
+    snapshot.existingRoot.opacity = snapshot.opacity;
+    snapshot.existingRoot.setPluginData(DATA_ARCHIVED, "false");
+  }
+  removeEmptyArchive(snapshot.screenId);
+}
+
+/**
+ * R5-043: 멀티 스크린 Operation을 전체 Preview 성공 확인 후 순차 Apply한다. 화면 하나가
+ * 실패하면(그 화면 자신은 applyBundle의 원자 Apply가 이미 자체 롤백함) 이 배치에서 이미
+ * 커밋된 이전 화면들을 배치 시작 전 상태로 되돌려 부분 적용을 남기지 않는다.
+ */
+async function applyMultiScreenBundles(
+  entries: Pending[],
+  mode: Exclude<SyncMode, "PREVIEW">,
+): Promise<{ reports: GenerationReport[]; committedScreenIds: string[]; rolledBackScreenIds: string[]; failedScreenId?: string }> {
+  const plan = planMultiScreenApply(entries.map(entry => ({
+    screenId: entry.bundle.figmaScreenSpec.screenId,
+    issues: entry.issues,
+    status: entry.bundle.figmaScreenSpec.status,
+  })));
+  if (!plan.canApply) {
+    throw new Error(`멀티 스크린 Apply를 시작할 수 없습니다(${plan.blockingScreenId ?? "-"}): ${plan.reason}`);
+  }
+
+  const snapshots = entries.map(entry => snapshotScreenForBatch(entry.bundle.figmaScreenSpec.screenId));
+  const reports: GenerationReport[] = [];
+  const committedScreenIds: string[] = [];
+  for (const entry of entries) {
+    const approvedRefinement = reportTarget
+      ? await fetchLatestApprovedRefinement(reportTarget, entry.bundle.figmaScreenSpec.screenId)
+      : undefined;
+    const { report } = await applyBundle(entry.bundle, mode, entry.issues, approvedRefinement);
+    reports.push(report);
+    if (reportTarget) await uploadGenerationReport(reportTarget, report);
+    if (!report.success) {
+      const rolledBackScreenIds = [...committedScreenIds];
+      for (const screenId of [...rolledBackScreenIds].reverse()) {
+        const snapshot = snapshots.find(candidate => candidate.screenId === screenId);
+        if (snapshot) rollbackCommittedBatchScreen(snapshot);
+      }
+      return {
+        reports, committedScreenIds: [], rolledBackScreenIds,
+        failedScreenId: entry.bundle.figmaScreenSpec.screenId,
+      };
+    }
+    committedScreenIds.push(entry.bundle.figmaScreenSpec.screenId);
+  }
+  return { reports, committedScreenIds, rolledBackScreenIds: [] };
 }
 
 async function uploadGenerationReport(

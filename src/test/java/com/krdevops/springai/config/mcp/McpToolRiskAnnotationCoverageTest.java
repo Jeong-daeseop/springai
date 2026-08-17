@@ -46,6 +46,8 @@ class McpToolRiskAnnotationCoverageTest {
 
         assertThat(missing).as("@McpToolRisk 누락된 @Tool 메서드").isEmpty();
         // WP6 생성 진입점 결선 이후 실측치 — McpConfig에 새 Tool을 등록하면 이 값도 함께 갱신한다.
-        assertThat(scannedMethods).isEqualTo(95);
+        // R6-046/R5-045: previewPlatformConversion·previewStyleTokenDiff 추가로 95 → 97.
+        // R6-032~038(2026-08-18): generateFigmaBundleForOperation 추가로 97 → 98.
+        assertThat(scannedMethods).isEqualTo(98);
     }
 }

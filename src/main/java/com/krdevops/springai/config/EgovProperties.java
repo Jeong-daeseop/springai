@@ -29,5 +29,9 @@ public class EgovProperties {
         private boolean allowBuildExecution = false;
         private int buildTimeoutSeconds = 180;
         private int maxOutputChars = 20000;
+        /** R6-T19: 기본값은 PATH에서 찾는 mvn이지만, 절대경로로 특정 바이너리(또는 테스트 stub)를 지정할 수 있다. */
+        private String mavenCommand = "mvn";
+        /** R6-T19: 기본값은 PATH에서 찾는 gradle이지만, 절대경로로 특정 바이너리(또는 테스트 stub)를 지정할 수 있다. */
+        private String gradleCommand = "gradle";
     }
 }

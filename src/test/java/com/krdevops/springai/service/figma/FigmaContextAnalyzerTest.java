@@ -100,4 +100,32 @@ class FigmaContextAnalyzerTest {
         assertThat(result.reason()).doesNotContain("sk-leakedSecretValue123");
         assertThat(result.reason()).contains("***REDACTED***");
     }
+
+    /** R6-T09: Spring AI 호출이 timeout으로 실패해도 예외가 전파되지 않고 uncertain fallback으로 처리된다. */
+    @Test
+    void timeoutFallsBackToUncertainInsteadOfPropagating() {
+        ChatClient chatClient = mock(ChatClient.class);
+        when(chatClient.prompt()).thenThrow(
+                new RuntimeException(new java.util.concurrent.TimeoutException("응답 시간 초과")));
+        FigmaContextAnalyzer analyzer = new FigmaContextAnalyzer(chatClient, redactor);
+
+        FigmaContextAnalyzer.FigmaContextAnalysis result = analyzer.analyze("사용자 목록 화면", null);
+
+        assertThat(result.uncertain()).isTrue();
+        assertThat(result.requiresReview()).isTrue();
+    }
+
+    /** R6-T09: rate limit(429류) 오류도 동일하게 uncertain fallback으로 흡수하고 원인 정보는 redact한다. */
+    @Test
+    void rateLimitErrorFallsBackToUncertainWithRedactedReason() {
+        ChatClient chatClient = mock(ChatClient.class);
+        when(chatClient.prompt()).thenThrow(
+                new RuntimeException("429 Too Many Requests: api_key=sk-shouldNotLeak"));
+        FigmaContextAnalyzer analyzer = new FigmaContextAnalyzer(chatClient, redactor);
+
+        FigmaContextAnalyzer.FigmaContextAnalysis result = analyzer.analyze("사용자 목록 화면", null);
+
+        assertThat(result.uncertain()).isTrue();
+        assertThat(result.reason()).doesNotContain("sk-shouldNotLeak");
+    }
 }

@@ -103,6 +103,36 @@ class FigmaDesignOperationServiceTest {
     }
 
     /**
+     * R5-042: 요청 노드는 모두 살아 있어도(findMissingNodeIds 통과), Plugin이 실제로 보고한
+     * affectedNodeIds가 승인된 editableNodeIds 범위를 벗어나면 CONFLICT로 막아야 한다.
+     */
+    @Test
+    void affectedNodeOutsideEditableScopeRecordsConflictAndBlocksApply() {
+        FigmaDesignOperation applyRequired = modifyExistingOperation(FigmaDesignOperationStatus.APPLY_REQUIRED);
+        when(repository.findLatest(OPERATION_ID)).thenReturn(Optional.of(applyRequired));
+        when(figmaApiClient.isFigmaEnabled()).thenReturn(true);
+        when(figmaApiClient.findMissingNodeIds(FILE_KEY, List.of("1:2", "3:4"))).thenReturn(List.of());
+        FigmaOperationsController.PluginApplyReport outOfScopeReport = new FigmaOperationsController.PluginApplyReport(
+                "user-list", List.of("1:2", "9:9"), 2, 0, 0, "적용 완료");
+
+        assertThatThrownBy(() -> service.reportApplied(OPERATION_ID, outOfScopeReport))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("FIGMA_OPERATION_EDITABLE_SCOPE_CONFLICT")
+                .hasMessageContaining("9:9");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<GenerationIssue>> issues = ArgumentCaptor.forClass(List.class);
+        verify(repository).appendTransition(eq(OPERATION_ID), eq(FigmaDesignOperationStatus.CONFLICT),
+                eq(applyRequired.sourceRevision()), issues.capture(), anyList());
+        assertThat(issues.getValue()).singleElement().satisfies(issue -> {
+            assertThat(issue.code()).isEqualTo("FIGMA_EDITABLE_NODE_OUT_OF_SCOPE");
+            assertThat(issue.severity()).isEqualTo(GenerationIssue.Severity.ERROR);
+            assertThat(issue.sourceLocation()).isEqualTo("9:9");
+        });
+        verify(repository, never()).transitionToApplied(anyString(), anyBoolean(), anyList());
+    }
+
+    /**
      * Figma 연동이 꺼져 있으면(기본값) 검증할 수단이 없다. 여기서 실패시키면 MODIFY_EXISTING
      * Operation이 APPLY_REQUIRED에 갇혀 APPLIED로 영영 도달하지 못하므로 검증을 건너뛰어야 한다.
      */

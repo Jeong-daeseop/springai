@@ -56,6 +56,21 @@ public class FigmaOperationsController {
     }
 
     /**
+     * R5-041/R6-047: Plugin이 Apply를 시작하기 직전 호출. PREVIEW_READY → APPLY_REQUIRED.
+     * 이 호출 없이 곧바로 {@code /applied-report}를 보내면 상태가 여전히 PREVIEW_READY라서 거부된다.
+     *
+     * POST /api/figma/operations/{operationId}/apply-requested
+     */
+    @PostMapping("/{operationId}/apply-requested")
+    public ResponseEntity<FigmaDesignOperation> requestApply(@PathVariable String operationId) {
+        try {
+            return ResponseEntity.ok(designOperationService.requestApply(operationId));
+        } catch (IllegalStateException | IllegalArgumentException e) {
+            throw new FigmaRequestException("FIGMA_OPERATION_APPLY_REQUEST_FAILED", e.getMessage());
+        }
+    }
+
+    /**
      * R5-041: Plugin으로부터 화면 적용 완료 보고서 수신.
      * MCP 분석 완료(PREVIEW_READY)와 Plugin Apply 완료(APPLIED) 상태를 분리.
      *

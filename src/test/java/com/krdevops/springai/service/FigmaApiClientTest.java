@@ -17,6 +17,7 @@ import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.net.http.HttpTimeoutException;
 
@@ -318,6 +319,112 @@ class FigmaApiClientTest {
                         error -> assertThat(error.getMessage()).contains("nodeId"));
     }
 
+    /** R6-040: 여러 nodeId를 한 번의 GET(콤마 구분 다중 ID)으로 조회해 각각 별도 문서로 반환한다. */
+    @Test
+    void queryNodesPaginatedFetchesMultipleNodesInOneRequest() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer server = server(exchange -> {
+            requests.incrementAndGet();
+            assertThat(exchange.getRequestURI().getRawQuery()).contains("ids=1%3A2,3%3A4");
+            respond(exchange, 200, """
+                    {"version":"v1","nodes":{
+                      "1:2":{"document":{"type":"FRAME","name":"A"}},
+                      "3:4":{"document":{"type":"FRAME","name":"B"}}
+                    }}
+                    """);
+        });
+        FigmaApiQuery query = FigmaApiQuery.paginated("abcdef", List.of("1:2", "3:4"), 0, 50);
+
+        List<com.krdevops.springai.model.design.FigmaNodeDocument> result =
+                client(server, properties()).queryNodesPaginated(query);
+
+        assertThat(requests).hasValue(1);
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).document().path("name").asText()).isEqualTo("A");
+        assertThat(result.get(1).document().path("name").asText()).isEqualTo("B");
+    }
+
+    /** page/pageSize로 전체 nodeId 목록을 슬라이싱해 해당 구간만 조회한다. */
+    @Test
+    void queryNodesPaginatedSlicesRequestedPage() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer server = server(exchange -> {
+            requests.incrementAndGet();
+            assertThat(exchange.getRequestURI().getRawQuery()).contains("ids=3%3A4");
+            respond(exchange, 200, """
+                    {"version":"v1","nodes":{"3:4":{"document":{"type":"FRAME","name":"B"}}}}
+                    """);
+        });
+        FigmaApiQuery secondPage = FigmaApiQuery.paginated(
+                "abcdef", List.of("1:2", "3:4", "5:6"), 1, 1);
+
+        List<com.krdevops.springai.model.design.FigmaNodeDocument> result =
+                client(server, properties()).queryNodesPaginated(secondPage);
+
+        assertThat(requests).hasValue(1);
+        assertThat(result).singleElement().satisfies(
+                doc -> assertThat(doc.document().path("name").asText()).isEqualTo("B"));
+    }
+
+    /** 요청 범위를 넘어서는 page는 HTTP 호출 없이 빈 결과를 반환한다. */
+    @Test
+    void queryNodesPaginatedReturnsEmptyPastLastPageWithoutHttpCall() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer server = server(exchange -> {
+            requests.incrementAndGet();
+            respond(exchange, 200, "{}");
+        });
+        FigmaApiQuery beyondLastPage = FigmaApiQuery.paginated("abcdef", List.of("1:2"), 5, 1);
+
+        List<com.krdevops.springai.model.design.FigmaNodeDocument> result =
+                client(server, properties()).queryNodesPaginated(beyondLastPage);
+
+        assertThat(result).isEmpty();
+        assertThat(requests).hasValue(0);
+    }
+
+    /** 삭제된 노드(200 + null)는 예외 없이 결과에서 제외된다. */
+    @Test
+    void queryNodesPaginatedSkipsDeletedNodes() throws Exception {
+        HttpServer server = server(exchange -> respond(exchange, 200, """
+                {"version":"v1","nodes":{"1:2":{"document":{"type":"FRAME"}},"3:4":null}}
+                """));
+        FigmaApiQuery query = FigmaApiQuery.paginated("abcdef", List.of("1:2", "3:4"), 0, 50);
+
+        List<com.krdevops.springai.model.design.FigmaNodeDocument> result =
+                client(server, properties()).queryNodesPaginated(query);
+
+        assertThat(result).hasSize(1);
+    }
+
+    /** 기존 callApi()의 응답 크기 제한·재시도가 그대로 재사용됨을 확인한다. */
+    @Test
+    void queryNodesPaginatedEnforcesResponseSizeLimitAndRetries() throws Exception {
+        String oversized = "x".repeat(1024 * 1024 + 1);
+        HttpServer oversizedServer = server(exchange -> respond(exchange, 200, oversized));
+        DesignVisionProperties oversizedProps = properties();
+        oversizedProps.getFigma().setMaxResponseMb(1);
+        FigmaApiQuery query = FigmaApiQuery.paginated("abcdef", List.of("1:2"), 0, 50);
+
+        assertThatThrownBy(() -> client(oversizedServer, oversizedProps).queryNodesPaginated(query))
+                .isInstanceOfSatisfying(FigmaApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("FIGMA_RESPONSE_TOO_LARGE"));
+
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer transientServer = server(exchange -> {
+            if (requests.incrementAndGet() == 1) respond(exchange, 500, "{}");
+            else respond(exchange, 200, """
+                    {"version":"v2","nodes":{"1:2":{"document":{"type":"FRAME"}}}}
+                    """);
+        });
+
+        List<com.krdevops.springai.model.design.FigmaNodeDocument> result =
+                client(transientServer, properties()).queryNodesPaginated(query);
+
+        assertThat(requests).hasValue(2);
+        assertThat(result).hasSize(1);
+    }
+
     @Test
     void queryStylesHandlesApiErrors() throws Exception {
         HttpServer server = server(exchange -> respond(exchange, 401, "{}"));
@@ -336,6 +443,86 @@ class FigmaApiClientTest {
                         error -> assertThat(error.code()).isEqualTo("FIGMA_REFERENCE_NOT_FOUND"));
     }
 
+    // ===== R6-T10: 이미지 URL 조회 =====
+
+    @Test
+    void queryImagesReturnsUrlsForRequestedNodes() throws Exception {
+        HttpServer server = imagesServer(exchange -> {
+            assertThat(exchange.getRequestURI().getPath()).endsWith("/images/abcdef");
+            assertThat(exchange.getRequestURI().getRawQuery()).contains("ids=1%3A2,3%3A4");
+            respond(exchange, 200, """
+                    {"err":null,"images":{"1:2":"https://figma-images.example/1-2.png","3:4":"https://figma-images.example/3-4.png"}}
+                    """);
+        });
+
+        var result = client(server, properties()).queryImages("abcdef", List.of("1:2", "3:4"));
+
+        assertThat(result.imageUrlsByNodeId()).containsEntry("1:2", "https://figma-images.example/1-2.png");
+        assertThat(result.failedNodeIds()).isEmpty();
+    }
+
+    /** 개별 노드의 렌더 실패는 전체 실패가 아니라 images 맵의 null 값으로 온다. */
+    @Test
+    void queryImagesReportsPerNodeRenderFailureWithoutFailingTheWholeCall() throws Exception {
+        HttpServer server = imagesServer(exchange -> respond(exchange, 200, """
+                {"err":null,"images":{"1:2":"https://figma-images.example/1-2.png","3:4":null}}
+                """));
+
+        var result = client(server, properties()).queryImages("abcdef", List.of("1:2", "3:4"));
+
+        assertThat(result.imageUrlsByNodeId()).containsEntry("1:2", "https://figma-images.example/1-2.png");
+        assertThat(result.failedNodeIds()).containsExactly("3:4");
+    }
+
+    @Test
+    void queryImagesThrowsOnTopLevelError() throws Exception {
+        HttpServer server = imagesServer(exchange -> respond(exchange, 200, """
+                {"err":"Invalid node ids","images":{}}
+                """));
+
+        assertThatThrownBy(() -> client(server, properties()).queryImages("abcdef", List.of("1:2")))
+                .isInstanceOfSatisfying(FigmaApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("FIGMA_IMAGE_EXPORT_FAILED"));
+    }
+
+    @Test
+    void queryImagesHandlesPermissionAndRateLimitErrors() throws Exception {
+        HttpServer forbidden = imagesServer(exchange -> respond(exchange, 403, "{}"));
+        assertThatThrownBy(() -> client(forbidden, properties()).queryImages("abcdef", List.of("1:2")))
+                .isInstanceOfSatisfying(FigmaApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("FIGMA_ACCESS_DENIED"));
+
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer rateLimited = imagesServer(exchange -> {
+            requests.incrementAndGet();
+            exchange.getResponseHeaders().add("Retry-After", "0");
+            respond(exchange, 429, "{}");
+        });
+        assertThatThrownBy(() -> client(rateLimited, properties()).queryImages("abcdef", List.of("1:2")))
+                .isInstanceOfSatisfying(FigmaApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("FIGMA_RATE_LIMITED"));
+        assertThat(requests).hasValue(3);
+    }
+
+    @Test
+    void queryImagesRejectsEmptyNodeIdList() throws Exception {
+        HttpServer server = imagesServer(exchange -> respond(exchange, 200, "{}"));
+
+        assertThatThrownBy(() -> client(server, properties()).queryImages("abcdef", List.of()))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** Figma는 발급한 이미지 URL의 만료 시각을 알려주지 않으므로, 조회 시각 기준 TTL로 판정한다. */
+    @Test
+    void figmaImageUrlsExpiresAfterDefaultTtl() {
+        var result = new FigmaApiClient.FigmaImageUrls(
+                Map.of("1:2", "https://figma-images.example/1-2.png"), List.of(),
+                java.time.Instant.parse("2026-01-01T00:00:00Z"));
+
+        assertThat(result.isExpired(java.time.Instant.parse("2026-01-01T00:20:00Z"))).isFalse();
+        assertThat(result.isExpired(java.time.Instant.parse("2026-01-01T00:31:00Z"))).isTrue();
+    }
+
     private DesignVisionProperties properties() {
         DesignVisionProperties properties = new DesignVisionProperties();
         properties.getFigma().setEnabled(true);
@@ -352,6 +539,20 @@ class FigmaApiClientTest {
     private HttpServer server(ExchangeHandler handler) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1/files", exchange -> {
+            try {
+                handler.handle(exchange);
+            } finally {
+                exchange.close();
+            }
+        });
+        server.start();
+        servers.add(server);
+        return server;
+    }
+
+    private HttpServer imagesServer(ExchangeHandler handler) throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/v1/images", exchange -> {
             try {
                 handler.handle(exchange);
             } finally {

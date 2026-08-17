@@ -88,6 +88,65 @@ class ThymeleafGenerationReportServiceTest {
                 .satisfies(issue -> assertThat(issue.code()).isEqualTo("THYMELEAF_BUILD_RENDER_PARITY_FAILED"));
     }
 
+    /**
+     * R6-T20: 동일 입력으로 previewReport()를 두 번 호출해도 1~9단계의 inputHash/outputHash
+     * 체인이 바이트 단위로 완전히 같아야 한다 — 재실행 결정성. startedAt/completedAt은
+     * Instant.now() 기반이라 실행마다 다른 게 정상이므로 해시만 비교한다.
+     */
+    @Test
+    void previewReportIsDeterministicAcrossRepeatedCallsWithIdenticalInput() {
+        ThymeleafProjectOperation operation = operation(ProjectOperationStatus.PREVIEW_READY, List.of());
+        String previewHash = hashFactory.canonicalHash(Map.of("preview", "determinism"));
+        LegacySourceManifest manifest = manifest();
+        ThymeleafBindingContract contract = bindingContract();
+        Map<String, String> files = Map.of("templates/qna/list.html", "<html></html>");
+
+        ThymeleafGenerationReport first = service.previewReport(
+                operation, previewHash, "/project", "design-v1", manifest, contract, files);
+        ThymeleafGenerationReport second = service.previewReport(
+                operation, previewHash, "/project", "design-v1", manifest, contract, files);
+
+        assertThat(first.stages()).hasSize(10);
+        assertThat(second.stages()).hasSize(10);
+        for (int i = 0; i < 9; i++) {
+            assertThat(second.stages().get(i).inputHash())
+                    .as("stage %d inputHash", i).isEqualTo(first.stages().get(i).inputHash());
+            assertThat(second.stages().get(i).outputHash())
+                    .as("stage %d outputHash", i).isEqualTo(first.stages().get(i).outputHash());
+        }
+        assertThat(second.requestHash()).isEqualTo(first.requestHash());
+        assertThat(second.projectFingerprint()).isEqualTo(first.projectFingerprint());
+        assertThat(second.generatedFiles()).isEqualTo(first.generatedFiles());
+    }
+
+    /**
+     * R6-T20: 입력이 하나라도 달라지면(생성 파일 내용 변경) 그 이후 체인 해시도 달라져야 한다 —
+     * 결정성 테스트의 반대 극단(다른 입력은 다른 해시를 내야 "우연히 항상 같은 값"이 아님을 보인다).
+     */
+    @Test
+    void previewReportProducesDifferentHashesWhenGeneratedFileContentChanges() {
+        ThymeleafProjectOperation operation = operation(ProjectOperationStatus.PREVIEW_READY, List.of());
+        String previewHash = hashFactory.canonicalHash(Map.of("preview", "determinism-diff"));
+        LegacySourceManifest manifest = manifest();
+        ThymeleafBindingContract contract = bindingContract();
+
+        ThymeleafGenerationReport first = service.previewReport(
+                operation, previewHash, "/project", "design-v1", manifest, contract,
+                Map.of("templates/qna/list.html", "<html>v1</html>"));
+        ThymeleafGenerationReport second = service.previewReport(
+                operation, previewHash, "/project", "design-v1", manifest, contract,
+                Map.of("templates/qna/list.html", "<html>v2</html>"));
+
+        boolean anyStageHashDiffers = false;
+        for (int i = 0; i < 9; i++) {
+            if (!second.stages().get(i).outputHash().equals(first.stages().get(i).outputHash())) {
+                anyStageHashDiffers = true;
+                break;
+            }
+        }
+        assertThat(anyStageHashDiffers).as("생성 파일 내용이 다르면 최소 한 단계의 outputHash는 달라야 한다").isTrue();
+    }
+
     @Test
     void snapshotJsonRoundTripRecoversFullReport() throws Exception {
         ThymeleafProjectOperation operation = operation(ProjectOperationStatus.PREVIEW_READY, List.of());

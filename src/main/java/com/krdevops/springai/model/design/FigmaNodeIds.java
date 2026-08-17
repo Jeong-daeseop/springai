@@ -32,6 +32,16 @@ public final class FigmaNodeIds {
         return decoded.replace('-', ':');
     }
 
+    /**
+     * R6-T12: {@code components}처럼 논리 컴포넌트 타입 문자열(예: {@code krds.button})이어야 하는
+     * 필드에 원시 Figma nodeId(예: {@code 1:234})가 실수 또는 의도적으로 들어왔는지 확인한다.
+     * 이 값을 그대로 통과시키면 Registry의 논리 타입 allowlist를 우회해 승인되지 않은 로컬 노드를
+     * 직접 가리킬 수 있다.
+     */
+    public static boolean isNodeIdShaped(String value) {
+        return value != null && NODE_ID_PATTERN.matcher(value.trim()).matches();
+    }
+
     /** 목록 전체를 정규화한다. 빈 값이 섞여 있으면 어느 위치인지 알려주고 거부한다. */
     public static List<String> normalizeAll(List<String> values, String fieldName) {
         if (values == null) {

@@ -35,6 +35,20 @@ public class FigmaDesignOperationService {
     }
 
     /**
+     * R5-041/R6-047: PREVIEW_READY → APPLY_REQUIRED 전이.
+     * Plugin이 Apply를 시작하기 직전에 호출한다. 이 호출 없이는 {@link #reportApplied}가
+     * (상태가 여전히 PREVIEW_READY라서) 항상 실패한다 — MCP 분석 완료와 Plugin Apply
+     * 완료(APPLIED)를 분리하는 3단계 상태(PREVIEW_READY → APPLY_REQUIRED → APPLIED)의 중간 단계.
+     */
+    public FigmaDesignOperation requestApply(String operationId) {
+        FigmaDesignOperation current = repository.findLatest(operationId)
+                .orElseThrow(() -> new IllegalArgumentException("Operation not found: " + operationId));
+        return repository.appendTransition(
+                operationId, FigmaDesignOperationStatus.APPLY_REQUIRED,
+                current.sourceRevision(), current.issues(), current.artifacts());
+    }
+
+    /**
      * Plugin 적용 완료 보고서 수신 및 상태 전이 (R5-041)
      *
      * 엄격한 상태 검증:
@@ -57,6 +71,11 @@ public class FigmaDesignOperationService {
         // 요청 시점 editableNodeIds가 Apply 시점에도 유효한지 재검증 (R5-042)
         validateEditableNodeIds(operationId);
 
+        // R5-042: Plugin이 실제로 건드렸다고 보고한 노드가 승인된 editableNodeIds 범위 안인지 확인.
+        // 위 검증은 "요청한 노드가 아직 존재하는지"만 보므로, "적용 범위가 요청을 벗어나지 않았는지"는
+        // 별도로 막아야 한다. 이 확인이 없으면 Plugin이 승인되지 않은 노드를 수정해도 그대로 APPLIED된다.
+        validateAffectedNodesWithinScope(current, report);
+
         log.info("Transitioning operation {} to APPLIED (screenId={})",
                  operationId, report.screenId());
 
@@ -70,17 +89,62 @@ public class FigmaDesignOperationService {
     }
 
     /**
-     * R5-043: 멀티 스크린 Operation 검증.
-     * 모든 화면이 성공해야 일괄 적용. 하나라도 실패하면 전체 거부.
+     * R5-042: Plugin의 Apply 보고서(affectedNodeIds)가 요청 시점 승인된 editableNodeIds 범위 안에서만
+     * 이뤄졌는지 확인한다. MODIFY_EXISTING이 아닌 요청(editableNodeIds 없음)은 범위 제한이 없다.
+     */
+    private void validateAffectedNodesWithinScope(
+            FigmaDesignOperation operation, FigmaOperationsController.PluginApplyReport report) {
+        List<String> allowedNodeIds = operation.request().editableNodeIds();
+        if (allowedNodeIds == null || allowedNodeIds.isEmpty()) {
+            return;
+        }
+        List<String> affectedNodeIds = report.affectedNodeIds();
+        if (affectedNodeIds == null || affectedNodeIds.isEmpty()) {
+            return;
+        }
+        List<String> outOfScope = affectedNodeIds.stream()
+                .filter(id -> !allowedNodeIds.contains(id))
+                .toList();
+        if (outOfScope.isEmpty()) {
+            return;
+        }
+
+        List<GenerationIssue> issues = outOfScope.stream()
+                .map(id -> new GenerationIssue(
+                        "FIGMA_EDITABLE_NODE_OUT_OF_SCOPE",
+                        GenerationIssue.Severity.ERROR,
+                        "EDITABLE_SCOPE_VALIDATION",
+                        id,
+                        "Plugin이 승인된 editableNodeIds 범위 밖 노드를 적용했습니다: " + id,
+                        "editableNodeIds를 갱신하거나 Plugin 적용 범위를 재확인하세요."))
+                .toList();
+        repository.appendTransition(operation.operationId(), FigmaDesignOperationStatus.CONFLICT,
+                operation.sourceRevision(), issues, operation.artifacts());
+        throw new IllegalStateException("FIGMA_OPERATION_EDITABLE_SCOPE_CONFLICT: " + outOfScope);
+    }
+
+    /**
+     * R5-043: MULTI_SCREEN_FLOW Operation이 일괄 Apply를 준비할 수 있는 최소 형태 검증(모든 화면
+     * 이름이 채워졌는지, PREVIEW_READY까지 왔는지). 실제 "화면별 Bundle 일괄 Preview·부분 실패
+     * rollback"의 대부분은 Plugin(figma-screen-spec-plugin/src/core.ts의
+     * {@code planMultiScreenApply}/{@code applyMultiScreenBundles})이 화면별 Bundle 단위로 수행한다
+     * — 이 메서드는 아직 아무 곳에서도 호출하지 않는다. MULTI_SCREEN_FLOW 요청이
+     * {@link FigmaDesignOrchestrationService#processExplicitRequest}에서 화면별 Bundle을 생성해
+     * PREVIEW_READY까지 도달하는 경로(R6-036 잔여 범위) 자체가 아직 없어서, 이 검증을 지금
+     * requestApply()에 걸면 존재하지 않는 상태를 항상 거부하는 죽은 Gate가 되기 때문이다.
+     * 그 생성 경로가 만들어지면 이 메서드를 requestApply()에서 호출해 화면 수만큼의
+     * FIGMA_EXPORT_BUNDLE artifact가 모두 있는지까지 검증을 넓혀야 한다.
      */
     public void validateMultiScreenOperation(String operationId) {
         FigmaDesignOperation operation = repository.findLatest(operationId)
                 .orElseThrow(() -> new IllegalArgumentException("Operation not found"));
 
-        // 멀티 스크린 요청인지 확인
-        if (operation.request() == null ||
-                operation.request().type() == null) {
-            throw new IllegalStateException("Invalid operation for multi-screen validation");
+        if (operation.request() == null
+                || operation.request().type() != com.krdevops.springai.model.figma.contract.FigmaDesignRequestType.MULTI_SCREEN_FLOW
+                || operation.request().screens() == null
+                || operation.request().screens().isEmpty()) {
+            throw new IllegalStateException(
+                    "Invalid operation for multi-screen validation: MULTI_SCREEN_FLOW with non-empty screens required");
         }
 
         // PREVIEW_READY 상태에서만 검증 가능
@@ -91,7 +155,8 @@ public class FigmaDesignOperationService {
             );
         }
 
-        log.debug("Multi-screen operation {} validation passed", operationId);
+        log.debug("Multi-screen operation {} validation passed ({} screens)",
+                operationId, operation.request().screens().size());
     }
 
     /**

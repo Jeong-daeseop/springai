@@ -1,7 +1,9 @@
 package com.krdevops.springai.tools;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.service.designsystem.ComponentSwapPolicyResolver;
 import com.krdevops.springai.service.figma.FigmaDesignOrchestrationService;
+import com.krdevops.springai.service.figma.FigmaPlatformConversionService;
 import com.krdevops.springai.service.figma.FigmaToolAuthorizationService;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +18,8 @@ class FigmaDesignOrchestrationToolAuthorizationTest {
     void authenticationRunsBeforeOrchestration() {
         FigmaDesignOrchestrationService orchestration = mock(FigmaDesignOrchestrationService.class);
         FigmaDesignOrchestrationTool tool = new FigmaDesignOrchestrationTool(
-                orchestration, new FigmaToolAuthorizationService("expected"), new ObjectMapper());
+                orchestration, new FigmaToolAuthorizationService("expected"), new ObjectMapper(),
+                new FigmaPlatformConversionService(new ComponentSwapPolicyResolver()));
 
         assertThatThrownBy(() -> tool.createDesignFromText("wrong", "화면", "file"))
                 .isInstanceOf(SecurityException.class);

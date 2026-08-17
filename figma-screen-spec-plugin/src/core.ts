@@ -638,3 +638,81 @@ export function isUserOverridden(
 ): boolean {
   return previousManagedValue !== undefined && currentValue !== previousManagedValue;
 }
+
+export type MultiScreenApplyEntry = { screenId: string; issues: ExportIssue[]; status: string };
+export type MultiScreenApplyPlan = { canApply: boolean; blockingScreenId?: string; reason?: string };
+
+/**
+ * R5-043: 멀티 스크린 Operation을 일괄 Apply하기 전에 모든 화면이 준비됐는지 확인하는 순수
+ * 판정 함수. 하나라도 FATAL/ERROR 검증 오류가 있거나 APPROVED가 아니면 어떤 화면도 건드리지
+ * 않고 전체를 거부한다("전체 Preview 성공 후 일괄 Apply"). `code.ts`의 `applyMultiScreenBundles`가
+ * 이 결과를 `canApply=false`일 때 캔버스 mutation 없이 그대로 예외로 변환한다.
+ */
+export type ComponentSwapDecision = {
+  requestedLogicalType: string;
+  resolvedLogicalType: string;
+  swapped: boolean;
+};
+
+/**
+ * R5-044: Spring의 FigmaPlatformConversionService.convert()가 계산한 Component Swap 결정을
+ * 실제 노드 트리에 반영하는 순수 함수. `swapped=true`인 논리 타입만 바꾸며, 대체 대상이
+ * Registry에 없으면(아직 Publish되지 않은 대체 컴포넌트 등) 원래 컴포넌트를 그대로 유지한다 —
+ * 조용히 잘못된 componentSetKey를 만들지 않는다. Grid·Navigation 적용은 PLATFORM_CONVERT
+ * 요청이 실제 FigmaScreenSpec Bundle을 생성하는 경로(R6-038 잔여 범위)가 아직 없어 이 함수의
+ * 범위 밖이다 — 그 경로가 생기면 code.ts의 Apply 흐름에서 이 함수를 syncNode() 이전에 호출한다.
+ */
+export function applyComponentSwaps(
+  root: FigmaNodeSpec,
+  registry: ComponentRegistry,
+  decisions: ComponentSwapDecision[],
+): FigmaNodeSpec {
+  const targetByRequestedType = new Map(
+    decisions.filter(decision => decision.swapped)
+      .map(decision => [decision.requestedLogicalType, decision.resolvedLogicalType]));
+  if (targetByRequestedType.size === 0) return root;
+  return swapComponentInTree(root, targetByRequestedType, registry);
+}
+
+function swapComponentInTree(
+  node: FigmaNodeSpec,
+  targetByRequestedType: Map<string, string>,
+  registry: ComponentRegistry,
+): FigmaNodeSpec {
+  const children = node.children.map(child => swapComponentInTree(child, targetByRequestedType, registry));
+  const resolution = node.componentResolution;
+  const targetLogicalType = resolution ? targetByRequestedType.get(resolution.logicalType) : undefined;
+  if (!resolution || !targetLogicalType) {
+    return { ...node, children };
+  }
+  const targetEntry = registry.components[targetLogicalType];
+  if (!targetEntry) {
+    return { ...node, children };
+  }
+  return {
+    ...node,
+    children,
+    componentResolution: {
+      ...resolution,
+      logicalType: targetLogicalType,
+      componentSetKey: targetEntry.componentSetKey,
+      // 대상 컴포넌트의 Variant 구조가 원본과 다를 수 있어 재계산 전까지 비워 둔다.
+      variantKey: "",
+    },
+  };
+}
+
+export function planMultiScreenApply(entries: MultiScreenApplyEntry[]): MultiScreenApplyPlan {
+  if (entries.length === 0) {
+    return { canApply: false, reason: "MULTI_SCREEN_EMPTY: 적용할 화면이 없습니다." };
+  }
+  for (const entry of entries) {
+    if (entry.issues.some(issue => issue.severity === "FATAL" || issue.severity === "ERROR")) {
+      return { canApply: false, blockingScreenId: entry.screenId, reason: "검증 오류가 있는 화면이 있습니다." };
+    }
+    if (entry.status !== "APPROVED") {
+      return { canApply: false, blockingScreenId: entry.screenId, reason: "APPROVED 상태가 아닌 화면이 있습니다." };
+    }
+  }
+  return { canApply: true };
+}

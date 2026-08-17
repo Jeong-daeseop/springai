@@ -44,7 +44,8 @@
         "registryVersion": {"$ref": "https://schemas.krdevops.local/figma-common-v1#/$defs/versionToken"},
         "catalogVersion": {"type": ["string", "null"], "minLength": 1},
         "catalogHash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
-        "registryHash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"}
+        "registryHash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
+        "operationId": {"type": ["string", "null"], "minLength": 1}
       }
     }
   }

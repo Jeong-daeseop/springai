@@ -119,7 +119,17 @@ export type FigmaExportBundle = {
     catalogVersion?: string | null;
     catalogHash?: string | null;
     registryHash?: string | null;
+    /** R5-040: 이 Bundle을 생성한 FigmaDesignOperation. 7가지 요청 오케스트레이션 경로가 아니면 없음. */
+    operationId?: string | null;
   };
+};
+
+/** R5-040: GET /api/figma/operations/{operationId}/info 응답 중 Preview 표시에 필요한 부분. */
+export type OperationInfo = {
+  operationId: string;
+  requestType?: string | null;
+  status?: string | null;
+  sourceRevision?: { sourceId: string; revisionToken: string; capturedAt: string } | null;
 };
 
 export type ExportIssue = {

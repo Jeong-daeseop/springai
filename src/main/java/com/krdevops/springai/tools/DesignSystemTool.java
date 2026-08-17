@@ -66,4 +66,19 @@ public class DesignSystemTool {
         return facadeService.preflightRegistry(
                 profileId, registryVersion, requiredLogicalTypes, expectedLayoutPolicyVersion);
     }
+
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
+    @Tool(description = """
+            참조 Figma 파일(fileKey)의 Styles에서 뽑은 색상·타이포·간격·radius Token 후보와
+            운영 DesignSystemProfile(profileId)의 Token 차이를 계산해 반환합니다. 조회 전용이며
+            Profile이나 Figma Library는 절대 쓰지 않습니다 — 반영은 사람이 별도로 승인해야 합니다.
+            figmaMcpSecret 인증값이 반드시 필요합니다.
+
+            출력의 각 항목은 MATCHED(이미 Profile에 있고 바인딩됨)/NEW_CANDIDATE(Profile에 없는 새 후보)/
+            UNBOUND_IN_PROFILE(Profile에 있지만 아직 Variable에 바인딩 안 됨) 중 하나로 분류됩니다.
+            """)
+    public String previewStyleTokenDiff(String figmaMcpSecret, String fileKey, String profileId) {
+        authorization.authorize(figmaMcpSecret);
+        return facadeService.previewStyleTokenDiff(fileKey, profileId);
+    }
 }

@@ -61,8 +61,10 @@ class McpToolDefinitionSnapshotTest {
      * WP8 3차 pass 업데이트: 92 → 94 (approveThymeleafBaseline,
      * revalidateThymeleafProjectWithBrowserGate)
      * WP6 생성 진입점 결선: 94 → 95 (previewThymeleafBindingGeneration)
+     * R6-046/R5-045: 95 → 97 (previewPlatformConversion, previewStyleTokenDiff)
      */
-    private static final int EXPECTED_TOOL_METHOD_COUNT = 95;
+    // R6-032~038(2026-08-18): generateFigmaBundleForOperation 추가로 97 → 98.
+    private static final int EXPECTED_TOOL_METHOD_COUNT = 98;
 
     /**
      * McpConfig.allToolCallbacks(...)의 toolObjects(...) 인자 개수(등록된 *Tool 컴포넌트 클래스 수).

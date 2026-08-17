@@ -44,6 +44,7 @@ class DesignReferenceAnalysisServiceTest {
         when(preprocessor.preprocess(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(client.providerId()).thenReturn("openai");
         when(client.modelId()).thenReturn("gpt-4o-mini");
+        when(client.supportsVision()).thenReturn(true);
         when(client.analyze(any())).thenAnswer(invocation -> UiDesignSpec.empty(
                 ((VisionAnalysisRequest) invocation.getArgument(0)).featureType().equals("board")
                         ? "BOARD_LIST" : "CRUD_LIST"));
@@ -64,6 +65,72 @@ class DesignReferenceAnalysisServiceTest {
         assertThat(crud.sourceHash()).isNotEqualTo(board.sourceHash());
         assertThat(crud.featureType()).isEqualTo("crud");
         assertThat(board.featureType()).isEqualTo("board");
+    }
+
+    /**
+     * R6-045/R6-T09: 설정된 모델이 Vision을 지원하지 않으면 실제 API 호출(비용·rate limit 소모)
+     * 전에 명확한 코드로 즉시 실패해야 한다.
+     */
+    @Test
+    void rejectsUnsupportedVisionModelBeforeCallingClient() throws Exception {
+        Path image = Files.createTempFile("design-reference-", ".png");
+        Files.write(image, new byte[]{1, 2, 3});
+        ReferencePathValidator pathValidator = mock(ReferencePathValidator.class);
+        ImagePreprocessor preprocessor = mock(ImagePreprocessor.class);
+        VisionAnalysisClient client = mock(VisionAnalysisClient.class);
+        DesignAnalysisRepository repository = mock(DesignAnalysisRepository.class);
+        RagService rag = mock(RagService.class);
+        DesignVisionProperties properties = new DesignVisionProperties();
+        when(pathValidator.validate(image.toString())).thenReturn(image);
+        when(preprocessor.preprocess(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(client.providerId()).thenReturn("openai");
+        when(client.modelId()).thenReturn("gpt-3.5-turbo");
+        when(client.supportsVision()).thenReturn(false);
+        when(repository.findExact(anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        DesignReferenceAnalysisService service = service(pathValidator, preprocessor, client,
+                repository, rag, properties, mock(FigmaReferenceValidator.class),
+                mock(FigmaApiClient.class), mock(FigmaDesignSpecMapper.class),
+                mock(FigmaCacheKeyFactory.class));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.analyze(image.toString(), null, "crud"))
+                .isInstanceOfSatisfying(IllegalStateException.class,
+                        error -> assertThat(error.getMessage()).contains("VISION_MODEL_NOT_SUPPORTED"));
+        verify(client, never()).analyze(any());
+        verify(repository, never()).saveOrGet(any());
+    }
+
+    /** 실제 Vision 모델 이름 판정은 알려진 접두사 목록과의 대조라는 결정론적 규칙임을 고정한다. */
+    @Test
+    void supportsVisionMatchesKnownVisionModelPrefixesOnly() {
+        VisionAnalysisClient gpt4o = fixedProviderModel("openai", "gpt-4o-mini");
+        VisionAnalysisClient gpt35 = fixedProviderModel("openai", "gpt-3.5-turbo");
+        VisionAnalysisClient qwenVl = fixedProviderModel("ollama", "qwen2.5vl:7b");
+        VisionAnalysisClient llama3 = fixedProviderModel("ollama", "llama3.1:8b");
+
+        assertThat(gpt4o.supportsVision()).isTrue();
+        assertThat(gpt35.supportsVision()).isFalse();
+        assertThat(qwenVl.supportsVision()).isTrue();
+        assertThat(llama3.supportsVision()).isFalse();
+    }
+
+    private VisionAnalysisClient fixedProviderModel(String providerId, String modelId) {
+        return new VisionAnalysisClient() {
+            @Override
+            public UiDesignSpec analyze(VisionAnalysisRequest request) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public String providerId() {
+                return providerId;
+            }
+
+            @Override
+            public String modelId() {
+                return modelId;
+            }
+        };
     }
 
     @Test

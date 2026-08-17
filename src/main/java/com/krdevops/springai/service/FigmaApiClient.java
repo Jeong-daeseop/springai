@@ -8,6 +8,7 @@ import com.krdevops.springai.model.design.FigmaNodeDocument;
 import com.krdevops.springai.model.design.FigmaReference;
 import com.krdevops.springai.service.figma.FigmaApiQuery;
 import com.krdevops.springai.service.figma.FigmaComponentsResponse;
+import com.krdevops.springai.service.figma.FigmaImagesResponse;
 import com.krdevops.springai.service.figma.FigmaStylesResponse;
 import com.krdevops.springai.service.resilience.ExternalCallGuard;
 import com.krdevops.springai.service.resilience.ExternalDependency;
@@ -22,9 +23,12 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 @Service
 public class FigmaApiClient {
@@ -262,31 +266,56 @@ public class FigmaApiClient {
     private String encodeQuery(String value) { return URLEncoder.encode(value, StandardCharsets.UTF_8); }
 
     /**
-     * Pagination을 지원하는 노드 조회.
-     * Figma API의 NODES 엔드포인트는 단일 조회만 지원하므로,
-     * 이 메서드는 fileKey 기준 여러 노드를 offset-limit 방식으로 분할 조회한다.
+     * R6-040: Pagination을 지원하는 다중 노드 조회.
+     * Figma NODES 엔드포인트(GET /v1/files/{fileKey}/nodes?ids=...)는 콤마 구분 다중 ID를
+     * 한 번에 조회할 수 있지만 offset/limit 개념은 없다. 이 메서드는 {@code query.resolvedNodeIds()}
+     * (nodeId 단건 또는 nodeIds 다건)를 {@code pageSize} 단위로 슬라이싱해 {@code page}번째 구간만
+     * 한 번의 GET으로 조회한다 — 대량 nodeId를 URL 길이 제한 없이 나눠 처리하기 위함이다.
+     * 삭제된 노드(200 + nodes:{id:null})는 조용히 건너뛴다({@link #findMissingNodeIds}로 별도 확인 가능).
      */
     public List<FigmaNodeDocument> queryNodesPaginated(FigmaApiQuery query) {
         ensureEnabled();
         if (query == null) {
             throw new IllegalArgumentException("query는 필수입니다");
         }
-
-        // Figma API는 단일 조회만 지원하므로, 실제 구현은 내부 노드 목록 분할
-        // 이 메서드는 주로 테스트/시뮬레이션용
-        int offset = query.page() * query.pageSize();
-
-        // 현재는 단일 노드 조회로 제한 (노드 목록 API는 Figma REST에 없음)
-        if (query.nodeId() == null || query.nodeId().isBlank()) {
-            throw new IllegalArgumentException("nodeId는 필수입니다");
+        List<String> allIds = query.resolvedNodeIds();
+        if (allIds.isEmpty()) {
+            throw new IllegalArgumentException("nodeId 또는 nodeIds 중 하나는 필수입니다");
         }
+        int fromIndex = query.page() * query.pageSize();
+        if (fromIndex >= allIds.size()) {
+            return List.of();
+        }
+        int toIndex = Math.min(fromIndex + query.pageSize(), allIds.size());
+        List<String> pageIds = allIds.subList(fromIndex, toIndex);
+        return guard.execute(ExternalDependency.FIGMA,
+                () -> queryNodesPaginatedOnce(query.fileKey(), pageIds, query.depth()));
+    }
 
-        // 단일 노드 조회 후 List로 반환
-        FigmaNodeDocument node = fetchNode(new FigmaReference(
-                query.fileKey(),
-                query.nodeId()
-        ));
-        return List.of(node);
+    private List<FigmaNodeDocument> queryNodesPaginatedOnce(String fileKey, List<String> nodeIds, int depth) {
+        String ids = nodeIds.stream().map(this::encodeQuery).collect(Collectors.joining(","));
+        URI uri = URI.create(baseUrl + "/files/" + encodePath(fileKey) + "/nodes?ids=" + ids
+                + "&depth=" + Math.max(1, Math.min(10, depth)));
+        JsonNode root = callApi(uri, JsonNode.class);
+        String version = root.path("version").asText(null);
+        if (version == null || version.isBlank()) {
+            throw new FigmaApiException("FIGMA_RESPONSE_INVALID", 200,
+                    "Figma API 응답에 파일 버전이 없습니다.");
+        }
+        JsonNode nodes = root.path("nodes");
+        List<FigmaNodeDocument> result = new java.util.ArrayList<>();
+        for (String nodeId : nodeIds) {
+            JsonNode entry = nodes.path(nodeId);
+            if (entry.isMissingNode() || entry.isNull()) {
+                continue;
+            }
+            JsonNode document = entry.path("document");
+            if (!document.isObject()) {
+                continue;
+            }
+            result.add(new FigmaNodeDocument(version, document.deepCopy()));
+        }
+        return List.copyOf(result);
     }
 
     /**
@@ -309,6 +338,41 @@ public class FigmaApiClient {
         URI uri = URI.create(baseUrl + "/files/" + encodePath(fileKey) + "/components");
         return guard.execute(ExternalDependency.FIGMA,
                 () -> callApi(uri, FigmaComponentsResponse.class));
+    }
+
+    /**
+     * R6-T10: 지정 노드의 렌더 이미지 URL 조회. GET /v1/images/{fileKey}?ids=...
+     * Figma는 발급한 이미지 URL의 만료 시각을 응답에 포함하지 않으므로(공식 문서상 약 30분),
+     * 이 클라이언트가 조회 시각을 기록해 {@link FigmaImageUrls#isExpired} 판정 기준으로 쓴다.
+     * 개별 노드의 렌더 실패는 {@code images} 맵에서 값이 null로 오며 전체 실패로 취급하지 않는다.
+     */
+    public FigmaImageUrls queryImages(String fileKey, List<String> nodeIds) {
+        ensureEnabled();
+        if (nodeIds == null || nodeIds.isEmpty()) {
+            throw new IllegalArgumentException("nodeIds는 필수입니다");
+        }
+        String ids = nodeIds.stream().map(this::encodeQuery).collect(Collectors.joining(","));
+        URI uri = URI.create(baseUrl + "/images/" + encodePath(fileKey) + "?ids=" + ids);
+        FigmaImagesResponse response = guard.execute(ExternalDependency.FIGMA,
+                () -> callApi(uri, FigmaImagesResponse.class));
+        if (response.err() != null) {
+            throw new FigmaApiException("FIGMA_IMAGE_EXPORT_FAILED", 502, response.err());
+        }
+        Map<String, String> images = response.images() == null ? Map.of() : response.images();
+        List<String> failedNodeIds = nodeIds.stream()
+                .filter(id -> images.get(id) == null)
+                .toList();
+        return new FigmaImageUrls(images, failedNodeIds, Instant.now());
+    }
+
+    /** R6-T10: 조회된 이미지 URL과 조회 시각. TTL은 Figma가 문서화한 약 30분을 기본값으로 쓴다. */
+    public record FigmaImageUrls(
+            Map<String, String> imageUrlsByNodeId, List<String> failedNodeIds, Instant fetchedAt) {
+        private static final Duration DEFAULT_TTL = Duration.ofMinutes(30);
+
+        public boolean isExpired(Instant now) {
+            return now.isAfter(fetchedAt.plus(DEFAULT_TTL));
+        }
     }
 
     /**

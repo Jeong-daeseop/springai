@@ -99,11 +99,28 @@ public class ComponentInventoryValidator {
         var registryComponentKeys = registry.components().keySet();
 
         for (var requestedKey : requestedComponentKeys) {
-            if (registryComponentKeys.contains(requestedKey)) {
+            var entry = registry.components().get(requestedKey);
+            if (entry != null && entry.currentForGeneration()) {
+                // Registry에 있고 CURRENT/ACTIVE 상태일 때만 확정 선택한다.
                 selectedKeys.add(requestedKey);
                 confidenceMap.put(requestedKey, 0.95);
+            } else if (entry != null) {
+                // Registry에는 있지만 DEPRECATED/REMOVED/DRAFT 등이라 그대로 쓸 수 없다.
+                // replacementLogicalType이 있고 그 대체 컴포넌트가 CURRENT/ACTIVE면 대체 사용을 제시한다.
+                var replacementKey = entry.replacementLogicalType();
+                var replacement = replacementKey == null ? null : registry.components().get(replacementKey);
+                if (replacement != null && replacement.currentForGeneration()) {
+                    fallbackKeys.add(replacementKey);
+                    confidenceMap.put(requestedKey, 0.6);
+                    issues.add("컴포넌트 '" + requestedKey + "'는 " + entry.lifecycleStatus()
+                        + " 상태입니다. 대체 컴포넌트를 사용하세요: " + replacementKey);
+                } else {
+                    confidenceMap.put(requestedKey, 0.3);
+                    issues.add("컴포넌트 '" + requestedKey + "'는 " + entry.lifecycleStatus()
+                        + " 상태라 신규 생성에 사용할 수 없습니다.");
+                }
             } else {
-                // Fallback 제시
+                // Registry에 아예 없음 — 이름 유사도 기반 fallback 제시
                 var fallback = findSimilarComponent(requestedKey, registry);
                 if (fallback.isPresent()) {
                     fallbackKeys.add(fallback.get());

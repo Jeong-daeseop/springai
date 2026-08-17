@@ -26,7 +26,7 @@
     },
     "requestedAt": "2026-08-02T09:00:00Z"
   },
-  "requestHash": "32b3b48132301c7f441d014b40255be5594a98c0d8a784ad8060e76679825768",
+  "hash": "32b3b48132301c7f441d014b40255be5594a98c0d8a784ad8060e76679825768",
   "status": "ANALYZED",
   "sourceRevision": null,
   "issues": [],

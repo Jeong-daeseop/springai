@@ -11,7 +11,14 @@ public record FigmaScreenRequest(
         String name,
 
         @JsonProperty("description")
-        String description
+        String description,
+
+        /** R6-036(2026-08-18): 화면별로 실제 Bundle을 만들려면 각자의 DB 테이블이 필요하다. */
+        @JsonProperty("database")
+        String database,
+
+        @JsonProperty("tableName")
+        String tableName
 ) {
     public FigmaScreenRequest {
         if (name == null || name.isBlank()) {
@@ -20,6 +27,11 @@ public record FigmaScreenRequest(
         if (description == null || description.isBlank()) {
             throw new IllegalArgumentException("description은 필수입니다");
         }
+    }
+
+    /** database/tableName 도입 전 호출자 호환. */
+    public FigmaScreenRequest(String name, String description) {
+        this(name, description, null, null);
     }
 
     /**
