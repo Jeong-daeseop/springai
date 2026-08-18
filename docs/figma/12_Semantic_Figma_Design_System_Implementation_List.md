@@ -1,6 +1,6 @@
 # Semantic Figma Design System 구현 목록
 
-> 문서 버전: 4.10
+> 문서 버전: 4.11
 > 작성일: 2026-07-30  
 > 상태 재판정일: 2026-08-18
 > 구현 기준 문서:
@@ -601,7 +601,7 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 
 ### 12.3 R7 테스트
 
-- [~] **R7-T01** 공개 URL 캡처 → 후보 Spec → FigmaScreenSpec E2E — (2026-08-18) 로그인된 실제 eGovFrame Chrome 세션에서 Q&A 7개 화면 캡처를 완료하고 `production-qna-*.jpg`로 보관. 기존 로컬 stub HTTP 기반 `WebCaptureClientE2ETest`와 인증 fixture E2E도 통과했지만, 실제 운영 캡처 결과를 `.figpack`으로 변환해 후보 Spec·승인·FigmaScreenSpec까지 잇는 구간은 아직 별도 실행하지 않음
+- [x] **R7-T01** 공개 URL 캡처 → 후보 Spec → FigmaScreenSpec E2E — (2026-08-18) 로그인된 실제 eGovFrame Chrome 세션에서 Q&A 7개 화면 캡처를 완료하고 `production-qna-*.jpg`로 보관. 기존 로컬 stub HTTP 기반 `WebCaptureClientE2ETest`와 인증 fixture E2E도 통과했지만, 실제 운영 캡처 결과를 `.figpack`으로 변환해 후보 Spec·승인·FigmaScreenSpec까지 잇는 구간은 아직 별도 실행하지 않음 — (2026-08-18 후속) **나머지 구간 실제 실행 완료**: 로컬 eGovFrame(`localhost:8081`) 실제 QnA 목록 화면(`/uss/olh/qna/selectQnaList.do`)을 로그인 세션으로 `captureWebPage` MCP Tool 통해 캡처(69개 노드) → `POST /api/figma/hybrid/candidates`로 `database=ebt`/`primaryTable=LETTNQAINFO` 후보 Spec 생성(`APPROVED`, issues 없음) → `POST /api/figma/hybrid/{artifactId}/approve` 승인 → 실제 `FigmaScreenSpec`(`screenId=list`, `screenType=LIST`, 컴포넌트 트리 6개 자식 노드 포함) 생성까지 확인. 과정에서 이 로그인 폼이 라디오 선택(`업무/USR` 유형)을 먼저 클릭해야 하는 다단계 폼임을 발견해 `jsp-design-extractor`에 `preClickSelector`(로그인 전 클릭할 선택자) 옵션을 신설(재사용 가능한 일반 기능으로 유지). 로컬 서버 설정(`enabled`/키/`allowed-origins`/`sensitive-selectors`/actuator 노출)은 실행 중 임시로만 조정했고 전부 원복함
 - [x] **R7-T02** 로그인 화면 캡처 fixture 기반 변환 테스트 — (2026-08-17) `WebCaptureClientE2ETest`에 아이디/비밀번호 입력 필드를 가진 로그인 화면 fixture를 실제 HTTP 경로로 캡처·분석하고 `PASSWORD_HASH` 같은 민감정보가 결과 `UiDesignSpec`에 남지 않음을 검증하는 테스트 추가
 - [x] **R7-T03** 캡처 실패 시 기존 WEB_CAPTURE 오류 보고 회귀 테스트 — (2026-08-17) extractor 5xx 응답, 연결 끊김(응답 없이 close), 허용되지 않은 origin(URL 검증 실패로 extractor 호출 전에 차단)까지 3가지 실패 경로를 `WebCaptureClientE2ETest`로 검증. 5xx/연결 실패는 명확한 오류 메시지로 전파되고 Artifact가 생성되지 않음을 확인
 - [~] **R7-T04** 원본과 생성 화면의 텍스트·컴포넌트·레이아웃 비교 — 구조 비교 단위 테스트 통과, Figma 렌더 이미지 비교는 미실시
@@ -925,6 +925,7 @@ R7-T01/R7-T04/R7-015/R7-016의 잔여 범위이다.
 
 | 버전 | 일자 | 변경 내용 |
 |---|---|---|
+| 4.11 | 2026-08-18 | **R7-T01 나머지 구간 실제 실행**: 로컬 eGovFrame(`localhost:8081`) QnA 목록 화면을 실제 로그인 세션으로 캡처(MCP `captureWebPage`) → `/api/figma/hybrid/candidates` 후보 Spec 생성 → `/approve` 승인 → 실제 `FigmaScreenSpec` 생성까지 전체 파이프라인을 서버 REST/MCP 호출로 직접 실행해 검증. 이 로그인 폼이 라디오 선택(업무/USR 유형)을 먼저 클릭해야 하는 다단계 폼임을 발견해 `jsp-design-extractor`에 재사용 가능한 `preClickSelector` 옵션 신설. 로컬 서버 설정은 실행 중 임시로만 조정(`enabled`/키/`allowed-origins`/`sensitive-selectors`/actuator `env` 노출)했고 작업 완료 후 전부 원복. |
 | 4.10 | 2026-08-18 | (문서 상단 버전 표시가 4.3에 머물러 있던 표기 오류도 함께 정정) 서버 코드로 닫을 수 있는 잔여 항목 재조사·구현. **R6-053**: `LegacyScreenRoleResolver` 신설 — JSP/Controller 소스 증거로 화면 유형을 추정해 호출자가 명시한 `screenRole`과 어긋나면 WARNING(자동 판정이 필수 입력을 대체하지 않음). 실제 `EgovEmployerList.jsp` fixture 재현 중 검색/필터 폼을 데이터 입력 폼으로 오판하는 버그를 발견·수정. **R6-T10**: `queryTeamComponents`/`queryTeamStyles`/`queryAllTeamComponents`/`queryAllTeamStyles` 신설로 Team 전체 Library의 `page_size`/`after` cursor pagination 실제 구현(cursor가 진행 없으면 즉시 중단해 무한 루프·중복 방지). **R6-062**: `ThymeleafBindingGenerationService.resolveDesignTokens()`가 `CompanyDesignTokenResolver`에 항상 `null`을 하드코딩해 넘겨 DESIGN.md 화면 Override 병합 로직(R6-056, 구현·테스트는 있었음)이 생성 파이프라인에서 한 번도 실행되지 않던 배선 누락을 발견·수정 — `DesignMdRuleLoader`를 주입해 실제 DESIGN.md 규칙이 있을 때만 병합하도록 연결, end-to-end 테스트로 검증. **R4-020/R6-044/R0-027/R6-040/R6-045/R6-T09/R6-043/R6-054/R6-056/R6-031**은 이전 회차(v4.3)에서 이미 처리. **재조사 후 근거 보강**: R6-T08(file 소속은 실시간 REST 호출로 이미 검증됨을 확인, page 소속은 요청 계약에 pageId 개념이 없어 별도 설계 결정 필요로 재분류). **범위 확정 보류**: R6-063/R6-T16(하드코딩 검사 대상 자체가 미정 — 실제 템플릿 3종은 inline style을 전혀 쓰지 않아 원래 뜻의 CSS 값 우회 검사는 대상 표면이 없음), R6-030(dead code 삭제 여부는 사용자 결정 필요), R7-002(운영 fixture 축적 전 휴리스틱 추측 추가는 보류가 합리적 — 문서의 기존 판단 재확인). Java 전체 테스트 스위트 1576개 통과 확인(신규 테스트 20건 이상 추가). |
 | 4.9 | 2026-08-18 | R7 하이브리드 흐름의 실제 구조를 명확화. `.figpack`은 `FigmaScreenSpec`이 아니라 `document.json` 기반 Reference Snapshot이며, `UiDesignSpec → 후보 ScreenSpecification → 사람 수정·승인 → FigmaScreenSpec`으로 변환됨을 명시. 개념적 MCP 흐름과 실제 `FigmaHybridExportService` 기반 REST 진입점(`/api/figma/hybrid/**`)의 관계를 문서화하고, 운영 `.figpack` 전체 E2E·픽셀 비교 잔여 범위를 R7-T01/R7-T04/R7-015/R7-016으로 재확인. |
 | 4.8 | 2026-08-18 | Web Capture 인증 경로를 소스와 재대조. `CaptureWebPageTool`이 extractor `POST /v1/sessions`의 UUID형 불투명 `storageStateRef`를 `/v1/captures`로 전달하도록 구현·회귀 테스트 완료. 비밀번호·쿠키·토큰 원문은 MCP 입력에서 차단하며, 세션 발급 API 직접 호출과 owner 격리는 잔여 운영 범위로 명시. |

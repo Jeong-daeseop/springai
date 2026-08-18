@@ -19,6 +19,7 @@ type CaptureRequest = {
 
 type SessionRequest = {
   requestId?: string; loginUrl: string; allowedOrigins: string[];
+  preClickSelector?: string;
   usernameSelector: string; username: string; passwordSelector: string; password: string;
   submitSelector: string; successSelector?: string; timeoutMillis?: number;
 };
@@ -152,7 +153,7 @@ function pruneSessions() {
 setInterval(pruneSessions, 5 * 60 * 1000).unref();
 
 async function validateSessionRequest(input: SessionRequest) {
-  const allowedKeys = new Set(["requestId","loginUrl","allowedOrigins","usernameSelector","username","passwordSelector","password","submitSelector","successSelector","timeoutMillis"]);
+  const allowedKeys = new Set(["requestId","loginUrl","allowedOrigins","preClickSelector","usernameSelector","username","passwordSelector","password","submitSelector","successSelector","timeoutMillis"]);
   if (!input || typeof input !== "object" || Object.keys(input).some(key => !allowedKeys.has(key))) throw new Error("REQUEST_SCHEMA_INVALID");
   if (!input.usernameSelector || !input.passwordSelector || !input.submitSelector || !input.username || !input.password) throw new Error("REQUEST_SCHEMA_INVALID");
   await validateOrigin(input.loginUrl, input.allowedOrigins);
@@ -166,6 +167,9 @@ async function createSession(input: SessionRequest): Promise<{ sessionId: string
   try {
     const page = await context.newPage();
     await page.goto(input.loginUrl, { waitUntil: "domcontentloaded", timeout: timeoutMillis });
+    if (input.preClickSelector) {
+      await page.click(input.preClickSelector, { timeout: timeoutMillis });
+    }
     await page.fill(input.usernameSelector, input.username, { timeout: timeoutMillis });
     await page.fill(input.passwordSelector, input.password, { timeout: timeoutMillis });
     await Promise.all([
