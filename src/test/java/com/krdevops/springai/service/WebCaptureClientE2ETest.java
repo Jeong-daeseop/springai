@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -132,6 +133,42 @@ class WebCaptureClientE2ETest {
 
         assertThat(analysis.uiSpec().toString()).contains("아이디").contains("ActionSpec");
         assertThat(analysis.uiSpec().toString()).doesNotContain("PASSWORD_HASH");
+    }
+
+    /** R7-T02: MCP가 받은 불투명 storageStateRef를 extractor 요청에 그대로 전달한다. */
+    @Test
+    void t02_storageStateRefIsForwardedWithoutAcceptingCredentials(@TempDir Path tempDir) throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        AtomicReference<String> forwardedStorageStateRef = new AtomicReference<>();
+        HttpServer extractor = extractorServer(exchange -> {
+            var body = mapper.readTree(exchange.getRequestBody());
+            forwardedStorageStateRef.set(body.path("storageStateRef").asText(null));
+            var requestIds = new String[]{body.get("captureId").asText(), body.get("documentKey").asText()};
+            byte[] figpack = packUnchecked(mapper, requestIds[0], requestIds[1], "인증 화면", List.of(
+                    field("title", "textbox", "제목", null)));
+            exchange.getResponseHeaders().add("Content-Type", "application/vnd.springai.figpack+zip");
+            exchange.sendResponseHeaders(200, figpack.length);
+            exchange.getResponseBody().write(figpack);
+        });
+        WebCaptureProperties properties = properties(tempDir, extractor);
+        WebCaptureOrchestrationService orchestration = orchestration(mapper, properties);
+        String storageStateRef = "11111111-1111-4111-8111-111111111111";
+
+        CaptureArtifactSummary captured = orchestration.capture(new CaptureWebPageRequest(
+                "http://localhost:8080/qna/list.do", CaptureProfile.LOCAL_WEB, ViewportSpec.desktop(), null,
+                "crud", storageStateRef));
+
+        assertThat(captured.artifactId()).isNotBlank();
+        assertThat(forwardedStorageStateRef).hasValue(storageStateRef);
+    }
+
+    @Test
+    void storageStateRefMustBeAnExtractorIssuedUuid() {
+        assertThatThrownBy(() -> new CaptureWebPageRequest(
+                "http://localhost:8080/qna/list.do", CaptureProfile.LOCAL_WEB, ViewportSpec.desktop(), null,
+                "crud", "plain-text-secret"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("UUID");
     }
 
     /** R7-T03: extractor가 5xx를 반환하면 캡처가 실패하고, 실패한 캡처는 Artifact를 남기지 않는다. */

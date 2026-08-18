@@ -1,0 +1,3 @@
+{"timestamp":"2026-08-17T23:35:25.098Z","level":"INFO","service":"jsp-design-extractor","event":"session.created","sessionIdHash":"24b36a64b9aca66750842dc108f371ec5ae89a01ff44428a8b542b9aeb0b53ed"}
+{"timestamp":"2026-08-17T23:35:25.105Z","level":"INFO","service":"jsp-design-extractor","event":"capture.started","captureId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","originHash":"df4c4cad8a541b0e9f040ec84ad0fd40573967bba31feeecde02f02d6f23aecb","activeCaptures":1}
+{"timestamp":"2026-08-17T23:35:25.518Z","level":"INFO","service":"jsp-design-extractor","event":"capture.completed","captureId":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","contentHash":"1b219d73e72728ef8dec04f23229efb9f4cba654c8e1b16b0dd19957d9aa940a","nodeCount":17,"assetCount":0,"warningCount":0,"packageBytes":17125}

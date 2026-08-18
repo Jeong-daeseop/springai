@@ -2,6 +2,7 @@ package com.krdevops.springai.service.thymeleaf;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.config.ArtifactStoreProperties;
+import com.krdevops.springai.model.contract.GenerationIssue;
 import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenRole;
@@ -96,6 +97,26 @@ class ThymeleafBindingGenerationServiceTest {
                         "legacy/EmployerVO.java");
         assertThat(snapshot.legacySourceManifest().fingerprint())
                 .isEqualTo(result.bindingContract().sourceRevision().revisionToken());
+    }
+
+    /**
+     * R6-053: 실제 LIST 화면 fixture(`th:each`·`/emp/employerList.do`)에 일부러 잘못된
+     * screenRole(FORM)을 넘기면, 소스 증거가 가리키는 유형과 어긋난다는 WARNING이 남아야 한다.
+     * Preview 자체는 막히지 않는다(자동 판정이 필수 입력을 대체하지 않음).
+     */
+    @Test
+    void mismatchedScreenRoleAgainstSourceEvidenceProducesWarningWithoutBlockingPreview() {
+        ThymeleafBindingPreviewRequest mismatched = new ThymeleafBindingPreviewRequest(
+                projectRoot.toString(), "employer-list", LegacyScreenRole.FORM,
+                "legacy/EgovEmployerList.jsp", "legacy/EgovEmployerController.java", "legacy/EmployerVO.java",
+                null, null, "src/main/resources/templates/employer/EgovEmployerList.html",
+                "직원 목록", "layout/default", null, "/emp/employerRegistView.do");
+
+        ThymeleafBindingGenerationService.BindingPreviewResult result = service.preview(mismatched);
+
+        assertThat(result.successful()).isTrue();
+        assertThat(result.issues()).extracting(GenerationIssue::code)
+                .contains("SCREEN_ROLE_MISMATCH_WITH_SOURCE_EVIDENCE");
     }
 
     /**
@@ -341,6 +362,50 @@ class ThymeleafBindingGenerationServiceTest {
                 .contains("--krds-color-primary-60");
     }
 
+    /**
+     * R6-062: 이전에는 DESIGN.md가 있어도 항상 {@code null}이 하드코딩돼 있어
+     * {@link CompanyDesignTokenResolver}의 override 병합 로직(구현·테스트는 있었음)이 실제
+     * 생성 파이프라인에서 한 번도 실행되지 않았다 — 실제 DESIGN.md 파일 + 실제
+     * CompanyDesignTokenResolver(mock 아님)로 화면 Override가 정말로 생성 결과에 반영되는지
+     * end-to-end로 검증한다.
+     */
+    @Test
+    void designMdColorOverrideIsMergedIntoGeneratedHtmlProvenance() throws Exception {
+        Files.writeString(projectRoot.resolve("DESIGN.md"), """
+                ---
+                schemaVersion: "1.0"
+                colors:
+                  screenOverride: "--krds-color-screen-override-test"
+                ---
+
+                # 화면별 Design 규칙
+                """);
+        var queryService = mock(com.krdevops.springai.service.designsystem.DesignSystemQueryService.class);
+        when(queryService.findLatestProfile("krds")).thenReturn(
+                new com.krdevops.springai.model.designsystem.DesignSystemProfile(
+                        "krds", "KRDS", "2.2.2", "registry-1", "file-key",
+                        com.krdevops.springai.model.designsystem.DesignSystemProfile.Status.PUBLISHED,
+                        java.util.Map.of(), java.util.Map.of()));
+        when(queryService.findLatestRegistry("krds")).thenReturn(
+                new com.krdevops.springai.model.designsystem.ComponentRegistry(
+                        "krds", "2.2.2", "registry-1", null, java.util.Map.of(), java.util.Map.of()));
+        CompanyDesignTokenResolver realResolver =
+                new CompanyDesignTokenResolver(queryService, new GenerationIssueFactory());
+        ThymeleafBindingGenerationService withRealTokens = serviceWith(workflow, realResolver);
+        ThymeleafBindingPreviewRequest base = validRequest();
+        ThymeleafBindingPreviewRequest request = new ThymeleafBindingPreviewRequest(
+                base.projectRootPath(), base.screenId(), base.screenRole(), base.jspRelativePath(),
+                base.controllerRelativePath(), base.voRelativePath(), base.voSuperclassRelativePath(),
+                base.secondaryVoRelativePath(), base.outputRelativePath(), base.pageTitle(), base.layoutView(),
+                base.screenSpecificationId(), base.registRoute(), "krds");
+
+        var result = withRealTokens.preview(request);
+
+        assertThat(result.successful()).isTrue();
+        assertThat(result.workflow().operation().previewArtifacts().get(result.outputRelativePath()))
+                .contains("--krds-color-screen-override-test");
+    }
+
     /** Design Token 해석이 실패해도(FATAL) Preview 전체를 막지 않고 토큰 없이 계속 진행한다. */
     @Test
     void failedDesignTokenResolutionDoesNotBlockPreview() {
@@ -393,9 +458,11 @@ class ThymeleafBindingGenerationServiceTest {
         configuration.setDefaultEncoding("UTF-8");
         configuration.setTemplateExceptionHandler(TemplateExceptionHandler.RETHROW_HANDLER);
         GenerationIssueFactory issueFactory = new GenerationIssueFactory();
+        LegacySourceInventoryService legacyInventory = new LegacySourceInventoryService(hashFactory);
         return new ThymeleafBindingGenerationService(
-                new LegacySourceInventoryService(hashFactory), new JspSourceReader(),
-                new ControllerSourceReader(), new VoSourceReader(),
+                legacyInventory, new JspSourceReader(),
+                new ControllerSourceReader(), new VoSourceReader(), new LegacyScreenRoleResolver(),
+                new DesignMdRuleLoader(legacyInventory, issueFactory),
                 new BindingContractAssembler(issueFactory), new BindingComposer(configuration, issueFactory),
                 designTokenResolver,
                 specifications, workflow, new RegenerationDiffService());

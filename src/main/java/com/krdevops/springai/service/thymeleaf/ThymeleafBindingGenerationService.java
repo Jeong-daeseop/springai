@@ -4,6 +4,7 @@ import com.krdevops.springai.model.contract.GenerationIssue;
 import com.krdevops.springai.model.contract.SourceRevisionRef;
 import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.model.thymeleaf.AppliedDesignRules;
 import com.krdevops.springai.model.thymeleaf.LegacyScreenAnalysis;
 import com.krdevops.springai.model.thymeleaf.LegacySourceManifest;
 import com.krdevops.springai.model.thymeleaf.RegenerationDiffResult;
@@ -44,6 +45,8 @@ public class ThymeleafBindingGenerationService {
     private final JspSourceReader jspSourceReader;
     private final ControllerSourceReader controllerSourceReader;
     private final VoSourceReader voSourceReader;
+    private final LegacyScreenRoleResolver screenRoleResolver;
+    private final DesignMdRuleLoader designRuleLoader;
     private final BindingContractAssembler contractAssembler;
     private final BindingComposer bindingComposer;
     private final CompanyDesignTokenResolver designTokenResolver;
@@ -82,6 +85,7 @@ public class ThymeleafBindingGenerationService {
                 jspSourceReader.read(jsp.relativePath(), jsp.content()),
                 controllerSourceReader.read(controller.relativePath(), controller.content()),
                 primaryVoEvidence, sourceRevision, List.of(), Instant.now());
+        List<GenerationIssue> screenRoleAdvisories = screenRoleMismatchAdvisory(request, analysis);
 
         ThymeleafGenerationStageResult<ThymeleafBindingContract> contractResult =
                 contractAssembler.assemble(analysis, secondaryVoEvidence);
@@ -122,8 +126,31 @@ public class ThymeleafBindingGenerationService {
         ThymeleafProjectWorkflowService.WorkflowResult workflow = workflowService.preview(
                 projectRoot, Map.of(request.outputRelativePath(), composeResult.value()),
                 candidate, sourceManifest);
+        List<GenerationIssue> finalIssues = new ArrayList<>(composeResult.issues());
+        finalIssues.addAll(screenRoleAdvisories);
         return new BindingPreviewResult(true, PREVIEW_STAGE, request.outputRelativePath(),
-                candidate, composeResult.issues(), workflow);
+                candidate, finalIssues, workflow);
+    }
+
+    /**
+     * R6-053: JSP·Controller 소스 증거로 추정한 화면 유형이 호출자가 명시한
+     * {@code screenRole}과 어긋나면 WARNING으로 알린다. 자동 판정이 필수 입력을 대체하지
+     * 않으므로 전체 Preview를 막지 않는다 — confidence가 낮은(근거 부족) 제안은 알리지 않는다.
+     */
+    private List<GenerationIssue> screenRoleMismatchAdvisory(
+            ThymeleafBindingPreviewRequest request, LegacyScreenAnalysis analysis) {
+        var suggestion = screenRoleResolver.suggest(analysis.jsp(), analysis.controller());
+        if (!suggestion.resolved() || suggestion.confidence() < 0.7
+                || suggestion.suggestedRole() == request.screenRole()) {
+            return List.of();
+        }
+        return List.of(new GenerationIssue(
+                "SCREEN_ROLE_MISMATCH_WITH_SOURCE_EVIDENCE", GenerationIssue.Severity.WARNING, CONTRACT_STAGE,
+                null,
+                "요청한 screenRole(" + request.screenRole() + ")이 소스 증거로 추정한 화면 유형("
+                        + suggestion.suggestedRole() + ", confidence=" + suggestion.confidence()
+                        + ")과 다릅니다: " + suggestion.reasoning(),
+                "screenRole 지정이 맞는지 다시 확인하세요."));
     }
 
     private String regenerationDiffMessage(RegenerationDiffResult diff) {
@@ -164,14 +191,36 @@ public class ThymeleafBindingGenerationService {
         if (request.designSystemProfileId() == null) {
             return null;
         }
+        AppliedDesignRules appliedDesignRules = loadAppliedDesignRules(request.projectRootPath());
         ThymeleafGenerationStageResult<ResolvedDesignTokens> result =
-                designTokenResolver.resolve(request.designSystemProfileId(), null);
+                designTokenResolver.resolve(request.designSystemProfileId(), appliedDesignRules);
         if (!result.successful()) {
             log.warn("Design Token 해석 실패, provenance 없이 진행합니다: profileId={}, issues={}",
                     request.designSystemProfileId(), result.issues());
             return null;
         }
         return result.value();
+    }
+
+    /**
+     * R6-062: Profile/Registry 기본 Token과 DESIGN.md의 화면 Override를 실제로 병합하기 위해
+     * 로드한다. 이전에는 이 자리에 항상 {@code null}이 하드코딩돼 있어 DESIGN.md가 있어도
+     * {@link CompanyDesignTokenResolver}의 override 병합 로직(구현·테스트는 있었음)이 생성
+     * 파이프라인에서 한 번도 실행되지 않았다 — Registry의 신규 소비자가 없어 죽은 코드였던
+     * R6-057과 같은 종류의 배선 누락. 업무 계약 침범(FATAL) 차단은 여기서 다시 하지 않는다 —
+     * 그 차단은 {@code ThymeleafProjectWorkflowService.preview()}가 같은 DESIGN.md를 별도로
+     * 다시 읽어 이미 강제하므로, 여기서는 Token 병합에만 쓰고 실패해도 병합 없이 계속 진행한다.
+     * DESIGN.md가 없거나 병합할 규칙이 비어 있으면 {@code null}을 반환해 기존 동작(Registry
+     * 기본값만 사용)과 동일하게 유지한다.
+     */
+    private AppliedDesignRules loadAppliedDesignRules(String projectRootPath) {
+        ThymeleafGenerationStageResult<AppliedDesignRules> result = designRuleLoader.load(projectRootPath);
+        if (!result.successful()) {
+            log.warn("DESIGN.md 규칙 로드 실패, Design Token 병합 없이 진행합니다: issues={}", result.issues());
+            return null;
+        }
+        AppliedDesignRules rules = result.value();
+        return rules != null && !rules.appliedRules().isEmpty() ? rules : null;
     }
 
     private ScreenSpecification approvedSpecification(String specificationId) {

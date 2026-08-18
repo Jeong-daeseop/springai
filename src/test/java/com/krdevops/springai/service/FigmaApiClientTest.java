@@ -443,6 +443,126 @@ class FigmaApiClientTest {
                         error -> assertThat(error.code()).isEqualTo("FIGMA_REFERENCE_NOT_FOUND"));
     }
 
+    // ===== R6-T10: Team 전체 Components/Styles cursor pagination =====
+
+    @Test
+    void queryTeamComponentsReturnsComponentsAndCursor() throws Exception {
+        HttpServer server = teamsServer(exchange -> {
+            assertThat(exchange.getRequestURI().getPath()).endsWith("/teams/team-1/components");
+            assertThat(exchange.getRequestURI().getRawQuery()).contains("page_size=50");
+            respond(exchange, 200, """
+                    {"meta":{"components":[{"key":"c1","name":"Button"}],"cursor":{"after":100}},
+                     "error":false,"status":200}
+                    """);
+        });
+
+        var result = client(server, properties()).queryTeamComponents("team-1", null, 50);
+
+        assertThat(result.meta().components()).extracting(c -> c.key()).containsExactly("c1");
+        assertThat(result.meta().cursor().after()).isEqualTo(100L);
+    }
+
+    @Test
+    void queryTeamComponentsRequiresTeamId() throws Exception {
+        HttpServer server = teamsServer(exchange -> respond(exchange, 200, "{}"));
+        FigmaApiClient client = client(server, properties());
+
+        assertThatThrownBy(() -> client.queryTeamComponents(" ", null, 50))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    /** cursor.after가 있는 동안 반복 호출해 여러 페이지를 하나로 모으고, null이면 멈춘다. */
+    @Test
+    void queryAllTeamComponentsFollowsCursorAcrossPagesAndStopsWhenExhausted() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer server = teamsServer(exchange -> {
+            int call = requests.incrementAndGet();
+            if (call == 1) {
+                assertThat(exchange.getRequestURI().getRawQuery()).doesNotContain("after=");
+                respond(exchange, 200, """
+                        {"meta":{"components":[{"key":"c1"}],"cursor":{"after":100}},"error":false,"status":200}
+                        """);
+            } else {
+                assertThat(exchange.getRequestURI().getRawQuery()).contains("after=100");
+                respond(exchange, 200, """
+                        {"meta":{"components":[{"key":"c2"}],"cursor":{"after":null}},"error":false,"status":200}
+                        """);
+            }
+        });
+
+        var all = client(server, properties()).queryAllTeamComponents("team-1", 50, 10);
+
+        assertThat(all).extracting(c -> c.key()).containsExactly("c1", "c2");
+        assertThat(requests).hasValue(2);
+    }
+
+    /**
+     * 응답의 cursor.after가 방금 요청에 쓴 cursor와 같으면(서버가 진행 없음을 알려온 것) 그
+     * 페이지는 버리고 멈춘다 — 같은 cursor로 다시 요청하지 않으므로 결과에 중복이 남지 않는다.
+     * (null → 100으로의 첫 진행은 정상이므로, "진행 없음"을 확인하려면 최소 2번은 호출해야 한다.)
+     */
+    @Test
+    void queryAllTeamComponentsDiscardsPageWhenCursorDoesNotAdvance() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer server = teamsServer(exchange -> {
+            requests.incrementAndGet();
+            respond(exchange, 200, """
+                    {"meta":{"components":[{"key":"c1"}],"cursor":{"after":100}},"error":false,"status":200}
+                    """);
+        });
+
+        var all = client(server, properties()).queryAllTeamComponents("team-1", 50, 5);
+
+        assertThat(requests).hasValue(2);
+        assertThat(all).hasSize(1);
+    }
+
+    @Test
+    void queryTeamStylesReturnsStylesAndCursor() throws Exception {
+        HttpServer server = teamsServer(exchange -> {
+            assertThat(exchange.getRequestURI().getPath()).endsWith("/teams/team-1/styles");
+            respond(exchange, 200, """
+                    {"meta":{"styles":[{"key":"s1","name":"Primary","style_type":"FILL"}],"cursor":{"after":200}},
+                     "error":false,"status":200}
+                    """);
+        });
+
+        var result = client(server, properties()).queryTeamStyles("team-1", null, 50);
+
+        assertThat(result.meta().styles()).extracting(s -> s.key()).containsExactly("s1");
+        assertThat(result.meta().cursor().after()).isEqualTo(200L);
+    }
+
+    @Test
+    void queryAllTeamStylesFollowsCursorAcrossPages() throws Exception {
+        AtomicInteger requests = new AtomicInteger();
+        HttpServer server = teamsServer(exchange -> {
+            int call = requests.incrementAndGet();
+            if (call == 1) {
+                respond(exchange, 200, """
+                        {"meta":{"styles":[{"key":"s1"}],"cursor":{"after":200}},"error":false,"status":200}
+                        """);
+            } else {
+                respond(exchange, 200, """
+                        {"meta":{"styles":[{"key":"s2"}],"cursor":{"after":null}},"error":false,"status":200}
+                        """);
+            }
+        });
+
+        var all = client(server, properties()).queryAllTeamStyles("team-1", 50, 10);
+
+        assertThat(all).extracting(s -> s.key()).containsExactly("s1", "s2");
+    }
+
+    @Test
+    void queryTeamComponentsHandlesApiErrors() throws Exception {
+        HttpServer server = teamsServer(exchange -> respond(exchange, 403, "{}"));
+
+        assertThatThrownBy(() -> client(server, properties()).queryTeamComponents("team-1", null, 50))
+                .isInstanceOfSatisfying(FigmaApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("FIGMA_ACCESS_DENIED"));
+    }
+
     // ===== R6-T10: 이미지 URL 조회 =====
 
     @Test
@@ -539,6 +659,20 @@ class FigmaApiClientTest {
     private HttpServer server(ExchangeHandler handler) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/v1/files", exchange -> {
+            try {
+                handler.handle(exchange);
+            } finally {
+                exchange.close();
+            }
+        });
+        server.start();
+        servers.add(server);
+        return server;
+    }
+
+    private HttpServer teamsServer(ExchangeHandler handler) throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/v1/teams", exchange -> {
             try {
                 handler.handle(exchange);
             } finally {

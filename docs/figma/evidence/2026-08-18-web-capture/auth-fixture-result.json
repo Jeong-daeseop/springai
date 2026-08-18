@@ -1,0 +1,8 @@
+{
+  "captureId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  "sessionIdHash": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "contentHash": "1b219d73e72728ef8dec04f23229efb9f4cba654c8e1b16b0dd19957d9aa940a",
+  "nodeCount": 17,
+  "redaction": true,
+  "status": "PASSED"
+}

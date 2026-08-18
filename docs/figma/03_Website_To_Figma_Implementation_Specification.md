@@ -1017,7 +1017,7 @@ X-Extractor-Key: ********
 - 로그인 성공 시 `context.storageState()` 결과를 **메모리 내부**(`Map<sessionId, storageState>`)에만 보관한다. 디스크에 파일로 저장하지 않아 §2 "인증정보·쿠키·토큰을 artifact와 로그에 저장하지 않는다" 원칙을 파일 기반 방식보다 더 엄격하게 만족한다.
 - `EXTRACTOR_SESSION_TTL_MINUTES`(기본 30분) 경과 시 세션이 자동 만료·삭제된다(5분 주기 정리).
 - `POST /v1/captures` 요청에 `storageStateRef`(발급받은 `sessionId`)를 추가하면 해당 storage state로 `browser.newContext()`를 생성해 인증 상태로 캡처한다. `storageStateRef`가 없거나 만료된 세션을 가리키면 `SESSION_NOT_FOUND` → `CAPTURE_AUTH_FAILED`(401)로 응답한다. 로그인 자체 실패는 `SESSION_LOGIN_FAILED` → `CAPTURE_AUTH_FAILED`(401)로 응답한다.
-- **미구현(§12.1 원 계약과의 차이)**: owner 단위 격리(현재는 API key 하나로 extractor 전체에 접근하는 P1 로컬 단일 사용자 모델과 동일 신뢰 경계이므로 sessionId를 아는 호출자는 누구나 재사용 가능), `springai` 쪽 MCP Tool(예: `CaptureWebPageTool`의 `storageStateRef` 파라미터·session 발급 Tool)은 아직 없다. 현재는 extractor API를 직접 호출하는 로컬 테스트 경로에서만 검증되었다.
+- **잔여 범위(§12.1 원 계약과의 차이)**: `springai`의 `CaptureWebPageTool`은 이제 extractor가 발급한 UUID형 불투명 `storageStateRef`를 캡처 요청에 전달한다(원문 비밀번호·쿠키·토큰 입력은 받지 않음). 세션 발급 자체는 extractor의 `POST /v1/sessions`를 호출하는 운영 경계로 유지한다. owner 단위 격리(현재는 API key 하나로 extractor 전체에 접근하는 P1 로컬 단일 사용자 모델과 동일 신뢰 경계이므로 sessionId를 아는 호출자는 누구나 재사용 가능)는 아직 남아 있다.
 
 ### 12.2 SPA
 
@@ -1218,6 +1218,7 @@ Release 1은 다음 상태 점검을 제공한다.
 
 | 버전 | 작성일 | 변경 내용 |
 |---|---|---|
+| 1.7 | 2026-08-18 | `CaptureWebPageTool`/`CaptureWebPageRequest`에 extractor 발급 UUID형 `storageStateRef` 전달 지원을 추가하고, 인증 원문을 MCP 입력으로 받지 않는 경계를 명시. 세션 발급과 owner 격리는 잔여 범위로 분리 |
 | 1.6 | 2026-07-22 | §5.5에 `value` 필드 확장 반영: `<select>` 현재 선택 옵션 텍스트만 예외로 캡처(스키마 `value`를 `null` 전용에서 nullableString으로 완화), `<input>`/`<textarea>`는 계속 차단. 실사용 화면(`selectBoardList.do`) 시각 검수로 발견된 `border-bottom` 전용 구분선 미캡처 문제(단일 면만 있으면 `getComputedStyle().border` 통합 shorthand가 빈 문자열을 반환하는 브라우저 특성) 대응으로 `styles.borderTop/Right/Bottom/Left` 4면 개별 캡처 추가(스키마 변경 없음, 기존 열린 string map 활용) |
 | 1.5 | 2026-07-22 | §12.1.1 신설: `jsp-design-extractor`에 구현된 Session API(`POST /v1/sessions`, `storageStateRef`) 계약과 미구현 범위(owner 격리, `springai` MCP Tool 연동) 명시 — R6(Release 2A) 부분 구현 |
 | 1.4 | 2026-07-21 | `05_Overall_Architecture_Diagram.md` 링크 추가 |

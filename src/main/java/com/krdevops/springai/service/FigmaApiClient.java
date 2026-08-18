@@ -10,6 +10,8 @@ import com.krdevops.springai.service.figma.FigmaApiQuery;
 import com.krdevops.springai.service.figma.FigmaComponentsResponse;
 import com.krdevops.springai.service.figma.FigmaImagesResponse;
 import com.krdevops.springai.service.figma.FigmaStylesResponse;
+import com.krdevops.springai.service.figma.FigmaTeamComponentsResponse;
+import com.krdevops.springai.service.figma.FigmaTeamStylesResponse;
 import com.krdevops.springai.service.resilience.ExternalCallGuard;
 import com.krdevops.springai.service.resilience.ExternalDependency;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +26,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -338,6 +341,88 @@ public class FigmaApiClient {
         URI uri = URI.create(baseUrl + "/files/" + encodePath(fileKey) + "/components");
         return guard.execute(ExternalDependency.FIGMA,
                 () -> callApi(uri, FigmaComponentsResponse.class));
+    }
+
+    /**
+     * R6-T10: Team 전체 Published Components 단일 페이지 조회. 파일 단위 {@link #queryComponents}와
+     * 달리 결과가 방대할 수 있어 Figma가 실제로 제공하는 {@code page_size}/{@code after} cursor
+     * pagination을 그대로 노출한다. GET /v1/teams/{teamId}/components?page_size=...&after=...
+     */
+    public FigmaTeamComponentsResponse queryTeamComponents(String teamId, Long afterCursor, int pageSize) {
+        ensureEnabled();
+        if (teamId == null || teamId.isBlank()) {
+            throw new IllegalArgumentException("teamId는 필수입니다");
+        }
+        URI uri = teamPageUri("components", teamId, afterCursor, pageSize);
+        return guard.execute(ExternalDependency.FIGMA,
+                () -> callApi(uri, FigmaTeamComponentsResponse.class));
+    }
+
+    /**
+     * R6-T10: cursor가 남아 있는 동안 반복 호출해 Team 전체 Components를 모은다. 응답의
+     * {@code cursor.after}가 방금 요청에 쓴 cursor와 같으면(서버가 진행 없음을 알려온 것) 그
+     * 페이지는 버리고 즉시 멈춘다 — 같은 cursor로 또 요청하면 중복·무한 루프가 되기 때문이다.
+     * {@code maxPages}는 그런 신호조차 없는 비정상 응답에 대한 최후 방어선이다.
+     */
+    public List<FigmaTeamComponentsResponse.ComponentRef> queryAllTeamComponents(
+            String teamId, int pageSize, int maxPages) {
+        List<FigmaTeamComponentsResponse.ComponentRef> all = new ArrayList<>();
+        Long cursor = null;
+        for (int page = 0; page < Math.max(1, maxPages); page++) {
+            FigmaTeamComponentsResponse response = queryTeamComponents(teamId, cursor, pageSize);
+            Long next = response.meta().cursor() == null ? null : response.meta().cursor().after();
+            if (next != null && next.equals(cursor)) {
+                break;
+            }
+            all.addAll(response.meta().components());
+            if (next == null) {
+                break;
+            }
+            cursor = next;
+        }
+        return List.copyOf(all);
+    }
+
+    /**
+     * R6-T10: Team 전체 Published Styles 단일 페이지 조회. GET /v1/teams/{teamId}/styles?page_size=...&after=...
+     */
+    public FigmaTeamStylesResponse queryTeamStyles(String teamId, Long afterCursor, int pageSize) {
+        ensureEnabled();
+        if (teamId == null || teamId.isBlank()) {
+            throw new IllegalArgumentException("teamId는 필수입니다");
+        }
+        URI uri = teamPageUri("styles", teamId, afterCursor, pageSize);
+        return guard.execute(ExternalDependency.FIGMA,
+                () -> callApi(uri, FigmaTeamStylesResponse.class));
+    }
+
+    /** R6-T10: {@link #queryAllTeamComponents}와 동일한 반복 조회·중단 규칙을 Styles에 적용한다. */
+    public List<FigmaTeamStylesResponse.StyleRef> queryAllTeamStyles(String teamId, int pageSize, int maxPages) {
+        List<FigmaTeamStylesResponse.StyleRef> all = new ArrayList<>();
+        Long cursor = null;
+        for (int page = 0; page < Math.max(1, maxPages); page++) {
+            FigmaTeamStylesResponse response = queryTeamStyles(teamId, cursor, pageSize);
+            Long next = response.meta().cursor() == null ? null : response.meta().cursor().after();
+            if (next != null && next.equals(cursor)) {
+                break;
+            }
+            all.addAll(response.meta().styles());
+            if (next == null) {
+                break;
+            }
+            cursor = next;
+        }
+        return List.copyOf(all);
+    }
+
+    private URI teamPageUri(String resource, String teamId, Long afterCursor, int pageSize) {
+        StringBuilder builder = new StringBuilder(baseUrl)
+                .append("/teams/").append(encodePath(teamId)).append('/').append(resource)
+                .append("?page_size=").append(Math.max(1, Math.min(pageSize, 1000)));
+        if (afterCursor != null) {
+            builder.append("&after=").append(afterCursor);
+        }
+        return URI.create(builder.toString());
     }
 
     /**

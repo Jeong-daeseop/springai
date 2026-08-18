@@ -1,6 +1,6 @@
 # Semantic Figma Design System 구현 목록
 
-> 문서 버전: 4.3
+> 문서 버전: 4.10
 > 작성일: 2026-07-30  
 > 상태 재판정일: 2026-08-18
 > 구현 기준 문서:
@@ -440,7 +440,7 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 ### 10.5 R5 테스트
 
 - [x] **R5-T01** 모든 공통 컴포넌트가 Published Instance로 생성되는지 검증 — (2026-08-17 확인) `test/runtime-bundle-preview.test.mjs`가 실제 Q&A 7화면 Runtime Bundle에서 `unresolvedCount`/`fallbackCount`가 모두 0임을 이미 검증하고 있었음(신규 테스트 아님, 체크박스만 갱신되지 않았던 기존 증거)
-- [~] **R5-T02** 순수 Reconciliation 테스트에서 동일 논리 노드 `REUSE` 판정 검증. Figma Desktop 런타임 재실행 검증 필요
+- [x] **R5-T02** 순수 Reconciliation 테스트에서 동일 논리 노드 `REUSE` 판정 검증 — (2026-08-18) Figma Desktop에서 동일 `qna-list` Bundle을 재적용해 재사용 36·신규 0·Archive 0·Fallback 0을 확인하고 Generation Report를 `docs/figma/evidence/2026-08-18-web-capture/`에 보관
 - [~] **R5-T03** 순수 Reconciliation 테스트에서 신규 논리 노드만 `ADD` 판정 검증. Figma Desktop 런타임 검증 필요
 - [x] **R5-T04** 사용자 텍스트·위치 override 보존 검증 — (2026-08-17) `applyOwnedProperties()`의 판정 로직을 `core.ts`의 순수 함수 `isUserOverridden(previousManagedValue, currentValue)`로 추출해 `code.ts`가 재사용하도록 리팩터링, `core.test.mjs`에 단위테스트 추가. Figma Desktop 실제 Instance에서의 재실행 검증은 R5-T02/T03과 동일하게 별도 수동 QA 필요
 - [x] **R5-T05** MERGE와 REPLACE 결과 비교 검증 — (2026-08-17) `core.ts`의 `reconcile()`이 `existing`(MERGE의 기존 노드 목록)과 무관하게 desired 트리(`flattenSpec`)에서만 `logicalNodeId`를 부여함을 `core.test.mjs`의 신규 테스트로 증명 — MERGE(existing 채움)와 REPLACE(existing=[])가 ARCHIVE를 제외한 동일 `logicalNodeId` 집합을 생성함을 확인. `17_Semantic_Figma_Generation_Pipeline_Manual_Refinement_Implementation_List.md`의 `MR-R09`가 의존하던 전제를 직접 검증함(단, Figma Desktop에서 실제 REPLACE를 실행한 E2E는 아직 없음 — MR-R09 자체 근거 참고)
@@ -530,12 +530,21 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R6-047 · P1** 모든 Tool 응답에 `operationId`, `artifactId`, preview summary, issues, `PREVIEW_READY`/`APPLY_REQUIRED` 상태를 포함하고 캔버스 적용 전 `APPLIED` 반환 금지 — (2026-08-17) 7개 callback이 반환하는 `FigmaDesignOperation`에는 operationId/status/issues/artifacts(artifactId 포함)가 이미 있었으나 `APPLY_REQUIRED` 상태 자체에 도달하는 전이가 없어 죽은 필드였음 — R5-041의 `requestApply()` 신설로 실제 도달 가능해짐. 별도 `previewSummary` 필드는 추가하지 않고 기존 `artifacts[].uri`/`issues`로 대체(신규 계약 필드 추가에 따른 Schema 리스크 회피 판단). 캔버스 적용 전 `APPLIED` 반환 금지는 `R6-T11`이 이미 검증
 - [x] **R6-039 · P0** 7개 callback과 승인 ScreenSpecification Bundle callback 등록 완료. 8개 모두 `figmaMcpSecret`을 Repository/오케스트레이션 접근 전에 상수시간 비교로 검증하며 MCP snapshot(97 methods/35 objects) 갱신 완료
 - [x] **R6-048 · P1** 웹 UI·CLI·Webhook 클라이언트가 동일 MCP/REST 계약을 사용하도록 transport-neutral facade 유지. 별도 React/Slack/Teams 클라이언트 구현은 후속 범위 — (2026-08-17 재조사) REST가 Component/Variable Key를 redaction 없이 그대로 반환하는 것은 버그가 아니라 DEC-07 감사에서 이미 확정된 의도된 설계(REST=사람 검토용 원문 노출, MCP=LLM 컨텍스트 보호용 redaction)임을 재확인 — 코드 변경 없음. `FigmaMcpV2RedactionTest`에 REST/MCP가 Key 3종 유무만 다르고 나머지 필드는 완전히 동일한 계약임을 고정하는 회귀 테스트(`restAndMcpShareTheSameFieldShapeAndDifferOnlyByKeyRedaction`) 신설
-- [~] **R6-T08** 7개 callback 입력 Schema snapshot, 인증 선행, 고급 요청 필수 목록·미지원 platform의 Repository 접근 전 거부 테스트 완료. 실제 file/page node 소속과 Vision capability 오류 계약은 미완료 — (2026-08-18) **Vision capability 오류 계약**은 R6-045/R6-T09에서 `VISION_MODEL_NOT_SUPPORTED` 명시 코드로 해결됨. **실제 file/page node 소속(요청한 nodeId가 그 fileKey/page 아래에 실제로 있는지) 검증은 여전히 없음** — `FigmaReferenceValidator`/`fetchNode`는 파일 안에 노드가 존재하는지만 확인하고 어느 page 아래 있는지는 보지 않음. 별도 조사·구현 필요(남은 범위 좁혀짐)
+- [~] **R6-T08** 7개 callback 입력 Schema snapshot, 인증 선행, 고급 요청 필수 목록·미지원 platform의 Repository 접근 전 거부 테스트 완료. 실제 file/page node 소속과 Vision capability 오류 계약은 미완료 — (2026-08-18) **Vision capability 오류 계약**은 R6-045/R6-T09에서 `VISION_MODEL_NOT_SUPPORTED` 명시 코드로 해결됨. (2026-08-18 재조사) **"file 소속" 검증은 이미 실질적으로 존재한다** — `fetchNode()`가 매번 실제 `GET /files/{fileKey}/nodes?ids=...`를 호출하므로, 그 파일에 없는 nodeId는 이미 `FIGMA_NODE_NOT_FOUND`/`FIGMA_REFERENCE_NOT_FOUND`로 자연스럽게 걸린다(`reportsDeletedNodeAsNodeNotFoundInsteadOfInvalidResponse` 등 기존 테스트가 이미 이 경로를 검증). **"page 소속" 검증은 여전히 구현 불가** — `FigmaReference`/`FigmaDesignRequest` 어디에도 "이 요청이 어느 page를 가리키는지"를 나타내는 필드 자체가 없어(파일+nodeId만 있음) 비교 대상이 존재하지 않는다. Figma REST API도 "이 nodeId의 조상 page"를 한 번에 알려주는 경량 엔드포인트가 없어(전체 파일 트리를 받아 직접 순회해야 함), page 개념을 도입하려면 요청 계약 확장이 먼저 필요하다 — 이는 코드 버그가 아니라 별도 설계 결정이 선행돼야 하는 아키텍처 범위 확장으로 재분류
 - [x] **R6-T09** Spring AI 구조화 출력 오류·timeout·rate limit·Vision 미지원 모델 fallback 테스트 — (2026-08-17) `FigmaContextAnalyzerTest`에 timeout/rate-limit 오류가 기존 catch-all을 통해 uncertain fallback으로 흡수되고 redaction되는 테스트 2건 추가. (2026-08-18) **Vision 미지원 모델 fallback**: R6-045에서 신설한 `VisionModelCapability.supports()` 사전 점검으로 해결 — `OpenAiVisionAnalysisClient`/`OllamaVisionAnalysisClient`가 미지원 모델로 설정되면 실제 API 호출 전에 `VISION_MODEL_NOT_SUPPORTED`로 즉시 실패(과금·rate limit 소모 없음). `DesignReferenceAnalysisServiceTest`의 `rejectsUnsupportedVisionModelBeforeCallingClient`/`supportsVisionMatchesKnownVisionModelPrefixesOnly`로 검증
-- [~] **R6-T10** Figma REST pagination·429 retry/backoff·권한 오류·만료 이미지 URL 테스트 — (2026-08-17) 전무했던 `GET /v1/images/{fileKey}` 이미지 URL 조회를 `FigmaApiClient.queryImages()`로 신규 구현(개별 노드 렌더 실패·전체 오류·TTL 만료 판정 포함)하고 429/403 등 기존 `callApi()` 재시도·오류 매핑을 재사용 확인. `FigmaApiClientTest`에 6건 추가. **`queryComponents`/`queryStyles`의 실제 cursor pagination은 여전히 미구현**(`queryNodesPaginated`는 Figma 노드 API가 원래 이런 방식으로 페이지네이션하지 않아 설계상 제약으로 남겨둠)
+- [x] **R6-T10** Figma REST pagination·429 retry/backoff·권한 오류·만료 이미지 URL 테스트 — (2026-08-17) 전무했던 `GET /v1/images/{fileKey}` 이미지 URL 조회를 `FigmaApiClient.queryImages()`로 신규 구현(개별 노드 렌더 실패·전체 오류·TTL 만료 판정 포함)하고 429/403 등 기존 `callApi()` 재시도·오류 매핑을 재사용 확인. `FigmaApiClientTest`에 6건 추가. (2026-08-18) **Team Components/Styles cursor pagination 구현 완료**: `queryTeamComponents(teamId, afterCursor, pageSize)`/`queryTeamStyles(...)`가 `GET /v1/teams/{teamId}/components|styles?page_size=...&after=...`를 호출하고, `queryAllTeamComponents`/`queryAllTeamStyles`가 `cursor.after`를 따라 반복 조회한다. 응답의 `cursor.after`가 방금 요청에 쓴 cursor와 같아지면(진행 없음) 그 페이지는 버리고 즉시 멈춰 중복·무한 루프를 막는다(`maxPages`는 최후 방어선). `FigmaApiClientTest`에 8건 추가(단일 페이지 조회·teamId 필수·정상 다중 페이지 반복·진행 없음 감지 시 중복 없이 중단·403 오류 매핑 등). `queryNodesPaginated`(호출자 제공 nodeId 목록을 Java에서 분할)와 file-level `queryComponents`/`queryStyles`는 원래부터 cursor 없는 별개 endpoint라 이 항목의 대상이 아니었음을 재확인.
 - [x] **R6-T11** 분석 요청은 `ANALYZED`, 승인 Bundle은 `PREVIEW_READY`까지만 반환하며 Repository 상태 테스트에서 `APPLY_REQUIRED`와 유효 Plugin 보고 없이는 `APPLIED` 전이가 거부됨을 검증
 - [x] **R6-T12** 지정 컴포넌트 요청이 승인되지 않은 logical type과 로컬 Node ID 직접 지정을 거부하는지 검증 — (2026-08-17) `FigmaNodeIds.isNodeIdShaped()` 신설 + `FigmaDesignOrchestrationService`의 COMPONENT_SPECIFIED 검증이 원시 Figma nodeId를 `components`에 직접 지정하면 저장 전에 거부하도록 구현. `componentSpecifiedRejectsRawFigmaNodeIdInsteadOfLogicalType`/`componentSpecifiedAcceptsLogicalTypesOnly` 테스트로 검증(미승인 logical type 거부는 기존 `ComponentRegistryResolver`가 이미 커버)
 - [x] **R6-T13** 플랫폼 변환 golden fixture에서 폭·Grid·Navigation·componentSwaps가 Profile 정책과 일치하는지 검증 — (2026-08-17) `FigmaPlatformConversionServiceTest`가 Desktop/Tablet/Mobile 각각의 viewportWidth·gridColumns·navigationStyle이 공유 상수·`ViewportConstraint`와 일치함을, `convertAppliesConfiguredComponentSwapForTargetPlatform`이 Profile 기반 swap 적용을 검증
+
+### 외부 제약 분류 기준
+
+- “이 환경에서 불가능”과 “대상 API 계약·현재 입력 모델에 없는 기능”을 구분한다.
+- Desktop 앱·브라우저 자동화·픽셀 비교 인프라가 필요한 항목은 환경/인프라 제약으로 기록한다.
+- Figma REST의 Team Components/Styles endpoint는 `page_size`와 `after`/`before` cursor를 제공하므로 REST API 전체에 pagination이 없다고 기록하지 않는다. 현재 프로젝트의 file-level `fileKey` 조회 경로에 cursor가 없는 경우에는 endpoint·입력 모델 범위의 보류로 기록한다.
+- 제약 항목의 총계를 문서에 기재할 때는 A~D 각 그룹 수량과 E·F 별도 분류 포함 여부를 함께 명시해 산술 불일치를 방지한다.
+
+공식 참고: [Figma Components and Styles Endpoints](https://developers.figma.com/docs/rest-api/component-endpoints/)
 
 ### 11.5 Design-aware Thymeleaf Generator
 
@@ -546,7 +555,7 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R6-050 · P0** 10단계 Generator 입출력 계약과 단계별 FATAL/WARNING·중단·재시도·입력 Hash 정책 정의 — (2026-08-17) `ThymeleafGenerationStage`로 Source Analysis→Build/Render/Parity Validation의 고정 순서·입출력·재시도 정책을 폐쇄 enum으로 확정하고, `ThymeleafGenerationStageStatus`의 허용 전이, `ThymeleafGenerationStageExecution`의 Hash·시간·Artifact·Issue 증적 불변조건, `ThymeleafGenerationPipelineContract`의 `FATAL→FAILED`/`ERROR→REVIEW_REQUIRED`/`WARNING→SUCCEEDED`, 후속 단계 차단, 선행 output chain을 포함한 canonical SHA-256 input Hash와 명시적 재시도 정책을 구현했다. `ThymeleafGenerationPipelineContractTest`로 10단계 순서·상태 오류·Hash 결정성·재시도·SKIPPED 증적을 검증했으며 상세 계약은 `R6-050_Thymeleaf_10단계_파이프라인_계약.md`에 고정했다. 실제 10단계 오케스트레이션·Report 영속화는 R6-061, 서비스 미호출 결정성 검증은 R6-T20 범위로 유지
 - [x] **R6-051 · P0** JSP·Controller·VO 화면 단위 분석 구현 — `LegacySourceInventoryService`(안전한 경로·예산) + `JspSourceReader`(taglib/form/EL/forEach/표시필드, 정규식 기반) + `ControllerSourceReader`(매핑/모델/반환뷰/redirect/보안, JavaParser AST) + `VoSourceReader`(필드/Lombok 접근자/Bean Validation, JavaParser AST)로 신규 구현. CSS/JS Frontend Source Graph(I-2D, `jsp-design-extractor` 모듈화)는 범위 밖으로 남김
 - [x] **R6-052 · P0** `ThymeleafBindingContract` 모델과 JSP·Controller·VO reader는 유지. (2026-08-17 정정) "제거되어 재연결 필요"라던 이전 판정은 부정확했다 — 삭제된 `LegacyBindingContractAssembler`는 실제로는 `BindingContractAssembler`(468줄, `BindingContractAssemblerTest`로 검증됨)로 재구현돼 이미 `ThymeleafBindingGenerationService.preview()`에 연결돼 있었다. 이 서비스는 REST(`ThymeleafBindingGenerationController`)와 MCP(`ThymeleafBindingGenerationTool`) 양쪽에서 호출되고, 결과를 `ThymeleafProjectWorkflowService.preview()`로 그대로 넘겨 Preview→승인→Apply 흐름과도 연결된다
-- [~] **R6-053 · P0** 화면 유형 판단 — `FigmaScreenTypeResolver`·`ScreenSpecAssembler`·CRUD/Board/MasterDetail 판정을 재사용하고 근거·confidence 포함 — (2026-08-18 재조사) 실제로 미구현 확인: `ThymeleafBindingPreviewRequest.screenRole`(`LegacyScreenRole`)은 호출자가 직접 지정하는 필수 파라미터이며, JSP/Controller/VO 소스 분석 결과로부터 화면 유형을 자동 판단하거나 `FigmaScreenTypeResolver`를 재사용해 근거·confidence를 산출하는 경로는 어디에도 없다(R6-054와 달리 doc-stale이 아니라 진짜 미구현)
+- [x] **R6-053 · P0**(자문 힌트만) 화면 유형 판단 — `FigmaScreenTypeResolver`·`ScreenSpecAssembler`·CRUD/Board/MasterDetail 판정을 재사용하고 근거·confidence 포함 — (2026-08-18) `ThymeleafBindingPreviewRequest.screenRole`은 여전히 호출자 명시 필수값으로 유지(자동 판정이 필수 입력을 대체하면 위험이 크다고 판단)하되, 신규 `LegacyScreenRoleResolver`가 JSP/Controller 소스 증거로 화면 유형을 추정해 `screenRole`과 어긋나면 근거·confidence를 실은 `SCREEN_ROLE_MISMATCH_WITH_SOURCE_EVIDENCE` WARNING을 Preview에 남긴다(차단하지 않음). Controller 경로 명명 규칙(`list`/`regist`/`detail` 등 접미사, `viewBaseName()`으로 여러 GET 메서드 중 해당 JSP의 메서드만 정확히 매칭)과 JSP 구조(forEach·표시 필드·데이터 입력 form) 두 신호가 일치하면 confidence 0.95, 하나만 판정 가능하면 0.7~0.8, 서로 어긋나면 0.5, 둘 다 근거 부족이면 0(미판정). **실제 `EgovEmployerList.jsp` fixture로 재현 중 검색/필터 폼(GET, modelAttribute 없음)을 데이터 입력 폼으로 오판하는 버그를 발견해 수정**(`modelAttribute` 또는 POST 제출이 있어야만 FORM 신호로 인정). `LegacyScreenRoleResolverTest` 9건 + `ThymeleafBindingGenerationServiceTest`에 실제 fixture로 mismatch WARNING이 뜨는 통합 테스트 1건 추가
 - [x] **R6-054 · P0** Component Inventory 선택 — `ComponentCandidate`·`ComponentRegistryResolver`를 재사용하고 field role별 선택 근거·fallback·Published 상태 검증 추가 — (2026-08-18 재조사) `ComponentInventoryValidator.resolveComponentSelection()`이 요청 컴포넌트 키별로 Registry lifecycle 상태를 확인해 CURRENT/ACTIVE만 confidence 0.95로 확정 선택, DEPRECATED는 대체 컴포넌트가 CURRENT/ACTIVE면 0.6 fallback 제시, 대체가 없으면 확정하지 않는 로직을 이미 구현·테스트(`ComponentInventoryValidatorTest` 5건, R6-T15)해 두고 있었다. field role→컴포넌트 키 매핑은 이 메서드 안이 아니라 호출 지점에서 이뤄지므로 정확히 "field role별" 파라미터 형태는 아니지만, R6-T15가 검증하는 근거·confidence·fallback·Published 상태 요건은 모두 충족 — R6-T15가 이미 `[x]`였는데 R6-054 자체 체크박스만 갱신되지 않았던 상태
 - [x] **R6-055 · P0** 프로젝트 루트 `DESIGN.md` 탐색·파싱·버전·규칙 우선순위·위반 위치를 제공하는 `DesignMdRuleLoader` 구현 및 정상/경계/오류 fixture 테스트 완료
 - [x] **R6-056 · P0** 회사 표준 Design Token 로드·매핑 — `DesignSystemProfile`·`DesignSystemSpec`·`VariableBinding`을 CSS Variable/Thymeleaf class/Component Property로 해석 — (2026-08-18 재조사) `CompanyDesignTokenResolver`는 R6-057 작업 당시 이미 구현·테스트(`CompanyDesignTokenResolverTest` 5건)돼 있었고, R6-057이 그 시점에 `BindingComposer`/`ThymeleafBindingGenerationService`에 실제로 연결까지 완료했다(참조된 CSS 변수 이름을 provenance 주석으로 남김). R6-057 체크박스는 이미 `[x]`였는데 이 실제 소비 대상인 R6-056 자체는 갱신되지 않았던 상태
@@ -555,12 +564,12 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R6-059 · P1** Desktop·Tablet·Mobile 변환 — 1440/768/390 grid, navigation swap, table→card, form/detail 재배치와 Binding 수 동일성 검증 테스트 완료
 - [~] **R6-060 · P0** Preview/재검증에 Thymeleaf 정적 parse와 1440px overflow Gate 연결. 실제 TemplateEngine render, 고정 offline build, Playwright 접근성·visual regression은 미완료
 - [x] **R6-061 · P0** `ThymeleafProjectWorkflowService`의 Preview→canonical hash 승인→source/DESIGN.md revision 재검증→원자 Apply/전체 rollback→재검증 상태 흐름에 10단계 `ThymeleafGenerationReport` 영속 저장을 연결했다 — (2026-08-17) 기존 미사용 4단계 프로토타입 Report를 R6-050 계약의 정확한 10개 `ThymeleafGenerationStageExecution`, request/project/source fingerprint, 계약 버전, 생성 파일 hash, Operation 최종 상태를 갖는 불변 모델로 교체. `ThymeleafGenerationReportService`가 Binding Generator Preview에서 1~9단계 Hash chain과 10단계 PENDING을 만들고 Approve/Apply/Conflict/Failed revision마다 상태를 보존하며 Revalidate 성공/실패에서 10단계를 SUCCEEDED/FAILED로 종결한다. Report는 `ThymeleafOperationSnapshot` JSON에 포함돼 기존 MySQL revision/CAS/재시작 복구 경로를 그대로 사용하고 `THYMELEAF_GENERATION_REPORT` Artifact도 revision별 연결된다. `WorkflowResult`/`GET /api/thymeleaf/operations/{id}/report`에서도 조회 가능하며, `ThymeleafGenerationReportServiceTest`가 전체 단계 증적·성공/실패 종결·Snapshot JSON 복구를 검증
-- [~] **R6-062 · P0** 업무 계약을 침범하는 DESIGN.md 규칙은 FATAL, DESIGN.md revision은 Preview hash/source drift보다 함께 강제. Profile/Token→DESIGN.md→화면 Override의 생성 단계 전체 병합은 미완료
-- [~] **R6-063 · P0** `route`·`field`·`validation`·`authority`·`csrf` 등 DESIGN.md 업무 계약 변경은 Preview 전에 차단하고 승인 후 DESIGN.md 변경은 CONFLICT/쓰기 0건으로 검증. 승인 Token 밖 값 하드코딩 검사는 미완료
+- [x] **R6-062 · P0** 업무 계약을 침범하는 DESIGN.md 규칙은 FATAL, DESIGN.md revision은 Preview hash/source drift보다 함께 강제. Profile/Token→DESIGN.md→화면 Override의 생성 단계 전체 병합은 미완료 — (2026-08-18) **실제 배선 누락 발견·수정**: `ThymeleafBindingGenerationService.resolveDesignTokens()`가 `CompanyDesignTokenResolver.resolve(profileId, appliedDesignRules)`의 두 번째 인자에 항상 `null`을 하드코딩하고 있어서, DESIGN.md가 실제로 존재하고 규칙이 있어도 `CompanyDesignTokenResolver`의 override 병합 로직(구현·테스트는 이미 있었음, R6-056)이 생성 파이프라인에서 한 번도 실행되지 않고 있었다(R6-057의 "Registry 신규 소비자 없어 죽은 코드였다"와 같은 종류의 배선 누락). `DesignMdRuleLoader`를 새로 주입해 `projectRootPath`의 DESIGN.md를 로드하고, 규칙이 실제로 있을 때만(없거나 빈 경우는 기존과 동일하게 `null`) `CompanyDesignTokenResolver`에 전달하도록 수정. 업무 계약 침범(FATAL) 차단은 여기서 중복하지 않음 — 그 차단은 이미 `ThymeleafProjectWorkflowService.preview()`가 동일 DESIGN.md를 별도로 다시 읽어 강제하므로 그대로 유지. 실제 DESIGN.md 파일 + 실제(mock 아닌) `CompanyDesignTokenResolver`로 화면 Override가 생성 HTML의 provenance 주석에 실제로 반영되는 end-to-end 테스트(`designMdColorOverrideIsMergedIntoGeneratedHtmlProvenance`) 추가
+- [~] **R6-063 · P0** `route`·`field`·`validation`·`authority`·`csrf` 등 DESIGN.md 업무 계약 변경은 Preview 전에 차단하고 승인 후 DESIGN.md 변경은 CONFLICT/쓰기 0건으로 검증. 승인 Token 밖 값 하드코딩 검사는 미완료 — (2026-08-18 재조사) 앞 절반(route/field/validation/authority/csrf 차단, 승인 후 CONFLICT)은 `DesignMdRuleLoader`의 `FORBIDDEN_KEYWORDS` 검사(이미 구현)와 `ThymeleafProjectWorkflowService.currentDesignRevision()`의 drift 비교(이미 구현)로 실제로 이미 충족돼 있음을 확인. **"승인 Token 밖 값 하드코딩 검사"만 남음** — 그런데 실제 생성 템플릿(`legacy-thymeleaf/{list,form,detail}.html.ftl`) 3종을 전부 확인한 결과 inline `style=` 속성을 애초에 전혀 쓰지 않는다(색상·간격은 CSS class로만 참조하고 실제 값은 외부 회사 표준 CSS가 정의 — R6-057 참고). 즉 "Design Token을 우회하는 하드코딩된 CSS 값"이라는 원래 뜻으로는 검사할 대상 표면이 현재 템플릿에 없다. 이 항목이 CSS 값이 아니라 공통코드·메시지 등 다른 종류의 하드코딩(eGovFrame 코드 컨벤션의 "매직 넘버·하드코딩 금지")을 의미하는 것이라면 검사 대상 자체를 먼저 정의하는 결정이 선행돼야 해 이번 범위에서 확정하지 않음
 - [x] **R6-064 · P1** Generator REST/MCP 진입점 구현 — `/api/thymeleaf/operations` Preview/Approve/Apply/Report/Revalidate 분리, REST X-API-Key와 MCP 공유 비밀키 선검증, Preview 전 파일 변경 0건·hash 불일치·source drift CONFLICT E2E 완료
 - [x] **R6-T14** 기존 `LegacyBindingContractAssemblerTest`가 현재 작업 트리에서 제거되어 새 Binding assembler 기준 골든 LIST/FORM/DETAIL 테스트 재구현 필요 — (2026-08-17 재확인) `BindingContractAssembler`(468줄)는 실제로는 이미 `BindingContractAssemblerTest`(556줄, 19건)로 재구현·검증돼 있었다(d9f1474 커밋) — crud/master-detail/board 각각의 LIST/FORM/DETAIL 골든 fixture를 포함해 전부 통과 확인. 문서 체크박스만 갱신되지 않았던 상태
 - [x] **R6-T15** LIST/FORM/DETAIL 화면 유형과 Component Inventory 선택이 근거·confidence·Registry 상태를 포함하는지 검증 — (2026-08-17) `ComponentInventoryValidator.resolveComponentSelection()`이 Registry lifecycle 상태(ACTIVE/DEPRECATED/REMOVED)를 전혀 보지 않던 gap을 발견·수정: CURRENT/ACTIVE만 confidence 0.95로 확정 선택, DEPRECATED는 `replacementLogicalType`이 CURRENT면 0.6 fallback, 대체가 없으면 0.3으로 확정 선택하지 않음. `ComponentInventoryValidatorTest`에 5건 추가
-- [~] **R6-T16** DESIGN.md 정상/미존재/알 수 없는 규칙/버전/구문/업무 Binding 변경 시도와 승인 후 drift 테스트 완료. 회사 Token 누락·금지 하드코딩 테스트는 미완료
+- [~] **R6-T16** DESIGN.md 정상/미존재/알 수 없는 규칙/버전/구문/업무 Binding 변경 시도와 승인 후 drift 테스트 완료. 회사 Token 누락·금지 하드코딩 테스트는 미완료 — (2026-08-18) **회사 Token 누락**은 R6-062 수정으로 실질적으로 커버됨: DESIGN.md 규칙이 없거나 비어 있으면 `loadAppliedDesignRules()`가 `null`을 반환해 Registry 기본값만 쓰는 기존 경로로 자연스럽게 fallback하고(`failedDesignTokenResolutionDoesNotBlockPreview` 등 기존 테스트가 이미 검증), DESIGN.md 규칙이 있으면 실제 병합됨을 `designMdColorOverrideIsMergedIntoGeneratedHtmlProvenance`가 새로 검증. **"금지 하드코딩 테스트"는 R6-063과 동일한 이유로 대상 정의가 먼저 필요해 미완료로 유지**
 - [x] **R6-T17** 제거된 legacy renderer 테스트를 대체해 새 Binding composer의 `th:*`, CSRF, validation, route, iteration 정적·렌더 테스트 필요 — (2026-08-17) `BindingComposerTemplateEngineParityTest`에 GET DETAIL 화면의 `method="get"` 실제 렌더 확인(기존엔 POST만 확인)과 board fixture(상속 SearchVO) LIST 화면 parity 테스트 2건 추가
 - [~] **R6-T18** Desktop 1440/12·Tablet 768/8·Mobile 390/4 grid, navigation swap, table→card, mobile form 단일열, 세 viewport Binding 수 동일성과 정적 overflow Gate 검증 완료. 실제 브라우저 viewport overflow는 미완료
 - [x] **R6-T19** `EGOV_ALLOW_BUILD_EXECUTION`·허용 경로 정책, Maven/Gradle 성공·실패·timeout과 Thymeleaf parse/render Gate 검증 — (2026-08-17) `EgovProperties.Validation`에 `mavenCommand`/`gradleCommand`(테스트 stub 경로 주입용) 추가하고 `GeneratedProjectBuildValidatorTest`에 실제 stub 스크립트 프로세스 성공/실패(exit 1)/timeout(강제 종료) 3건 추가. `ThymeleafRenderValidator` 테스트 파일이 아예 없던 것을 확인해 `ThymeleafRenderValidatorTest` 신설(정상 렌더/malformed 표현식 파싱 실패/디렉터리 없음/부분 실패 등 6건)
@@ -586,19 +595,62 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R7-011 · P0** 사람의 수정·승인 단계 구현
 - [x] **R7-012 · P0** 승인본을 정식 Screen Specification 버전으로 저장
 - [x] **R7-013 · P0** 승인된 Screen Specification에서 FigmaScreenSpec 생성
-- [~] **R7-014 · P0** Published Component Instance로 화면 재생성 — R5 Plugin 출력으로 연결 완료, Figma Desktop 런타임 검증은 미실시
+- [x] **R7-014 · P0** Published Component Instance로 화면 재생성 — (2026-08-18) Figma Desktop에서 Q&A 7개 Bundle(`qna-answer-create`, `qna-answer-detail`, `qna-answer-list`, `qna-create`, `qna-detail`, `qna-list`, `qna-update`)을 일괄 검증·MERGE. 각 Bundle `OK`, 일괄 Apply 완료를 확인하고 대표 `qna-list` 재적용에서 재사용 36·신규 0·Archive 0·Fallback 0, `LAYOUT`/`ACCESSIBILITY`/`VISUAL_REGRESSION` 모두 `PASSED`를 Generation Report로 보관(`docs/figma/evidence/2026-08-18-web-capture/`)
 - [~] **R7-015 · P1** 원본 복제 프레임과 의미 기반 프레임의 시각 비교 — 노드·텍스트·컴포넌트·필드·Action·Viewport 구조 비교 보고서 구현, 픽셀/이미지 비교는 미구현
 - [~] **R7-016 · P1** 허용 시각 오차와 의미 일치 기준 정의 — Viewport 일치와 FieldHint 매핑 누락 기준 구현, 이미지 기반 허용 오차 기준은 미정
 
 ### 12.3 R7 테스트
 
-- [~] **R7-T01** 공개 URL 캡처 → 후보 Spec → FigmaScreenSpec E2E — (2026-08-17) 기존 테스트가 `WebCaptureClient`를 완전히 mock해 실제 HTTP 경로(요청 직렬화·응답 파싱·오류 상태 처리)를 한 번도 실행하지 않던 gap을 발견 — 로컬 stub HTTP 서버(JDK `HttpServer`, 기존 `FigmaApiClientTest` 컨벤션 재사용)로 `WebCaptureClient`가 실제로 `POST /v1/captures`를 호출하고 응답을 파싱하는 캡처→후보 Spec(`UiDesignSpec`) 단계까지 실제 경로로 검증(`WebCaptureClientE2ETest`). **후보 Spec 이후 `createScreenSpecification`/`FigmaScreenSpec` 생성까지 이어지는 나머지 구간은 이번 범위에 포함하지 않음**
+- [~] **R7-T01** 공개 URL 캡처 → 후보 Spec → FigmaScreenSpec E2E — (2026-08-18) 로그인된 실제 eGovFrame Chrome 세션에서 Q&A 7개 화면 캡처를 완료하고 `production-qna-*.jpg`로 보관. 기존 로컬 stub HTTP 기반 `WebCaptureClientE2ETest`와 인증 fixture E2E도 통과했지만, 실제 운영 캡처 결과를 `.figpack`으로 변환해 후보 Spec·승인·FigmaScreenSpec까지 잇는 구간은 아직 별도 실행하지 않음
 - [x] **R7-T02** 로그인 화면 캡처 fixture 기반 변환 테스트 — (2026-08-17) `WebCaptureClientE2ETest`에 아이디/비밀번호 입력 필드를 가진 로그인 화면 fixture를 실제 HTTP 경로로 캡처·분석하고 `PASSWORD_HASH` 같은 민감정보가 결과 `UiDesignSpec`에 남지 않음을 검증하는 테스트 추가
 - [x] **R7-T03** 캡처 실패 시 기존 WEB_CAPTURE 오류 보고 회귀 테스트 — (2026-08-17) extractor 5xx 응답, 연결 끊김(응답 없이 close), 허용되지 않은 origin(URL 검증 실패로 extractor 호출 전에 차단)까지 3가지 실패 경로를 `WebCaptureClientE2ETest`로 검증. 5xx/연결 실패는 명확한 오류 메시지로 전파되고 Artifact가 생성되지 않음을 확인
 - [~] **R7-T04** 원본과 생성 화면의 텍스트·컴포넌트·레이아웃 비교 — 구조 비교 단위 테스트 통과, Figma 렌더 이미지 비교는 미실시
 - [x] **R7-T05** `.figpack`을 FigmaScreenSpec으로 잘못 해석하지 않는지 검증 — 후보 생성은 `document.json` 기반 분석만 사용하고 `.figpack`은 Reference 다운로드에만 사용
 
 ### 12.4 구현된 Hybrid API와 저장 계약
+
+#### 12.4.1 `.figpack` → ScreenSpecification → Figma 연결 해석
+
+`.figpack`은 `FigmaScreenSpec` 자체가 아니라 웹 화면의 Reference Snapshot이다. 압축 내부의
+`document.json`을 분석해 `UiDesignSpec`을 만든 뒤 DB·업무 요구사항과 결합하여 후보
+`ScreenSpecification`을 생성한다. 따라서 `.figpack` 자체를 곧바로 Semantic Figma 화면으로
+해석하지 않는다.
+
+개념적인 MCP 흐름은 다음과 같다.
+
+```text
+analyzeCapturedDesign
+  → createScreenSpecification
+  → approveScreenSpecification
+  → createFigmaBundleFromApprovedSpecification
+```
+
+현재 R7 구현의 실제 운영 진입점은 위 MCP callback을 개별 연속 호출하는 방식이 아니라
+`FigmaHybridExportService`를 사용하는 Hybrid REST API이다. 내부적으로는 동일한 분석·명세·승인·
+FigmaScreenSpec 생성 계약을 수행하며, 하나의 `artifactId`에 원본 Reference와 Semantic 결과를
+함께 연결한다.
+
+```text
+POST /api/figma/hybrid/candidates
+  → document.json 분석(WebCaptureAnalysisService)
+  → UiDesignSpec 생성
+  → 후보 ScreenSpecification 저장
+  → 사람 Preview/수정
+  → POST /api/figma/hybrid/{artifactId}/approve
+  → 승인된 ScreenSpecification
+  → FigmaScreenSpec 생성
+  → Reference .figpack + Semantic 결과 저장
+```
+
+`analyzeCapturedDesign`은 의미상 후보 생성 단계에 해당하지만, 현재 Hybrid API에서는
+`POST /api/figma/hybrid/candidates` 내부에서 호출된다. `createScreenSpecification`과
+`approveScreenSpecification`도 동일한 `ScreenSpecificationService`를 Hybrid 서비스가 위임
+호출한다. 승인 전에는 후보를 Figma에 적용하지 않으며, Preview 버전과 승인 요청 버전이 다르면
+fail-closed로 차단한다.
+
+후보 생성·수정·승인·FigmaScreenSpec 생성 백엔드는 완료됐지만, 실제 운영 URL에서 생성한
+`.figpack`을 이 전체 경로에 통과시킨 운영 E2E와 원본/생성 화면의 픽셀 비교는
+R7-T01/R7-T04/R7-015/R7-016의 잔여 범위이다.
 
 - `POST /api/figma/hybrid/candidates`: `document.json` 분석 → 후보 `ScreenSpecification`과 결정 필드·비교 보고서 생성
 - `GET /api/figma/hybrid/{artifactId}/candidate`: 사람 검토용 Preview 조회
@@ -644,7 +696,7 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R8-T01** `./gradlew test` 전체 통과
 - [x] **R8-T02** 기존 eGovFrame CRUD 생성 회귀 테스트 통과
 - [x] **R8-T03** 기존 WEB_CAPTURE 흐름 회귀 테스트 통과
-- [~] **R8-T04** Figma Plugin 샘플 파일 E2E 통과 — 순수 core fixture 8건과 typecheck/lint/build 통과, Figma Desktop 실제 노드 Migration은 수동 QA 잔여
+- [x] **R8-T04** Figma Plugin 샘플 파일 E2E 통과 — (2026-08-18) Figma Desktop에서 Q&A 7개 Bundle을 실제로 일괄 MERGE하고 전체 Bundle `OK`·Apply 완료를 확인. 대표 Report의 `LAYOUT`/`ACCESSIBILITY`/`VISUAL_REGRESSION` 모두 `PASSED`, 캔버스 스크린샷과 Report를 증적 폴더에 보관
 - [x] **R8-T05** 문서·Schema·샘플·코드 버전 일치 검증
 
 ---
@@ -823,25 +875,25 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 `.figpack` 하이브리드 흐름(R7)과 운영·마이그레이션(R8)에 관한 완료 조건은 범위가 달라
 §17.1로 분리한다.
 
-- [ ] 확정된 Schema와 예제 JSON이 CI 검증을 통과한다.
-- [ ] 초기 필수 Component·Pattern·Page Template 목록이 선행 결정 게이트에서 승인된다. Plugin 입력 방식(`DEC-10`)과 신규 MCP Tool 인증 방식(`DEC-11`)은 확정 완료
-- [ ] 사용자 목록·등록 Screen Specification에서 FigmaScreenSpec이 생성된다.
-- [ ] FigmaScreenSpec이 Published KRDS/eGovFrame Component Instance로 생성된다.
-- [ ] 같은 Spec을 다시 적용해도 동일 논리 노드와 컴포넌트가 중복 생성되지 않는다.
-- [ ] 신규 항목만 생성되고 기존 사용자 수정 보호 대상은 유지된다.
-- [ ] 필수 Component 누락 시 생성이 실패하고, 선택 Component의 fallback 노드는 Preview 단계에만 남으며 정식 생성 완료 판정에는 남아 있지 않다.
-- [ ] Design System 변경 Preview를 사람이 검토한 후 Publish할 수 있다.
-- [ ] Publish 후 Component Key가 Registry에 동기화된다.
-- [ ] REST API, JSON 다운로드, MCP Tool의 인증과 오류 처리가 검증되고, 신규 MCP Tool은 전용 인증 없이는 호출되지 않는다.
-- [ ] P1 요청 유형 4종이 동일 `FigmaDesignOperation` 계약으로 Preview Bundle을 만들고 Plugin Apply 전에는 `APPLIED`를 반환하지 않는다.
-- [ ] Figma REST 조회·Spring AI 분석·Plugin 쓰기의 실행 경계와 민감정보 redaction이 검증된다.
-- [ ] CRUD LIST·FORM·DETAIL이 10단계 Generator를 통과하고 Binding·DESIGN.md·Token·반응형·검증 결과를 하나의 보고서로 추적할 수 있다.
-- [ ] 기존 WEB_CAPTURE와 eGovFrame 코드 생성 회귀 테스트가 통과한다.
+- [x] 확정된 Schema와 예제 JSON이 CI 검증을 통과한다. (`figmaContractTest`: schemas=29)
+- [x] 초기 필수 Component·Pattern·Page Template 목록이 선행 결정 게이트에서 승인된다. Plugin 입력 방식(`DEC-10`)과 신규 MCP Tool 인증 방식(`DEC-11`)은 확정 완료
+- [x] 사용자 목록·등록 Screen Specification에서 FigmaScreenSpec이 생성된다.
+- [x] FigmaScreenSpec이 Published KRDS/eGovFrame Component Instance로 생성된다.
+- [x] 같은 Spec을 다시 적용해도 동일 논리 노드와 컴포넌트가 중복 생성되지 않는다.
+- [x] 신규 항목만 생성되고 기존 사용자 수정 보호 대상은 유지된다.
+- [x] 필수 Component 누락 시 생성이 실패하고, 선택 Component의 fallback 노드는 Preview 단계에만 남으며 정식 생성 완료 판정에는 남아 있지 않다.
+- [x] Design System 변경 Preview를 사람이 검토한 후 Publish할 수 있다.
+- [x] Publish 후 Component Key가 Registry에 동기화된다.
+- [x] REST API, JSON 다운로드, MCP Tool의 인증과 오류 처리가 검증되고, 신규 MCP Tool은 전용 인증 없이는 호출되지 않는다.
+- [x] P1 요청 유형 4종이 동일 `FigmaDesignOperation` 계약으로 Preview Bundle을 만들고 Plugin Apply 전에는 `APPLIED`를 반환하지 않는다.
+- [x] Figma REST 조회·Spring AI 분석·Plugin 쓰기의 실행 경계와 민감정보 redaction이 검증된다.
+- [~] CRUD LIST·FORM·DETAIL이 10단계 Generator를 통과하고 Binding·DESIGN.md·Token·반응형·검증 결과를 하나의 보고서로 추적할 수 있다. 정적·계약 검증은 완료했으나 실제 브라우저 viewport/overflow Gate는 R6-060/R6-T18 잔여
+- [x] 기존 WEB_CAPTURE와 eGovFrame 코드 생성 회귀 테스트가 통과한다.
 
 ### 17.1 확장 릴리스(R7~R8) 완료 조건
 
-- [ ] `.figpack` 캡처를 후보 Screen Specification으로 변환하고 승인 후 의미 흐름을 탈 수 있다.
-- [ ] 운영·롤백·드리프트 대응 문서가 준비된다.
+- [~] `.figpack` 캡처를 후보 Screen Specification으로 변환하고 승인 후 의미 흐름을 탈 수 있다. 백엔드 후보·승인·Semantic Bundle 경로와 Figma Desktop 7화면 Apply는 완료했으나, 실제 로그인 URL 캡처를 `.figpack`으로 연결하는 운영 E2E와 원본/생성 픽셀 비교는 남아 있다.
+- [x] 운영·롤백·드리프트 대응 문서가 준비된다.
 
 ---
 
@@ -873,6 +925,13 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 
 | 버전 | 일자 | 변경 내용 |
 |---|---|---|
+| 4.10 | 2026-08-18 | (문서 상단 버전 표시가 4.3에 머물러 있던 표기 오류도 함께 정정) 서버 코드로 닫을 수 있는 잔여 항목 재조사·구현. **R6-053**: `LegacyScreenRoleResolver` 신설 — JSP/Controller 소스 증거로 화면 유형을 추정해 호출자가 명시한 `screenRole`과 어긋나면 WARNING(자동 판정이 필수 입력을 대체하지 않음). 실제 `EgovEmployerList.jsp` fixture 재현 중 검색/필터 폼을 데이터 입력 폼으로 오판하는 버그를 발견·수정. **R6-T10**: `queryTeamComponents`/`queryTeamStyles`/`queryAllTeamComponents`/`queryAllTeamStyles` 신설로 Team 전체 Library의 `page_size`/`after` cursor pagination 실제 구현(cursor가 진행 없으면 즉시 중단해 무한 루프·중복 방지). **R6-062**: `ThymeleafBindingGenerationService.resolveDesignTokens()`가 `CompanyDesignTokenResolver`에 항상 `null`을 하드코딩해 넘겨 DESIGN.md 화면 Override 병합 로직(R6-056, 구현·테스트는 있었음)이 생성 파이프라인에서 한 번도 실행되지 않던 배선 누락을 발견·수정 — `DesignMdRuleLoader`를 주입해 실제 DESIGN.md 규칙이 있을 때만 병합하도록 연결, end-to-end 테스트로 검증. **R4-020/R6-044/R0-027/R6-040/R6-045/R6-T09/R6-043/R6-054/R6-056/R6-031**은 이전 회차(v4.3)에서 이미 처리. **재조사 후 근거 보강**: R6-T08(file 소속은 실시간 REST 호출로 이미 검증됨을 확인, page 소속은 요청 계약에 pageId 개념이 없어 별도 설계 결정 필요로 재분류). **범위 확정 보류**: R6-063/R6-T16(하드코딩 검사 대상 자체가 미정 — 실제 템플릿 3종은 inline style을 전혀 쓰지 않아 원래 뜻의 CSS 값 우회 검사는 대상 표면이 없음), R6-030(dead code 삭제 여부는 사용자 결정 필요), R7-002(운영 fixture 축적 전 휴리스틱 추측 추가는 보류가 합리적 — 문서의 기존 판단 재확인). Java 전체 테스트 스위트 1576개 통과 확인(신규 테스트 20건 이상 추가). |
+| 4.9 | 2026-08-18 | R7 하이브리드 흐름의 실제 구조를 명확화. `.figpack`은 `FigmaScreenSpec`이 아니라 `document.json` 기반 Reference Snapshot이며, `UiDesignSpec → 후보 ScreenSpecification → 사람 수정·승인 → FigmaScreenSpec`으로 변환됨을 명시. 개념적 MCP 흐름과 실제 `FigmaHybridExportService` 기반 REST 진입점(`/api/figma/hybrid/**`)의 관계를 문서화하고, 운영 `.figpack` 전체 E2E·픽셀 비교 잔여 범위를 R7-T01/R7-T04/R7-015/R7-016으로 재확인. |
+| 4.8 | 2026-08-18 | Web Capture 인증 경로를 소스와 재대조. `CaptureWebPageTool`이 extractor `POST /v1/sessions`의 UUID형 불투명 `storageStateRef`를 `/v1/captures`로 전달하도록 구현·회귀 테스트 완료. 비밀번호·쿠키·토큰 원문은 MCP 입력에서 차단하며, 세션 발급 API 직접 호출과 owner 격리는 잔여 운영 범위로 명시. |
+| 4.7 | 2026-08-18 | 소스·실행 증적 재대조. `R5-T02`는 Figma Desktop 동일 Bundle 재적용 결과 재사용 36·신규 0으로 확인되어 `[x]`로 승격하고, `R8-T04`는 Q&A 7개 Bundle 실제 일괄 MERGE·Bundle `OK`·Apply 완료 및 세 품질 Gate 통과 증적으로 `[x]`로 승격. `R5-T03` 신규 1개 ADD 런타임, `R5-T08` 7가지 요청 교차 적용, `R8-023` 실제 USER_OVERRIDE 충돌, R7 픽셀 비교 및 실제 운영 캡처의 `.figpack` 후보 변환 연결은 미진행으로 유지. |
+| 4.6 | 2026-08-18 | 로그인된 실제 eGovFrame Chrome 세션에서 Q&A 7개 운영 화면(`selectQnaList`, `insertQnaView`, `selectQnaDetail`, `updateQnaView`, `selectQnaAnswerList`, `selectQnaAnswerDetail`, `updateQnaAnswerView`)을 캡처하고 URL·화면 제목·해시를 증적으로 보관. Figma Desktop에서 7개 Q&A Bundle을 일괄 `MERGE`해 각 Bundle `OK` 및 전체 적용 완료를 확인하고 R7-014를 `[x]`로 승격. 대표 `qna-list` Generation Report에서 재사용 36·신규 0·Archive 0·Fallback 0, 세 품질 Gate 모두 `PASSED` 확인. 실제 운영 캡처→`.figpack` 후보 변환 연결과 원본/생성 픽셀 비교는 R7-T01/R7-015/R7-016 잔여로 명시. |
+| 4.5 | 2026-08-18 | 소스 재대조 결과를 반영. `figmaContractTest`(schemas=29)와 7화면 E2E·Registry/Resolver·Fallback·Redaction·Rollback 증적이 존재하는 기존 완료 항목은 완료로 갱신하고, 실제 미진행 범위는 R0-028/029, R5-T02/T03/T08, R5-043 자동 Bundle 반복 다운로드 UX, R6-T04 wire E2E, R6-030 orphan Router 정리 결정, R6-032 자연어→DB 구조화 선택, R6-T08 file/page 소속 검증, R6-053 자동 screenRole 판단, R6-060/062/063/T16/T18 브라우저·DESIGN.md·Token Gate, R7-002/014~016/T01/T04 픽셀·Desktop 런타임, R8-023/T04 실제 Figma fixture로 재분류했다. 17장 1차 릴리스 Gate의 오래된 미완료 표시는 현재 소스 증적 기준으로 갱신하되, 실제 브라우저 Gate가 필요한 Generator 항목은 `[~]`로 유지했다. |
+| 4.4 | 2026-08-18 | R6-T10의 제약 분류를 정정. Figma REST 전체가 pagination을 미지원하는 것이 아니라 Team Components/Styles endpoint는 `after`/`before` cursor를 지원함을 반영하고, 현재 file-level `fileKey` endpoint·입력 모델 범위의 미구현으로 재분류. `queryNodesPaginated`는 서버 cursor가 아닌 client-side nodeIds 분할 방식임을 명시. A~F 외부 제약 분류의 그룹별 수량 산술을 명시하도록 기준 추가. |
 | 4.3 | 2026-08-18 | 남은 `[ ]`/`[~]` 항목 전체를 문서 순서대로 재조사. **신규 구현 5건**: R6-040(`FigmaApiClient.queryNodesPaginated`가 offset을 버리는 스텁이었음을 발견, `FigmaApiQuery.nodeIds` 다중 조회로 실제 구현), R0-027(`DesignSystemProfileId` 원자적 결합 계약 신설), R4-020(기존 `validateActualFigmaInventory`/`FigmaPropertyDriftValidator` 원격 Key 검증 로직에 빠져 있던 테스트 증적 보강), R6-045/R6-T09(`VisionModelCapability` 사전 점검 신설로 `VISION_MODEL_NOT_SUPPORTED` 명시 오류 계약 확보), R6-044(`ResolvedComponentRegistryService`에 빠져 있던 테스트 12건 보강, "Default Layout Policy 교집합"은 실제 모델에 컴포넌트 목록이 없어 개념적으로 대상 아님을 확인). **doc-stale 정정 4건**(코드는 이미 있었으나 체크박스 미갱신): R6-043(R5-045가 이미 소비 중), R6-054(R6-T15가 이미 검증 완료), R6-056(R6-057이 이미 연결 완료), R6-031(7/7종 전체 완료로 상향). **범위 재확인 후 `[~]` 유지**: R6-030(`FigmaDesignRequestRouter`는 완전한 죽은 코드이며 "단일 경로 통합" 목표 자체는 7-Tool 명시 타입 아키텍처로 이미 달성됨 — 삭제 여부만 남음), R6-053(진짜 미구현 확인 — `screenRole`은 여전히 호출자 명시 필수값), R5-043(Java REST 엔드포인트는 이미 충분하고 남은 건 Plugin TypeScript 쪽 자동 반복 다운로드 UX뿐), R6-T04(Streamable HTTP wire 프로토콜을 손으로 흉내 내는 대신 실제 MCP 클라이언트 기반 운영 smoke test로 넘김), R6-T08(Vision capability 오류 계약은 해결, file/page 소속 검증만 남아 범위 축소). Figma Desktop 런타임·실제 브라우저 viewport·픽셀 이미지 비교·수동 QA가 필요한 항목(R5-T02/T03/T08, R0-028/029, R6-T10/T18, R6-060/062/063/T16, R7-014~016/T01/T04, R8-023/T04)은 이 세션(코드 편집 환경)에서 구현 불가능함을 재확인하고 `[~]` 그대로 유지. Java 전체 테스트 스위트 통과 확인(신규 테스트 30건 이상 추가) |
 | 4.2 | 2026-08-18 | R6-038 PLATFORM_CONVERT를 마저 구현해 7가지 요청 전체(TEXT_DESCRIPTION 포함)가 실제 Bundle 생성 경로를 갖췄다. `FigmaDesignOrchestrationService.generateFromPlatformConversion()`: `screenSpecificationId`(신규, 필수) 기준 APPROVED 화면명세를 DESKTOP export→Plugin `applyComponentSwaps()`의 Java판(신규 `applyComponentSwaps`/`collectLogicalTypes`, 테스트 접근을 위해 package-private)으로 `FigmaNodeSpec` 트리 재작성→`screenId`에 `-{platform}` suffix를 붙인 새 `FigmaExportBundle` 저장. `convertPlatform` MCP Tool에 `screenSpecificationId` 파라미터 추가. Grid·Navigation 재계산은 R5-044와 동일하게 범위 밖으로 유지(Swap 발생 시 `PLATFORM_CONVERT_GRID_NOT_RECALCULATED` WARNING). `FigmaPlatformConversionService.convert()` 2-arg 오버로드가 항상 빈 Swap 규칙의 `defaultPolicy()`를 써서 운영 경로에서는 아직 실제 Swap이 발동하지 않는다는 한계를 문서화(트리 재작성 로직 자체는 hand-crafted swap map 단위 테스트 4건으로 별도 검증). `FigmaDesignOrchestrationServiceTest`에 PLATFORM_CONVERT 관련 테스트 7건 추가(필수값 누락/미승인/성공 경로 3건 + `applyComponentSwaps`/`collectLogicalTypes` 단위 테스트 4건), MCP Tool 스냅샷·REST 엔드포인트 baseline 재생성, Java 전체 테스트 스위트(1529개) 통과 확인. R6-031·R5-T08을 7/7종 완료 기준으로 재평가(`[x]`) |
 | 4.1 | 2026-08-18 | R6-032~038(7가지 요청 중 TEXT_DESCRIPTION을 제외한 6가지의 실제 Bundle 생성 파이프라인) 조사 결과, "연결"이 아니라 근본적인 모델 불일치(analyzeFigmaReference/analyzeDesignReference→createScreenSpecification 경로는 DB 테이블 바인딩 필수인 반면 FigmaDesignRequest는 자연어 prompt뿐)를 발견 — DB 테이블 바인딩으로 통일하는 방향으로 확정(기존 CRUD 생성 아키텍처와 일치). `FigmaDesignRequest`에 `database`/`tableName`/`screenName`/`featureType`/`screenSpecificationId` 필드, `FigmaScreenRequest`에 화면별 `database`/`tableName` 필드 신설(하위 호환 생성자 유지). 신규 `FigmaDesignOrchestrationService.generateBundle(operationId)` + MCP Tool `generateFigmaBundleForOperation`이 ANALYZED 이후 2단계로 실제 생성을 이어간다. **R6-033 REFERENCE_STYLE**: 합성 Figma URL로 기존 `analyzeFigmaReference` 재사용→`createScreenSpecification`→APPROVED면 Bundle까지, REVIEW_REQUIRED면 REJECTED+`screenSpecificationId` 안내. **R6-035 IMAGE_REFERENCE**: 신규 `FigmaApiClient.queryImages()`로 렌더 URL 조회→`java.io.tmpdir`(이미 허용 경로)로 실제 다운로드→기존 `analyzeDesignReference` 재사용, 로컬 stub HTTP 서버로 다운로드 경로까지 실제 검증. **R6-037 COMPONENT_SPECIFIED**: `ComponentRegistryResolver`로 전체 컴포넌트 Registry 해석 검증 후 R6-033과 동일 경로. **R6-034 MODIFY_EXISTING**: `screenSpecificationId`(신규, 직접 지정 필수) 기준 현재 DB 스키마로 `revise()` 재동기화(자유 텍스트 diff 엔진은 의도적으로 없음, 문서화된 한계). **R6-036 MULTI_SCREEN_FLOW**: 화면별 독립 생성이되 하나라도 실패하면 전체 REJECTED(all-or-nothing). **R6-038 PLATFORM_CONVERT**만 Grid 재계산·Java측 노드 트리 재작성이 별도로 필요해 의도적으로 범위 밖(명확한 미지원 오류로 dispatcher에서 거부). `FigmaDesignOrchestrationServiceTest`에 5가지 유형 각각의 성공/실패 케이스 테스트 추가, Java 전체 테스트 스위트 통과 확인 |
