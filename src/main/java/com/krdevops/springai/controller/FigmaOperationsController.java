@@ -5,6 +5,9 @@ import com.krdevops.springai.model.figma.ops.DesignSystemImpact;
 import com.krdevops.springai.model.figma.ops.FigmaGenerationReport;
 import com.krdevops.springai.model.figma.ops.FigmaOperationalMetrics;
 import com.krdevops.springai.service.FigmaApiException;
+import com.krdevops.springai.service.DesignArtifactService;
+import com.krdevops.springai.model.figma.FigmaExportBundle;
+import com.krdevops.springai.model.figma.contract.FigmaDesignRequestType;
 import com.krdevops.springai.service.figma.FigmaDesignOperationService;
 import com.krdevops.springai.service.figma.FigmaOperationsService;
 import java.util.List;
@@ -26,6 +29,7 @@ public class FigmaOperationsController {
 
     private final FigmaOperationsService operationsService;
     private final FigmaDesignOperationService designOperationService;
+    private final DesignArtifactService artifactService;
 
     @PostMapping("/reports")
     public FigmaGenerationReport record(@jakarta.validation.Valid @RequestBody FigmaGenerationReport report) {
@@ -117,6 +121,29 @@ public class FigmaOperationsController {
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    /** R5-043: 멀티 스크린 Operation의 Bundle을 한 번에 내려받기 위한 원자 조회 API. */
+    @GetMapping("/{operationId}/bundles")
+    public List<OperationBundle> bundles(@PathVariable String operationId) {
+        FigmaDesignOperation operation = designOperationService.findOperation(operationId)
+                .orElseThrow(() -> new FigmaRequestException("FIGMA_OPERATION_NOT_FOUND", operationId));
+        if (operation.request() == null || operation.request().type() != FigmaDesignRequestType.MULTI_SCREEN_FLOW) {
+            throw new FigmaRequestException("FIGMA_MULTI_SCREEN_OPERATION_REQUIRED",
+                    "MULTI_SCREEN_FLOW Operation만 Bundle 일괄 조회를 지원합니다.");
+        }
+        if (operation.artifacts() == null || operation.artifacts().isEmpty()) {
+            throw new FigmaRequestException("FIGMA_OPERATION_BUNDLES_EMPTY", "조회할 Bundle이 없습니다.");
+        }
+        return operation.artifacts().stream()
+                .filter(artifact -> "FIGMA_EXPORT_BUNDLE".equals(artifact.artifactType()))
+                .map(artifact -> {
+                    FigmaExportBundle bundle = artifactService.readFigmaExportBundle(artifact.uri());
+                    return new OperationBundle(bundle.figmaScreenSpec().screenId(),
+                            bundle.figmaScreenSpec().screenVersion(), bundle);
+                }).toList();
+    }
+
+    public record OperationBundle(String screenId, int screenVersion, FigmaExportBundle bundle) {}
 
     /**
      * Plugin Apply 보고서 DTO (R5-041)

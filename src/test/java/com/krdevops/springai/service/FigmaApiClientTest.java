@@ -50,6 +50,33 @@ class FigmaApiClientTest {
     }
 
     @Test
+    void validatesNodePageAncestry() throws Exception {
+        HttpServer server = server(exchange -> respond(exchange, 200, """
+                {"version":"v1","nodes":{"1:2":{"document":
+                {"id":"1:2","type":"FRAME","parent":{"id":"0:1","type":"PAGE"}}}}}
+                """));
+
+        client(server, properties()).validateNodeBelongsToPage(
+                new FigmaReference("abcdef", "1:2"), "0:1");
+
+        assertThatThrownBy(() -> client(server, properties()).validateNodeBelongsToPage(
+                new FigmaReference("abcdef", "1:2"), "0:9"))
+                .isInstanceOfSatisfying(FigmaApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("FIGMA_PAGE_MISMATCH"));
+    }
+
+    @Test
+    void rejectsPageValidationWhenAncestryIsMissing() throws Exception {
+        HttpServer server = server(exchange -> respond(exchange, 200,
+                "{\"version\":\"v1\",\"nodes\":{\"1:2\":{\"document\":{\"id\":\"1:2\",\"type\":\"FRAME\"}}}}"));
+
+        assertThatThrownBy(() -> client(server, properties()).validateNodeBelongsToPage(
+                new FigmaReference("abcdef", "1:2"), "0:1"))
+                .isInstanceOfSatisfying(FigmaApiException.class,
+                        error -> assertThat(error.code()).isEqualTo("FIGMA_PAGE_ANCESTRY_UNAVAILABLE"));
+    }
+
+    @Test
     void convertsAuthenticationAndInvalidResponseErrorsWithoutLeakingSecrets() throws Exception {
         HttpServer unauthorized = server(exchange -> respond(exchange, 401, "{}"));
 

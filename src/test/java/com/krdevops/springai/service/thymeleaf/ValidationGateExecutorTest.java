@@ -143,6 +143,31 @@ class ValidationGateExecutorTest {
         assertTrue(result.issues().stream().anyMatch(s -> s.contains("크기")), "Should report size issue");
     }
 
+    @Test
+    void offlineBuildUsesProjectWrapperAndPasses() throws Exception {
+        Path project = tempPath.getParent().resolve("offline-project");
+        Files.createDirectories(project);
+        Path wrapper = project.resolve("gradlew");
+        Files.writeString(wrapper, "#!/bin/sh\nexit 0\n");
+        wrapper.toFile().setExecutable(true);
+
+        ValidationGateResult result = executor.validateOfflineBuild(project);
+
+        assertTrue(result.passed(), "issues: " + result.issues());
+        assertEquals(ValidationGateType.BUILD_VALIDATION, result.gateType());
+    }
+
+    @Test
+    void offlineBuildFailsWithoutWrapperInsteadOfUsingSystemTool() throws Exception {
+        Path project = tempPath.getParent().resolve("no-wrapper-project");
+        Files.createDirectories(project);
+
+        ValidationGateResult result = executor.validateOfflineBuild(project);
+
+        assertFalse(result.passed());
+        assertTrue(result.issues().contains("OFFLINE_BUILD_WRAPPER_NOT_FOUND"));
+    }
+
     // ── ARCH-0803/0804: 실제 Spring TemplateEngine 렌더 Gate ─────────────────────
 
     @Test

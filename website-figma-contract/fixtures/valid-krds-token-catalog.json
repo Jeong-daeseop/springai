@@ -1,0 +1,16 @@
+{
+  "catalogVersion": "v1.0",
+  "colors": {
+    "primary.60": "#0066CC",
+    "gray.10": "#F5F6F8",
+    "gray.90": "#1E2124",
+    "danger.60": "#D92D20"
+  },
+  "typography": {
+    "body.md": {"fontFamily":"Noto Sans KR","fontSizePx":16,"fontWeight":400,"lineHeightPx":24},
+    "heading.lg": {"fontFamily":"Noto Sans KR","fontSizePx":28,"fontWeight":700,"lineHeightPx":36},
+    "label.sm": {"fontFamily":"Noto Sans KR","fontSizePx":14,"fontWeight":600,"lineHeightPx":20}
+  },
+  "spacing": {"0":0,"1":4,"2":8,"3":12,"4":16,"6":24,"8":32,"10":40},
+  "radius": {"none":0,"sm":4,"md":8,"lg":12,"pill":999}
+}

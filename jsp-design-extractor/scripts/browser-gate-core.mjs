@@ -13,7 +13,8 @@ export const VIEWPORTS = Object.freeze([
 
 const MAX_HTML_BYTES = 5 * 1024 * 1024;
 const DEFAULT_TIMEOUT_MILLIS = 30_000;
-const DEFAULT_DIFFERENCE_RATIO = 0.001;
+/** R7-016: 승인 baseline 대비 최대 0.1% 픽셀 차이를 허용한다. 크기 불일치는 별도 오류다. */
+export const DEFAULT_VISUAL_DIFFERENCE_RATIO = 0.001;
 
 function validateRequest(request) {
   if (!request || typeof request !== "object") throw new Error("REQUEST_REQUIRED");
@@ -26,7 +27,7 @@ function validateRequest(request) {
     throw new Error("RENDERED_HTML_TOO_LARGE");
   }
   if (hasUrl) validateLocalUrl(request.url);
-  const ratio = request.maxDifferenceRatio ?? DEFAULT_DIFFERENCE_RATIO;
+  const ratio = request.maxDifferenceRatio ?? DEFAULT_VISUAL_DIFFERENCE_RATIO;
   if (!Number.isFinite(ratio) || ratio < 0 || ratio > 1) throw new Error("DIFFERENCE_RATIO_INVALID");
   const timeoutMillis = request.timeoutMillis ?? DEFAULT_TIMEOUT_MILLIS;
   if (!Number.isInteger(timeoutMillis) || timeoutMillis < 1_000 || timeoutMillis > 120_000) {
@@ -209,7 +210,7 @@ async function validateViewport(browser, request, viewport, directories) {
     const diffPath = path.join(directories.artifacts, `${request.screenId}-${viewport.name}-diff.png`);
     const visual = await compareScreenshot(
       screenshotPath, baselinePath, diffPath,
-      request.maxDifferenceRatio ?? DEFAULT_DIFFERENCE_RATIO,
+      request.maxDifferenceRatio ?? DEFAULT_VISUAL_DIFFERENCE_RATIO,
     );
 
     return {

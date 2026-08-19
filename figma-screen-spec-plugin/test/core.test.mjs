@@ -9,6 +9,8 @@ import {
   contrastRatio,
   meetsWcagAaContrast,
   applyComponentSwaps,
+  planPlatformLayout,
+  planViewportFixtures,
   isUserOverridden,
   mappedProperties,
   planFallback,
@@ -20,6 +22,34 @@ import {
   selectVariantName,
   validateBundle
 } from "../dist-test/core.mjs";
+
+test("R0-028/BASE-18: policy plan calculates grid and rejects freeform frames before mutation", () => {
+  const result = planPlatformLayout(
+    { platform: "DESKTOP", viewportWidth: 1440, gridColumns: 12, gapPx: 24, paddingPx: 40 },
+    { width: 1440, layoutMode: "NONE" },
+  );
+  assert.equal(result.contentWidth, 1360);
+  assert.equal(result.usableWidth, 1096);
+  assert.equal(result.columnWidth, 91.33333333333333);
+  assert.deepEqual(result.issues, ["AUTO_LAYOUT_REQUIRED"]);
+});
+
+test("R0-028/BASE-18: policy plan accepts a matching auto-layout frame", () => {
+  const result = planPlatformLayout(
+    { platform: "MOBILE", viewportWidth: 390, gridColumns: 4, gapPx: 12, paddingPx: 16 },
+    { width: 390, layoutMode: "VERTICAL" },
+  );
+  assert.deepEqual(result.issues, []);
+  assert.equal(result.columnWidth, 80.5);
+});
+
+test("R0-028/BASE-18: fixture plan creates deterministic Tablet/Mobile policies only from Desktop", () => {
+  assert.deepEqual(planViewportFixtures(1440), [
+    { platform: "TABLET", width: 768, gridColumns: 8, gapPx: 16, paddingPx: 24, nameSuffix: " · TABLET" },
+    { platform: "MOBILE", width: 390, gridColumns: 4, gapPx: 12, paddingPx: 16, nameSuffix: " · MOBILE" },
+  ]);
+  assert.deepEqual(planViewportFixtures(768), []);
+});
 
 test("contrastRatio is 21:1 for pure black on pure white", () => {
   const ratio = contrastRatio({ r: 0, g: 0, b: 0 }, { r: 1, g: 1, b: 1 });
@@ -468,6 +498,31 @@ test("Q&A six runtime v2 bundles pass plugin validation and preview reconciliati
     assert.ok(changes.length > 0, `${file}: Preview 변경 목록이 비어 있습니다.`);
     assert.equal(changes.every(change => change.changeType === "ADD"), true, file);
   }
+});
+
+test("R5-T08: preview and reconciliation preserve logical identity across a swap scenario", () => {
+  const bundle = validBundle();
+  const desired = bundle.figmaScreenSpec.content;
+  desired.children.push(node("user-list/table", "egov.dataTable", {}, [
+    node("user-list/table/row-1", "egov.tableRow", {label: "첫 번째"}, [], "FRAME"),
+  ], "FRAME"));
+  const existing = [
+    {logicalNodeId: "user-list", logicalType: "egov.listPage", parentLogicalNodeId: null, order: 0},
+    {logicalNodeId: "user-list/action/create", logicalType: "krds.button", parentLogicalNodeId: "user-list", order: 0},
+    {logicalNodeId: "user-list/table", logicalType: "egov.dataTable", parentLogicalNodeId: "user-list", order: 1},
+  ];
+  const changes = reconcile(desired, existing);
+  assert.deepEqual(changes.map(change => [change.logicalNodeId, change.changeType]), [
+    ["user-list", "REUSE"],
+    ["user-list/action/create", "REUSE"],
+    ["user-list/table", "REUSE"],
+    ["user-list/table/row-1", "ADD"],
+  ]);
+  const swapped = applyComponentSwaps(desired, bundle.componentRegistry.registry, [
+    {requestedLogicalType: "krds.button", resolvedLogicalType: "krds.button", swapped: true},
+  ]);
+  assert.equal(swapped.children[0].logicalNodeId, "user-list/action/create");
+  assert.equal(reconcile(swapped, existing).filter(change => change.changeType === "CONFLICT").length, 0);
 });
 
 test("v1 legacy migration computes mappings but never enables migration apply", () => {

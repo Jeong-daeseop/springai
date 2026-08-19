@@ -77,6 +77,37 @@ public class FigmaApiClient {
         return guard.execute(ExternalDependency.FIGMA, () -> fetchNodeOnce(reference));
     }
 
+    /**
+     * R6-T08: 노드 응답의 parent ancestry를 따라 요청한 Page 소속을 검증한다.
+     * Figma NODES 응답은 페이지 조상 정보를 parent 객체로 제공하므로 별도 파일 전체 다운로드 없이
+     * fail-closed로 검사한다. ancestry가 생략된 응답은 일치로 추정하지 않고 오류로 거부한다.
+     */
+    public void validateNodeBelongsToPage(FigmaReference reference, String expectedPageId) {
+        if (expectedPageId == null || expectedPageId.isBlank()) {
+            throw new IllegalArgumentException("expectedPageId는 필수입니다.");
+        }
+        FigmaNodeDocument node = fetchNode(reference);
+        JsonNode current = node.document();
+        java.util.Set<String> visited = new java.util.HashSet<>();
+        boolean ancestrySeen = false;
+        while (current != null && current.isObject()) {
+            String id = current.path("id").asText(null);
+            String type = current.path("type").asText(null);
+            if (expectedPageId.equals(id) && "PAGE".equals(type)) {
+                return;
+            }
+            JsonNode parent = current.path("parent");
+            if (!parent.isObject() || id != null && !visited.add(id)) {
+                break;
+            }
+            ancestrySeen = true;
+            current = parent;
+        }
+        String code = ancestrySeen ? "FIGMA_PAGE_MISMATCH" : "FIGMA_PAGE_ANCESTRY_UNAVAILABLE";
+        throw new FigmaApiException(code, 422,
+                "Figma 노드가 요청한 Page에 속하지 않거나 Page ancestry가 응답에 없습니다.");
+    }
+
     /** Figma 연동이 켜져 있고 토큰이 있는지. 호출 전에 fail-closed 여부를 판단할 때 쓴다. */
     public boolean isFigmaEnabled() {
         return properties.getFigma().isEnabled() && !properties.getFigma().getAccessToken().isBlank();

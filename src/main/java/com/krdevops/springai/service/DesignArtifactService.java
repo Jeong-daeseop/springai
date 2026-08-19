@@ -236,6 +236,24 @@ public class DesignArtifactService {
         }
     }
 
+    /** R5-043: Operation의 멀티 스크린 Bundle 자동 다운로드를 위한 안전한 상대경로 조회. */
+    public com.krdevops.springai.model.figma.FigmaExportBundle readFigmaExportBundle(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            throw new IllegalArgumentException("Bundle artifact 경로가 필요합니다.");
+        }
+        Path artifactRoot = root().resolve("figma-bundles").normalize();
+        Path target = root().resolve(relativePath).normalize();
+        if (!target.startsWith(artifactRoot) || !Files.isRegularFile(target.resolve("figma-export-bundle.json"))) {
+            throw new IllegalArgumentException("유효하지 않은 Figma Bundle artifact 경로입니다.");
+        }
+        try {
+            return objectMapper.readValue(target.resolve("figma-export-bundle.json").toFile(),
+                    com.krdevops.springai.model.figma.FigmaExportBundle.class);
+        } catch (Exception exception) {
+            throw new IllegalStateException("Figma Bundle artifact를 읽을 수 없습니다.", exception);
+        }
+    }
+
     private FigmaExportArtifact readFigmaExportArtifact(Path target) throws java.io.IOException {
         return objectMapper.readValue(
                 target.resolve("metadata.json").toFile(), FigmaExportArtifact.class);

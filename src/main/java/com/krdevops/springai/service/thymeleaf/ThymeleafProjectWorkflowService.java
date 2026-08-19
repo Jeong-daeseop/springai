@@ -178,14 +178,16 @@ public class ThymeleafProjectWorkflowService {
             String content = entry.getValue() == null ? "" : entry.getValue();
             files.put(entry.getKey(), content);
             sourceHashes.put(entry.getKey(), currentHash(target));
-            var parse = validationGate.validateThymeleafParse(content);
-            if (!parse.passed()) {
-                parse.issues().forEach(issue -> validationErrors.add(entry.getKey() + ": " + issue));
-            }
-            var overflow = validationGate.validateNoOverflow(content);
-            if (!overflow.passed()) {
-                overflow.issues().forEach(issue -> validationErrors.add(entry.getKey() + ": " + issue));
-            }
+            List<ValidationGateResult> gates = bindingContract == null
+                    ? List.of(validationGate.validateThymeleafParse(content), validationGate.validateNoOverflow(content))
+                    : validationGate.runThymeleafGates(bindingContract, content).results();
+            gates.stream()
+                    .filter(result -> !result.passed()
+                            && validationGate.severityOf(result.gateType()) == GateSeverity.BLOCK)
+                    .flatMap(result -> result.issues().stream())
+                    .forEach(issue -> validationErrors.add(entry.getKey() + ": " + issue));
+            new DesignHardcodingValidator().validate(content).forEach(issue ->
+                    validationErrors.add(entry.getKey() + ": " + issue));
         });
 
         ThymeleafProjectOperation operation = stateService.createOperation(root.toString());
@@ -381,6 +383,14 @@ public class ThymeleafProjectWorkflowService {
         List<String> errors = new ArrayList<>();
         Map<String, List<ValidationGateResult>> browserResults =
                 runBrowserGates(root, operationId, browserOptions, errors);
+        ValidationGateResult offlineBuild = null;
+        if (hasOfflineBuildWrapper(root)) {
+            offlineBuild = validationGate.validateOfflineBuild(root);
+            if (!offlineBuild.passed()) {
+                offlineBuild.issues().forEach(issue -> errors.add("project: " + issue));
+            }
+        }
+        boolean firstArtifact = true;
         for (String relative : snapshot.operation().previewArtifacts().keySet()) {
             Path target = pathResolver.resolveTarget(root, relative);
             String content;
@@ -402,6 +412,10 @@ public class ThymeleafProjectWorkflowService {
                 result.issues().forEach(issue -> errors.add(relative + ": " + issue));
             }
             results.addAll(browserResults.getOrDefault(relative, List.of()));
+            if (firstArtifact && offlineBuild != null) {
+                results.add(offlineBuild);
+                firstArtifact = false;
+            }
             persistValidationReport(snapshot, relative, results, content);
         }
         if (!errors.isEmpty()) {
@@ -417,6 +431,13 @@ public class ThymeleafProjectWorkflowService {
         ThymeleafOperationSnapshot saved = nextRevision(snapshot, validated);
         recordEvent(saved, snapshot.operation().status(), validated.status(), "VALIDATED");
         return result(saved);
+    }
+
+    private boolean hasOfflineBuildWrapper(Path root) {
+        return Files.isRegularFile(root.resolve("gradlew"))
+                || Files.isRegularFile(root.resolve("gradlew.bat"))
+                || Files.isRegularFile(root.resolve("mvnw"))
+                || Files.isRegularFile(root.resolve("mvnw.cmd"));
     }
 
     /**

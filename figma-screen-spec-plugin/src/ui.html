@@ -19,6 +19,8 @@ button{padding:9px}.section{margin-top:14px;padding-top:12px;border-top:1px soli
   <strong>멀티 스크린 일괄 Apply</strong>
   <div class="hint">여러 화면의 Bundle(.json)을 한 번에 선택하세요. 전체 검증을 통과해야 Apply를 시작하며, 화면 하나가 실패하면 이 배치에서 이미 적용된 화면도 모두 되돌립니다.</div>
   <input id="multiFile" type="file" accept=".json,application/json" multiple>
+  <input id="multiOperationId" type="text" placeholder="또는 operationId로 서버에서 일괄 조회">
+  <button id="fetchMultiOperation">Operation Bundle 일괄 조회</button>
   <div id="multiPreview" class="section" style="display:none">
     <div id="multiScreens"></div>
     <select id="multiMode">
@@ -44,6 +46,15 @@ button{padding:9px}.section{margin-top:14px;padding-top:12px;border-top:1px soli
 </div>
 
 <div id="status" class="section">Bundle을 선택하면 변경 Preview를 계산합니다.</div>
+<select id="layoutPolicyPlatform">
+  <option value="DESKTOP">Desktop · 1440 / 12열</option>
+  <option value="TABLET">Tablet · 768 / 8열</option>
+  <option value="MOBILE">Mobile · 390 / 4열</option>
+</select>
+<button id="applyLayoutPolicy">선택 Frame에 Layout 정책 적용</button>
+<button id="createViewportFixtures">Tablet/Mobile 검증용 복제본 생성</button>
+<button id="listViewportCandidates">Desktop Frame 후보 새로고침</button>
+<select id="viewportCandidate" style="display:none"></select>
 
 <div id="preview" class="section" style="display:none">
   <strong>변경 Preview</strong>
@@ -102,10 +113,27 @@ const restToken = document.getElementById('restToken');
 const restApiKey = document.getElementById('restApiKey');
 const fetchBundle = document.getElementById('fetchBundle');
 const status = document.getElementById('status');
+const layoutPolicyPlatform = document.getElementById('layoutPolicyPlatform');
+const applyLayoutPolicy = document.getElementById('applyLayoutPolicy');
+const createViewportFixtures = document.getElementById('createViewportFixtures');
+const listViewportCandidates = document.getElementById('listViewportCandidates');
+const viewportCandidate = document.getElementById('viewportCandidate');
 const preview = document.getElementById('preview');
 const changes = document.getElementById('changes');
 const issues = document.getElementById('issues');
 const mode = document.getElementById('mode');
+applyLayoutPolicy.addEventListener('click', () => {
+  parent.postMessage({ pluginMessage: { type: 'APPLY_LAYOUT_POLICY', platform: layoutPolicyPlatform.value } }, '*');
+});
+createViewportFixtures.addEventListener('click', () => {
+  parent.postMessage({ pluginMessage: {
+    type: 'CREATE_VIEWPORT_FIXTURES',
+    nodeId: viewportCandidate.style.display === 'none' ? undefined : viewportCandidate.value,
+  } }, '*');
+});
+listViewportCandidates.addEventListener('click', () => {
+  parent.postMessage({ pluginMessage: { type: 'LIST_VIEWPORT_CANDIDATES' } }, '*');
+});
 const apply = document.getElementById('apply');
 const close = document.getElementById('close');
 const result = document.getElementById('result');
@@ -113,6 +141,8 @@ const reportSummary = document.getElementById('reportSummary');
 const downloadReport = document.getElementById('downloadReport');
 const operationInfo = document.getElementById('operationInfo');
 const multiFile = document.getElementById('multiFile');
+const multiOperationId = document.getElementById('multiOperationId');
+const fetchMultiOperation = document.getElementById('fetchMultiOperation');
 const multiPreview = document.getElementById('multiPreview');
 const multiScreens = document.getElementById('multiScreens');
 const multiMode = document.getElementById('multiMode');
@@ -167,6 +197,18 @@ applyMulti.onclick = () => {
   applyMulti.disabled = true;
   status.textContent = `멀티 스크린 ${multiMode.value} 일괄 적용 중…`;
   parent.postMessage({ pluginMessage: { type: 'APPLY_MULTI', mode: multiMode.value } }, '*');
+};
+fetchMultiOperation.onclick = () => {
+  const operationId = multiOperationId.value.trim();
+  if (!operationId || !baseUrl.value.trim()) {
+    status.innerHTML = '<span class="fatal">서버 주소와 operationId를 입력하세요.</span>';
+    return;
+  }
+  status.textContent = 'Operation의 멀티 스크린 Bundle을 일괄 조회 중…';
+  parent.postMessage({ pluginMessage: {
+    type: 'FETCH_MULTI_OPERATION', operationId, baseUrl: baseUrl.value.trim(),
+    token: restToken.value.trim() || undefined, apiKey: restApiKey.value.trim() || undefined,
+  } }, '*');
 };
 fetchBundle.onclick = () => {
   if (!screenIdInput.value.trim()) {
@@ -330,6 +372,25 @@ function renderIssues(values) {
 onmessage = ({data}) => {
   const message = data.pluginMessage;
   if (!message) return;
+  if (message.type === 'LAYOUT_POLICY_RESULT') {
+    status.textContent = message.message;
+    status.className = message.ok ? 'section ok' : 'section fatal';
+    return;
+  }
+  if (message.type === 'VIEWPORT_CANDIDATES') {
+    viewportCandidate.replaceChildren();
+    for (const candidate of message.candidates) {
+      const option = document.createElement('option');
+      option.value = candidate.nodeId;
+      option.textContent = `${candidate.name} · ${candidate.width}px`;
+      viewportCandidate.append(option);
+    }
+    viewportCandidate.style.display = message.candidates.length ? 'block' : 'none';
+    status.textContent = message.candidates.length
+      ? `${message.candidates.length}개 Desktop 후보를 찾았습니다.`
+      : 'Desktop 후보를 찾지 못했습니다.';
+    return;
+  }
   if (message.type === 'REGISTRY_V3_EXPORT_RESULT') {
     const blob = new Blob([JSON.stringify(message.candidate, null, 2)], { type: 'application/json' });
     const link = document.createElement('a');

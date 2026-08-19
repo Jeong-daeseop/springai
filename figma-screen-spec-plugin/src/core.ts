@@ -654,6 +654,61 @@ export type ComponentSwapDecision = {
   swapped: boolean;
 };
 
+export type PlatformLayoutPolicyInput = {
+  platform: "DESKTOP" | "TABLET" | "MOBILE";
+  viewportWidth: number;
+  gridColumns: number;
+  gapPx: number;
+  paddingPx: number;
+};
+
+export type PlatformLayoutPlan = {
+  platform: PlatformLayoutPolicyInput["platform"];
+  viewportWidth: number;
+  gridColumns: number;
+  gapPx: number;
+  paddingPx: number;
+  contentWidth: number;
+  usableWidth: number;
+  columnWidth: number;
+  issues: string[];
+};
+
+/** R0-028/BASE-18: Figma mutation 전에 정책과 Frame geometry를 순수하게 검증·계산한다. */
+export function planPlatformLayout(
+  policy: PlatformLayoutPolicyInput,
+  frame: { width: number; layoutMode: "NONE" | "HORIZONTAL" | "VERTICAL" | "GRID" },
+): PlatformLayoutPlan {
+  const issues: string[] = [];
+  const contentWidth = policy.viewportWidth - policy.paddingPx * 2;
+  const usableWidth = contentWidth - Math.max(0, policy.gridColumns - 1) * policy.gapPx;
+  const columnWidth = policy.gridColumns > 0 ? usableWidth / policy.gridColumns : 0;
+  if (frame.width !== policy.viewportWidth) issues.push("VIEWPORT_WIDTH_MISMATCH");
+  if (frame.layoutMode === "NONE") issues.push("AUTO_LAYOUT_REQUIRED");
+  if (policy.gridColumns <= 0 || policy.gapPx < 0 || policy.paddingPx < 0 || usableWidth <= 0) {
+    issues.push("GRID_POLICY_INVALID");
+  }
+  return { ...policy, contentWidth, usableWidth, columnWidth, issues };
+}
+
+export type ViewportFixturePlan = {
+  platform: "TABLET" | "MOBILE";
+  width: number;
+  gridColumns: number;
+  gapPx: number;
+  paddingPx: number;
+  nameSuffix: string;
+};
+
+/** Desktop 원본에서 생성할 검증용 viewport fixture 계획을 결정한다. */
+export function planViewportFixtures(sourceWidth: number): ViewportFixturePlan[] {
+  if (Math.round(sourceWidth) !== 1440) return [];
+  return [
+    { platform: "TABLET", width: 768, gridColumns: 8, gapPx: 16, paddingPx: 24, nameSuffix: " · TABLET" },
+    { platform: "MOBILE", width: 390, gridColumns: 4, gapPx: 12, paddingPx: 16, nameSuffix: " · MOBILE" },
+  ];
+}
+
 /**
  * R5-044: Spring의 FigmaPlatformConversionService.convert()가 계산한 Component Swap 결정을
  * 실제 노드 트리에 반영하는 순수 함수. `swapped=true`인 논리 타입만 바꾸며, 대체 대상이

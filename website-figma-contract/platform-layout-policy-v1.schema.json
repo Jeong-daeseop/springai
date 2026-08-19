@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/platform-layout-policy-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["policyVersion", "viewports", "componentSwaps"],
+  "properties": {
+    "policyVersion": {"type": "string", "pattern": "^v[0-9]+(?:\\.[0-9]+){0,2}$"},
+    "viewports": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/viewport"}
+    },
+    "componentSwaps": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/componentSwap"}
+    },
+    "canonicalHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+  },
+  "$defs": {
+    "viewport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["platform", "viewportWidth", "gridColumns", "gapPx", "paddingPx", "navigationStyle"],
+      "properties": {
+        "platform": {"enum": ["DESKTOP", "TABLET", "MOBILE"]},
+        "viewportWidth": {"type": "integer", "minimum": 1},
+        "gridColumns": {"type": "integer", "minimum": 1, "maximum": 24},
+        "gapPx": {"type": "integer", "minimum": 0},
+        "paddingPx": {"type": "integer", "minimum": 0},
+        "navigationStyle": {"enum": ["TOP_GNB_LNB", "COLLAPSED_ACTION_BAR", "BOTTOM_TAB"]},
+        "visibleComponents": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "componentSwap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fromComponent", "toComponent", "platform", "reason"],
+      "properties": {
+        "fromComponent": {"type": "string", "pattern": "^[a-z][a-zA-Z0-9]*(?:\\.[a-z][a-zA-Z0-9]*)+$"},
+        "toComponent": {"type": "string", "pattern": "^[a-z][a-zA-Z0-9]*(?:\\.[a-z][a-zA-Z0-9]*)+$"},
+        "platform": {"enum": ["DESKTOP", "TABLET", "MOBILE"]},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

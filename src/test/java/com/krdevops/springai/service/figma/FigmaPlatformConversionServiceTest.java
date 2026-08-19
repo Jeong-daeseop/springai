@@ -72,6 +72,15 @@ class FigmaPlatformConversionServiceTest {
     }
 
     @Test
+    void recalculateGridUsesViewportPaddingAndGapDeterministically() {
+        var result = service.recalculateGrid("MOBILE", FigmaPlatformConversionService.defaultPolicy());
+
+        assertThat(result.contentWidth()).isEqualTo(358);
+        assertThat(result.usableWidth()).isEqualTo(322);
+        assertThat(result.columnWidth()).isEqualTo(80.5d);
+    }
+
+    @Test
     void convertRejectsUnsupportedPlatform() {
         assertThatThrownBy(() -> service.convert("WATCH", List.of()))
                 .isInstanceOf(IllegalArgumentException.class)

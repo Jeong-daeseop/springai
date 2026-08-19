@@ -58,7 +58,11 @@ public record FigmaDesignRequest(
          * ScreenSpecification 자동 매핑 테이블이 없어(별도 기능), 호출자가 직접 지정해야 한다.
          */
         @JsonProperty("screenSpecificationId")
-        String screenSpecificationId
+        String screenSpecificationId,
+
+        /** R6-T08: 참조/수정 대상 노드가 속해야 하는 Figma Page ID. 기존 요청은 생략 가능하다. */
+        @JsonProperty("pageId")
+        String pageId
 ) {
     public FigmaDesignRequest {
         if (type == null) {
@@ -81,12 +85,31 @@ public record FigmaDesignRequest(
                 targetPlatform, components, screens, null, null, null, null, null);
     }
 
+    /** pageId 도입 전 canonical 생성 호출자 호환용 생성자. */
+    public FigmaDesignRequest(
+            FigmaDesignRequestType type, String prompt, String fileKey,
+            List<String> referenceNodeIds, List<String> editableNodeIds, List<String> imageNodeIds,
+            String targetPlatform, List<String> components, List<FigmaScreenRequest> screens,
+            String database, String tableName, String screenName, String featureType,
+            String screenSpecificationId) {
+        this(type, prompt, fileKey, referenceNodeIds, editableNodeIds, imageNodeIds,
+                targetPlatform, components, screens, database, tableName, screenName, featureType,
+                screenSpecificationId, null);
+    }
+
     /** 새 필드를 채운 동일 요청 사본을 만든다(정규화 등 부분 갱신용). */
     public FigmaDesignRequest withNodeIds(
             List<String> referenceNodeIds, List<String> editableNodeIds, List<String> imageNodeIds) {
         return new FigmaDesignRequest(type, prompt, fileKey, referenceNodeIds, editableNodeIds, imageNodeIds,
                 targetPlatform, components, screens, database, tableName, screenName, featureType,
-                screenSpecificationId);
+                screenSpecificationId, pageId);
+    }
+
+    /** R6-T08: page 소속 검증 대상 Page를 명시한 동일 요청 사본. */
+    public FigmaDesignRequest withPageId(String pageId) {
+        return new FigmaDesignRequest(type, prompt, fileKey, referenceNodeIds, editableNodeIds, imageNodeIds,
+                targetPlatform, components, screens, database, tableName, screenName, featureType,
+                screenSpecificationId, pageId);
     }
 
     /**
@@ -96,7 +119,7 @@ public record FigmaDesignRequest(
     public FigmaDesignRequest withDatabaseTable(String database, String tableName) {
         return new FigmaDesignRequest(type, prompt, fileKey, referenceNodeIds, editableNodeIds, imageNodeIds,
                 targetPlatform, components, screens, database, tableName, screenName, featureType,
-                screenSpecificationId);
+                screenSpecificationId, pageId);
     }
 
     /**
@@ -108,6 +131,16 @@ public record FigmaDesignRequest(
                 prompt, fileKey,
                 null, null, null, null, null, null
         );
+    }
+
+    /** R6-032: 자연어 분석기가 명시적으로 추출한 DB 바인딩을 보존한다. */
+    public static FigmaDesignRequest textDescription(
+            String prompt, String fileKey, String database, String tableName,
+            String screenName, String featureType) {
+        return new FigmaDesignRequest(
+                FigmaDesignRequestType.TEXT_DESCRIPTION, prompt, fileKey,
+                null, null, null, null, null, null,
+                database, tableName, screenName, featureType, null);
     }
 
     /**

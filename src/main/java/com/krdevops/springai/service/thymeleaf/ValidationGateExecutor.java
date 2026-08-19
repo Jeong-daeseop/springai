@@ -28,6 +28,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashSet;
@@ -367,6 +368,52 @@ public class ValidationGateExecutor {
             duration,
             Instant.now()
         ));
+    }
+
+    /**
+     * R6-060: 생성 대상 프로젝트의 의존성을 새로 받지 않는 재현 가능한 offline build Gate.
+     * Gradle Wrapper 또는 Maven Wrapper가 있을 때만 실행하며, 임의의 시스템 Gradle/Maven은 사용하지 않는다.
+     */
+    public ValidationGateResult validateOfflineBuild(Path projectRoot) {
+        long start = System.currentTimeMillis();
+        List<String> issues = new ArrayList<>();
+        if (projectRoot == null || !Files.isDirectory(projectRoot)) {
+            issues.add("OFFLINE_BUILD_PROJECT_NOT_FOUND");
+            return observed(new ValidationGateResult(ValidationGateType.BUILD_VALIDATION, false, issues,
+                    System.currentTimeMillis() - start, Instant.now()));
+        }
+        List<String> command;
+        if (Files.isRegularFile(projectRoot.resolve("gradlew"))) {
+            command = List.of(projectRoot.resolve("gradlew").toAbsolutePath().toString(), "--offline", "assemble");
+        } else if (Files.isRegularFile(projectRoot.resolve("gradlew.bat"))) {
+            command = List.of(projectRoot.resolve("gradlew.bat").toAbsolutePath().toString(), "--offline", "assemble");
+        } else if (Files.isRegularFile(projectRoot.resolve("mvnw"))) {
+            command = List.of(projectRoot.resolve("mvnw").toAbsolutePath().toString(), "-o", "-DskipTests", "package");
+        } else if (Files.isRegularFile(projectRoot.resolve("mvnw.cmd"))) {
+            command = List.of(projectRoot.resolve("mvnw.cmd").toAbsolutePath().toString(), "-o", "-DskipTests", "package");
+        } else {
+            issues.add("OFFLINE_BUILD_WRAPPER_NOT_FOUND");
+            return observed(new ValidationGateResult(ValidationGateType.BUILD_VALIDATION, false, issues,
+                    System.currentTimeMillis() - start, Instant.now()));
+        }
+        try {
+            Process process = new ProcessBuilder(command).directory(projectRoot.toFile())
+                    .redirectErrorStream(true).start();
+            boolean finished = process.waitFor(Duration.ofMinutes(3).toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+            if (!finished) {
+                process.destroyForcibly();
+                issues.add("OFFLINE_BUILD_TIMEOUT");
+            } else if (process.exitValue() != 0) {
+                issues.add("OFFLINE_BUILD_FAILED(exit=" + process.exitValue() + ")");
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            issues.add("OFFLINE_BUILD_INTERRUPTED");
+        } catch (Exception exception) {
+            issues.add("OFFLINE_BUILD_INFRA_ERROR: " + exception.getMessage());
+        }
+        return observed(new ValidationGateResult(ValidationGateType.BUILD_VALIDATION, issues.isEmpty(), issues,
+                System.currentTimeMillis() - start, Instant.now()));
     }
 
     // ===== 헬퍼 메서드 =====

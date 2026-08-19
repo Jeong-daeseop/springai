@@ -72,6 +72,20 @@
       }
     },
     {
+      "logicalType": "krds.tableHeader",
+      "aliases": ["tableHead", "columnHeader"],
+      "replacement": null,
+      "figmaProperties": {},
+      "codeProperties": {"label": "table.header.label", "sort": "table.header.sort"}
+    },
+    {
+      "logicalType": "krds.tableCell",
+      "aliases": ["cell"],
+      "replacement": null,
+      "figmaProperties": {},
+      "codeProperties": {"value": "table.cell.value"}
+    },
+    {
       "logicalType": "egov.pageHeader",
       "aliases": ["pageTitle"],
       "replacement": null,
@@ -127,6 +141,16 @@
     }
   ],
   "optionalComponents": [
+    {
+      "logicalType": "krds.textarea",
+      "aliases": ["multiline", "longText"],
+      "replacement": "krds.textField",
+      "figmaProperties": {
+        "label": {"figmaProperty": "Label", "type": "TEXT", "values": {}},
+        "value": {"figmaProperty": "Value", "type": "TEXT", "values": {}}
+      },
+      "codeProperties": {"label": "label.text", "value": "textarea.value"}
+    },
     {
       "logicalType": "krds.radio",
       "aliases": ["radioGroup"],

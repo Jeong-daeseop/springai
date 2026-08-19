@@ -1,0 +1,13 @@
+{
+  "policyVersion": "v1.0",
+  "viewports": [
+    {"platform":"DESKTOP","viewportWidth":1440,"gridColumns":12,"gapPx":24,"paddingPx":40,"navigationStyle":"TOP_GNB_LNB","visibleComponents":["krds.button.large","krds.table.standard"]},
+    {"platform":"TABLET","viewportWidth":768,"gridColumns":8,"gapPx":16,"paddingPx":24,"navigationStyle":"COLLAPSED_ACTION_BAR","visibleComponents":["krds.button.medium","krds.table.compact"]},
+    {"platform":"MOBILE","viewportWidth":390,"gridColumns":4,"gapPx":12,"paddingPx":16,"navigationStyle":"BOTTOM_TAB","visibleComponents":["krds.button.small","krds.table.card"]}
+  ],
+  "componentSwaps": [
+    {"fromComponent":"krds.button.large","toComponent":"krds.button.medium","platform":"TABLET","reason":"터치 영역과 8열 grid에 맞춘 축소"},
+    {"fromComponent":"krds.button.large","toComponent":"krds.button.small","platform":"MOBILE","reason":"모바일 터치 영역과 폭에 맞춘 축소"},
+    {"fromComponent":"egov.dataTable","toComponent":"egov.dataCard","platform":"MOBILE","reason":"좁은 viewport에서 카드형 데이터 표시"}
+  ]
+}

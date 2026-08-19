@@ -23,6 +23,8 @@ const schemaNames = [
   "variant-rule-set-v1.schema.json",
   "component-catalog-v1.schema.json",
   "component-catalog-v2.schema.json",
+  "platform-layout-policy-v1.schema.json",
+  "krds-token-catalog-v1.schema.json",
   "figma-generation-report-v1.schema.json",
   "figma-export-bundle-v1.schema.json",
   "figma-export-bundle-v2.schema.json",
@@ -59,6 +61,8 @@ const validateScreenSuite = validator("screen-suite-manifest-v1.schema.json");
 const validateVariantRules = validator("variant-rule-set-v1.schema.json");
 const validateCatalog = validator("component-catalog-v1.schema.json");
 const validateCatalogV2 = validator("component-catalog-v2.schema.json");
+const validatePlatformLayoutPolicy = validator("platform-layout-policy-v1.schema.json");
+const validateKrdsTokenCatalog = validator("krds-token-catalog-v1.schema.json");
 const validateGenerationReport = validator("figma-generation-report-v1.schema.json");
 const validateGenerationReportV2 = validator("figma-generation-report-v2.schema.json");
 const validateRefinementPatchSet = validator("figma-refinement-patch-set-v1.schema.json");
@@ -275,6 +279,10 @@ expectInvalid(validateLegacyScreenAnalysis, "invalid-legacy-screen-analysis-bad-
 expectValid(validateBindingContract, "valid-thymeleaf-binding-contract.json");
 expectInvalid(validateBindingContract, "invalid-thymeleaf-binding-contract-bad-confidence.json");
 expectValid(validateCatalog, "../component-catalog-v1.json");
+assert.equal(validatePlatformLayoutPolicy(read("fixtures/valid-platform-layout-policy.json")), true,
+  `valid-platform-layout-policy.json: ${JSON.stringify(validatePlatformLayoutPolicy.errors)}`);
+assert.equal(validateKrdsTokenCatalog(read("fixtures/valid-krds-token-catalog.json")), true,
+  `valid-krds-token-catalog.json: ${JSON.stringify(validateKrdsTokenCatalog.errors)}`);
 assert.equal(validateCatalogV2(read("component-catalog-v2.json")), true,
   `component-catalog-v2.json: ${JSON.stringify(validateCatalogV2.errors)}`);
 const catalogV2 = read("component-catalog-v2.json");

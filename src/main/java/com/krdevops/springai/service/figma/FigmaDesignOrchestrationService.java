@@ -21,6 +21,7 @@ import com.krdevops.springai.model.figma.ResolvedComponentRef;
 import com.krdevops.springai.model.figma.contract.FigmaDesignOperation;
 import com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus;
 import com.krdevops.springai.model.figma.contract.FigmaDesignRequest;
+import com.krdevops.springai.model.figma.contract.FigmaDesignRequestType;
 import com.krdevops.springai.model.figma.contract.FigmaScreenRequest;
 import com.krdevops.springai.service.DesignArtifactService;
 import com.krdevops.springai.service.DesignReferenceAnalysisService;
@@ -31,6 +32,7 @@ import com.krdevops.springai.mapper.FigmaDesignOperationRepository;
 import com.krdevops.springai.service.FigmaApiClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -76,6 +78,15 @@ public class FigmaDesignOrchestrationService {
     private final DesignSystemQueryService designSystemQueryService;
     private final FigmaApiClient figmaApiClient;
     private final DesignFieldCandidateExtractor fieldCandidateExtractor;
+    // 순수 결정론적 분석기라 기존 수동 생성자(테스트/임베디드)와의 호환을 유지한다.
+    private final NaturalLanguageDesignAnalyzer naturalLanguageDesignAnalyzer = new NaturalLanguageDesignAnalyzer();
+    private final FigmaDesignRequestRouter requestRouter = new FigmaDesignRequestRouter();
+    private NaturalLanguageTableResolver naturalLanguageTableResolver;
+
+    @Autowired(required = false)
+    void setNaturalLanguageTableResolver(NaturalLanguageTableResolver resolver) {
+        this.naturalLanguageTableResolver = resolver;
+    }
 
     /**
      * 승인된 ScreenSpecification을 실제 Bundle과 불변 Artifact로 만든 뒤에만 PREVIEW_READY를 반환한다.
@@ -133,7 +144,21 @@ public class FigmaDesignOrchestrationService {
      * 텍스트 요청 처리 (CREATE_FROM_TEXT).
      */
     public FigmaDesignOperation processTextRequest(String prompt, String fileKey) {
-        return processExplicitRequest(FigmaDesignRequest.textDescription(prompt, fileKey));
+        NaturalLanguageDesignAnalyzer.Analysis analysis = naturalLanguageDesignAnalyzer.analyze(prompt, null);
+        if (!analysis.hasTableBinding() && naturalLanguageTableResolver != null) {
+            var selection = naturalLanguageTableResolver.resolve(prompt, analysis.database()).orElse(null);
+            if (selection != null) {
+                log.info("Natural language table resolved: database={}, table={}, confidence={}",
+                        selection.database(), selection.tableName(), selection.confidence());
+                return processExplicitRequest(FigmaDesignRequest.textDescription(prompt, fileKey,
+                        selection.database(), selection.tableName(), null, analysis.screenType().toLowerCase(Locale.ROOT)));
+            }
+        }
+        FigmaDesignRequest request = analysis.hasTableBinding()
+                ? FigmaDesignRequest.textDescription(prompt, fileKey, analysis.database(), analysis.tableName(),
+                        null, analysis.screenType().toLowerCase(Locale.ROOT))
+                : FigmaDesignRequest.textDescription(prompt, fileKey);
+        return processExplicitRequest(request);
     }
 
     /**
@@ -143,9 +168,18 @@ public class FigmaDesignOrchestrationService {
         if (incoming == null) {
             throw new IllegalArgumentException("request는 필수입니다");
         }
+        FigmaDesignRequestType routedType = requestRouter.determineType(
+                incoming.type().name(), incoming.prompt(),
+                incoming.referenceNodeIds() != null && !incoming.referenceNodeIds().isEmpty(),
+                incoming.editableNodeIds() != null && !incoming.editableNodeIds().isEmpty(),
+                incoming.components() != null && !incoming.components().isEmpty());
+        if (routedType != incoming.type()) {
+            throw new IllegalArgumentException("요청 타입 라우팅 결과가 계약과 다릅니다: " + routedType);
+        }
         validateAdvancedRequest(incoming);
         FigmaDesignRequest request = normalizeNodeIdFields(incoming);
         allowlistValidator.validateFileKey(request.fileKey());
+        validatePageScope(request);
         var analysis = contextAnalyzer.analyze(request.prompt(), null);
         FigmaDesignOperation operation = operationRepository.createOrReuse(request);
         if (operation.status() != FigmaDesignOperationStatus.ANALYZED || !analysis.requiresReview()) {
@@ -182,8 +216,13 @@ public class FigmaDesignOrchestrationService {
             case MODIFY_EXISTING -> generateFromModification(operation, request);
             case MULTI_SCREEN_FLOW -> generateMultiScreen(operation, request);
             case PLATFORM_CONVERT -> generateFromPlatformConversion(operation, request);
-            case TEXT_DESCRIPTION -> throw new IllegalArgumentException(
-                    "이 요청 유형(" + request.type() + ")은 아직 자동 Bundle 생성을 지원하지 않습니다.");
+            case TEXT_DESCRIPTION -> {
+                if (isBlank(request.database()) || isBlank(request.tableName())) {
+                    throw new IllegalArgumentException(
+                            "이 요청 유형(" + request.type() + ")은 database/tableName 분석 결과가 없어 Bundle 생성을 지원하지 않습니다.");
+                }
+                yield generateFromScreenSpecification(operation, request, null);
+            }
         };
     }
 
@@ -698,6 +737,25 @@ public class FigmaDesignOrchestrationService {
                 }
             }
             case TEXT_DESCRIPTION -> { }
+        }
+    }
+
+    /** R6-T08: pageId가 지정된 노드 요청은 모든 대상 노드의 실제 Page ancestry를 확인한다. */
+    private void validatePageScope(FigmaDesignRequest request) {
+        if (request.pageId() == null || request.pageId().isBlank()) {
+            return;
+        }
+        LinkedHashSet<String> nodeIds = new LinkedHashSet<>();
+        if (request.referenceNodeIds() != null) nodeIds.addAll(request.referenceNodeIds());
+        if (request.editableNodeIds() != null) nodeIds.addAll(request.editableNodeIds());
+        if (request.imageNodeIds() != null) nodeIds.addAll(request.imageNodeIds());
+        if (nodeIds.isEmpty()) {
+            throw new IllegalArgumentException("pageId는 참조·수정 대상 nodeId와 함께 지정해야 합니다.");
+        }
+        for (String nodeId : nodeIds) {
+            figmaApiClient.validateNodeBelongsToPage(
+                    new com.krdevops.springai.model.design.FigmaReference(request.fileKey(), nodeId),
+                    request.pageId());
         }
     }
 

@@ -174,6 +174,13 @@ public class DesignReferenceAnalysisService {
             FigmaReference reference, FigmaNodeDocument document, String featureType,
             String sourceHash, String mapperVersion) {
         UiDesignSpec uiSpec = figmaDesignSpecMapper.map(document, featureType);
+        FigmaUiDesignSpecQualityEvaluator.Evaluation quality =
+                new FigmaUiDesignSpecQualityEvaluator().evaluate(uiSpec);
+        List<String> qualityWarnings = quality.issues().stream()
+                .map(issue -> "FIGPACK_QUALITY_" + issue)
+                .toList();
+        List<String> warnings = new java.util.ArrayList<>(uiSpec.uncertainties());
+        warnings.addAll(qualityWarnings);
         DesignAnalysisResult result = new DesignAnalysisResult(
                 UUID.randomUUID().toString(), sourceHash,
                 "figma://" + reference.fileKey() + "#" + reference.nodeId(), null,
@@ -181,7 +188,7 @@ public class DesignReferenceAnalysisService {
                 new FigmaSource(reference.fileKey(), reference.nodeId(), document.fileVersion()),
                 mapperVersion, UiDesignSpec.SCHEMA_VERSION, featureType,
                 "figma", "deterministic-mapper", mapperVersion,
-                List.of(), uiSpec, uiSpec.uncertainties(), LocalDateTime.now(),
+                List.of(), uiSpec, warnings, LocalDateTime.now(),
                 new FigmaDesignSourceMetadata(reference.fileKey(), reference.nodeId(), document.fileVersion()));
         DesignAnalysisSaveOutcome outcome = repository.saveOrGet(result);
         if (outcome.insertedByCaller()) ingestBestEffort(outcome.result());

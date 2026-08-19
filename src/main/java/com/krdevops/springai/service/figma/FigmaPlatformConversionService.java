@@ -66,6 +66,29 @@ public class FigmaPlatformConversionService {
     }
 
     /**
+     * 정책 viewport를 실제 배치 계산에 사용할 수 있도록 content width와 column width를 결정한다.
+     * Figma Desktop 적용 전 단계에서 동일한 계산을 Preview/검증 계층이 공유한다.
+     */
+    public GridRecalculation recalculateGrid(String targetPlatform, PlatformLayoutPolicy policy) {
+        if (!isSupportedPlatform(targetPlatform)) {
+            throw new IllegalArgumentException("PLATFORM_NOT_SUPPORTED: " + targetPlatform);
+        }
+        PlatformLayoutPolicy.ViewportPolicy viewport = policy.getViewportFor(targetPlatform);
+        if (viewport == null) {
+            throw new IllegalArgumentException("PLATFORM_VIEWPORT_NOT_FOUND: " + targetPlatform);
+        }
+        int contentWidth = viewport.viewportWidth() - (viewport.paddingPx() * 2);
+        int totalGaps = Math.max(0, viewport.gridColumns() - 1) * viewport.gapPx();
+        int usableWidth = contentWidth - totalGaps;
+        if (usableWidth <= 0) {
+            throw new IllegalArgumentException("PLATFORM_GRID_WIDTH_INVALID: " + targetPlatform);
+        }
+        return new GridRecalculation(targetPlatform, viewport.viewportWidth(), viewport.gridColumns(),
+                viewport.gapPx(), viewport.paddingPx(), contentWidth, usableWidth,
+                (double) usableWidth / viewport.gridColumns());
+    }
+
+    /**
      * Desktop 1440/12열, Tablet 768/8열, Mobile 390/4열 초기 정책. Component Swap 규칙은 비어
      * 있다 — 조직이 실제 대체 규칙을 승인하기 전까지는 어떤 컴포넌트도 임의로 바꾸지 않는다.
      * Navigation 명칭은 {@link ViewportConstraint.NavigationType}과 동일한 값을 써서 Thymeleaf
@@ -78,14 +101,17 @@ public class FigmaPlatformConversionService {
                         new PlatformLayoutPolicy.ViewportPolicy(
                                 "DESKTOP", ResponsiveBreakpointPolicy.DESKTOP_WIDTH,
                                 ResponsiveBreakpointPolicy.DESKTOP_GRID_COLUMNS,
+                                24, 40,
                                 ViewportConstraint.NavigationType.SIDE_NAV.name(), List.of()),
                         new PlatformLayoutPolicy.ViewportPolicy(
                                 "TABLET", ResponsiveBreakpointPolicy.TABLET_WIDTH,
                                 ResponsiveBreakpointPolicy.TABLET_GRID_COLUMNS,
+                                16, 24,
                                 ViewportConstraint.NavigationType.DRAWER.name(), List.of()),
                         new PlatformLayoutPolicy.ViewportPolicy(
                                 "MOBILE", ResponsiveBreakpointPolicy.MOBILE_WIDTH,
                                 ResponsiveBreakpointPolicy.MOBILE_GRID_COLUMNS,
+                                12, 16,
                                 ViewportConstraint.NavigationType.BOTTOM_NAV.name(), List.of())
                 ),
                 List.of(),
@@ -94,6 +120,17 @@ public class FigmaPlatformConversionService {
 
     public record ComponentSwapDecision(
             String requestedLogicalType, String resolvedLogicalType, boolean swapped, String reason) {
+    }
+
+    public record GridRecalculation(
+            String platform,
+            int viewportWidth,
+            int gridColumns,
+            int gapPx,
+            int paddingPx,
+            int contentWidth,
+            int usableWidth,
+            double columnWidth) {
     }
 
     public record PlatformConversionResult(

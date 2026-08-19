@@ -4,6 +4,7 @@ import {
   generationStatus,
   isUserOverridden,
   planMultiScreenApply,
+  planViewportFixtures,
   previewLegacyMigration,
   reconcile,
   registryFor,
@@ -83,9 +84,13 @@ type RefinementTarget = { baseUrl: string; apiKey?: string; token?: string };
 type Message =
   | { type: "LOAD_BUNDLE"; bundle: unknown; target?: RefinementTarget }
   | { type: "FETCH_BUNDLE"; baseUrl: string; screenId: string; version?: number; apiKey?: string; token?: string }
+  | { type: "FETCH_MULTI_OPERATION"; baseUrl: string; operationId: string; apiKey?: string; token?: string }
   | { type: "APPLY"; mode: Exclude<SyncMode, "PREVIEW"> }
   | { type: "LOAD_MULTI_BUNDLE"; bundles: unknown[]; target?: RefinementTarget }
   | { type: "APPLY_MULTI"; mode: Exclude<SyncMode, "PREVIEW"> }
+  | { type: "APPLY_LAYOUT_POLICY"; platform: "DESKTOP" | "TABLET" | "MOBILE" }
+  | { type: "LIST_VIEWPORT_CANDIDATES" }
+  | { type: "CREATE_VIEWPORT_FIXTURES"; nodeId?: string }
   | { type: "EXPORT_REGISTRY_V3" }
   | { type: "PREVIEW_MIGRATION" }
   | { type: "APPLY_MIGRATION" }
@@ -129,6 +134,12 @@ figma.ui.onmessage = async (message: Message) => {
       reportTarget = { baseUrl: message.baseUrl, apiKey: message.apiKey, token: message.token };
       operationTarget = reportTarget;
       await loadBundleAndPreview(bundle);
+      return;
+    }
+    if (message.type === "FETCH_MULTI_OPERATION") {
+      const bundles = await fetchMultiOperationBundles(message);
+      operationTarget = { baseUrl: message.baseUrl, apiKey: message.apiKey, token: message.token };
+      await loadMultiBundleAndPreview(bundles);
       return;
     }
     if (message.type === "PREVIEW_MIGRATION") {
@@ -195,6 +206,23 @@ figma.ui.onmessage = async (message: Message) => {
       }
       const result = await applyMultiScreenBundles(pendingMultiScreen, message.mode);
       figma.ui.postMessage({ type: "APPLY_MULTI_RESULT", ...result });
+      return;
+    }
+    if (message.type === "APPLY_LAYOUT_POLICY") {
+      applyLayoutPolicyToSelection(message.platform);
+      return;
+    }
+    if (message.type === "CREATE_VIEWPORT_FIXTURES") {
+      await createViewportFixturesFromSelection(message.nodeId);
+      return;
+    }
+    if (message.type === "LIST_VIEWPORT_CANDIDATES") {
+      const candidates = figma.currentPage.children
+        .filter((node): node is FrameNode => node.type === "FRAME")
+        .filter(node => Math.round(node.width) === 1440 && /qna-list|egov\.listPage/i.test(node.name))
+        .map(node => ({ nodeId: node.id, name: node.name, width: Math.round(node.width) }));
+      figma.ui.postMessage({ type: "VIEWPORT_CANDIDATES", candidates });
+      return;
     }
     if (message.type === "EXPORT_REGISTRY_V3") {
       if (!pending) throw new Error("먼저 SSOT Bundle을 불러오세요.");
@@ -248,6 +276,121 @@ figma.ui.onmessage = async (message: Message) => {
     });
   }
 };
+
+/** R0-028/BASE-18: 승인된 viewport 정책을 단일 선택 Frame에만 적용한다. */
+function applyLayoutPolicyToSelection(platform: "DESKTOP" | "TABLET" | "MOBILE"): void {
+  const selection = figma.currentPage.selection;
+  if (selection.length !== 1 || selection[0].type !== "FRAME") {
+    figma.ui.postMessage({ type: "LAYOUT_POLICY_RESULT", ok: false,
+      message: "단일 Frame을 선택해야 Desktop Layout 정책을 적용할 수 있습니다." });
+    return;
+  }
+  const frame = selection[0];
+  const policy = {
+    DESKTOP: { width: 1440, columns: 12, gap: 24, padding: 40 },
+    TABLET: { width: 768, columns: 8, gap: 16, padding: 24 },
+    MOBILE: { width: 390, columns: 4, gap: 12, padding: 16 },
+  }[platform];
+  if (Math.round(frame.width) !== policy.width) {
+    figma.ui.postMessage({ type: "LAYOUT_POLICY_RESULT", ok: false,
+      message: `${platform} 정책은 ${policy.width}px Frame만 지원합니다. 현재 폭: ${Math.round(frame.width)}px` });
+    return;
+  }
+  frame.layoutMode = "VERTICAL";
+  frame.primaryAxisSizingMode = "FIXED";
+  frame.counterAxisSizingMode = "FIXED";
+  frame.itemSpacing = policy.gap;
+  frame.paddingLeft = policy.padding;
+  frame.paddingRight = policy.padding;
+  frame.paddingTop = policy.padding;
+  frame.paddingBottom = policy.padding;
+  frame.setPluginData("figmaScreenSpec.layoutPolicy", `platform-layout-default-v1:${platform}`);
+  figma.ui.postMessage({ type: "LAYOUT_POLICY_RESULT", ok: true,
+    message: `${platform} 정책 적용 완료: ${policy.width}px / ${policy.columns}열 / gap ${policy.gap} / padding ${policy.padding}` });
+}
+
+/** R0-028/BASE-18: 원본 Desktop Frame을 보존하고 Tablet/Mobile 검증용 복제본을 만든다. */
+async function createViewportFixturesFromSelection(nodeId?: string): Promise<void> {
+  const selection = figma.currentPage.selection;
+  const requestedFrame = nodeId
+    ? await figma.getNodeByIdAsync(nodeId)
+    : undefined;
+  const selectedFrame = selection.length === 1 && selection[0].type === "FRAME"
+    ? selection[0]
+    : undefined;
+  const fallbackCandidates = selectedFrame || requestedFrame ? [] : figma.currentPage.children
+    .filter((node): node is FrameNode => node.type === "FRAME")
+    .filter(node => Math.round(node.width) === 1440
+      && /qna-list|egov\.listPage/i.test(node.name));
+  if (!selectedFrame && (!requestedFrame || requestedFrame.type !== "FRAME") && fallbackCandidates.length !== 1) {
+    figma.ui.postMessage({ type: "LAYOUT_POLICY_RESULT", ok: false,
+      message: "단일 Desktop Frame을 선택하거나, 현재 Page에 이름이 qna-list/egov.listPage인 1440px Frame 하나만 남겨야 합니다." });
+    return;
+  }
+  const source = selectedFrame || (requestedFrame?.type === "FRAME" ? requestedFrame : fallbackCandidates[0]);
+  if (Math.round(source.width) !== 1440) {
+    figma.ui.postMessage({ type: "LAYOUT_POLICY_RESULT", ok: false,
+      message: `Desktop 1440px 원본만 복제할 수 있습니다. 현재 폭: ${Math.round(source.width)}px` });
+    return;
+  }
+  const fixtures = planViewportFixtures(source.width);
+  const created: string[] = [];
+  fixtures.forEach((policy, index) => {
+    const frame = source.clone();
+    frame.name = `${source.name}${policy.nameSuffix}`;
+    frame.x = source.x + source.width + 120 + index * (policy.width + 120);
+    frame.resize(policy.width, source.height);
+    frame.layoutMode = "VERTICAL";
+    frame.itemSpacing = policy.gapPx;
+    frame.paddingLeft = policy.paddingPx;
+    frame.paddingRight = policy.paddingPx;
+    frame.paddingTop = policy.paddingPx;
+    frame.paddingBottom = policy.paddingPx;
+    frame.setPluginData("figmaScreenSpec.layoutPolicy",
+      `platform-layout-default-v1:${policy.platform}`);
+    frame.setPluginData("figmaScreenSpec.gridColumns", String(policy.gridColumns));
+    const swapCount = policy.platform === "MOBILE" ? applyMobileTableCardSwap(frame) : 0;
+    created.push(`${policy.platform}:${policy.width}px${swapCount ? ` · Table→Card ${swapCount}건` : ""}`);
+  });
+  figma.currentPage.selection = [source];
+  figma.ui.postMessage({ type: "LAYOUT_POLICY_RESULT", ok: true,
+    message: `viewport fixture 생성 완료: ${created.join(", ")}` });
+}
+
+/** R0-028/BASE-18: Mobile에서는 Table logical type을 Card로 명시적으로 전환한다. */
+function applyMobileTableCardSwap(frame: FrameNode): number {
+  let count = 0;
+  const visit = (node: BaseNode & ChildrenMixin): void => {
+    const logicalType = node.getPluginData(DATA_LOGICAL_TYPE);
+    if (logicalType === "egov.dataTable" || logicalType === "krds.table") {
+      node.setPluginData(DATA_LOGICAL_TYPE, "egov.dataCard");
+      node.name = `${node.name.replace(/ · CARD$/, "")} · CARD`;
+      node.setPluginData("figmaScreenSpec.componentSwap", "egov.dataTable→egov.dataCard:MOBILE");
+      if ("layoutMode" in node && node.type === "FRAME") {
+        node.layoutMode = "VERTICAL";
+        node.itemSpacing = 12;
+        node.paddingLeft = 12;
+        node.paddingRight = 12;
+        node.paddingTop = 12;
+        node.paddingBottom = 12;
+        node.children.forEach(child => {
+          if (child.type === "FRAME") {
+            child.layoutMode = "VERTICAL";
+            child.itemSpacing = 4;
+            child.paddingLeft = 8;
+            child.paddingRight = 8;
+            child.paddingTop = 8;
+            child.paddingBottom = 8;
+          }
+        });
+      }
+      count += 1;
+    }
+    if ("children" in node) node.children.forEach(child => visit(child as BaseNode & ChildrenMixin));
+  };
+  visit(frame);
+  return count;
+}
 
 async function loadBundleAndPreview(rawBundle: unknown): Promise<void> {
   await figma.loadAllPagesAsync();
@@ -709,6 +852,20 @@ async function fetchBundleWithRetry(
     `서버에서 Bundle을 가져오지 못했습니다(오프라인이거나 서버 응답 없음: ${lastMessage}). `
     + `.figma-export-bundle.json 파일을 직접 선택해 진행할 수 있습니다.`,
   );
+}
+
+/** R5-043: 서버가 Operation artifact를 원자적으로 열거하고 Bundle JSON을 함께 반환한다. */
+async function fetchMultiOperationBundles(request: {
+  baseUrl: string; operationId: string; apiKey?: string; token?: string;
+}): Promise<unknown[]> {
+  const url = `${request.baseUrl.replace(/\/+$/, "")}/api/figma/operations/`
+    + `${encodeURIComponent(request.operationId)}/bundles`;
+  const headers = operationAuthHeaders(request);
+  const response = await fetch(url, { headers });
+  if (!response.ok) throw new Error(await responseErrorMessage(response));
+  const payload = await response.json() as { bundle?: unknown }[];
+  if (!Array.isArray(payload) || payload.length === 0) throw new Error("Operation에 Bundle이 없습니다.");
+  return payload.map(entry => entry.bundle).filter(Boolean);
 }
 
 async function responseErrorMessage(response: Response): Promise<string> {
