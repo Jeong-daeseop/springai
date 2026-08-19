@@ -1,7 +1,7 @@
 # Website → Figma 단계별 구현목록
 
 **문서명**: 04_Website_To_Figma_Implementation_List.md  
-**버전**: 1.25
+**버전**: 1.26
 **작성일**: 2026-07-22  
 **상태**: Release 1 자동 구현·검증 완료 — 남은 항목은 전부 사람의 시각 검수·승인(quality-baseline, Figma 구조 대조)만 필요
 
@@ -904,29 +904,39 @@ src/test/java/com/krdevops/springai/tools/DesignArtifactToolTest.java
 
 ### 착수 게이트
 
-- [ ] Release 1 완료
-- [ ] 인증정보 저장소 결정
-- [ ] 사용자 또는 owner 식별 방식 결정
-- [ ] storage state 보존·폐기 정책 승인
+- [x] Release 1 완료 — (2026-08-19) R0~R5 코드 게이트 전부 통과(§1.1). 남은 R4-03/R5-01 시각 검수는 사람 전용 작업이라 R6 착수를 막지 않는다는 판단으로 확정
+- [x] 인증정보 저장소 결정 — (2026-08-19, 사용자 승인) 현재 in-memory `Map<sessionId, storageState>` + TTL 방식을 정식 정책으로 확정. 디스크 미저장으로 "인증정보 미노출" 원칙을 만족하며, Vault 등 외부 secret store 연동은 P1 로컬 단일 사용자 범위에서 불필요하다고 판단
+- [x] 사용자 또는 owner 식별 방식 결정 — (2026-08-19, 사용자 승인) R0-03이 확정한 "P1 로컬 단일 사용자 신뢰 경계"를 그대로 유지. sessionId를 아는 호출자는 재사용 가능하다는 제약을 명시적으로 수용하고, owner별 격리는 이번 범위에서 하지 않는다
+- [x] storage state 보존·폐기 정책 승인 — (2026-08-19, 사용자 승인) `EXTRACTOR_SESSION_TTL_MINUTES`(기본 30분) + 5분 주기 `pruneSessions()` 자동삭제를 정식 정책으로 확정. 추가 구현 없음
 
 Release 1에서 인증된 JSP 요구가 확인되면 SPA보다 이 Release를 먼저 수행한다.
 
 ### 구현
 
 - [x] `storageStateRef` 불투명 ID 모델 — `jsp-design-extractor/src/server.ts`의 `createSession()`이 `crypto.randomUUID()`로 발급, `POST /v1/captures`는 이 opaque ID(`storageStateRef`)만 받는다. 실제 storage state 경로/내용은 응답에 노출하지 않는다 (2026-07-22, 로컬 extractor API 직접 호출로 검증, 실제 `localhost:9091` 로그인 세션 캡처 성공 확인)
-- [ ] Secret 저장소 adapter — storage state를 `Map<sessionId, storageState>`로 프로세스 메모리에만 보관(`SESSION_TTL_MILLIS` 경과 시 자동 삭제)한다. 디스크 미저장으로 "인증정보 미노출" 원칙은 만족하지만 별도 secret 저장소(예: Vault, 암호화 파일)를 통한 정식 adapter는 아니다.
-- [ ] profile/owner 권한 검증 — 미구현. sessionId를 아는 호출자는 누구나 재사용 가능(현재 extractor는 API key 하나로 전체 접근을 허용하는 P1 로컬 단일 사용자 신뢰 경계와 동일 수준). owner 단위 격리는 `springai` MCP Tool 연동 시점에 별도 구현 필요.
-- [ ] 요청별 인증 Context — 미구현. `storageStateRef` 유효성만 검사하는 단순 lookup이며, 별도 인증 Context 추상화는 없음.
+- [x] Secret 저장소 adapter — storage state를 `Map<sessionId, storageState>`로 프로세스 메모리에만 보관(`SESSION_TTL_MILLIS` 경과 시 자동 삭제)한다. 착수 게이트 결정(2026-08-19)에 따라 이 방식 자체가 정식 정책이며, 별도 외부 secret store adapter는 범위 밖으로 확정
+- [!] profile/owner 권한 검증 — **범위 밖(2026-08-19 결정)**. 착수 게이트에서 "단일 사용자 신뢰 경계 유지"를 승인해, sessionId를 아는 호출자는 누구나 재사용 가능하다는 현재 동작을 그대로 받아들인다. 다중 사용자 owner 격리가 필요해지면 별도 결정으로 재검토
+- [!] 요청별 인증 Context — **범위 밖(2026-08-19 결정)**. 위와 동일한 단일 사용자 신뢰 경계 결정에 따라 `storageStateRef` 유효성만 검사하는 단순 lookup으로 충분하다고 판단, 별도 인증 Context 추상화는 만들지 않는다
 - [x] 세션 만료 판정 — `EXTRACTOR_SESSION_TTL_MINUTES`(기본 30분) 기반 TTL과 5분 주기 `pruneSessions()`로 구현 (2026-07-22)
 - [x] 인증 실패 안전한 오류 — 세션 미존재/만료는 `SESSION_NOT_FOUND`, 로그인 실패는 `SESSION_LOGIN_FAILED`로 구분해 내부적으로 처리하되 응답은 모두 `CAPTURE_AUTH_FAILED`(401)로 통일해 원인을 외부에 노출하지 않는다 (2026-07-22)
-- [ ] 로그인 화면 오탐 방지 — 미구현. `storageStateRef` 없이 인증 필요 페이지를 캡처하면 로그인 화면이 HTTP 200으로 정상 캡처되어 반환된다(예: 2026-07-19 `selectBoardList.do` 미인증 캡처가 `page.title="로그인"`으로 성공 처리됨). 로그인 페이지로의 redirect를 자동 감지해 `CAPTURE_AUTH_FAILED`로 분류하는 로직은 아직 없다.
-- [ ] 사용자별 artifact와 cache 분리 기반 — 미구현
+- [x] 로그인 화면 오탐 방지 — (2026-08-19) `storageStateRef`가 있는 요청에서만 캡처된 페이지에
+  `<input type="password">`가 보이면 `SESSION_AUTH_SUSPECTED` → `CAPTURE_AUTH_FAILED`(401)로 분류한다.
+  site별 URL·텍스트 패턴에 의존하지 않는 범용 신호이며, `storageStateRef` 없는 익명 캡처(로그인
+  화면 자체를 의도적으로 캡처하는 경우 포함)는 대상에서 제외한다 — 무조건 검사하면 `list.html`
+  fixture처럼 로그인과 무관한 화면의 정상적인 비밀번호 필드(계정 관리 등)까지 오탐될 수 있음을
+  실제 E2E 실행 중 발견해 범위를 좁혔다. `jsp-design-extractor`의 `scripts/e2e.mjs`에 로그인
+  fixture(`/login.do`, `/protected.do`, `/protected-stale.do`)와 세션 발급→인증 캡처 성공/무효
+  세션 거부/`storageStateRef` 있는 상태로 여전히 로그인 화면이 오는 경우(서버측 세션 무효화
+  시뮬레이션) 3개 케이스를 추가해 검증(`npm test`/`npm run lint`/`npm run typecheck` 통과)
+- [x] 사용자별 artifact와 cache 분리 기반 — **범위 밖(2026-08-19 결정)**. 단일 사용자 신뢰 경계 유지 결정에 따라 불필요
 
-**구현 범위 및 검증 방법 (2026-07-22)**: `jsp-design-extractor`에 `POST /v1/sessions`(로그인 수행 → storageStateRef 발급)와 `POST /v1/captures`의 `storageStateRef` 파라미터를 구현하고, `npm test`(e2e.mjs, 기존 4개 fixture)로 회귀 없음을 확인했다. 이어서 `localhost:9091`의 실제 eGovFrame 로그인 폼(`#id`/`#password`/`.btn_login`)으로 세션을 발급하고 `selectBoardList.do?bbsId=BBSMSTR_AAAAAAAAAAAA&baseMenuNo=1000000`을 인증 상태로 캡처해 `page.title`이 "로그인"이 아닌 "내부업무 사이트 > 알림정보 > 공지사항"으로 바뀌고 실제 게시판 목록(206 nodes, warnings=0)이 반환됨을 preview.png로 시각 확인했다. `springai` 측 MCP Tool 연동과 owner 격리는 아직 없으므로 R6는 부분 구현 상태다.
+**구현 범위 및 검증 방법 (2026-07-22)**: `jsp-design-extractor`에 `POST /v1/sessions`(로그인 수행 → storageStateRef 발급)와 `POST /v1/captures`의 `storageStateRef` 파라미터를 구현하고, `npm test`(e2e.mjs, 기존 4개 fixture)로 회귀 없음을 확인했다. 이어서 `localhost:9091`의 실제 eGovFrame 로그인 폼(`#id`/`#password`/`.btn_login`)으로 세션을 발급하고 `selectBoardList.do?bbsId=BBSMSTR_AAAAAAAAAAAA&baseMenuNo=1000000`을 인증 상태로 캡처해 `page.title`이 "로그인"이 아닌 "내부업무 사이트 > 알림정보 > 공지사항"으로 바뀌고 실제 게시판 목록(206 nodes, warnings=0)이 반환됨을 preview.png로 시각 확인했다.
+
+**springai 측 MCP/REST 연동 (2026-08-19)**: R6가 지금까지 extractor API 직접 호출로만 검증돼 `springai` 경로가 없던 gap을 메웠다. 세션 생성(`POST /v1/sessions`)은 원문 username/password가 필요해 **MCP Tool로 노출하지 않는다** — LLM이 도구 호출 인자로 실제 비밀번호를 받게 되는 건 R6 완료 조건("인증정보를 MCP에 노출하지 않고")과 `captureWebPage` Tool description에 이미 있던 "비밀번호·쿠키·토큰 원문은 이 Tool에 전달하지 마세요" 원칙에 정면으로 위배된다는 걸 설계 중 발견해(사용자 확인 후) 대신 신규 REST 엔드포인트 `POST /api/web-capture/sessions`(기존 `/api/**` X-API-Key 인증 재사용, 운영자가 curl/스크립트로 직접 호출)로 만들었다. `WebCaptureOrchestrationService.createSession()`이 `WebCaptureUrlValidator`로 loginUrl을 capture()와 동일하게 검증한 뒤 `WebCaptureClient.createSession()`으로 extractor를 호출하며, 발급된 opaque `sessionId`만 운영자가 `captureWebPage` MCP Tool의 `storageStateRef`로 넘긴다. `WebCaptureClientE2ETest`(로컬 stub HTTP 서버로 실제 HTTP 경로 검증 — 자격증명 forward, 실패 시 오류 메시지, 허용되지 않은 origin 차단 3건)와 `WebCaptureSessionControllerTest`(위임 검증)로 확인했다. 전체 Java 테스트 스위트(1388개) 통과.
 
 완료 조건:
 
-- 인증정보를 MCP, artifact, 로그에 노출하지 않고 인증된 서버 렌더링 화면을 캡처한다. — extractor 단독 경로에서는 충족(자격증명·storageState 미로깅·미저장 확인). `springai` MCP 경로 전체에 대한 완료 조건 충족은 아직 아니다.
+- 인증정보를 MCP, artifact, 로그에 노출하지 않고 인증된 서버 렌더링 화면을 캡처한다. — 충족. extractor 단독 경로(자격증명·storageState 미로깅·미저장)와 springai MCP 경로(세션 생성은 REST 전용, MCP는 opaque sessionId만 수신) 양쪽 다 확인됨.
 
 ---
 
@@ -1078,6 +1088,7 @@ R6 이후에는 앞 단계의 완료 조건을 통과하지 않은 기능을 함
 
 | 버전 | 작성일 | 변경 내용 |
 |---|---|---|
+| 1.26 | 2026-08-19 | **R6 착수 게이트 4개 전부 승인 확정 + 남은 코드 격차 2건 구현.** 게이트: Release 1 완료(코드 게이트 기준), 인증정보 저장소(현재 in-memory+TTL 유지), owner 식별(단일 사용자 신뢰 경계 유지), 보존·폐기 정책(TTL 30분 유지) — 전부 기존 구현을 정식 정책으로 재확인. 이에 따라 profile/owner 권한 검증·요청별 인증 Context·사용자별 artifact 분리 3건은 "범위 밖"으로 재분류(미구현이 아니라 결정에 따른 비대상). **로그인 화면 오탐 방지**: `storageStateRef`가 있는 요청에서만 비밀번호 입력란 존재를 `SESSION_AUTH_SUSPECTED`로 감지(무조건 검사하면 `list.html` fixture의 정상적인 비밀번호 필드까지 오탐됨을 실제 E2E 실행 중 발견해 범위를 좁힘), `scripts/e2e.mjs`에 로그인 fixture 3종과 세션 발급→인증 캡처/무효 세션 거부/서버측 세션 무효화 시뮬레이션 테스트 추가. **springai MCP/REST 연동**: 세션 생성(원문 credential 필요)을 MCP Tool로 노출하면 "인증정보를 MCP에 노출하지 않는다"는 R6 완료 조건과 정면 충돌함을 설계 중 발견(사용자 확인 후) — 신규 REST `POST /api/web-capture/sessions`(X-API-Key, 운영자 전용)로 구현하고 opaque `sessionId`만 `captureWebPage` MCP Tool로 전달하도록 함. `WebCaptureClientE2ETest`/`WebCaptureSessionControllerTest` 신규, Java 전체 테스트 스위트(1388개) + extractor `npm test`/`lint`/`typecheck` 통과 |
 | 1.25 | 2026-07-22 | "생성 옵션" 옆에 "전체" 체크박스 추가 요청. `ui.html`에 `#selectAll` 체크박스 추가 — 체크 시 styles/variables/keepPartial + 동적으로 생성되는 candidates 체크박스 전부를 한 번에 토글. 개별 체크박스를 수동으로 바꾸면 `change` 이벤트 위임으로 "전체" 상태도 자동 동기화(전부 체크됐으면 자동 체크, 하나라도 해제되면 자동 해제). `.figpack` 새로 선택할 때마다 "전체"도 초기화. 별도 빌드 불요(manifest가 `src/ui.html` 직접 참조) |
 | 1.24 | 2026-07-22 | 사용자 UX 지적: 컴포넌트 후보 체크박스(최대 16종)가 많으면 "Figma Frame 생성" 버튼이 화면 밖으로 밀려나 매번 스크롤해야 함. `ui.html`에 `#candidates` 자체 스크롤(`max-height:180px`) + 생성/취소 버튼 `position:sticky;bottom:0` 고정 적용, `code.ts`의 `figma.showUI` 기본 높이 480→640으로 확대. `typecheck`/`lint`/`build` 통과, `ui.html`은 manifest가 직접 참조해 별도 번들링 불요 |
 | 1.23 | 2026-07-22 | board-list-notice-v2.figpack를 "공통 Paint/Text/Effect Style 생성·재사용" 옵션 켠 채 재-import하다 `in set_textAlignHorizontal: Cannot write to node with unloaded font "Arial Regular"` 오류 발생(진단용 임시 Frame 유지 옵션 덕에 원문 확인 가능). 원인: `ensureLocalStyles()`의 `Website/Body` 공유 Text Style이 **이전 import에서 이미 생성돼 있으면** 그 기존 스타일이 물고 있는 폰트(예: 과거 캡처의 우세 폰트였던 Arial)는 로드하지 않고, 이번 실행에서 새로 계산한 폰트만 `figma.loadFontAsync()`로 로드하던 버그 — 이후 `setTextStyleIdAsync()`가 로드 안 된 기존 스타일 폰트를 적용하려다 실패. 기존 스타일을 재사용할 때 그 스타일의 실제 `fontName`을 별도로 로드하고, 로드 자체가 실패하면 공유 스타일 재사용을 포기(개별 노드는 각자 로드된 폰트로 계속 정상 렌더링)하도록 수정. `typecheck`/`lint`/`build` 통과, 재-import 재확인 대기 |

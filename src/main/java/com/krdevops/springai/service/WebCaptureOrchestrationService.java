@@ -3,6 +3,8 @@ package com.krdevops.springai.service;
 import com.krdevops.springai.config.WebCaptureProperties;
 import com.krdevops.springai.model.capture.CaptureArtifactSummary;
 import com.krdevops.springai.model.capture.CaptureWebPageRequest;
+import com.krdevops.springai.model.capture.WebCaptureSessionRequest;
+import com.krdevops.springai.model.capture.WebCaptureSessionResponse;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Mac;
@@ -39,6 +41,17 @@ public class WebCaptureOrchestrationService {
                 packageValidator.validate(bytes, captureId, documentKey);
         urlValidator.validate(pack.document().source().finalUrl());
         return artifactService.save(pack);
+    }
+
+    /**
+     * 04번 문서 R6(§9): 인증 세션(로그인)을 발급한다. {@link com.krdevops.springai.controller
+     * .WebCaptureSessionController}(운영자 전용 REST)에서만 호출된다 — MCP Tool 경로에는 노출하지
+     * 않는다(원문 username/password가 LLM에 전달·로깅되는 것을 원천 차단).
+     */
+    public WebCaptureSessionResponse createSession(WebCaptureSessionRequest request) {
+        if (!properties.isEnabled()) throw new IllegalStateException("WEB_CAPTURE 기능이 비활성 상태입니다.");
+        WebCaptureUrlValidator.ValidatedUrl url = urlValidator.validate(request.loginUrl());
+        return client.createSession(request, url.uri());
     }
 
     private String documentKey(WebCaptureUrlValidator.ValidatedUrl url, CaptureWebPageRequest request) {

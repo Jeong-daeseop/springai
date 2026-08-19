@@ -225,6 +225,81 @@ class WebCaptureClientE2ETest {
         assertThat(requestCount).hasValue(0);
     }
 
+    /**
+     * R6(04번 문서 §9): 세션 생성이 원문 username/password를 extractor에 그대로 전달하고,
+     * 발급된 opaque sessionId/expiresAt을 그대로 돌려준다(springai가 값을 가공하지 않음).
+     */
+    @Test
+    void r6_createSessionForwardsCredentialsAndReturnsOpaqueSessionId(@TempDir Path tempDir) throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        AtomicReference<com.fasterxml.jackson.databind.JsonNode> receivedBody = new AtomicReference<>();
+        HttpServer extractor = extractorServer("/v1/sessions", exchange -> {
+            assertThat(exchange.getRequestHeaders().getFirst("X-Extractor-Key")).isEqualTo("extractor-secret");
+            receivedBody.set(mapper.readTree(exchange.getRequestBody()));
+            byte[] body = mapper.writeValueAsBytes(new com.krdevops.springai.model.capture.WebCaptureSessionResponse(
+                    "11111111-1111-4111-8111-111111111111", "2026-08-19T00:00:00Z"));
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+        });
+        WebCaptureProperties properties = properties(tempDir, extractor);
+        WebCaptureOrchestrationService orchestration = orchestration(mapper, properties);
+
+        var response = orchestration.createSession(new com.krdevops.springai.model.capture.WebCaptureSessionRequest(
+                "http://localhost:8080/login.do", null, "#username", "e2e-user",
+                "#password", "e2e-pass", "#submit", "#dashboard", 15000));
+
+        assertThat(response.sessionId()).isEqualTo("11111111-1111-4111-8111-111111111111");
+        assertThat(response.expiresAt()).isEqualTo("2026-08-19T00:00:00Z");
+        var body = receivedBody.get();
+        assertThat(body.get("username").asText()).isEqualTo("e2e-user");
+        assertThat(body.get("password").asText()).isEqualTo("e2e-pass");
+        assertThat(body.get("loginUrl").asText()).isEqualTo("http://localhost:8080/login.do");
+        assertThat(body.get("allowedOrigins")).anySatisfy(
+                value -> assertThat(value.asText()).isEqualTo("http://localhost:8080"));
+    }
+
+    /** R6(04번 문서 §9): extractor가 SESSION_LOGIN_FAILED를 반환하면 명확한 오류로 실패한다. */
+    @Test
+    void r6_createSessionFailsClearlyWhenExtractorRejectsLogin(@TempDir Path tempDir) throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        HttpServer extractor = extractorServer("/v1/sessions", exchange -> {
+            byte[] body = "{\"error\":\"CAPTURE_AUTH_FAILED\",\"code\":\"CAPTURE_AUTH_FAILED\"}"
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(401, body.length);
+            exchange.getResponseBody().write(body);
+        });
+        WebCaptureProperties properties = properties(tempDir, extractor);
+        WebCaptureOrchestrationService orchestration = orchestration(mapper, properties);
+
+        assertThatThrownBy(() -> orchestration.createSession(
+                new com.krdevops.springai.model.capture.WebCaptureSessionRequest(
+                        "http://localhost:8080/login.do", null, "#username", "e2e-user",
+                        "#password", "wrong-pass", "#submit", null, null)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("401");
+    }
+
+    /** R6(04번 문서 §9): loginUrl도 capture()와 동일하게 허용 origin만 통과한다. */
+    @Test
+    void r6_createSessionRejectsDisallowedLoginOrigin(@TempDir Path tempDir) throws Exception {
+        AtomicInteger requestCount = new AtomicInteger();
+        HttpServer extractor = extractorServer("/v1/sessions", exchange -> {
+            requestCount.incrementAndGet();
+            exchange.sendResponseHeaders(200, -1);
+        });
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        WebCaptureProperties properties = properties(tempDir, extractor);
+        WebCaptureOrchestrationService orchestration = orchestration(mapper, properties);
+
+        assertThatThrownBy(() -> orchestration.createSession(
+                new com.krdevops.springai.model.capture.WebCaptureSessionRequest(
+                        "http://evil.example.com/login.do", null, "#username", "e2e-user",
+                        "#password", "e2e-pass", "#submit", null, null)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThat(requestCount).hasValue(0);
+    }
+
     private WebCaptureOrchestrationService orchestration(ObjectMapper mapper, WebCaptureProperties properties) {
         ExternalCallGuard guard = new ExternalCallGuard(new OperationalResilienceProperties());
         WebCaptureClient client = new WebCaptureClient(properties, mapper, guard);
@@ -253,8 +328,12 @@ class WebCaptureClientE2ETest {
     }
 
     private HttpServer extractorServer(ExchangeHandler handler) throws IOException {
+        return extractorServer("/v1/captures", handler);
+    }
+
+    private HttpServer extractorServer(String path, ExchangeHandler handler) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/v1/captures", exchange -> {
+        server.createContext(path, exchange -> {
             try {
                 handler.handle(exchange);
             } finally {

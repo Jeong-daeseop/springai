@@ -165,6 +165,10 @@
 }, {
   "controller" : "FigmaOperationsController",
   "method" : "GET",
+  "path" : "/api/figma/operations/{operationId}/bundles"
+}, {
+  "controller" : "FigmaOperationsController",
+  "method" : "GET",
   "path" : "/api/figma/operations/{operationId}/info"
 }, {
   "controller" : "FigmaDesignOrchestrationController",
@@ -318,4 +322,8 @@
   "controller" : "ToolApiController",
   "method" : "POST",
   "path" : "/api/tools/saveGeneratedCode"
+}, {
+  "controller" : "WebCaptureSessionController",
+  "method" : "POST",
+  "path" : "/api/web-capture/sessions"
 } ]

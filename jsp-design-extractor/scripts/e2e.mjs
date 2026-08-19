@@ -10,6 +10,13 @@ const fixtures=Object.fromEntries(["list","detail","regist","updt"].map(name=>[n
 const pixel=Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nGQAAAAASUVORK5CYII=","base64");
 const tempDirectory=fs.mkdtempSync(path.join(os.tmpdir(),"jsp-design-extractor-e2e-"));const logFile=path.join(tempDirectory,"extractor.jsonl");
 const securityCounters={externalImage:0,serviceWorker:0,websocket:0,popup:0,download:0};
+const sessionCookieValue="e2e-session-token";
+const loginFixture=Buffer.from(`<!doctype html><html><head><title>로그인</title></head><body>
+<form method="post" action="/login.do">
+<input id="username" name="username">
+<input id="password" name="password" type="password">
+<button id="submit" type="submit">로그인</button>
+</form></body></html>`);
 const securityFixture=Buffer.from(`<!doctype html><html><head><title>보안 검증</title></head><body><main>
 <input id="secret" value="screenshot-mask-sentinel" style="position:absolute;left:20px;top:20px;width:240px;height:80px;background:#00ff00">
 <img src="http://127.0.0.1:4321/external.png" alt="차단 대상">
@@ -27,6 +34,33 @@ const web = http.createServer((req, res) => {
   if(pathname==="/sw.js"){securityCounters.serviceWorker++;res.writeHead(200,{"Content-Type":"application/javascript"}).end("self.addEventListener('fetch',()=>{});");return;}
   if(pathname==="/popup"){securityCounters.popup++;res.writeHead(200,{"Content-Type":"text/html"}).end("POPUP SENTINEL");return;}
   if(pathname==="/download"){securityCounters.download++;res.writeHead(200,{"Content-Disposition":"attachment; filename=blocked.txt","Content-Type":"text/plain"}).end("DOWNLOAD SENTINEL");return;}
+  if(pathname==="/login.do"&&req.method==="GET"){res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"}).end(loginFixture);return;}
+  if(pathname==="/login.do"&&req.method==="POST"){
+    let body="";req.on("data",chunk=>body+=chunk);
+    req.on("end",()=>{
+      const params=new URLSearchParams(body);
+      if(params.get("username")==="e2e-user"&&params.get("password")==="e2e-pass"){
+        res.writeHead(200,{"Content-Type":"text/html; charset=utf-8","Set-Cookie":`session=${sessionCookieValue}; Path=/`}).end(`<!doctype html><html><body><div id="dashboard">로그인 성공</div></body></html>`);
+      } else {
+        res.writeHead(401,{"Content-Type":"text/html; charset=utf-8"}).end("<html><body>로그인 실패</body></html>");
+      }
+    });
+    return;
+  }
+  if(pathname==="/protected.do"){
+    const authenticated=(req.headers.cookie??"").includes(`session=${sessionCookieValue}`);
+    // 실제 eGovFrame 서버측 forward와 동일하게 리다이렉트 없이 같은 URL에서 컨텐츠를 분기한다.
+    if(authenticated)res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"}).end(`<!doctype html><html><body><main id="content">보호된 콘텐츠</main></body></html>`);
+    else res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"}).end(loginFixture);
+    return;
+  }
+  if(pathname==="/protected-stale.do"){
+    // 서버측에서 세션이 무효화됐지만(쿠키 유무와 무관하게 항상 로그인 폼) storageStateRef 자체는
+    // extractor 세션 저장소에 아직 유효한 상태를 재현한다 — SESSION_NOT_FOUND가 아니라
+    // SESSION_AUTH_SUSPECTED(오탐 방지 로직)가 잡아내야 하는 경로.
+    res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"}).end(loginFixture);
+    return;
+  }
   const name=Object.keys(fixtures).find(value=>req.url?.includes(value))??"list";res.writeHead(200, {"Content-Type":"text/html; charset=utf-8"}).end(fixtures[name]);
 });
 web.on("upgrade",socket=>{securityCounters.websocket++;socket.destroy();});
@@ -71,6 +105,22 @@ try {
   if(manifest0.nodeCount!==results[0].nodes.length||manifest0.assetCount!==results[0].assets.length||manifest0.componentCount!==results[0].componentCandidates.length||manifest0.warningCount!==results[0].warnings.length||typeof manifest0.extractorVersion!=="string"||typeof manifest0.browserVersion!=="string")throw new Error(`manifest summary contract mismatch: ${JSON.stringify(manifest0)}`);
   if(results[0].contentHash!==repeated.contentHash)throw new Error("normalized content hash is not deterministic across repeated captures");
   const log=fs.readFileSync(logFile,"utf8");for(const line of log.trim().split("\n"))JSON.parse(line);if(!log.includes('"event":"capture.completed"')||["token=secret","절대 노출 금지 입력값","http://127.0.0.1:4320"].some(value=>log.includes(value)))throw new Error("structured log policy mismatch");
+
+  // R6(04번 문서 §9): 세션 발급 → 인증 캡처 성공, storageStateRef 없거나 무효면 CAPTURE_AUTH_FAILED(로그인 화면 오탐 방지 포함).
+  const sessionResponse=await fetch("http://127.0.0.1:4319/v1/sessions",{method:"POST",headers:{"Content-Type":"application/json","X-Extractor-Key":"test-key"},body:JSON.stringify({loginUrl:"http://127.0.0.1:4320/login.do",allowedOrigins:["http://127.0.0.1:4320"],usernameSelector:"#username",username:"e2e-user",passwordSelector:"#password",password:"e2e-pass",submitSelector:"#submit",successSelector:"#dashboard",timeoutMillis:15000})});
+  if(!sessionResponse.ok)throw new Error(`session creation failed: ${sessionResponse.status} ${await sessionResponse.text()}`);
+  const session=await sessionResponse.json();
+  if(!/^[0-9a-f-]{36}$/i.test(session.sessionId)||typeof session.expiresAt!=="string")throw new Error(`session response contract mismatch: ${JSON.stringify(session)}`);
+  const authenticatedCapture=await fetch("http://127.0.0.1:4319/v1/captures",{method:"POST",headers:{"Content-Type":"application/json","X-Extractor-Key":"test-key"},body:JSON.stringify({captureId:"11111111-1111-4111-8111-000000000008",documentKey:"a".repeat(64),url:"http://127.0.0.1:4320/protected.do",profile:"LOCAL_WEB",viewport:{name:"desktop",width:1440,height:1200,deviceScaleFactor:1},readiness:{readySelector:"#content",timeoutMillis:15000},sensitiveSelectors:[],allowedOrigins:["http://127.0.0.1:4320"],allowedResourceOrigins:[],storageStateRef:session.sessionId})});
+  if(!authenticatedCapture.ok)throw new Error(`authenticated capture failed: ${authenticatedCapture.status} ${await authenticatedCapture.text()}`);
+  // storageStateRef 없는 anonymous 캡처는 여전히 정상 200(로그인 화면 자체를 의도적으로 캡처하는
+  // 것도 유효한 요청이라 무조건 오탐 방지 대상으로 삼지 않는다 — list fixture의 비밀번호 필드와
+  // 동일한 이유).
+  const anonymousCapture=await fetch("http://127.0.0.1:4319/v1/captures",{method:"POST",headers:{"Content-Type":"application/json","X-Extractor-Key":"test-key"},body:JSON.stringify({...baseRequest,captureId:"11111111-1111-4111-8111-000000000009",url:"http://127.0.0.1:4320/protected.do"})});
+  if(!anonymousCapture.ok)throw new Error(`anonymous capture unexpectedly failed: ${anonymousCapture.status} ${await anonymousCapture.text()}`);
+  await reject({...baseRequest,url:"http://127.0.0.1:4320/protected.do",storageStateRef:"00000000-0000-4000-8000-000000000000"},"test-key",401,"CAPTURE_AUTH_FAILED");
+  await reject({...baseRequest,url:"http://127.0.0.1:4320/protected-stale.do",storageStateRef:session.sessionId},"test-key",401,"CAPTURE_AUTH_FAILED");
+
   console.log(`E2E OK: fixtures=4, nodes=${results.map(value=>value.nodes.length).join(",")}, deterministicHash=${repeated.contentHash.slice(0,12)}, security=${JSON.stringify(securityCounters)}`);
 } finally {
   extractor.kill("SIGTERM"); web.close();external.close();fs.rmSync(tempDirectory,{recursive:true,force:true});

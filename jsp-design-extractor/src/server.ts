@@ -42,6 +42,7 @@ const ERROR_TAXONOMY: Record<string, { code: string; status: number }> = {
   REQUEST_TOO_LARGE: { code: "CAPTURE_DOCUMENT_TOO_LARGE", status: 413 },
   SESSION_NOT_FOUND: { code: "CAPTURE_AUTH_FAILED", status: 401 },
   SESSION_LOGIN_FAILED: { code: "CAPTURE_AUTH_FAILED", status: 401 },
+  SESSION_AUTH_SUSPECTED: { code: "CAPTURE_AUTH_FAILED", status: 401 },
 };
 
 function classifyError(error: unknown): { code: string; status: number } {
@@ -227,6 +228,14 @@ async function capture(input: CaptureRequest): Promise<Buffer> {
   try {
     await page.goto(input.url, { waitUntil: "domcontentloaded", timeout: input.readiness.timeoutMillis });
     if (!input.allowedOrigins.map(origin).includes(origin(page.url()))) throw new Error("REDIRECT_DENIED");
+    // R6(04번 문서 §9): 인증 필요 페이지가 서버측 forward로 같은 URL에 로그인 폼을 그대로
+    // 렌더링하면(리다이렉트 없음) origin 검사를 통과해 로그인 화면이 200으로 오탐 성공 처리된다.
+    // storageStateRef가 있을 때만 검사한다 — 비밀번호 입력란은 일반 업무 화면(계정 관리 등)에도
+    // 정상적으로 존재할 수 있어, "인증을 요청했는데 로그인 화면이 돌아왔다"는 신호로만 좁혀야
+    // 오탐(예: list fixture의 비밀번호 필드) 없이 실제 세션 실패만 잡아낸다.
+    if (input.storageStateRef && await page.locator('input[type="password"]').count() > 0) {
+      throw new Error("SESSION_AUTH_SUSPECTED");
+    }
     if (input.readiness.readySelector) await page.waitForSelector(input.readiness.readySelector, { state: "visible", timeout: input.readiness.timeoutMillis });
     if (input.readiness.hiddenSelector) await page.waitForSelector(input.readiness.hiddenSelector, { state: "hidden", timeout: input.readiness.timeoutMillis });
     await page.evaluate(async () => { await document.fonts.ready; document.querySelectorAll("*").forEach((element: Element) => { const html = element as HTMLElement; html.style.animation = "none"; html.style.transition = "none"; }); });
