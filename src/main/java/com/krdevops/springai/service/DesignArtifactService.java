@@ -5,7 +5,9 @@ import com.krdevops.springai.config.WebCaptureProperties;
 import com.krdevops.springai.model.capture.CaptureArtifactSummary;
 import com.krdevops.springai.model.capture.CaptureStatus;
 import com.krdevops.springai.model.capture.DesignArtifactMetadata;
+import com.krdevops.springai.model.capture.FigmaBundleImportArtifact;
 import com.krdevops.springai.model.capture.FigmaImportArtifact;
+import com.krdevops.springai.model.capture.RenderedDesignBundle;
 import com.krdevops.springai.model.capture.RenderedDesignDocument;
 import org.springframework.stereotype.Service;
 
@@ -17,9 +19,13 @@ import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Service
 public class DesignArtifactService {
+    private static final java.util.Set<String> ALLOWED_VIEWPORTS = java.util.Set.of("desktop", "tablet", "mobile");
+
     private final WebCaptureProperties properties;
     private final ObjectMapper objectMapper;
 
@@ -324,6 +330,52 @@ public class DesignArtifactService {
             return new FigmaImportArtifact(safeId, target.getFileName().toString(), target.toString(), Files.size(target));
         } catch (Exception e) {
             throw new IllegalArgumentException("Figma import artifact 준비 실패", e);
+        }
+    }
+
+    /**
+     * R8 Part B(04번 문서 §11): {@code jsp-to-figma-plugin}은 {@code networkAccess:none}이라
+     * springai 서버를 직접 호출할 수 없다 — 사용자가 로컬 파일을 선택해 가져오는 기존 방식(단일
+     * {@code .figpack})과 동일하게, viewport별로 이미 저장된 {@code .figpack} 3개(또는 일부 성공
+     * 시 그보다 적은 개수)와 {@code bundle.json}(분석 결과)을 zip 하나로 묶어 내려준다. Bundle
+     * 자체는 서버에 별도 저장하지 않으므로(Part A 설계 유지) 매 호출마다 같은 {@code bundleId}로
+     * 재요청하면 같은 파일을 그대로 재사용한다.
+     */
+    public FigmaBundleImportArtifact prepareFigmaBundleImport(RenderedDesignBundle bundle) {
+        if (bundle == null || bundle.viewportArtifacts().isEmpty()) {
+            throw new IllegalArgumentException("RenderedDesignBundle에 최소 1개 이상의 viewport artifact가 필요합니다.");
+        }
+        String bundleId = requireUuid(bundle.bundleId());
+        Path exportRoot = root().resolve("bundle-exports").normalize();
+        Path target = exportRoot.resolve(bundleId + ".figbundle.zip").normalize();
+        if (!target.startsWith(exportRoot)) throw new IllegalArgumentException("Figma bundle export 경로가 올바르지 않습니다.");
+        Path temporary = exportRoot.resolve("." + bundleId + ".tmp-" + UUID.randomUUID()).normalize();
+        try {
+            Files.createDirectories(exportRoot);
+            if (Files.isSymbolicLink(exportRoot)) throw new IllegalStateException("bundle export root는 symbolic link일 수 없습니다.");
+            if (!Files.exists(target)) {
+                try (ZipOutputStream output = new ZipOutputStream(Files.newOutputStream(temporary))) {
+                    output.putNextEntry(new ZipEntry("bundle.json"));
+                    output.write(objectMapper.writeValueAsBytes(bundle));
+                    output.closeEntry();
+                    for (var entry : bundle.viewportArtifacts().entrySet()) {
+                        if (!ALLOWED_VIEWPORTS.contains(entry.getKey())) {
+                            throw new IllegalArgumentException("지원하지 않는 viewport입니다: " + entry.getKey());
+                        }
+                        Path figpack = resolveArtifact(requireUuid(entry.getValue())).resolve("source.figpack");
+                        if (!Files.isRegularFile(figpack, java.nio.file.LinkOption.NOFOLLOW_LINKS)) continue;
+                        output.putNextEntry(new ZipEntry("viewports/" + entry.getKey() + ".figpack"));
+                        Files.copy(figpack, output);
+                        output.closeEntry();
+                    }
+                }
+                Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE);
+            }
+            return new FigmaBundleImportArtifact(bundleId, target.getFileName().toString(), target.toString(), Files.size(target));
+        } catch (Exception e) {
+            deleteQuietly(temporary);
+            if (e instanceof RuntimeException runtime) throw runtime;
+            throw new IllegalArgumentException("Figma bundle import 준비 실패", e);
         }
     }
 

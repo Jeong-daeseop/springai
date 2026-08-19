@@ -300,6 +300,51 @@ class WebCaptureClientE2ETest {
         assertThat(bundle.warnings().get(0).code()).isEqualTo("VIEWPORT_CAPTURE_FAILED");
     }
 
+    /**
+     * R8 Part B(04번 문서 §11): Plugin(networkAccess:none)이 로컬 파일 하나로 가져갈 수 있도록
+     * bundle.json + viewport별 .figpack을 zip 하나로 묶는다.
+     */
+    @Test
+    void r8_prepareFigmaBundleImportZipsBundleJsonAndEachViewportFigpack(@TempDir Path tempDir) throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        HttpServer extractor = extractorServer(exchange -> {
+            var body = mapper.readTree(exchange.getRequestBody());
+            String viewportName = body.get("viewport").get("name").asText();
+            int viewportWidth = body.get("viewport").get("width").asInt();
+            byte[] figpack = packWithNodesUnchecked(mapper,
+                    body.get("captureId").asText(), body.get("documentKey").asText(),
+                    viewportName, viewportWidth, List.of(node("root", null, null)));
+            exchange.getResponseHeaders().add("Content-Type", "application/vnd.springai.figpack+zip");
+            exchange.sendResponseHeaders(200, figpack.length);
+            exchange.getResponseBody().write(figpack);
+        });
+        WebCaptureProperties properties = properties(tempDir, extractor);
+        WebCaptureOrchestrationService orchestration = orchestration(mapper, properties);
+        DesignArtifactService artifactService = artifactService(properties, mapper);
+
+        RenderedDesignBundle bundle = orchestration.captureMultiViewport(new CaptureWebPageRequest(
+                "http://localhost:8080/list.do", CaptureProfile.LOCAL_WEB, ViewportSpec.desktop(), null, "crud"));
+
+        var imported = artifactService.prepareFigmaBundleImport(bundle);
+
+        assertThat(imported.bundleId()).isEqualTo(bundle.bundleId());
+        assertThat(new java.io.File(imported.path())).exists();
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        try (var zip = new java.util.zip.ZipInputStream(java.nio.file.Files.newInputStream(Path.of(imported.path())))) {
+            java.util.zip.ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                entries.put(entry.getName(), zip.readAllBytes());
+            }
+        }
+        assertThat(entries).containsKeys(
+                "bundle.json", "viewports/desktop.figpack", "viewports/tablet.figpack", "viewports/mobile.figpack");
+        var reparsedBundle = mapper.readValue(entries.get("bundle.json"), RenderedDesignBundle.class);
+        assertThat(reparsedBundle.bundleId()).isEqualTo(bundle.bundleId());
+
+        var second = artifactService.prepareFigmaBundleImport(bundle);
+        assertThat(second.path()).isEqualTo(imported.path());
+    }
+
     /** R8(04번 문서 §11): 3개 viewport 모두 실패하면 부분 결과 없이 예외를 던진다. */
     @Test
     void r8_captureMultiViewportFailsWhenAllViewportsFail(@TempDir Path tempDir) throws Exception {

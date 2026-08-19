@@ -4,7 +4,9 @@ import com.krdevops.springai.config.mcp.McpToolRisk;
 import com.krdevops.springai.config.mcp.McpToolRiskLevel;
 
 import com.krdevops.springai.model.capture.CaptureArtifactSummary;
+import com.krdevops.springai.model.capture.FigmaBundleImportArtifact;
 import com.krdevops.springai.model.capture.FigmaImportArtifact;
+import com.krdevops.springai.model.capture.RenderedDesignBundle;
 import com.krdevops.springai.model.design.DesignAnalysisResult;
 import com.krdevops.springai.service.DesignArtifactService;
 import com.krdevops.springai.service.WebCaptureAnalysisService;
@@ -37,6 +39,18 @@ public class DesignArtifactTool {
     @Tool(description = "검증된 Design Artifact를 Figma Plugin에서 가져올 수 있는 .figpack 파일로 내보냅니다.")
     public FigmaImportArtifact prepareFigmaImport(String artifactId) {
         return artifactService.prepareFigmaImport(artifactId);
+    }
+
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
+    @Tool(description = """
+            captureWebPageMultiViewport가 반환한 RenderedDesignBundle을 Figma Plugin에서
+            가져올 수 있는 zip 파일 하나(bundle.json + viewport별 .figpack)로 내보냅니다.
+            Plugin은 네트워크 접근이 없어(networkAccess:none) 이 zip 파일을 로컬 파일 선택
+            대화상자로 직접 골라야 합니다. captureWebPageMultiViewport의 반환값을 그대로
+            bundle 인자에 전달하세요.
+            """)
+    public FigmaBundleImportArtifact prepareFigmaBundleImport(RenderedDesignBundle bundle) {
+        return artifactService.prepareFigmaBundleImport(bundle);
     }
 
     @McpToolRisk(McpToolRiskLevel.EXTERNAL)

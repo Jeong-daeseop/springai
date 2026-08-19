@@ -9,6 +9,12 @@ type CandidateData={type:string;nodeIds:string[];confidence:number;evidence:stri
 type DocumentData = { schemaVersion: string; captureId: string; documentKey: string; contentHash: string; page: {title?: string;documentWidth?:number;documentHeight?:number}; nodes: NodeData[]; assets?:AssetData[]; tokens?:Record<string,string>; componentCandidates?:CandidateData[]; warnings?: {code:string}[] };
 type Manifest = { packageVersion:string; mimeType:string; captureId:string; documentKey:string; contentHash:string; entries:{path:string;byteLength:number;sha256:string}[] };
 type BuildOptions={candidateTypes:string[];createStyles:boolean;createVariables:boolean;keepPartialOnFailure:boolean};
+type Parsed = {manifest:Manifest;document:DocumentData;files:Record<string,Uint8Array>};
+
+/** R8 Part B(04번 문서 §11): springai의 RenderedDesignBundle과 동일한 형태(zip 안 bundle.json). */
+type ComponentMatchData = {selectorHint:string; nodeIdsByViewport:Record<string,string>; status:"MATCHED_ALL"|"HIDDEN_IN_SOME"|"MOVED"};
+type BundleData = {schemaVersion:string; bundleId:string; viewportArtifacts:Record<string,string>; componentMatches:ComponentMatchData[]; breakpointObservations:unknown[]; warnings:{code:string;nodeId:string|null;message:string}[]};
+const BUNDLE_VIEWPORT_ORDER = ["desktop","tablet","mobile"] as const;
 
 figma.showUI(__html__, { width: 380, height: 640 });
 
@@ -47,6 +53,29 @@ async function parse(bytes: Uint8Array): Promise<{manifest:Manifest;document:Doc
   const index=new Map(document.nodes.map((node,i)=>[node.id,i]));
   for(const node of document.nodes){if(node.parentId&&(!nodeIds.has(node.parentId)||(index.get(node.parentId)??Infinity)>=(index.get(node.id)??-1)))throw new Error("부모 node가 자식보다 먼저 선언되어야 합니다.");if(node.children?.some(id=>!nodeIds.has(id)))throw new Error("child node 참조가 없습니다.");}
   return {manifest,document,files};
+}
+
+/** zip 최상위에 bundle.json이 있으면 R8 Part B 다중 viewport 번들, 없으면 기존 단일 figpack이다. */
+function isBundleZip(bytes: Uint8Array): boolean {
+  if (bytes.length > 150 * 1024 * 1024) throw new Error("bundle 패키지가 150MB 제한을 초과했습니다.");
+  const files = unzipSync(bytes);
+  return !!files["bundle.json"];
+}
+
+async function parseBundle(bytes: Uint8Array): Promise<{bundle:BundleData; viewports:Map<string,Parsed>}> {
+  const files = unzipSync(bytes);
+  const bundleEntry = files["bundle.json"];
+  if (!bundleEntry) throw new Error("bundle.json entry가 없습니다.");
+  const bundle = JSON.parse(strFromU8(bundleEntry)) as BundleData;
+  if (bundle.schemaVersion !== "rendered-design-bundle-v1") throw new Error("지원하지 않는 bundle schema입니다.");
+  const viewports = new Map<string, Parsed>();
+  for (const viewport of BUNDLE_VIEWPORT_ORDER) {
+    const figpackBytes = files[`viewports/${viewport}.figpack`];
+    if (!figpackBytes) continue;
+    viewports.set(viewport, await parse(figpackBytes));
+  }
+  if (viewports.size === 0) throw new Error("bundle에 유효한 viewport figpack이 없습니다.");
+  return {bundle, viewports};
 }
 
 const color = (css?: string): RGB | null => {
@@ -162,7 +191,7 @@ function addBorderDividers(item:NodeData,relX:number,relY:number,bounds:Bounds,p
   const right=side(item.styles?.borderRight);if(right?.paint&&right.weight>0)draw(bounds.width-right.weight,0,right.weight,bounds.height,right.paint);
 }
 
-async function build(document: DocumentData,files:Record<string,Uint8Array>,options:BuildOptions): Promise<{frame:FrameNode;boundaryWarnings:string[]}> {
+async function build(document: DocumentData,files:Record<string,Uint8Array>,options:BuildOptions): Promise<{frame:FrameNode;boundaryWarnings:string[];created:Map<string,SceneNode>}> {
   const duplicate = figma.currentPage.findOne(node => node.type === "FRAME" && node.getPluginData("documentKey") === document.documentKey && node.getPluginData("contentHash") === document.contentHash);
   if (duplicate) throw new Error("같은 documentKey/contentHash Frame이 이미 존재합니다.");
   const root = figma.createFrame(); root.name = `IMPORTING ${document.page.title || document.captureId}`; root.clipsContent=false;
@@ -223,7 +252,7 @@ async function build(document: DocumentData,files:Record<string,Uint8Array>,opti
     for(const {candidate,nodeId} of candidateNodes){const target=created.get(nodeId);if(!target||target.type==="COMPONENT"||target.type==="INSTANCE")continue;const component=figma.createComponentFromNode(target);component.name=`${candidate.type}/${nodeId}`;component.setPluginData("componentCandidateType",candidate.type);created.set(nodeId,component);}
     if(options.createVariables)await ensureLocalVariables(document);
     root.name=document.page.title || `Website ${document.captureId}`; root.setPluginData("schemaVersion",document.schemaVersion); root.setPluginData("captureId",document.captureId); root.setPluginData("documentKey",document.documentKey); root.setPluginData("contentHash",document.contentHash); root.setPluginData("temporary","");
-    figma.currentPage.selection=[root]; figma.viewport.scrollAndZoomIntoView([root]); return {frame:root,boundaryWarnings};
+    figma.currentPage.selection=[root]; figma.viewport.scrollAndZoomIntoView([root]); return {frame:root,boundaryWarnings,created};
   } catch(error) {
     if(options.keepPartialOnFailure){root.name=`PARTIAL (FAILED) ${document.page.title || document.captureId}`;root.setPluginData("temporary","");figma.currentPage.selection=[root];figma.viewport.scrollAndZoomIntoView([root]);}
     else root.remove();
@@ -231,11 +260,89 @@ async function build(document: DocumentData,files:Record<string,Uint8Array>,opti
   }
 }
 
-let pending: {manifest:Manifest;document:DocumentData;files:Record<string,Uint8Array>} | undefined;
-figma.ui.onmessage = async (message: {type:string;bytes?:ArrayBuffer;candidateTypes?:string[];createStyles?:boolean;createVariables?:boolean;keepPartialOnFailure?:boolean}) => {
+/**
+ * R8 Part B(04번 문서 §11): Desktop/Tablet/Mobile Frame을 나란히 만들고, 사용자가 선택한
+ * MATCHED_ALL selectorHint만 figma.combineAsVariants()로 ComponentSet Variant 후보를
+ * 만든다(체크박스로 검토 후 결합 — 사용자 게이트 결정). 개별 viewport Frame 생성 실패는
+ * 경고로 남기고 계속 진행하며(부분 성공 처리), 전부 실패한 경우에만 예외를 던진다.
+ * 이 1차 구현은 Style/Variable/componentCandidates 옵션은 지원하지 않는다(범위 축소).
+ */
+async function buildBundle(
+  bundle: BundleData, viewports: Map<string, Parsed>, selectedSelectorHints: string[],
+): Promise<{frames:FrameNode[];boundaryWarnings:string[];frameFailures:string[];variantsCreated:number}> {
+  const GUTTER = 120;
+  const frames: FrameNode[] = [];
+  const createdByViewport = new Map<string, Map<string, SceneNode>>();
+  const boundaryWarnings: string[] = [];
+  const frameFailures: string[] = [];
+  let cursorX = 0;
+  for (const viewport of BUNDLE_VIEWPORT_ORDER) {
+    const parsed = viewports.get(viewport);
+    if (!parsed) continue;
+    try {
+      const {frame, boundaryWarnings: warnings, created} = await build(
+        parsed.document, parsed.files, {candidateTypes:[], createStyles:false, createVariables:false, keepPartialOnFailure:false});
+      frame.x = cursorX; frame.y = 0; frame.name = `[${viewport}] ${frame.name}`;
+      cursorX += frame.width + GUTTER;
+      frames.push(frame); createdByViewport.set(viewport, created); boundaryWarnings.push(...warnings);
+    } catch (error) {
+      frameFailures.push(`${viewport}: ${error instanceof Error ? error.message : "알 수 없는 오류"}`);
+    }
+  }
+  if (frames.length === 0) throw new Error(`모든 viewport Frame 생성에 실패했습니다.\n${frameFailures.join("\n")}`);
+
+  let variantsCreated = 0;
+  const selected = new Set(selectedSelectorHints);
+  const maxHeight = Math.max(...frames.map(frame => frame.height));
+  for (const match of bundle.componentMatches) {
+    if (match.status !== "MATCHED_ALL" || !selected.has(match.selectorHint)) continue;
+    const components: ComponentNode[] = [];
+    let ok = true;
+    for (const viewport of BUNDLE_VIEWPORT_ORDER) {
+      const nodeId = match.nodeIdsByViewport[viewport];
+      if (!nodeId) { ok = false; break; }
+      const createdMap = createdByViewport.get(viewport);
+      const target = createdMap?.get(nodeId);
+      if (!target || !createdMap) { ok = false; break; }
+      const component = target.type === "COMPONENT" ? target as ComponentNode : figma.createComponentFromNode(target);
+      component.name = `Viewport=${viewport}`;
+      createdMap.set(nodeId, component);
+      components.push(component);
+    }
+    if (!ok || components.length < 2) continue;
+    const variantSet = figma.combineAsVariants(components, figma.currentPage);
+    variantSet.name = match.selectorHint;
+    variantSet.x = 0; variantSet.y = maxHeight + 200 + variantsCreated * (variantSet.height + 80);
+    variantsCreated++;
+  }
+  figma.currentPage.selection = frames; figma.viewport.scrollAndZoomIntoView(frames);
+  return {frames, boundaryWarnings, frameFailures, variantsCreated};
+}
+
+let pending: Parsed | undefined;
+let pendingBundle: {bundle:BundleData; viewports:Map<string,Parsed>} | undefined;
+figma.ui.onmessage = async (message: {type:string;bytes?:ArrayBuffer;candidateTypes?:string[];createStyles?:boolean;createVariables?:boolean;keepPartialOnFailure?:boolean;selectedSelectorHints?:string[]}) => {
   try {
-    if(message.type==="CANCEL"){pending=undefined;return;}
-    if(message.type==="PREVIEW" && message.bytes) { pending=await parse(new Uint8Array(message.bytes)); figma.ui.postMessage({type:"PREVIEW_READY",candidates:[...new Set((pending.document.componentCandidates??[]).filter(value=>value.confidence>=0.8).map(value=>value.type))],message:`검증 완료\n화면: ${pending.document.page.title || "제목 없음"}\n노드: ${pending.document.nodes.length}개\n경고: ${pending.document.warnings?.length ?? 0}개\nComponent와 Style 옵션을 확인한 뒤 생성하세요.`}); return; }
+    if(message.type==="CANCEL"){pending=undefined;pendingBundle=undefined;return;}
+    if(message.type==="PREVIEW" && message.bytes) {
+      const bytes=new Uint8Array(message.bytes);
+      if(isBundleZip(bytes)) {
+        pending=undefined;
+        const bundleState=await parseBundle(bytes); pendingBundle=bundleState;
+        const viewportNames=[...bundleState.viewports.keys()];
+        const variantCandidates=bundleState.bundle.componentMatches.filter(match=>match.status==="MATCHED_ALL"&&BUNDLE_VIEWPORT_ORDER.every(viewport=>!bundleState.viewports.has(viewport)||!!match.nodeIdsByViewport[viewport])).map(match=>match.selectorHint);
+        figma.ui.postMessage({type:"PREVIEW_READY_BUNDLE",viewports:viewportNames,variantCandidates,message:`번들 검증 완료\nviewport: ${viewportNames.join(", ")} (${viewportNames.length}/3)\nVariant 결합 후보: ${variantCandidates.length}개\n경고: ${bundleState.bundle.warnings.length}개\n결합할 컴포넌트를 선택한 뒤 생성하세요.`});
+        return;
+      }
+      pendingBundle=undefined; pending=await parse(bytes);
+      figma.ui.postMessage({type:"PREVIEW_READY",candidates:[...new Set((pending.document.componentCandidates??[]).filter(value=>value.confidence>=0.8).map(value=>value.type))],message:`검증 완료\n화면: ${pending.document.page.title || "제목 없음"}\n노드: ${pending.document.nodes.length}개\n경고: ${pending.document.warnings?.length ?? 0}개\nComponent와 Style 옵션을 확인한 뒤 생성하세요.`});
+      return;
+    }
     if(message.type==="CREATE") { if(!pending)throw new Error("먼저 figpack을 선택해 검증하세요."); const {frame,boundaryWarnings}=await build(pending.document,pending.files,{candidateTypes:message.candidateTypes??[],createStyles:message.createStyles===true,createVariables:message.createVariables===true,keepPartialOnFailure:message.keepPartialOnFailure===true}); figma.ui.postMessage({type:"RESULT",message:`생성 완료: ${frame.name}\n노드 ${pending.document.nodes.length}개\n자산 ${pending.document.assets?.length ?? 0}개\n선택 Component 유형 ${(message.candidateTypes??[]).length}개\n경고 ${pending.document.warnings?.length ?? 0}개\n영역 이탈 경고 ${boundaryWarnings.length}개${boundaryWarnings.length?`\n${boundaryWarnings.slice(0,5).join("\n")}`:""}`}); }
-  } catch(error) { pending=undefined; figma.ui.postMessage({type:"ERROR",message:`처리 실패: ${error instanceof Error ? error.message : "알 수 없는 오류"}`}); }
+    if(message.type==="CREATE_BUNDLE") {
+      if(!pendingBundle)throw new Error("먼저 bundle zip을 선택해 검증하세요.");
+      const {frames,boundaryWarnings,frameFailures,variantsCreated}=await buildBundle(pendingBundle.bundle,pendingBundle.viewports,message.selectedSelectorHints??[]);
+      figma.ui.postMessage({type:"RESULT",message:`생성 완료: Frame ${frames.length}개(${frames.map(frame=>frame.name).join(", ")})\nVariant 결합 ${variantsCreated}개\n영역 이탈 경고 ${boundaryWarnings.length}개${boundaryWarnings.length?`\n${boundaryWarnings.slice(0,5).join("\n")}`:""}${frameFailures.length?`\nviewport 실패 ${frameFailures.length}개\n${frameFailures.join("\n")}`:""}`});
+    }
+  } catch(error) { pending=undefined; pendingBundle=undefined; figma.ui.postMessage({type:"ERROR",message:`처리 실패: ${error instanceof Error ? error.message : "알 수 없는 오류"}`}); }
 };

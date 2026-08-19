@@ -2146,6 +2146,100 @@
     "type" : "object"
   }
 }, {
+  "name" : "prepareFigmaBundleImport",
+  "description" : "captureWebPageMultiViewport가 반환한 RenderedDesignBundle을 Figma Plugin에서\n가져올 수 있는 zip 파일 하나(bundle.json + viewport별 .figpack)로 내보냅니다.\nPlugin은 네트워크 접근이 없어(networkAccess:none) 이 zip 파일을 로컬 파일 선택\n대화상자로 직접 골라야 합니다. captureWebPageMultiViewport의 반환값을 그대로\nbundle 인자에 전달하세요.\n",
+  "inputSchema" : {
+    "$defs" : {
+      "Map_String.String_" : {
+        "type" : "object"
+      }
+    },
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "bundle" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "breakpointObservations" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "change" : {
+                  "enum" : [ "HIDDEN", "SHOWN", "MOVED" ],
+                  "type" : "string"
+                },
+                "fromViewport" : {
+                  "type" : "string"
+                },
+                "selectorHint" : {
+                  "type" : "string"
+                },
+                "toViewport" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "change", "fromViewport", "selectorHint", "toViewport" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "bundleId" : {
+            "type" : "string"
+          },
+          "componentMatches" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "nodeIdsByViewport" : {
+                  "$ref" : "#/$defs/Map_String.String_"
+                },
+                "selectorHint" : {
+                  "type" : "string"
+                },
+                "status" : {
+                  "enum" : [ "MATCHED_ALL", "HIDDEN_IN_SOME", "MOVED" ],
+                  "type" : "string"
+                }
+              },
+              "required" : [ "nodeIdsByViewport", "selectorHint", "status" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "schemaVersion" : {
+            "type" : "string"
+          },
+          "viewportArtifacts" : {
+            "$ref" : "#/$defs/Map_String.String_"
+          },
+          "warnings" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "code" : {
+                  "type" : "string"
+                },
+                "message" : {
+                  "type" : "string"
+                },
+                "nodeId" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "code", "message", "nodeId" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          }
+        },
+        "required" : [ "breakpointObservations", "bundleId", "componentMatches", "schemaVersion", "viewportArtifacts", "warnings" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "bundle" ],
+    "type" : "object"
+  }
+}, {
   "name" : "prepareFigmaImport",
   "description" : "검증된 Design Artifact를 Figma Plugin에서 가져올 수 있는 .figpack 파일로 내보냅니다.",
   "inputSchema" : {

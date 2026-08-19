@@ -4,21 +4,34 @@
 <style>body{font:12px Inter,sans-serif;padding:16px;padding-bottom:0;margin:0}button,input[type=file]{margin-top:12px;width:100%}pre{white-space:pre-wrap;max-height:150px;overflow:auto}.options{display:none;margin:10px 0;padding:8px;background:#f5f5f5}.options label{display:block;margin:6px 0}.options input{margin-right:6px}#candidates{max-height:180px;overflow:auto;margin-top:6px}.actions{position:sticky;bottom:0;background:#fff;padding:12px 0 16px;margin-top:8px}.actions button{margin-top:0}.actions button+button{margin-top:8px}</style>
 <h3>Website Design Import</h3>
 <input id="file" type="file">
-<pre id="status">.figpack을 선택하세요.</pre>
+<pre id="status">.figpack 또는 .figbundle.zip을 선택하세요.</pre>
 <section id="options" class="options"><strong>생성 옵션</strong><label><input id="selectAll" type="checkbox">전체</label><label><input id="styles" type="checkbox">공통 Paint/Text/Effect Style 생성·재사용</label><label><input id="variables" type="checkbox">색상/폰트 크기 local Variable 생성(선택, publish 안 함)</label><label><input id="keepPartial" type="checkbox">생성 실패 시 진단용으로 임시 Frame 유지</label><div id="candidates"></div></section>
+<section id="bundleOptions" class="options"><strong>Variant 결합 후보(선택한 것만 결합)</strong><label><input id="selectAllVariants" type="checkbox">전체</label><div id="variantCandidates"></div></section>
 <div class="actions">
 <button id="create" disabled>Figma Frame 생성</button>
 <button id="cancel" disabled>취소</button>
 </div>
 <script>
-let bytes;
-const file = document.getElementById('file'), status = document.getElementById('status'), create = document.getElementById('create'), cancel=document.getElementById('cancel'),options=document.getElementById('options'),candidates=document.getElementById('candidates'),styles=document.getElementById('styles'),variables=document.getElementById('variables'),keepPartial=document.getElementById('keepPartial'),selectAll=document.getElementById('selectAll');
+let bytes, isBundle=false;
+const file = document.getElementById('file'), status = document.getElementById('status'), create = document.getElementById('create'), cancel=document.getElementById('cancel'),options=document.getElementById('options'),candidates=document.getElementById('candidates'),styles=document.getElementById('styles'),variables=document.getElementById('variables'),keepPartial=document.getElementById('keepPartial'),selectAll=document.getElementById('selectAll'),bundleOptions=document.getElementById('bundleOptions'),variantCandidates=document.getElementById('variantCandidates'),selectAllVariants=document.getElementById('selectAllVariants');
 const optionCheckboxes=()=>[...options.querySelectorAll('input[type=checkbox]')].filter(input=>input!==selectAll);
 selectAll.onchange=()=>{for(const input of optionCheckboxes())input.checked=selectAll.checked;};
 options.addEventListener('change',(event)=>{if(event.target===selectAll)return;const boxes=optionCheckboxes();selectAll.checked=boxes.length>0&&boxes.every(input=>input.checked);});
-file.onchange = async () => { const selected=file.files[0]; if(!selected)return; bytes=await selected.arrayBuffer(); create.disabled=true;options.style.display='none';status.textContent='패키지 검증 중…'; parent.postMessage({pluginMessage:{type:'PREVIEW',bytes}},'*'); };
-create.onclick = () => { const candidateTypes=[...candidates.querySelectorAll('input:checked')].map(input=>input.value);create.disabled=true; status.textContent='생성 중…'; parent.postMessage({pluginMessage:{type:'CREATE',candidateTypes,createStyles:styles.checked,createVariables:variables.checked,keepPartialOnFailure:keepPartial.checked}},'*'); };
-cancel.onclick=()=>{parent.postMessage({pluginMessage:{type:'CANCEL'}},'*');create.disabled=true;cancel.disabled=true;options.style.display='none';status.textContent='취소했습니다.';};
-onmessage = ({data}) => { if(!data.pluginMessage)return; const message=data.pluginMessage;status.textContent=message.message;if(message.type==='PREVIEW_READY'){candidates.replaceChildren();selectAll.checked=false;for(const type of message.candidates||[]){const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=type;label.append(input,document.createTextNode(`${type} Component 생성`));candidates.append(label);}options.style.display='block';create.disabled=false;cancel.disabled=false;}else if(message.type==='RESULT'||message.type==='ERROR'){create.disabled=true;cancel.disabled=true;} };
+const variantCheckboxes=()=>[...variantCandidates.querySelectorAll('input[type=checkbox]')];
+selectAllVariants.onchange=()=>{for(const input of variantCheckboxes())input.checked=selectAllVariants.checked;};
+variantCandidates.addEventListener('change',()=>{const boxes=variantCheckboxes();selectAllVariants.checked=boxes.length>0&&boxes.every(input=>input.checked);});
+file.onchange = async () => { const selected=file.files[0]; if(!selected)return; bytes=await selected.arrayBuffer(); create.disabled=true;options.style.display='none';bundleOptions.style.display='none';status.textContent='패키지 검증 중…'; parent.postMessage({pluginMessage:{type:'PREVIEW',bytes}},'*'); };
+create.onclick = () => {
+  create.disabled=true; status.textContent='생성 중…';
+  if(isBundle){ const selectedSelectorHints=[...variantCandidates.querySelectorAll('input:checked')].map(input=>input.value); parent.postMessage({pluginMessage:{type:'CREATE_BUNDLE',selectedSelectorHints}},'*'); return; }
+  const candidateTypes=[...candidates.querySelectorAll('input:checked')].map(input=>input.value); parent.postMessage({pluginMessage:{type:'CREATE',candidateTypes,createStyles:styles.checked,createVariables:variables.checked,keepPartialOnFailure:keepPartial.checked}},'*');
+};
+cancel.onclick=()=>{parent.postMessage({pluginMessage:{type:'CANCEL'}},'*');create.disabled=true;cancel.disabled=true;options.style.display='none';bundleOptions.style.display='none';status.textContent='취소했습니다.';};
+onmessage = ({data}) => {
+  if(!data.pluginMessage)return; const message=data.pluginMessage; status.textContent=message.message;
+  if(message.type==='PREVIEW_READY'){ isBundle=false; candidates.replaceChildren();selectAll.checked=false;for(const type of message.candidates||[]){const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=type;label.append(input,document.createTextNode(`${type} Component 생성`));candidates.append(label);}options.style.display='block';bundleOptions.style.display='none';create.disabled=false;cancel.disabled=false; }
+  else if(message.type==='PREVIEW_READY_BUNDLE'){ isBundle=true; variantCandidates.replaceChildren();selectAllVariants.checked=false;for(const selectorHint of message.variantCandidates||[]){const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.value=selectorHint;label.append(input,document.createTextNode(`${selectorHint} → Variant 결합`));variantCandidates.append(label);}options.style.display='none';bundleOptions.style.display='block';create.disabled=false;cancel.disabled=false; }
+  else if(message.type==='RESULT'||message.type==='ERROR'){create.disabled=true;cancel.disabled=true;}
+};
 </script>
 </html>
