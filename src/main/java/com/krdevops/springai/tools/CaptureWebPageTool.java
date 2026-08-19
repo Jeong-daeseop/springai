@@ -27,6 +27,12 @@ public class CaptureWebPageTool {
             필요 — 이 REST 엔드포인트만 credential을 받습니다)를 먼저 호출해 발급받은 opaque
             sessionId를 storageStateRef로 전달할 수 있습니다. 비밀번호·쿠키·토큰 원문은 이 Tool에
             전달하지 마세요.
+
+            SPA/동적 화면은 interactions(최대 20개, 순서대로 실행)로 상태를 재현할 수 있습니다.
+            허용 type은 click/fill/select/hover(selector 필수)·keydown(value=키 이름, 예: "Enter",
+            selector는 선택)·scroll(selector 선택, 없으면 한 화면 높이만큼 스크롤)뿐이며 임의
+            selector/action을 그 외 방식으로 실행할 수 없습니다. 같은 URL이라도 interactions
+            조합이 다르면 서로 다른 상태로 간주되어 별도 Artifact가 생성됩니다.
             """)
     public CaptureArtifactSummary captureWebPage(CaptureWebPageRequest request) {
         return service.capture(request);

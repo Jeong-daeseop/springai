@@ -3,7 +3,7 @@
   "captureId": "11111111-1111-4111-8111-111111111111",
   "documentKey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
   "contentHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-  "source": {"type": "RENDERED_WEB_PAGE", "applicationKind": "SERVER_MAGIC", "requestedUrl": "http://localhost:8080/", "finalUrl": "http://localhost:8080/", "urlFingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "capturedAt": "2026-07-21T00:00:00Z"},
+  "source": {"type": "RENDERED_WEB_PAGE", "applicationKind": "SERVER_MAGIC", "requestedUrl": "http://localhost:8080/", "finalUrl": "http://localhost:8080/", "urlFingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "capturedAt": "2026-07-21T00:00:00Z", "stateId": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"},
   "environment": {"viewportName": "desktop", "viewportWidth": 1440, "viewportHeight": 1200, "deviceScaleFactor": 1, "locale": "ko-KR", "timezone": "Asia/Seoul", "colorScheme": "light", "reducedMotion": true, "browserEngine": "chromium"},
   "page": {"title": "오류", "rootNodeId": "n1", "documentWidth": 1440, "documentHeight": 1200, "scrollX": 0, "scrollY": 0, "backgroundColor": "white"},
   "nodes": [], "assets": [], "tokens": {}, "componentCandidates": [], "interactions": [], "warnings": [], "extractor": {}

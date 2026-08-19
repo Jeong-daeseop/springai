@@ -9,12 +9,21 @@ import JSZip from "jszip";
 import Ajv2020Import from "ajv/dist/2020.js";
 import addFormatsImport from "ajv-formats";
 
+// R7(04번 문서 §10): 사전 등록된 6종만 허용하는 닫힌 interaction step — 임의 selector/action을
+// 런타임에 주입할 수 없다(arbitrary JavaScript 비지원 원칙과 동일한 보안 경계).
+type InteractionStep = {
+  type: "click" | "fill" | "select" | "scroll" | "hover" | "keydown";
+  selector?: string;
+  value?: string;
+};
+
 type CaptureRequest = {
   requestId?: string; captureId: string; documentKey: string; url: string; profile: "LOCAL_WEB";
   viewport: { name: string; width: number; height: number; deviceScaleFactor: number };
   readiness: { readySelector?: string; hiddenSelector?: string; timeoutMillis: number };
   sensitiveSelectors?: string[]; allowedOrigins: string[]; allowedResourceOrigins?: string[];
   storageStateRef?: string;
+  interactions?: InteractionStep[];
 };
 
 type SessionRequest = {
@@ -43,6 +52,7 @@ const ERROR_TAXONOMY: Record<string, { code: string; status: number }> = {
   SESSION_NOT_FOUND: { code: "CAPTURE_AUTH_FAILED", status: 401 },
   SESSION_LOGIN_FAILED: { code: "CAPTURE_AUTH_FAILED", status: 401 },
   SESSION_AUTH_SUSPECTED: { code: "CAPTURE_AUTH_FAILED", status: 401 },
+  CAPTURE_INTERACTION_FAILED: { code: "CAPTURE_INTERACTION_FAILED", status: 422 },
 };
 
 function classifyError(error: unknown): { code: string; status: number } {
@@ -135,12 +145,31 @@ async function validateOrigin(rawUrl: string, allowedOrigins: string[]) {
   return url;
 }
 
+const INTERACTION_TYPES = new Set(["click", "fill", "select", "scroll", "hover", "keydown"]);
+const INTERACTION_REQUIRES_SELECTOR = new Set(["click", "fill", "select", "hover"]);
+const INTERACTION_REQUIRES_VALUE = new Set(["fill", "select", "keydown"]);
+
+function validateInteractions(interactions: InteractionStep[] | undefined) {
+  if (interactions === undefined) return;
+  if (!Array.isArray(interactions) || interactions.length > 20) throw new Error("REQUEST_SCHEMA_INVALID");
+  const allowedKeys = new Set(["type", "selector", "value"]);
+  for (const step of interactions) {
+    if (!step || typeof step !== "object" || Object.keys(step).some(key => !allowedKeys.has(key))) {
+      throw new Error("REQUEST_SCHEMA_INVALID");
+    }
+    if (!INTERACTION_TYPES.has(step.type)) throw new Error("REQUEST_SCHEMA_INVALID");
+    if (INTERACTION_REQUIRES_SELECTOR.has(step.type) && !step.selector) throw new Error("REQUEST_SCHEMA_INVALID");
+    if (INTERACTION_REQUIRES_VALUE.has(step.type) && !step.value) throw new Error("REQUEST_SCHEMA_INVALID");
+  }
+}
+
 async function validateRequest(input: CaptureRequest) {
-  const allowedKeys = new Set(["requestId","captureId","documentKey","url","profile","viewport","readiness","sensitiveSelectors","allowedOrigins","allowedResourceOrigins","storageStateRef"]);
+  const allowedKeys = new Set(["requestId","captureId","documentKey","url","profile","viewport","readiness","sensitiveSelectors","allowedOrigins","allowedResourceOrigins","storageStateRef","interactions"]);
   if (!input || typeof input !== "object" || Object.keys(input).some(key => !allowedKeys.has(key))) throw new Error("REQUEST_SCHEMA_INVALID");
   if (input.profile !== "LOCAL_WEB") throw new Error("PROFILE_DENIED");
   if (!/^[0-9a-f-]{36}$/i.test(input.captureId) || !/^[a-f0-9]{64}$/.test(input.documentKey)) throw new Error("INVALID_ID");
   if (input.storageStateRef !== undefined && !/^[0-9a-f-]{36}$/i.test(input.storageStateRef)) throw new Error("INVALID_ID");
+  validateInteractions(input.interactions);
   await validateOrigin(input.url, input.allowedOrigins);
   if (input.viewport.width !== 1440 || input.viewport.height !== 1200) throw new Error("VIEWPORT_DENIED");
 }
@@ -238,8 +267,42 @@ async function capture(input: CaptureRequest): Promise<Buffer> {
     }
     if (input.readiness.readySelector) await page.waitForSelector(input.readiness.readySelector, { state: "visible", timeout: input.readiness.timeoutMillis });
     if (input.readiness.hiddenSelector) await page.waitForSelector(input.readiness.hiddenSelector, { state: "hidden", timeout: input.readiness.timeoutMillis });
-    await page.evaluate(async () => { await document.fonts.ready; document.querySelectorAll("*").forEach((element: Element) => { const html = element as HTMLElement; html.style.animation = "none"; html.style.transition = "none"; }); });
-    const stabilized = await page.evaluate(() => new Promise<boolean>(resolve => { let settled=false; let timer=setTimeout(() => {settled=true;resolve(true);},250); const observer=new MutationObserver(() => { clearTimeout(timer); timer=setTimeout(() => {settled=true;observer.disconnect();resolve(true);},250); }); observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,characterData:true}); setTimeout(() => { if(!settled){observer.disconnect();resolve(false);} },2000); }));
+    // R7(04번 문서 §10): 초기 로딩 전용이던 폰트 대기+애니메이션 정지+DOM 안정화 대기를 재사용
+    // 함수로 추출해, 아래 interaction step 각각을 실행한 직후에도 동일하게 적용한다("SPA
+    // readiness 전략"/"hydration·skeleton 판정"을 새 개념 없이 기존 primitive 재사용으로 충족).
+    const freezeAndWaitStable = () => page.evaluate(async () => { await document.fonts.ready; document.querySelectorAll("*").forEach((element: Element) => { const html = element as HTMLElement; html.style.animation = "none"; html.style.transition = "none"; }); }).then(() => page.evaluate(() => new Promise<boolean>(resolve => { let settled=false; let timer=setTimeout(() => {settled=true;resolve(true);},250); const observer=new MutationObserver(() => { clearTimeout(timer); timer=setTimeout(() => {settled=true;observer.disconnect();resolve(true);},250); }); observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,characterData:true}); setTimeout(() => { if(!settled){observer.disconnect();resolve(false);} },2000); })));
+    let stabilized = await freezeAndWaitStable();
+    const executedInteractions: Record<string, string>[] = [];
+    for (const step of input.interactions ?? []) {
+      try {
+        const timeout = input.readiness.timeoutMillis;
+        switch (step.type) {
+          case "click": await page.click(step.selector!, { timeout }); break;
+          case "fill": await page.fill(step.selector!, step.value!, { timeout }); break;
+          case "select": await page.selectOption(step.selector!, step.value!, { timeout }); break;
+          case "hover": await page.hover(step.selector!, { timeout }); break;
+          case "scroll":
+            if (step.selector) await page.locator(step.selector).scrollIntoViewIfNeeded({ timeout });
+            else await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+            break;
+          case "keydown":
+            if (step.selector) await page.focus(step.selector, { timeout });
+            await page.keyboard.press(step.value!);
+            break;
+        }
+      } catch {
+        throw new Error(`CAPTURE_INTERACTION_FAILED:${step.type}:${step.selector ?? ""}`);
+      }
+      stabilized = (await freezeAndWaitStable()) && stabilized;
+      executedInteractions.push({
+        type: step.type,
+        ...(step.selector ? { selector: step.selector } : {}),
+        ...(step.value ? { value: step.value } : {}),
+        // client-side route 변경 감지: 매 step 실행 후 URL을 기록해 라우팅 여부를 사후 확인 가능하게 한다.
+        urlAfter: maskedUrl(page.url()),
+      });
+    }
+    const stateId = sha256(JSON.stringify(canonical(input.interactions ?? [])));
     const collected = await page.evaluate(() => {
       let sequence = 0; const nodes: any[] = []; const candidates: any[] = []; const warnings:any[]=[];
       const ids = new Map<Node, string>();
@@ -323,9 +386,9 @@ async function capture(input: CaptureRequest): Promise<Buffer> {
     for(const inline of collected.inlineSvgs){try{const sanitized=inline.svg.replace(/<script[\s\S]*?<\/script>/gi,"").replace(/\son\w+\s*=\s*(['"])[\s\S]*?\1/gi,"").replace(/\s(?:href|xlink:href)\s*=\s*(['"])(?:https?:|\/\/)[\s\S]*?\1/gi,"");const bytes=Buffer.from(sanitized);if(bytes.length>1024*1024)throw new Error("size");const hash=sha256(bytes);const path=`assets/${hash}.svg`;assetFiles.set(path,bytes);assets.push({id:inline.id,path,mimeType:"image/svg+xml",byteLength:bytes.length,contentHash:hash});}catch{collected.warnings.push({code:"SVG_SANITIZE_FAILED",nodeId:inline.id,message:"SVG 자산을 안전하게 수집하지 못했습니다."});}}
     const now = new Date().toISOString();
     const document: any = { schemaVersion: "rendered-design-document-v1", captureId: input.captureId, documentKey: input.documentKey, contentHash: "",
-      source: { type: "RENDERED_WEB_PAGE", applicationKind: "UNKNOWN", requestedUrl: maskedUrl(input.url), finalUrl: maskedUrl(page.url()), urlFingerprint: sha256(maskedUrl(page.url())), capturedAt: now },
+      source: { type: "RENDERED_WEB_PAGE", applicationKind: "UNKNOWN", requestedUrl: maskedUrl(input.url), finalUrl: maskedUrl(page.url()), urlFingerprint: sha256(maskedUrl(page.url())), capturedAt: now, stateId },
       environment: { viewportName: input.viewport.name, viewportWidth: input.viewport.width, viewportHeight: input.viewport.height, deviceScaleFactor: input.viewport.deviceScaleFactor, locale: "ko-KR", timezone: "Asia/Seoul", colorScheme: "light", reducedMotion: true, browserEngine: "chromium" },
-      page: collected.page, nodes: collected.nodes, assets, tokens: collected.tokens, componentCandidates: collected.candidates, interactions: [], warnings: collected.warnings,
+      page: collected.page, nodes: collected.nodes, assets, tokens: collected.tokens, componentCandidates: collected.candidates, interactions: executedInteractions, warnings: collected.warnings,
       extractor: { name: "jsp-design-extractor", version: "0.1.0", browserVersion: browser.version(), schemaSha256, layoutAnalyzerVersion: LAYOUT_ANALYZER_VERSION, componentRecognizerVersion: COMPONENT_RECOGNIZER_VERSION } };
     const hashInput = structuredClone(document); delete hashInput.contentHash; delete hashInput.captureId; delete hashInput.source.capturedAt;
     hashInput.componentCandidates = sortByStableKey(hashInput.componentCandidates, (item: any) => `${item.type}|${[...item.nodeIds].sort().join(",")}`);

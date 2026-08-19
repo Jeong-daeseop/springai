@@ -2,13 +2,23 @@ package com.krdevops.springai.model.capture;
 
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+
 public record CaptureWebPageRequest(
         String url, CaptureProfile profile, ViewportSpec viewport,
-        ReadinessSpec readiness, String featureType, @Nullable String storageStateRef) {
+        ReadinessSpec readiness, String featureType, @Nullable String storageStateRef,
+        @Nullable List<InteractionStep> interactions) {
     public CaptureWebPageRequest(
             String url, CaptureProfile profile, ViewportSpec viewport,
             ReadinessSpec readiness, String featureType) {
         this(url, profile, viewport, readiness, featureType, null);
+    }
+
+    /** R7(04번 문서 §10) interactions 필드 도입 전 호출자 호환용. */
+    public CaptureWebPageRequest(
+            String url, CaptureProfile profile, ViewportSpec viewport,
+            ReadinessSpec readiness, String featureType, @Nullable String storageStateRef) {
+        this(url, profile, viewport, readiness, featureType, storageStateRef, null);
     }
 
     public CaptureWebPageRequest {
@@ -22,5 +32,9 @@ public record CaptureWebPageRequest(
             throw new IllegalArgumentException("storageStateRef는 Extractor가 발급한 UUID여야 합니다.");
         }
         storageStateRef = storageStateRef == null || storageStateRef.isBlank() ? null : storageStateRef;
+        if (interactions != null && interactions.size() > 20) {
+            throw new IllegalArgumentException("interactions는 최대 20개까지 허용됩니다.");
+        }
+        interactions = interactions == null ? null : List.copyOf(interactions);
     }
 }

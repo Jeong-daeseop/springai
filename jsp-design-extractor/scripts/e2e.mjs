@@ -17,6 +17,27 @@ const loginFixture=Buffer.from(`<!doctype html><html><head><title>로그인</tit
 <input id="password" name="password" type="password">
 <button id="submit" type="submit">로그인</button>
 </form></body></html>`);
+const spaFixture=Buffer.from(`<!doctype html><html><head><title>SPA</title></head><body>
+<button id="reveal">보기</button>
+<div id="panel" style="display:none">
+<input id="name" type="text">
+<select id="color"><option value="red">빨강</option><option value="blue">파랑</option></select>
+<div id="tooltip-trigger">hover me</div>
+<span id="tooltip" style="display:none">Tooltip!</span>
+<button id="submit-btn">제출</button>
+<div id="result" style="display:none">결과: <span id="result-name"></span>/<span id="result-color"></span></div>
+</div>
+<script>
+document.getElementById('reveal').addEventListener('click', () => { document.getElementById('panel').style.display = 'block'; });
+document.getElementById('tooltip-trigger').addEventListener('mouseenter', () => { document.getElementById('tooltip').style.display = 'inline'; });
+document.getElementById('submit-btn').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    document.getElementById('result-name').textContent = document.getElementById('name').value;
+    document.getElementById('result-color').textContent = document.getElementById('color').value;
+    document.getElementById('result').style.display = 'block';
+  }
+});
+</script></body></html>`);
 const securityFixture=Buffer.from(`<!doctype html><html><head><title>보안 검증</title></head><body><main>
 <input id="secret" value="screenshot-mask-sentinel" style="position:absolute;left:20px;top:20px;width:240px;height:80px;background:#00ff00">
 <img src="http://127.0.0.1:4321/external.png" alt="차단 대상">
@@ -54,6 +75,7 @@ const web = http.createServer((req, res) => {
     else res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"}).end(loginFixture);
     return;
   }
+  if(pathname==="/spa.do"){res.writeHead(200,{"Content-Type":"text/html; charset=utf-8"}).end(spaFixture);return;}
   if(pathname==="/protected-stale.do"){
     // 서버측에서 세션이 무효화됐지만(쿠키 유무와 무관하게 항상 로그인 폼) storageStateRef 자체는
     // extractor 세션 저장소에 아직 유효한 상태를 재현한다 — SESSION_NOT_FOUND가 아니라
@@ -120,6 +142,34 @@ try {
   if(!anonymousCapture.ok)throw new Error(`anonymous capture unexpectedly failed: ${anonymousCapture.status} ${await anonymousCapture.text()}`);
   await reject({...baseRequest,url:"http://127.0.0.1:4320/protected.do",storageStateRef:"00000000-0000-4000-8000-000000000000"},"test-key",401,"CAPTURE_AUTH_FAILED");
   await reject({...baseRequest,url:"http://127.0.0.1:4320/protected-stale.do",storageStateRef:session.sessionId},"test-key",401,"CAPTURE_AUTH_FAILED");
+
+  // R7(04번 문서 §10): interaction step 실행 후 SPA 동적 상태가 캡처되고, stateId가 interactions
+  // 배열에서 결정론적으로 계산되며, 존재하지 않는 selector는 CAPTURE_INTERACTION_FAILED로 거부된다.
+  const spaInteractions=[
+    {type:"click",selector:"#reveal"},
+    {type:"fill",selector:"#name",value:"홍길동"},
+    {type:"select",selector:"#color",value:"blue"},
+    {type:"hover",selector:"#tooltip-trigger"},
+    {type:"scroll"},
+    {type:"keydown",selector:"#submit-btn",value:"Enter"},
+  ];
+  const spaResponse=await fetch("http://127.0.0.1:4319/v1/captures",{method:"POST",headers:{"Content-Type":"application/json","X-Extractor-Key":"test-key"},body:JSON.stringify({...baseRequest,captureId:"11111111-1111-4111-8111-000000000010",url:"http://127.0.0.1:4320/spa.do",interactions:spaInteractions})});
+  if(!spaResponse.ok)throw new Error(`SPA capture failed: ${spaResponse.status} ${await spaResponse.text()}`);
+  const spaZip=await JSZip.loadAsync(await spaResponse.arrayBuffer());
+  const spaDocument=JSON.parse(await spaZip.file("document.json").async("string"));
+  if(!spaDocument.nodes.some(node=>node.text?.includes("홍길동")))throw new Error(`SPA fill step did not reach captured DOM: ${JSON.stringify(spaDocument.nodes.filter(n=>n.text))}`);
+  if(spaDocument.interactions.length!==spaInteractions.length)throw new Error(`interactions not recorded: ${JSON.stringify(spaDocument.interactions)}`);
+  if(spaDocument.interactions[1].type!=="fill"||spaDocument.interactions[1].value!=="홍길동")throw new Error(`interaction step not recorded correctly: ${JSON.stringify(spaDocument.interactions[1])}`);
+  if(!/^[a-f0-9]{64}$/.test(spaDocument.source.stateId))throw new Error(`stateId missing or malformed: ${spaDocument.source.stateId}`);
+
+  const emptyStateResponse=await fetch("http://127.0.0.1:4319/v1/captures",{method:"POST",headers:{"Content-Type":"application/json","X-Extractor-Key":"test-key"},body:JSON.stringify({...baseRequest,captureId:"11111111-1111-4111-8111-000000000011",url:"http://127.0.0.1:4320/spa.do"})});
+  if(!emptyStateResponse.ok)throw new Error(`baseline SPA capture failed: ${emptyStateResponse.status}`);
+  const emptyStateZip=await JSZip.loadAsync(await emptyStateResponse.arrayBuffer());
+  const emptyStateDocument=JSON.parse(await emptyStateZip.file("document.json").async("string"));
+  if(emptyStateDocument.source.stateId===spaDocument.source.stateId)throw new Error("stateId did not change between different interaction sequences");
+  if(emptyStateDocument.interactions.length!==0)throw new Error("baseline capture unexpectedly recorded interactions");
+
+  await reject({...baseRequest,url:"http://127.0.0.1:4320/spa.do",readiness:{timeoutMillis:1000},interactions:[{type:"click",selector:"#does-not-exist"}]},"test-key",422,"CAPTURE_INTERACTION_FAILED");
 
   console.log(`E2E OK: fixtures=4, nodes=${results.map(value=>value.nodes.length).join(",")}, deterministicHash=${repeated.contentHash.slice(0,12)}, security=${JSON.stringify(securityCounters)}`);
 } finally {

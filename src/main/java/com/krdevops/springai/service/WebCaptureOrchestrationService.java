@@ -3,6 +3,7 @@ package com.krdevops.springai.service;
 import com.krdevops.springai.config.WebCaptureProperties;
 import com.krdevops.springai.model.capture.CaptureArtifactSummary;
 import com.krdevops.springai.model.capture.CaptureWebPageRequest;
+import com.krdevops.springai.model.capture.InteractionStep;
 import com.krdevops.springai.model.capture.WebCaptureSessionRequest;
 import com.krdevops.springai.model.capture.WebCaptureSessionResponse;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class WebCaptureOrchestrationService {
@@ -58,7 +60,7 @@ public class WebCaptureOrchestrationService {
         try {
             String canonical = url.origin() + url.uri().getPath() + "\n" + request.profile()
                     + "\n" + request.viewport().name() + ":" + request.viewport().width()
-                    + "x" + request.viewport().height() + "\ninitial";
+                    + "x" + request.viewport().height() + "\n" + interactionState(request);
             Mac mac = Mac.getInstance("HmacSHA256");
             mac.init(new SecretKeySpec(properties.getDocumentKeySecret().getBytes(StandardCharsets.UTF_8),
                     "HmacSHA256"));
@@ -66,5 +68,17 @@ public class WebCaptureOrchestrationService {
         } catch (Exception e) {
             throw new IllegalStateException("documentKey 생성 실패", e);
         }
+    }
+
+    /**
+     * R7(04번 문서 §10): interaction step이 없는 기존 호출은 documentKey가 이전과 동일하게
+     * "initial"로 고정돼(Release 1 회귀 없음), 서로 다른 interaction 순서는 서로 다른
+     * documentKey(= 서로 다른 SPA 상태의 artifact)를 갖는다.
+     */
+    private String interactionState(CaptureWebPageRequest request) {
+        if (request.interactions() == null || request.interactions().isEmpty()) return "initial";
+        return request.interactions().stream()
+                .map(InteractionStep::toString)
+                .collect(Collectors.joining("|"));
     }
 }

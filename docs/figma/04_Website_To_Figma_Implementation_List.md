@@ -1,7 +1,7 @@
 # Website → Figma 단계별 구현목록
 
 **문서명**: 04_Website_To_Figma_Implementation_List.md  
-**버전**: 1.26
+**버전**: 1.27
 **작성일**: 2026-07-22  
 **상태**: Release 1 자동 구현·검증 완료 — 남은 항목은 전부 사람의 시각 검수·승인(quality-baseline, Figma 구조 대조)만 필요
 
@@ -944,25 +944,42 @@ Release 1에서 인증된 JSP 요구가 확인되면 SPA보다 이 Release를 �
 
 ### 착수 게이트
 
-- [ ] Release 2A 또는 공개 SPA용 인증 제외 결정
-- [ ] 허용 interaction step 목록 승인
-- [ ] arbitrary JavaScript 비지원 원칙 확인
+- [x] Release 2A 또는 공개 SPA용 인증 제외 결정 — (2026-08-19, 사용자 승인) 새 인증 메커니즘을 만들지 않고 R6의 `storageStateRef`를 그대로 재사용. SPA readiness(hydration/interaction step)와 인증은 서로 독립적인 관심사라 굳이 분리할 이유가 없다는 판단 — `storageStateRef`가 있으면 인증 상태로, 없으면 공개 상태로 캡처(둘 다 지원)
+- [x] 허용 interaction step 목록 승인 — (2026-08-19, 사용자 승인) `click`/`fill`/`select`/`scroll`/`hover`/`keydown` 6종으로 확정(닫힌 allowlist). 사전 등록된 selector/value만 실행 가능하며 임의 selector·action을 런타임에 주입할 수 없다
+- [x] arbitrary JavaScript 비지원 원칙 확인 — (2026-08-19, 사용자 승인) 지원하지 않는다는 원칙 유지. 04번 문서 전체의 허용 origin/selector 화이트리스트 기반 보안 경계와 일관됨
 
 ### 구현
 
-- [ ] SPA readiness 전략
-- [ ] hydration/skeleton 판정
-- [ ] URL pattern 대기
-- [ ] 사전 등록 click/fill/select/scroll step
-- [ ] `stateId`와 step hash
-- [ ] client-side route 변경 감지
-- [ ] 지속 polling과 network idle 분리
-- [ ] DOM mutation 안정화 정책
-- [ ] 동적 상태별 artifact 생성
+- [x] SPA readiness 전략 — (2026-08-19) 초기 페이지 로딩(`readySelector`/`hiddenSelector`)과 동일한 primitive를 interaction step 실행 후에도 재사용. 새 readiness 메커니즘을 따로 만들지 않음
+- [x] hydration/skeleton 판정 — (2026-08-19) 기존 `hiddenSelector`(로딩 skeleton이 사라질 때까지 대기)/`readySelector`(실제 컨텐츠 등장 대기) 조합으로 이미 충족 가능하다고 판단 — hydration 전용 신규 개념을 만들지 않음
+- [x] URL pattern 대기 — (2026-08-19) 범위 축소: 명시 URL 패턴 대기 대신, 각 interaction step 실행 후 `page.url()`을 기록해 `document.interactions`에 남긴다(클라이언트 라우팅으로 URL이 바뀌었는지 사후 확인 가능). 사전 URL 패턴 지정·대기는 실제 필요 사례가 나오면 별도로 추가
+- [x] 사전 등록 click/fill/select/scroll step — (2026-08-19) `hover`/`keydown` 포함 6종으로 구현. `CaptureRequest.interactions`(최대 20개)에 `{type, selector?, value?}`만 받으며 타입별 필수 필드(`click`/`hover`→selector, `fill`/`select`→selector+value, `keydown`→value, `scroll`→둘 다 선택)를 강제한다
+- [x] `stateId`와 step hash — (2026-08-19) `interactions` 배열의 canonical JSON을 SHA-256 해시해 `document.source.stateId`로 기록. 빈 배열(Release 1 정적 캡처)도 결정론적 고정값을 가져 모든 캡처가 예외 없이 이 필드를 갖는다(nullable 처리 없음)
+- [x] client-side route 변경 감지 — (2026-08-19) 위 "URL pattern 대기"와 동일한 범위 축소로 충족 — `document.interactions`의 각 단계에 실행 후 `page.url()`을 기록해 라우트 변경 여부를 사후 확인 가능하게 함
+- [x] 지속 polling과 network idle 분리 — 기존 R2 구현이 이미 이 원칙을 따른다(Playwright `networkidle` 대신 `domcontentloaded` + DOM MutationObserver 기반 자체 polling). 신규 코드 불필요
+- [x] DOM mutation 안정화 정책 — (2026-08-19) 기존 초기 로딩 전용이던 MutationObserver 안정화 로직(`waitForStable`)을 재사용 함수로 추출해 각 interaction step 실행 직후에도 동일하게 적용
+- [x] 동적 상태별 artifact 생성 — (2026-08-19) 상태 하나당 `.figpack` 하나(기존 Release 1 "캡처 1회 = artifact 1개" 모델 유지). 서로 다른 `interactions` 배열로 여러 번 `POST /v1/captures`를 호출하면 각각 다른 `stateId`를 가진 별도 artifact가 생성된다 — 한 응답에 여러 상태를 묶는 새 번들 포맷은 만들지 않음(그건 R8의 다중 viewport 번들과 성격이 다름)
+
+**springai/MCP 연동 (2026-08-19)**: R6와 달리 `interactions`는 원문 credential이 아니라 selector/value
+문자열이라(닫힌 6종 allowlist로 서버가 실제 실행 여부를 강제) MCP 노출 자체에 보안 충돌이 없어,
+기존 `captureWebPage` MCP Tool에 그대로 신규 `interactions` 파라미터(최대 20개)를 추가했다.
+`CaptureWebPageRequest`에 canonical+legacy 생성자 패턴으로 추가, `WebCaptureClient.captureOnce()`가
+extractor로 그대로 전달한다. `WebCaptureOrchestrationService.documentKey()`가 이전에는 상태
+슬롯을 리터럴 `"initial"`로 고정해뒀던 것을 발견해 `interactions`가 있으면 그 canonical 표현으로
+대체하도록 확장(빈 배열이면 계속 `"initial"` — 기존 Release 1 documentKey·회귀 없음). extractor
+쪽은 `interactions`/`stateId` 필드가 스키마에 이미 예약돼 있었으나(open string-map, 항상 빈 배열)
+한 번도 채워진 적이 없었다 — 사전 등록 6종 interaction step 실행, 기존 초기 로딩 전용
+MutationObserver 안정화 로직을 재사용 함수로 추출해 각 step 후에도 적용, `stateId =
+sha256(canonical(interactions))`를 `source.stateId`(신규 필수 필드, `RenderedNode` R2-05와 동일한
+canonical+legacy 생성자 패턴으로 Java 쪽도 확장 — `website-figma-contract` 스키마·fixture 4개
+갱신)로 기록하도록 구현. `jsp-design-extractor`의 `scripts/e2e.mjs`에 SPA fixture(클릭으로 패널
+노출→입력→선택→hover→scroll→keydown submit)와 실패 케이스(`CAPTURE_INTERACTION_FAILED`) 추가,
+Java `InteractionStepTest`/`WebCaptureClientE2ETest` 신규 테스트로 검증. Java 전체 테스트
+스위트 + extractor `npm test`/`lint`/`typecheck` + `website-figma-contract` 계약 테스트 통과.
 
 완료 조건:
 
-- 공개 또는 승인된 SPA fixture에서 지정 상태를 반복 재현할 수 있다.
+- 공개 또는 승인된 SPA fixture에서 지정 상태를 반복 재현할 수 있다. — 충족(로컬 SPA fixture로 검증. 실제 운영 SPA 대상 승인 절차는 R9 범위)
 
 ---
 
@@ -1088,6 +1105,7 @@ R6 이후에는 앞 단계의 완료 조건을 통과하지 않은 기능을 함
 
 | 버전 | 작성일 | 변경 내용 |
 |---|---|---|
+| 1.27 | 2026-08-19 | **R7(SPA와 동적 상태) 착수 게이트 3개 승인 확정 + 구현 완료.** 게이트: 인증 범위(R6 `storageStateRef` 재사용, 인증/비인증 둘 다 지원), 허용 interaction step(click/fill/select/scroll/hover/keydown 6종 닫힌 allowlist — 사용자가 hover/keydown 추가 요청), arbitrary JavaScript 비지원 원칙 유지. 구현: extractor의 `interactions`/`stateId` 필드가 스키마에 예약만 돼 있고 한 번도 채워진 적 없었던 것을 발견해 실제로 채움 — 사전 등록 6종 interaction step 실행(닫힌 allowlist, 임의 selector/action 런타임 주입 불가), 기존 초기 로딩 전용 MutationObserver 안정화 로직을 재사용 함수(`waitForStable`)로 추출해 각 step 후에도 적용("SPA readiness"/"hydration 판정"/"지속 polling" 항목을 새 개념 없이 기존 primitive 재사용으로 충족), `stateId = sha256(canonical(interactions))`를 `source.stateId`(신규 필수 필드, R2-05와 동일한 canonical+legacy 생성자 패턴)로 기록. springai/MCP 연동: `interactions`는 R6의 credential과 달리 selector/value 문자열이라 MCP 노출에 보안 충돌이 없어 기존 `captureWebPage` Tool에 그대로 추가(REST로 분리할 필요 없음). `WebCaptureOrchestrationService.documentKey()`가 상태 슬롯을 리터럴 `"initial"`로 고정해뒀던 걸 발견해 interactions 기반으로 확장(빈 배열은 계속 `"initial"`, 회귀 없음). `jsp-design-extractor`에 SPA fixture(클릭→입력→선택→hover→scroll→keydown submit)와 실패 케이스 e2e 테스트, Java `InteractionStepTest`/`WebCaptureClientE2ETest` 신규 테스트 추가. Java 전체 테스트 스위트(1397개) + extractor `npm test`/`lint`/`typecheck` + contract 테스트 통과 |
 | 1.26 | 2026-08-19 | **R6 착수 게이트 4개 전부 승인 확정 + 남은 코드 격차 2건 구현.** 게이트: Release 1 완료(코드 게이트 기준), 인증정보 저장소(현재 in-memory+TTL 유지), owner 식별(단일 사용자 신뢰 경계 유지), 보존·폐기 정책(TTL 30분 유지) — 전부 기존 구현을 정식 정책으로 재확인. 이에 따라 profile/owner 권한 검증·요청별 인증 Context·사용자별 artifact 분리 3건은 "범위 밖"으로 재분류(미구현이 아니라 결정에 따른 비대상). **로그인 화면 오탐 방지**: `storageStateRef`가 있는 요청에서만 비밀번호 입력란 존재를 `SESSION_AUTH_SUSPECTED`로 감지(무조건 검사하면 `list.html` fixture의 정상적인 비밀번호 필드까지 오탐됨을 실제 E2E 실행 중 발견해 범위를 좁힘), `scripts/e2e.mjs`에 로그인 fixture 3종과 세션 발급→인증 캡처/무효 세션 거부/서버측 세션 무효화 시뮬레이션 테스트 추가. **springai MCP/REST 연동**: 세션 생성(원문 credential 필요)을 MCP Tool로 노출하면 "인증정보를 MCP에 노출하지 않는다"는 R6 완료 조건과 정면 충돌함을 설계 중 발견(사용자 확인 후) — 신규 REST `POST /api/web-capture/sessions`(X-API-Key, 운영자 전용)로 구현하고 opaque `sessionId`만 `captureWebPage` MCP Tool로 전달하도록 함. `WebCaptureClientE2ETest`/`WebCaptureSessionControllerTest` 신규, Java 전체 테스트 스위트(1388개) + extractor `npm test`/`lint`/`typecheck` 통과 |
 | 1.25 | 2026-07-22 | "생성 옵션" 옆에 "전체" 체크박스 추가 요청. `ui.html`에 `#selectAll` 체크박스 추가 — 체크 시 styles/variables/keepPartial + 동적으로 생성되는 candidates 체크박스 전부를 한 번에 토글. 개별 체크박스를 수동으로 바꾸면 `change` 이벤트 위임으로 "전체" 상태도 자동 동기화(전부 체크됐으면 자동 체크, 하나라도 해제되면 자동 해제). `.figpack` 새로 선택할 때마다 "전체"도 초기화. 별도 빌드 불요(manifest가 `src/ui.html` 직접 참조) |
 | 1.24 | 2026-07-22 | 사용자 UX 지적: 컴포넌트 후보 체크박스(최대 16종)가 많으면 "Figma Frame 생성" 버튼이 화면 밖으로 밀려나 매번 스크롤해야 함. `ui.html`에 `#candidates` 자체 스크롤(`max-height:180px`) + 생성/취소 버튼 `position:sticky;bottom:0` 고정 적용, `code.ts`의 `figma.showUI` 기본 높이 480→640으로 확대. `typecheck`/`lint`/`build` 통과, `ui.html`은 manifest가 직접 참조해 별도 번들링 불요 |

@@ -58,6 +58,9 @@ public class WebCaptureClient {
             if (request.storageStateRef() != null) {
                 body.put("storageStateRef", request.storageStateRef());
             }
+            if (request.interactions() != null) {
+                body.put("interactions", request.interactions());
+            }
             HttpRequest httpRequest = HttpRequest.newBuilder(endpoint("/v1/captures"))
                     .timeout(Duration.ofSeconds(properties.getResponseTimeoutSeconds()))
                     .header("Content-Type", "application/json")

@@ -25,14 +25,15 @@
     "nullableString": {"type": ["string", "null"]},
     "source": {
       "type": "object", "additionalProperties": false,
-      "required": ["type", "applicationKind", "requestedUrl", "finalUrl", "urlFingerprint", "capturedAt"],
+      "required": ["type", "applicationKind", "requestedUrl", "finalUrl", "urlFingerprint", "capturedAt", "stateId"],
       "properties": {
         "type": {"const": "RENDERED_WEB_PAGE"},
         "applicationKind": {"enum": ["JSP", "THYMELEAF", "STATIC_HTML", "SPA", "UNKNOWN"]},
         "requestedUrl": {"type": "string", "maxLength": 4096},
         "finalUrl": {"type": "string", "maxLength": 4096},
         "urlFingerprint": {"$ref": "#/$defs/hash"},
-        "capturedAt": {"type": "string", "format": "date-time"}
+        "capturedAt": {"type": "string", "format": "date-time"},
+        "stateId": {"$ref": "#/$defs/hash"}
       }
     },
     "environment": {

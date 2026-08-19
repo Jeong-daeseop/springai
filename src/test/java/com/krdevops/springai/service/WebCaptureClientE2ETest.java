@@ -162,6 +162,67 @@ class WebCaptureClientE2ETest {
         assertThat(forwardedStorageStateRef).hasValue(storageStateRef);
     }
 
+    /** R7(04번 문서 §10): interactions가 extractor 요청 본문에 그대로 전달된다. */
+    @Test
+    void t07_interactionsAreForwardedToExtractor(@TempDir Path tempDir) throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        AtomicReference<com.fasterxml.jackson.databind.JsonNode> forwardedInteractions = new AtomicReference<>();
+        HttpServer extractor = extractorServer(exchange -> {
+            var body = mapper.readTree(exchange.getRequestBody());
+            forwardedInteractions.set(body.path("interactions"));
+            var requestIds = new String[]{body.get("captureId").asText(), body.get("documentKey").asText()};
+            byte[] figpack = packUnchecked(mapper, requestIds[0], requestIds[1], "SPA", List.of(
+                    field("title", "textbox", "제목", null)));
+            exchange.getResponseHeaders().add("Content-Type", "application/vnd.springai.figpack+zip");
+            exchange.sendResponseHeaders(200, figpack.length);
+            exchange.getResponseBody().write(figpack);
+        });
+        WebCaptureProperties properties = properties(tempDir, extractor);
+        WebCaptureOrchestrationService orchestration = orchestration(mapper, properties);
+        var interactions = List.of(
+                new com.krdevops.springai.model.capture.InteractionStep("click", "#reveal", null),
+                new com.krdevops.springai.model.capture.InteractionStep("fill", "#name", "홍길동"));
+
+        CaptureArtifactSummary captured = orchestration.capture(new CaptureWebPageRequest(
+                "http://localhost:8080/spa.do", CaptureProfile.LOCAL_WEB, ViewportSpec.desktop(), null,
+                "crud", null, interactions));
+
+        assertThat(captured.artifactId()).isNotBlank();
+        assertThat(forwardedInteractions.get()).hasSize(2);
+        assertThat(forwardedInteractions.get().get(1).get("value").asText()).isEqualTo("홍길동");
+    }
+
+    /** R7(04번 문서 §10): interaction 조합이 다르면(documentKey에 반영되어) 별도 Artifact가 생성된다. */
+    @Test
+    void t07_differentInteractionsProduceDifferentArtifacts(@TempDir Path tempDir) throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        AtomicReference<String> lastDocumentKey = new AtomicReference<>();
+        HttpServer extractor = extractorServer(exchange -> {
+            var body = mapper.readTree(exchange.getRequestBody());
+            lastDocumentKey.set(body.get("documentKey").asText());
+            var requestIds = new String[]{body.get("captureId").asText(), body.get("documentKey").asText()};
+            byte[] figpack = packUnchecked(mapper, requestIds[0], requestIds[1], "SPA", List.of(
+                    field("title", "textbox", "제목", null)));
+            exchange.getResponseHeaders().add("Content-Type", "application/vnd.springai.figpack+zip");
+            exchange.sendResponseHeaders(200, figpack.length);
+            exchange.getResponseBody().write(figpack);
+        });
+        WebCaptureProperties properties = properties(tempDir, extractor);
+        WebCaptureOrchestrationService orchestration = orchestration(mapper, properties);
+
+        orchestration.capture(new CaptureWebPageRequest(
+                "http://localhost:8080/spa.do", CaptureProfile.LOCAL_WEB, ViewportSpec.desktop(), null, "crud"));
+        String initialDocumentKey = lastDocumentKey.get();
+
+        orchestration.capture(new CaptureWebPageRequest(
+                "http://localhost:8080/spa.do", CaptureProfile.LOCAL_WEB, ViewportSpec.desktop(), null,
+                "crud", null, List.of(new com.krdevops.springai.model.capture.InteractionStep(
+                        "click", "#reveal", null))));
+        String afterClickDocumentKey = lastDocumentKey.get();
+
+        assertThat(afterClickDocumentKey).isNotEqualTo(initialDocumentKey);
+    }
+
     @Test
     void storageStateRefMustBeAnExtractorIssuedUuid() {
         assertThatThrownBy(() -> new CaptureWebPageRequest(
