@@ -48,6 +48,7 @@ class McpToolRiskAnnotationCoverageTest {
         // WP6 생성 진입점 결선 이후 실측치 — McpConfig에 새 Tool을 등록하면 이 값도 함께 갱신한다.
         // R6-046/R5-045: previewPlatformConversion·previewStyleTokenDiff 추가로 95 → 97.
         // R6-032~038(2026-08-18): generateFigmaBundleForOperation 추가로 97 → 98.
-        assertThat(scannedMethods).isEqualTo(98);
+        // R6-065(2026-08-19): bindFigmaDesignRequestTable 추가로 98 → 99.
+        assertThat(scannedMethods).isEqualTo(99);
     }
 }

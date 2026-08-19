@@ -171,6 +171,10 @@
   "method" : "POST",
   "path" : "/api/figma/orchestration/approved-specification"
 }, {
+  "controller" : "FigmaDesignOrchestrationController",
+  "method" : "POST",
+  "path" : "/api/figma/orchestration/bind-table"
+}, {
   "controller" : "FigmaRefinementController",
   "method" : "POST",
   "path" : "/api/figma/refinements/capture"
