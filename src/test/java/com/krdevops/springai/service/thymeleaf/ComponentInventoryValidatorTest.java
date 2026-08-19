@@ -27,7 +27,8 @@ import static org.junit.jupiter.api.Assertions.*;
  * (TransformersEmbeddingModel) 기준이라 인터페이스 스텁 Bean만으로는 비활성화되지 않는다.
  */
 @SpringBootTest
-@TestPropertySource(properties = {"spring.ai.model.embedding=none", "spring.ai.vectorstore.redis.enabled=false"})
+@TestPropertySource(properties = {"spring.ai.model.embedding=none", "spring.ai.vectorstore.redis.enabled=false",
+        "spring.ai.openai.api-key=test-key-not-used"})
 @Import(StubEmbeddingModelTestConfig.class)
 @DisplayName("I-4A: ComponentInventoryValidator 테스트")
 class ComponentInventoryValidatorTest {
