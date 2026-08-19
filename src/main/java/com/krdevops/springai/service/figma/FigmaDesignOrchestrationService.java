@@ -11,6 +11,7 @@ import com.krdevops.springai.model.design.UiDesignSpec;
 import com.krdevops.springai.model.designsystem.ComponentRegistry;
 import com.krdevops.springai.model.designsystem.ComponentRegistryEntry;
 import com.krdevops.springai.model.figma.FigmaExportBundle;
+import com.krdevops.springai.model.figma.FigmaExportMetadata;
 import com.krdevops.springai.model.figma.FigmaExportMode;
 import com.krdevops.springai.model.figma.FigmaNodeSpec;
 import com.krdevops.springai.model.figma.FigmaScreenExportRequest;
@@ -74,6 +75,7 @@ public class FigmaDesignOrchestrationService {
     private final ComponentRegistryResolver componentRegistryResolver;
     private final DesignSystemQueryService designSystemQueryService;
     private final FigmaApiClient figmaApiClient;
+    private final DesignFieldCandidateExtractor fieldCandidateExtractor;
 
     /**
      * 승인된 ScreenSpecification을 실제 Bundle과 불변 Artifact로 만든 뒤에만 PREVIEW_READY를 반환한다.
@@ -98,7 +100,9 @@ public class FigmaDesignOrchestrationService {
                     null, issues, List.of());
         }
 
-        var bundle = screenExportService.exportBundle(exportRequest).withOperationId(initial.operationId());
+        var bundle = screenExportService.exportBundle(exportRequest)
+                .withOperationId(initial.operationId())
+                .withOrigin(FigmaExportMetadata.Origin.ORCHESTRATED);
         DesignArtifactService.FigmaBundleArtifact saved = artifactService.saveFigmaExportBundle(bundle);
         ArtifactRef artifact = new ArtifactRef(
                 saved.artifactId(),
@@ -184,6 +188,29 @@ public class FigmaDesignOrchestrationService {
     }
 
     /**
+     * 22/23번 문서 A-01e: {@code AWAITING_TABLE_BINDING} 상태의 Operation에 database/tableName을
+     * 채워 {@code ANALYZED}로 되돌린 뒤, 기존 {@link #generateBundle(String)} 파이프라인을 그대로
+     * 재호출해 분석을 다시 실행한다. {@code AWAITING_TABLE_BINDING}은 REFERENCE_STYLE/
+     * IMAGE_REFERENCE에서만 발생하므로(C-04 예외 규칙) {@code generateBundle}이 자연스럽게
+     * {@code generateFromReference}/{@code generateFromImage}로 라우팅한다.
+     */
+    public FigmaDesignOperation bindTable(String operationId, String database, String tableName) {
+        if (isBlank(database) || isBlank(tableName)) {
+            throw new IllegalArgumentException("database와 tableName은 필수입니다");
+        }
+        FigmaDesignOperation operation = operationRepository.findLatest(operationId)
+                .orElseThrow(() -> new IllegalArgumentException("Operation not found: " + operationId));
+        if (operation.status() != FigmaDesignOperationStatus.AWAITING_TABLE_BINDING) {
+            throw new IllegalStateException(
+                    "AWAITING_TABLE_BINDING 상태의 Operation만 테이블을 바인딩할 수 있습니다: " + operation.status());
+        }
+        FigmaDesignRequest boundRequest = operation.request().withDatabaseTable(database, tableName);
+        operationRepository.appendTransitionWithRequest(
+                operationId, boundRequest, FigmaDesignOperationStatus.ANALYZED, List.of(), List.of());
+        return generateBundle(operationId);
+    }
+
+    /**
      * R6-038: {@code screenSpecificationId}가 가리키는 기존 화면을 {@code targetPlatform} 기준으로
      * export한 뒤, {@link FigmaPlatformConversionService}가 계산한 Component Swap 결정을
      * {@code FigmaNodeSpec} 트리에 실제로 반영해 새 Bundle로 저장한다. Grid 폭·열 수 재계산은
@@ -249,7 +276,8 @@ public class FigmaDesignOrchestrationService {
                 convertedSpec, sourceBundle.designSystemProfile(), sourceBundle.componentRegistry(),
                 sourceBundle.resolvedComponentRegistry(), sourceBundle.screenPattern(),
                 sourceBundle.variantRuleSet(), sourceBundle.metadata())
-                .withOperationId(operation.operationId());
+                .withOperationId(operation.operationId())
+                .withOrigin(FigmaExportMetadata.Origin.ORCHESTRATED);
 
         DesignArtifactService.FigmaBundleArtifact saved = artifactService.saveFigmaExportBundle(convertedBundle);
         ArtifactRef artifact = new ArtifactRef(
@@ -321,10 +349,6 @@ public class FigmaDesignOrchestrationService {
      * 그대로 재사용한다(별도 허용 경로 설정 불필요).
      */
     private FigmaDesignOperation generateFromImage(FigmaDesignOperation operation, FigmaDesignRequest request) {
-        if (isBlank(request.database()) || isBlank(request.tableName())) {
-            return rejectWithMessage(operation, "DATABASE_TABLE_REQUIRED",
-                    "실제 화면 Bundle 생성에는 database/tableName이 필요합니다(기존 CRUD 생성 아키텍처와 통일).");
-        }
         String nodeId = request.imageNodeIds().get(0);
         FigmaApiClient.FigmaImageUrls images;
         try {
@@ -350,6 +374,9 @@ public class FigmaDesignOrchestrationService {
                         tempFile.toString(), null, request.featureType());
             } catch (RuntimeException e) {
                 return rejectWithMessage(operation, "IMAGE_ANALYSIS_FAILED", e.getMessage());
+            }
+            if (isBlank(request.database()) || isBlank(request.tableName())) {
+                return awaitTableBinding(operation, fieldCandidateExtractor.extract(analysis.uiSpec()));
             }
             return generateFromScreenSpecification(operation, request, analysis.uiSpec());
         } finally {
@@ -377,10 +404,6 @@ public class FigmaDesignOrchestrationService {
 
     /** R6-033: Figma 참조 화면을 분석해 DB 테이블에 바인딩된 새 화면을 만든다. */
     private FigmaDesignOperation generateFromReference(FigmaDesignOperation operation, FigmaDesignRequest request) {
-        if (isBlank(request.database()) || isBlank(request.tableName())) {
-            return rejectWithMessage(operation, "DATABASE_TABLE_REQUIRED",
-                    "실제 화면 Bundle 생성에는 database/tableName이 필요합니다(기존 CRUD 생성 아키텍처와 통일).");
-        }
         String nodeId = request.referenceNodeIds().get(0);
         String syntheticFigmaUrl = "https://www.figma.com/design/" + request.fileKey() + "/reference";
         DesignAnalysisResult analysis;
@@ -388,6 +411,9 @@ public class FigmaDesignOrchestrationService {
             analysis = designReferenceAnalysisService.analyzeFigma(syntheticFigmaUrl, nodeId, request.featureType());
         } catch (RuntimeException e) {
             return rejectWithMessage(operation, "FIGMA_REFERENCE_ANALYSIS_FAILED", e.getMessage());
+        }
+        if (isBlank(request.database()) || isBlank(request.tableName())) {
+            return awaitTableBinding(operation, fieldCandidateExtractor.extract(analysis.uiSpec()));
         }
         return generateFromScreenSpecification(operation, request, analysis.uiSpec());
     }
@@ -483,7 +509,9 @@ public class FigmaDesignOrchestrationService {
                 FigmaScreenExportRequest exportRequest = new FigmaScreenExportRequest(
                         spec.id(), spec.version(), spec.pages().get(0).id(), null, "DESKTOP",
                         FigmaExportMode.PREVIEW, FigmaSyncMode.PREVIEW);
-                var bundle = screenExportService.exportBundle(exportRequest).withOperationId(operation.operationId());
+                var bundle = screenExportService.exportBundle(exportRequest)
+                .withOperationId(operation.operationId())
+                .withOrigin(FigmaExportMetadata.Origin.ORCHESTRATED);
                 DesignArtifactService.FigmaBundleArtifact saved = artifactService.saveFigmaExportBundle(bundle);
                 artifacts.add(new ArtifactRef(saved.artifactId(), "FIGMA_EXPORT_BUNDLE", saved.relativePath(),
                         saved.contentHash(), saved.createdAt().atZone(ZoneId.systemDefault()).toInstant()));
@@ -535,7 +563,9 @@ public class FigmaDesignOrchestrationService {
         FigmaScreenExportRequest exportRequest = new FigmaScreenExportRequest(
                 spec.id(), spec.version(), spec.pages().get(0).id(), null, "DESKTOP",
                 FigmaExportMode.PREVIEW, FigmaSyncMode.PREVIEW);
-        var bundle = screenExportService.exportBundle(exportRequest).withOperationId(operation.operationId());
+        var bundle = screenExportService.exportBundle(exportRequest)
+                .withOperationId(operation.operationId())
+                .withOrigin(FigmaExportMetadata.Origin.ORCHESTRATED);
         DesignArtifactService.FigmaBundleArtifact saved = artifactService.saveFigmaExportBundle(bundle);
         ArtifactRef artifact = new ArtifactRef(
                 saved.artifactId(), "FIGMA_EXPORT_BUNDLE", saved.relativePath(), saved.contentHash(),
@@ -553,6 +583,36 @@ public class FigmaDesignOrchestrationService {
      * {@code reviseScreenSpecification}/{@code approveScreenSpecification}으로 직접 고친 뒤,
      * 이미 있는 {@code createFigmaBundleFromApprovedSpecification}으로 Bundle을 만들어야 한다.
      */
+    /**
+     * 22/23번 문서 PROP-01/S-01(경로 A로 정정): REFERENCE_STYLE/IMAGE_REFERENCE는 database/
+     * tableName이 없어도 분석(analyzeFigma/analyze)은 그대로 실행하고, 그 결과에서 뽑은 필드 후보를
+     * Operation의 issues에 실어 AWAITING_TABLE_BINDING으로 전이한다("디자인을 먼저 보고 테이블은
+     * 나중에" 워크플로우 — 22번 문서 §4 원 설계).
+     *
+     * <p>과도기적 제약: {@code bindFigmaDesignRequestTable}(A-01)이 아직 없어, 사람이 이 필드
+     * 후보를 확인한 뒤에도 이 Operation 자체를 이어서 완료할 방법은 없다. database/tableName을
+     * 채운 새 요청으로 다시 시도해야 한다 — A-01이 갖춰지면 해소된다.
+     */
+    private FigmaDesignOperation awaitTableBinding(
+            FigmaDesignOperation operation, List<UiDesignSpec.FieldHint> candidates) {
+        List<GenerationIssue> issues = new ArrayList<>();
+        issues.add(new GenerationIssue(
+                "DATABASE_TABLE_PENDING", GenerationIssue.Severity.WARNING, "SCREEN_SPECIFICATION", null,
+                "database/tableName이 지정되지 않아 테이블 확정을 기다립니다. 필드 후보 " + candidates.size()
+                        + "건을 추출했습니다.",
+                "bindFigmaDesignRequestTable 지원 전까지는 database/tableName을 채운 요청으로 다시 시도하세요."));
+        for (UiDesignSpec.FieldHint candidate : candidates) {
+            issues.add(new GenerationIssue(
+                    "FIELD_CANDIDATE", GenerationIssue.Severity.WARNING, "SCREEN_SPECIFICATION",
+                    candidate.id(),
+                    "필드 후보: " + candidate.label() + " (역할 힌트: " + candidate.role()
+                            + ", 신뢰도 " + candidate.confidence() + ")",
+                    null));
+        }
+        return operationRepository.appendTransition(
+                operation.operationId(), FigmaDesignOperationStatus.AWAITING_TABLE_BINDING, null, issues, List.of());
+    }
+
     private FigmaDesignOperation rejectReviewRequired(FigmaDesignOperation operation, ScreenSpecification spec) {
         List<GenerationIssue> issues = new ArrayList<>();
         issues.add(new GenerationIssue(

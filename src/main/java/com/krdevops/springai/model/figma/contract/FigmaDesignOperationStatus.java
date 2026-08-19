@@ -8,6 +8,12 @@ public enum FigmaDesignOperationStatus {
     /** 초기 상태: 요청 분석 완료 */
     ANALYZED,
 
+    /**
+     * REFERENCE_STYLE/IMAGE_REFERENCE 요청에 database/tableName이 없어 필드 후보만 추출하고
+     * 사람의 테이블 지정을 기다리는 중간 상태(22/23번 문서 PROP-01/C-01).
+     */
+    AWAITING_TABLE_BINDING,
+
     /** 미리보기 생성 완료 */
     PREVIEW_READY,
 

@@ -34,6 +34,7 @@
     "status": {
       "enum": [
         "ANALYZED",
+        "AWAITING_TABLE_BINDING",
         "PREVIEW_READY",
         "APPLY_REQUIRED",
         "APPLIED",

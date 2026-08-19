@@ -11,6 +11,7 @@ import java.util.Set;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.ANALYZED;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.APPLIED;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.APPLY_REQUIRED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.AWAITING_TABLE_BINDING;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.CONFLICT;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.FAILED;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.PREVIEW_READY;
@@ -30,7 +31,10 @@ public class FigmaDesignOperationStateService {
     private static Map<FigmaDesignOperationStatus, Set<FigmaDesignOperationStatus>> buildTransitionGraph() {
         Map<FigmaDesignOperationStatus, Set<FigmaDesignOperationStatus>> graph =
                 new EnumMap<>(FigmaDesignOperationStatus.class);
-        graph.put(ANALYZED, EnumSet.of(PREVIEW_READY, FAILED, REJECTED));
+        graph.put(ANALYZED, EnumSet.of(PREVIEW_READY, AWAITING_TABLE_BINDING, FAILED, REJECTED));
+        // A-01d(22/23번 문서): bindFigmaDesignRequestTable이 database/tableName을 채운 request로
+        // 분석을 재실행하기 전, AWAITING_TABLE_BINDING을 다시 ANALYZED로 되돌릴 수 있어야 한다.
+        graph.put(AWAITING_TABLE_BINDING, EnumSet.of(ANALYZED, PREVIEW_READY, FAILED, REJECTED));
         graph.put(PREVIEW_READY, EnumSet.of(APPLY_REQUIRED, FAILED, REJECTED, CONFLICT));
         graph.put(APPLY_REQUIRED, EnumSet.of(APPLIED, FAILED, REJECTED, CONFLICT));
         graph.put(APPLIED, EnumSet.noneOf(FigmaDesignOperationStatus.class));

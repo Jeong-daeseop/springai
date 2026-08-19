@@ -70,6 +70,33 @@ public record FigmaDesignOperation(
     }
 
     /**
+     * 22/23번 문서 A-01b: {@code appendTransitionWithRequest}(A-01c)가 request 자체를 갱신하며
+     * 다음 revision으로 전이할 때 사용한다. request가 바뀌면 hash도 함께 바뀌므로 두 값을 한
+     * 번에 받는다 — 이 record는 해시 알고리즘을 모르므로 호출자(Repository)가 재계산해서 넘긴다.
+     */
+    public FigmaDesignOperation withRequestAndNextRevision(
+            FigmaDesignRequest nextRequest,
+            String nextHash,
+            FigmaDesignOperationStatus nextStatus,
+            SourceRevisionRef nextSourceRevision,
+            List<GenerationIssue> nextIssues,
+            List<ArtifactRef> nextArtifacts
+    ) {
+        return new FigmaDesignOperation(
+                operationId,
+                revision + 1,
+                nextRequest,
+                nextHash,
+                nextStatus,
+                nextSourceRevision,
+                nextIssues,
+                nextArtifacts,
+                createdAt,
+                Instant.now()
+        );
+    }
+
+    /**
      * 요청 hash 반환 (멱등성 추적용)
      */
     public String requestHash() {

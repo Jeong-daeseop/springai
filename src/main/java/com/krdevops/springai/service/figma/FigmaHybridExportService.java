@@ -6,7 +6,8 @@ import com.krdevops.springai.model.capture.RenderedNode;
 import com.krdevops.springai.model.design.DesignAnalysisResult;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.UiDesignSpec;
-import com.krdevops.springai.model.figma.FigmaExportResult;
+import com.krdevops.springai.model.figma.FigmaExportBundle;
+import com.krdevops.springai.model.figma.FigmaExportMetadata;
 import com.krdevops.springai.model.figma.FigmaScreenExportRequest;
 import com.krdevops.springai.model.figma.hybrid.FigmaHybridApprovalRequest;
 import com.krdevops.springai.model.figma.hybrid.FigmaHybridCandidate;
@@ -113,14 +114,12 @@ public class FigmaHybridExportService {
         }
         ScreenSpecification approved =
                 screenSpecificationService.approve(request.screenSpecificationId());
-        FigmaExportResult semantic = figmaScreenExportService.export(
+        FigmaExportBundle semantic = figmaScreenExportService.exportBundle(
                 new FigmaScreenExportRequest(
                         approved.id(), approved.version(), request.pageId(),
                         request.designSystemProfileId(), semanticViewport(candidate, request.viewport()),
-                        request.exportMode(), request.syncMode()));
-        if (semantic.figmaScreenSpec() == null) {
-            throw new IllegalStateException("승인 후 FigmaScreenSpec 생성 결과가 없습니다.");
-        }
+                        request.exportMode(), request.syncMode()))
+                .withOrigin(FigmaExportMetadata.Origin.HYBRID);
 
         FigmaImportArtifact referenceArtifact = artifactService.prepareFigmaImport(artifactId);
         HybridConversionReport report = candidate.report().withSemanticOutput(

@@ -18,7 +18,8 @@ import com.krdevops.springai.model.design.UiDesignSpec;
 import com.krdevops.springai.model.design.UiFieldRole;
 import com.krdevops.springai.model.design.WebCaptureDesignSourceMetadata;
 import com.krdevops.springai.model.figma.FigmaExportMode;
-import com.krdevops.springai.model.figma.FigmaExportResult;
+import com.krdevops.springai.model.figma.FigmaExportBundle;
+import com.krdevops.springai.model.figma.FigmaExportMetadata;
 import com.krdevops.springai.model.figma.FigmaScreenSpec;
 import com.krdevops.springai.model.figma.FigmaSyncMode;
 import com.krdevops.springai.model.figma.hybrid.FigmaHybridApprovalRequest;
@@ -118,15 +119,19 @@ class FigmaHybridExportServiceTest {
         when(semanticSpec.screenId()).thenReturn("list");
         when(semanticSpec.screenVersion()).thenReturn(4);
         when(semanticSpec.viewport()).thenReturn("DESKTOP");
-        FigmaExportResult semantic =
-                new FigmaExportResult(FigmaExportResult.Status.SUCCESS, semanticSpec, List.of(), LocalDateTime.now(), null);
+        FigmaExportBundle semantic = org.mockito.Mockito.mock(FigmaExportBundle.class);
+        when(semantic.figmaScreenSpec()).thenReturn(semanticSpec);
+        when(semantic.withOrigin(FigmaExportMetadata.Origin.HYBRID)).thenReturn(semantic);
+        when(semantic.metadata()).thenReturn(new FigmaExportMetadata(
+                        LocalDateTime.now(), "figma-screen-spec-v1", 4, "1.0.0", "registry-1")
+                .withOrigin(FigmaExportMetadata.Origin.HYBRID));
         FigmaImportArtifact reference =
                 new FigmaImportArtifact(artifactId, artifactId + ".figpack", "/tmp/reference.figpack", 10);
 
         when(artifactStore.readCandidate(artifactId)).thenReturn(candidate);
         when(screenSpecificationService.get(proposed.id())).thenReturn(proposed);
         when(screenSpecificationService.approve(proposed.id())).thenReturn(approved);
-        when(figmaScreenExportService.export(any())).thenReturn(semantic);
+        when(figmaScreenExportService.exportBundle(any())).thenReturn(semantic);
         when(artifactService.prepareFigmaImport(artifactId)).thenReturn(reference);
 
         FigmaHybridExportResult result = service.approveAndExport(
@@ -141,6 +146,8 @@ class FigmaHybridExportServiceTest {
         assertThat(result.report().semanticScreenId()).isEqualTo("list");
         assertThat(result.report().semanticScreenVersion()).isEqualTo(4);
         assertThat(result.report().viewportMatched()).isTrue();
+        assertThat(result.semanticResult().metadata().origin()).isEqualTo(FigmaExportMetadata.Origin.HYBRID);
+        verify(semantic).withOrigin(FigmaExportMetadata.Origin.HYBRID);
         verify(artifactStore).saveResult(result);
     }
 

@@ -169,6 +169,51 @@ public class FigmaDesignOperationRepository {
         return saved;
     }
 
+    /**
+     * 22/23번 문서 A-01c: {@code AWAITING_TABLE_BINDING}에서 {@code bindFigmaDesignRequestTable}로
+     * database/tableName을 채운 request로 다음 revision에 전이한다. 해시는 {@code
+     * canonicalRequestView()} 기준으로 재계산하되, 그 뷰는 database/tableName을 포함하지 않으므로
+     * (사용자 확인 후 확정 — 테이블 바인딩은 "동일 디자인 요청"의 정체성을 바꾸지 않는다는 판단)
+     * 이 흐름에서는 보통 해시가 바뀌지 않는다. 해시가 실제로 바뀐 경우에만 멱등성 테이블에 새 행을
+     * 추가한다(기존 해시 행은 유지 — 원래 요청으로 재조회해도 여전히 같은 Operation을 가리켜야
+     * 함). 새 해시가 이미 다른 Operation에 등록돼 있으면 기존 {@code createOrReuse}와 동일하게
+     * 그 Operation을 그대로 반환한다.
+     */
+    public FigmaDesignOperation appendTransitionWithRequest(
+            String operationId,
+            FigmaDesignRequest nextRequest,
+            FigmaDesignOperationStatus requestedStatus,
+            List<GenerationIssue> issues,
+            List<ArtifactRef> artifacts
+    ) {
+        FigmaDesignOperation current = findLatest(operationId)
+                .orElseThrow(() -> operationNotFound(operationId));
+        stateService.assertTransitionAllowed(current.status(), requestedStatus);
+
+        Map<String, Object> hashView = new LinkedHashMap<>();
+        hashView.put("request", canonicalRequestView(nextRequest));
+        hashView.put("context", null);
+        String nextHash = operationHashFactory.canonicalHash(hashView);
+
+        if (!nextHash.equals(current.hash())) {
+            try {
+                jdbcTemplate.update("""
+                    INSERT INTO AI_FIGMA_DESIGN_OPERATION_IDEMPOTENCY (REQUEST_HASH, OPERATION_ID)
+                    VALUES (?, ?)
+                    """, nextHash, operationId);
+            } catch (DuplicateKeyException exception) {
+                String winnerOperationId = findOperationIdByHash(nextHash)
+                        .orElseThrow(() -> idempotencyIndexCorrupt(nextHash));
+                return findLatest(winnerOperationId).orElseThrow(() -> idempotencyIndexCorrupt(nextHash));
+            }
+        }
+
+        FigmaDesignOperation saved = insertRevision(current.withRequestAndNextRevision(
+                nextRequest, nextHash, requestedStatus, current.sourceRevision(), issues, artifacts));
+        recordTransition(operationId, current.status(), saved.status(), requestedStatus.name());
+        return saved;
+    }
+
     public Optional<FigmaDesignOperation> findLatest(String operationId) {
         List<String> json = jdbcTemplate.queryForList("""
             SELECT OPERATION_JSON FROM AI_FIGMA_DESIGN_OPERATION

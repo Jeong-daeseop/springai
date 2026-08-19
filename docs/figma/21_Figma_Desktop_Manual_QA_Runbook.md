@@ -2,7 +2,8 @@
 
 > 작성일: 2026-08-18
 > 대상: [12_Semantic_Figma_Design_System_Implementation_List.md](./12_Semantic_Figma_Design_System_Implementation_List.md)의
-> Figma Desktop 런타임이 있어야만 검증 가능한 항목 — **R5-T02, R5-T03, R5-T08, R7-014, R8-023, R8-T04**
+> Figma Desktop 런타임이 있어야만 검증 가능한 항목 — **R5-T02, R5-T03, R5-T08, R7-014, R8-023, R8-T04,
+> Origin pluginData(§7, FigmaExportMetadata.origin의 ORCHESTRATED/HYBRID 구별)**
 > 실행 주체: **사람**(Figma Desktop 네이티브 앱은 코딩 에이전트가 자동 조작할 수 있는 대상이 아님 — 상세
 > 이유는 대화 기록의 "Figma Desktop 앱 런타임 요건" 설명 참고)
 
@@ -185,13 +186,64 @@ curl로 REST를 직접 호출해도 됩니다).
 
 ---
 
-## 7. 완료 후 처리
+## 7. Origin pluginData 검증 (신규 — ORCHESTRATED/HYBRID 구별)
+
+**배경**: `FigmaExportMetadata.origin`(STANDARD/ORCHESTRATED/HYBRID)이 서버에 추가됐고, Plugin도 이
+값을 화면의 모든 논리 노드 pluginData(`figmaScreenSpec.origin`)에 그대로 옮겨 적도록 구현됐다
+(`code.ts`의 `configureWrapper()`, 값이 없으면 아예 쓰지 않음). `npm test`(순수 함수 테스트)로는
+"실제 캔버스 노드에 값이 찍히는가"를 검증할 수 없어 이 항목만 별도로 확인이 필요하다.
+
+**검증 목표**:
+1. 7가지 요청 오케스트레이션으로 만든 Bundle을 Apply하면 노드 pluginData에 `origin=ORCHESTRATED`가
+   찍히는가
+2. `.figpack` Hybrid 승인으로 만든 Bundle을 Apply하면 `origin=HYBRID`가 찍히는가
+3. 일반 CRUD 생성(`buildFullCrudPrompt` 등, DEC-10 기본 파일 경로)으로 만든 Bundle은
+   `origin=STANDARD`이거나, 값이 없어 pluginData 키 자체가 없어도 정상
+
+### 7.1 확인 방법 — pluginData는 Figma UI에 안 보인다
+
+Figma Desktop 기본 UI에는 pluginData를 보여주는 패널이 없다. 가장 빠른 방법:
+
+1. 캔버스에서 확인하고 싶은 노드를 하나 선택
+2. 이 Plugin을 실행한 상태에서 Plugins → Development → Open Console
+3. 콘솔에 아래 한 줄을 직접 입력해 즉시 값 확인(재빌드 불필요)
+   ```js
+   figma.currentPage.selection[0].getPluginData("figmaScreenSpec.origin")
+   ```
+
+### 7.2 시나리오
+
+1. **ORCHESTRATED 확인**: §4(R5-T08)에서 이미 만든 7종 요청 Bundle 중 아무거나 하나를 Apply한 뒤,
+   생성된 노드 하나를 선택 → §7.1 콘솔 명령 실행 → `"ORCHESTRATED"` 반환 확인. 같은 화면의 하위
+   컴포넌트 노드도 최소 1개 더 선택해 같은 값이 찍히는지 확인(루트만이 아니라 전체 트리에 재귀적으로
+   threading됐는지 확인하는 것이 핵심).
+2. **HYBRID 확인**: `.figpack` Hybrid 흐름(`POST /api/figma/hybrid/candidates` → `.../approve`, §4.1과
+   동일하게 로컬 서버 기동 필요)으로 만든 Bundle을 Apply한 뒤, 같은 방법으로 확인 → `"HYBRID"` 반환
+   확인.
+3. **STANDARD/미기록 확인**: 일반 CRUD 생성 Bundle을 Apply한 뒤 같은 방법으로 확인 → `"STANDARD"`
+   또는 `null`(정상 — 값이 없으면 안 쓰도록 구현됨).
+
+### 7.3 PASS 기준
+
+- ORCHESTRATED로 만든 화면의 노드는 예외 없이 `origin="ORCHESTRATED"`
+- HYBRID로 만든 화면의 노드는 예외 없이 `origin="HYBRID"`
+- 같은 화면 안의 루트 노드와 하위 노드가 서로 다른 origin 값을 갖지 않는가(불일치가 있으면 threading
+  누락 버그)
+
+### 7.4 결과 기록
+
+- 3개 시나리오 각각 PASS/FAIL과 실제 콘솔 반환값을 §8에 기록.
+
+---
+
+## 8. 완료 후 처리
 
 1. 각 섹션의 결과를 이 파일에 직접 채우거나 `docs/figma/evidence/`에 새 파일로 남기세요
    (기존 파일명 컨벤션: `figma-generation-report-{screenId}-{operationId}-v{n}.json`).
 2. 결과가 모두 PASS면 `docs/figma/12_Semantic_Figma_Design_System_Implementation_List.md`의
    R5-T02·R5-T03·R5-T08·R7-014·R8-023·R8-T04 체크박스와 변경 이력을 갱신해 주세요(제가 진행해도
-   되면 결과만 알려주시면 문서 갱신은 제가 대신합니다).
+   되면 결과만 알려주시면 문서 갱신은 제가 대신합니다). §7(Origin pluginData 검증)도 결과를 알려주시면
+   12번 문서에 별도 항목으로 반영하겠습니다.
 3. 일부만 PASS했거나 FAIL이 나오면, 어떤 단계에서 어떤 결과가 나왔는지 알려주시면 원인이 순수 로직
    버그인지(→ 제가 `core.ts`/서버 코드 수정 가능) 아니면 Figma 계정/Library 설정 문제인지 같이
    판단하겠습니다.

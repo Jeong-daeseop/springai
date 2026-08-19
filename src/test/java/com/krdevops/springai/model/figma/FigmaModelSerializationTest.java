@@ -38,10 +38,33 @@ class FigmaModelSerializationTest {
                 new ComponentRegistrySnapshot(sampleRegistry(), LocalDateTime.now()),
                 new FigmaExportMetadata(LocalDateTime.now(), FigmaScreenSpec.SCHEMA_VERSION, 3, "1.0", "2026.07"));
 
+        assertThat(bundle.metadata().origin()).isEqualTo(FigmaExportMetadata.Origin.STANDARD);
+
         String json = objectMapper.writeValueAsString(bundle);
         FigmaExportBundle restored = objectMapper.readValue(json, FigmaExportBundle.class);
 
         assertThat(restored).isEqualTo(bundle);
+    }
+
+    @Test
+    void figmaExportBundleOriginRoundTripsAndPreservesOperationId() throws Exception {
+        FigmaExportBundle bundle = new FigmaExportBundle(
+                sampleFigmaScreenSpec(),
+                new DesignSystemProfileSnapshot(sampleProfile(), LocalDateTime.now()),
+                new ComponentRegistrySnapshot(sampleRegistry(), LocalDateTime.now()),
+                new FigmaExportMetadata(LocalDateTime.now(), FigmaScreenSpec.SCHEMA_VERSION, 3, "1.0", "2026.07"))
+                .withOperationId("figop-42")
+                .withOrigin(FigmaExportMetadata.Origin.HYBRID);
+
+        assertThat(bundle.metadata().operationId()).isEqualTo("figop-42");
+        assertThat(bundle.metadata().origin()).isEqualTo(FigmaExportMetadata.Origin.HYBRID);
+
+        String json = objectMapper.writeValueAsString(bundle);
+        FigmaExportBundle restored = objectMapper.readValue(json, FigmaExportBundle.class);
+
+        assertThat(restored).isEqualTo(bundle);
+        assertThat(restored.metadata().operationId()).isEqualTo("figop-42");
+        assertThat(restored.metadata().origin()).isEqualTo(FigmaExportMetadata.Origin.HYBRID);
     }
 
     private FigmaScreenSpec sampleFigmaScreenSpec() {

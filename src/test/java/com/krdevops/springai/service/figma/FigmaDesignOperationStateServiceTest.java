@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.EnumSource;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.ANALYZED;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.APPLIED;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.APPLY_REQUIRED;
+import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.AWAITING_TABLE_BINDING;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.CONFLICT;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.FAILED;
 import static com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus.PREVIEW_READY;
@@ -84,11 +85,44 @@ class FigmaDesignOperationStateServiceTest {
     @Test
     void failedAndRejectedAreReachableFromEveryNonTerminalState() {
         for (var current : new com.krdevops.springai.model.figma.contract.FigmaDesignOperationStatus[] {
-                ANALYZED, PREVIEW_READY, APPLY_REQUIRED}) {
+                ANALYZED, AWAITING_TABLE_BINDING, PREVIEW_READY, APPLY_REQUIRED}) {
             assertThatCode(() -> service.assertTransitionAllowed(current, FAILED))
                     .doesNotThrowAnyException();
             assertThatCode(() -> service.assertTransitionAllowed(current, REJECTED))
                     .doesNotThrowAnyException();
         }
+    }
+
+    /** 22/23번 문서 PROP-01/C-01: REFERENCE_STYLE/IMAGE_REFERENCE의 DB 테이블 바인딩 지연 상태. */
+    @Test
+    void analyzedCanMoveToAwaitingTableBinding() {
+        assertThatCode(() -> service.assertTransitionAllowed(ANALYZED, AWAITING_TABLE_BINDING))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void awaitingTableBindingResolvesDirectlyToPreviewReadyOnHighConfidenceMatch() {
+        assertThatCode(() -> service.assertTransitionAllowed(AWAITING_TABLE_BINDING, PREVIEW_READY))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    void awaitingTableBindingCannotSkipDirectlyToApplyRequiredOrApplied() {
+        assertThatThrownBy(() -> service.assertTransitionAllowed(AWAITING_TABLE_BINDING, APPLY_REQUIRED))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("FIGMA_OPERATION_INVALID_TRANSITION");
+        assertThatThrownBy(
+                () -> service.assertTransitionToAppliedAllowed(AWAITING_TABLE_BINDING, true))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("FIGMA_OPERATION_INVALID_TRANSITION");
+    }
+
+    @Test
+    void awaitingTableBindingIsNotTerminal() {
+        assertThatCode(() -> {
+            if (service.isTerminal(AWAITING_TABLE_BINDING)) {
+                throw new IllegalStateException("expected-non-terminal");
+            }
+        }).doesNotThrowAnyException();
     }
 }

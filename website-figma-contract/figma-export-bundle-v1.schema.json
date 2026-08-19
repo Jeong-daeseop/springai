@@ -45,7 +45,8 @@
         "catalogVersion": {"type": ["string", "null"], "minLength": 1},
         "catalogHash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
         "registryHash": {"type": ["string", "null"], "pattern": "^[a-f0-9]{64}$"},
-        "operationId": {"type": ["string", "null"], "minLength": 1}
+        "operationId": {"type": ["string", "null"], "minLength": 1},
+        "origin": {"type": "string", "enum": ["STANDARD", "ORCHESTRATED", "HYBRID"]}
       }
     }
   }

@@ -59,6 +59,8 @@ const DATA_VISUAL_BASELINE_HASH = "figmaScreenSpec.visualBaselineHash";
 const DATA_VISUAL_BASELINE_SECTIONS = "figmaScreenSpec.visualBaselineSections";
 const DATA_REFINEMENT_PATCH_SET_ID = "figmaScreenSpec.refinementPatchSetId";
 const DATA_REFINEMENT_PATCH_SET_HASH = "figmaScreenSpec.refinementPatchSetHash";
+/** Bundle metadata.origin(STANDARD/ORCHESTRATED/HYBRID)을 그대로 옮겨 적는다. 값이 없으면 쓰지 않는다. */
+const DATA_ORIGIN = "figmaScreenSpec.origin";
 
 figma.showUI(__html__, { width: 440, height: 720 });
 
@@ -1018,6 +1020,7 @@ async function applyBundle(
   const startedAt = new Date().toISOString();
   const screen = bundle.figmaScreenSpec;
   const registry = registryFor(bundle);
+  const bundleOrigin = bundle.metadata.origin ?? undefined;
   const changes: ReconciliationChange[] = [];
   const issues = [...validationIssues];
   const reportCounts: ApplyCounts = { reused: 0, created: 0, archived: 0, fallback: 0 };
@@ -1043,7 +1046,7 @@ async function applyBundle(
       }
       staging.root = await syncNode(
         screen.content, staging.container, existing, registry, importedComponents,
-        screen.screenId, screen.screenVersion, changes, issues, reportCounts,
+        screen.screenId, screen.screenVersion, changes, issues, reportCounts, bundleOrigin,
       );
       staging.root.x = 0;
       staging.root.y = 0;
@@ -1464,6 +1467,7 @@ async function syncNode(
   changes: ReconciliationChange[],
   issues: ExportIssue[],
   counts: { reused: number; created: number; archived: number; fallback: number },
+  origin?: string,
 ): Promise<FrameNode> {
   let wrapper = existing.get(spec.logicalNodeId);
   const reused = Boolean(wrapper);
@@ -1482,7 +1486,7 @@ async function syncNode(
     existing.delete(spec.logicalNodeId);
     changes.push(change(spec, "REUSE", "기존 Wrapper와 Instance 재사용"));
   }
-  configureWrapper(wrapper, spec, screenId, screenVersion);
+  configureWrapper(wrapper, spec, screenId, screenVersion, origin);
   parent.appendChild(wrapper);
   if (parent.type === "FRAME") {
     // 원자적 Apply의 Staging Frame은 AUTO 폭이다. PAGE Root까지 STRETCH하면
@@ -1539,7 +1543,9 @@ async function syncNode(
     }
   }
   for (const child of spec.children) {
-    await syncNode(child, wrapper, existing, registry, importedComponents, screenId, screenVersion, changes, issues, counts);
+    await syncNode(
+      child, wrapper, existing, registry, importedComponents,
+      screenId, screenVersion, changes, issues, counts, origin);
   }
   if (spec.type === "egov.detailSection") {
     await applyDetailTableGrid(wrapper, spec.properties, spec.children);
@@ -1896,6 +1902,7 @@ function configureWrapper(
   spec: FigmaNodeSpec,
   screenId: string,
   screenVersion: number,
+  origin?: string,
 ): void {
   const annotation = describeLayoutAnnotations(spec.properties);
   wrapper.name = `${spec.logicalNodeId} · ${spec.type}${annotation.nameSuffix}`;
@@ -1905,6 +1912,7 @@ function configureWrapper(
   wrapper.setPluginData(DATA_LOGICAL_TYPE, spec.type);
   wrapper.setPluginData(DATA_ARCHIVED, "false");
   wrapper.setPluginData(DATA_APPLY_STAGING, "true");
+  if (origin) wrapper.setPluginData(DATA_ORIGIN, origin);
   // 관리 대상 화면은 이전 수동 편집의 반투명 상태를 계승하지 않는다.
   wrapper.opacity = 1;
   for (const [key, value] of Object.entries(annotation.pluginData)) {

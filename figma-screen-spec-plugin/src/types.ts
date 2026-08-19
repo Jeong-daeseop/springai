@@ -121,6 +121,8 @@ export type FigmaExportBundle = {
     registryHash?: string | null;
     /** R5-040: 이 Bundle을 생성한 FigmaDesignOperation. 7가지 요청 오케스트레이션 경로가 아니면 없음. */
     operationId?: string | null;
+    /** 이 Bundle이 어느 생성 경로에서 나왔는지(STANDARD/ORCHESTRATED/HYBRID). */
+    origin?: string | null;
   };
 };
 

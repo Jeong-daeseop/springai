@@ -4,6 +4,10 @@
   "allowed" : false
 }, {
   "from" : "ANALYZED",
+  "to" : "AWAITING_TABLE_BINDING",
+  "allowed" : true
+}, {
+  "from" : "ANALYZED",
   "to" : "PREVIEW_READY",
   "allowed" : true
 }, {
@@ -27,8 +31,44 @@
   "to" : "REJECTED",
   "allowed" : true
 }, {
+  "from" : "AWAITING_TABLE_BINDING",
+  "to" : "ANALYZED",
+  "allowed" : true
+}, {
+  "from" : "AWAITING_TABLE_BINDING",
+  "to" : "AWAITING_TABLE_BINDING",
+  "allowed" : false
+}, {
+  "from" : "AWAITING_TABLE_BINDING",
+  "to" : "PREVIEW_READY",
+  "allowed" : true
+}, {
+  "from" : "AWAITING_TABLE_BINDING",
+  "to" : "APPLY_REQUIRED",
+  "allowed" : false
+}, {
+  "from" : "AWAITING_TABLE_BINDING",
+  "to" : "APPLIED",
+  "allowed" : false
+}, {
+  "from" : "AWAITING_TABLE_BINDING",
+  "to" : "FAILED",
+  "allowed" : true
+}, {
+  "from" : "AWAITING_TABLE_BINDING",
+  "to" : "CONFLICT",
+  "allowed" : false
+}, {
+  "from" : "AWAITING_TABLE_BINDING",
+  "to" : "REJECTED",
+  "allowed" : true
+}, {
   "from" : "PREVIEW_READY",
   "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "PREVIEW_READY",
+  "to" : "AWAITING_TABLE_BINDING",
   "allowed" : false
 }, {
   "from" : "PREVIEW_READY",
@@ -57,6 +97,10 @@
 }, {
   "from" : "APPLY_REQUIRED",
   "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "APPLY_REQUIRED",
+  "to" : "AWAITING_TABLE_BINDING",
   "allowed" : false
 }, {
   "from" : "APPLY_REQUIRED",
@@ -85,6 +129,10 @@
 }, {
   "from" : "APPLIED",
   "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "APPLIED",
+  "to" : "AWAITING_TABLE_BINDING",
   "allowed" : false
 }, {
   "from" : "APPLIED",
@@ -113,6 +161,10 @@
 }, {
   "from" : "FAILED",
   "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "FAILED",
+  "to" : "AWAITING_TABLE_BINDING",
   "allowed" : false
 }, {
   "from" : "FAILED",
@@ -141,6 +193,10 @@
 }, {
   "from" : "CONFLICT",
   "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "CONFLICT",
+  "to" : "AWAITING_TABLE_BINDING",
   "allowed" : false
 }, {
   "from" : "CONFLICT",
@@ -169,6 +225,10 @@
 }, {
   "from" : "REJECTED",
   "to" : "ANALYZED",
+  "allowed" : false
+}, {
+  "from" : "REJECTED",
+  "to" : "AWAITING_TABLE_BINDING",
   "allowed" : false
 }, {
   "from" : "REJECTED",

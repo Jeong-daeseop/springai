@@ -77,4 +77,11 @@ public record FigmaExportBundle(
                 figmaScreenSpec, designSystemProfile, componentRegistry, resolvedComponentRegistry,
                 screenPattern, variantRuleSet, metadata.withOperationId(operationId));
     }
+
+    /** 이 Bundle이 어느 생성 경로(오케스트레이션/하이브리드)에서 나왔는지 metadata에 새겨 넣는다. */
+    public FigmaExportBundle withOrigin(FigmaExportMetadata.Origin origin) {
+        return new FigmaExportBundle(
+                figmaScreenSpec, designSystemProfile, componentRegistry, resolvedComponentRegistry,
+                screenPattern, variantRuleSet, metadata.withOrigin(origin));
+    }
 }

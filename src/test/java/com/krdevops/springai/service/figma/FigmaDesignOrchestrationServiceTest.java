@@ -56,6 +56,7 @@ class FigmaDesignOrchestrationServiceTest {
                 LocalDateTime.now(), "figma-screen-spec-v1", 1, "1.0.0", "registry-1"));
         // R5-040: processApprovedSpecificationRequest는 저장 직전 operationId를 새겨 넣는다.
         when(bundle.withOperationId(org.mockito.ArgumentMatchers.any())).thenReturn(bundle);
+        when(bundle.withOrigin(org.mockito.ArgumentMatchers.any())).thenReturn(bundle);
         var analyzed = operation(request, FigmaDesignOperationStatus.ANALYZED, List.of());
         when(operationRepository.createOrReuse(request, exportRequest)).thenReturn(analyzed);
         when(artifactService.saveFigmaExportBundle(bundle)).thenReturn(
@@ -84,6 +85,7 @@ class FigmaDesignOrchestrationServiceTest {
         verify(allowlist).validateFileKey("allowed-file");
         verify(exportService).exportBundle(exportRequest);
         verify(artifactService).saveFigmaExportBundle(bundle);
+        verify(bundle).withOrigin(FigmaExportMetadata.Origin.ORCHESTRATED);
     }
 
     @Test
@@ -302,6 +304,7 @@ class FigmaDesignOrchestrationServiceTest {
         when(bundle.metadata()).thenReturn(new FigmaExportMetadata(
                 LocalDateTime.now(), "figma-screen-spec-v1", 1, "1.0.0", "registry-1"));
         when(bundle.withOperationId("figop-test")).thenReturn(bundle);
+        when(bundle.withOrigin(org.mockito.ArgumentMatchers.any())).thenReturn(bundle);
         when(deps.exportService.exportBundle(new FigmaScreenExportRequest(
                 spec.id(), spec.version(), "emp_list_LIST", null, "DESKTOP",
                 FigmaExportMode.PREVIEW, FigmaSyncMode.PREVIEW))).thenReturn(bundle);
@@ -320,33 +323,267 @@ class FigmaDesignOrchestrationServiceTest {
 
         assertThat(result.status()).isEqualTo(FigmaDesignOperationStatus.PREVIEW_READY);
         verify(deps.artifactService).saveFigmaExportBundle(bundle);
+        verify(bundle).withOrigin(FigmaExportMetadata.Origin.ORCHESTRATED);
     }
 
+    /**
+     * 22/23번 문서 PROP-01/S-01(경로 A): DB 미지정이어도 분석은 그대로 실행해 필드 후보를 뽑고,
+     * 그 후보를 issues에 실어 AWAITING_TABLE_BINDING으로 전이한다("디자인 먼저, 테이블은 나중").
+     */
     @Test
-    void generateBundleForReferenceStyleWithoutDatabaseIsRejectedWithoutCallingAnalysis() {
+    void generateBundleForReferenceStyleWithoutDatabaseStillAnalyzesAndAwaitsTableBindingWithCandidates() {
         var deps = bundleGenerationDeps();
         FigmaDesignRequest request = FigmaDesignRequest.referenceStyle(
                 "기존 목록처럼", "allowed-file", List.of("1:2"));
         var analyzed = operation(request, FigmaDesignOperationStatus.ANALYZED, List.of());
         when(deps.operationRepository.findLatest("figop-test")).thenReturn(java.util.Optional.of(analyzed));
+        var uiSpec = new com.krdevops.springai.model.design.UiDesignSpec(
+                "CRUD_LIST", null, List.of(), List.of(),
+                List.of(
+                        new com.krdevops.springai.model.design.UiDesignSpec.FieldHint(
+                                "title", "제목", com.krdevops.springai.model.design.UiFieldRole.TITLE, "TEXT", 0.9),
+                        new com.krdevops.springai.model.design.UiDesignSpec.FieldHint(
+                                "author", "작성자", com.krdevops.springai.model.design.UiFieldRole.AUTHOR, "TEXT", 0.8)),
+                java.util.Map.of(), List.of(), List.of());
+        var analysisResult = new com.krdevops.springai.model.design.DesignAnalysisResult(
+                "analysis-1", "hash", null, null, "figma", "deterministic-mapper", "v1",
+                List.of(), uiSpec, List.of(), LocalDateTime.now());
+        when(deps.designReferenceAnalysisService.analyzeFigma(
+                "https://www.figma.com/design/allowed-file/reference", "1:2", null))
+                .thenReturn(analysisResult);
         @SuppressWarnings("unchecked")
         org.mockito.ArgumentCaptor<List<com.krdevops.springai.model.contract.GenerationIssue>> issuesCaptor =
                 org.mockito.ArgumentCaptor.forClass(List.class);
         when(deps.operationRepository.appendTransition(
                 org.mockito.ArgumentMatchers.eq("figop-test"),
-                org.mockito.ArgumentMatchers.eq(FigmaDesignOperationStatus.REJECTED),
+                org.mockito.ArgumentMatchers.eq(FigmaDesignOperationStatus.AWAITING_TABLE_BINDING),
                 org.mockito.ArgumentMatchers.any(), issuesCaptor.capture(),
+                org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(operation(request, FigmaDesignOperationStatus.AWAITING_TABLE_BINDING, List.of()));
+
+        var result = deps.service.generateBundle("figop-test");
+
+        assertThat(result.status()).isEqualTo(FigmaDesignOperationStatus.AWAITING_TABLE_BINDING);
+        assertThat(issuesCaptor.getValue()).hasSize(3);
+        assertThat(issuesCaptor.getValue().get(0).code()).isEqualTo("DATABASE_TABLE_PENDING");
+        assertThat(issuesCaptor.getValue()).filteredOn(issue -> issue.code().equals("FIELD_CANDIDATE"))
+                .extracting(com.krdevops.springai.model.contract.GenerationIssue::sourceLocation)
+                .containsExactly("title", "author");
+        verify(deps.designReferenceAnalysisService).analyzeFigma(
+                "https://www.figma.com/design/allowed-file/reference", "1:2", null);
+    }
+
+    /**
+     * 22/23번 문서 PROP-01/S-01(경로 A): IMAGE_REFERENCE도 REFERENCE_STYLE과 동일하게 분석은
+     * 실행하되 database/tableName이 없으면 AWAITING_TABLE_BINDING으로 미룬다.
+     */
+    @Test
+    void generateBundleForImageReferenceWithoutDatabaseStillAnalyzesAndAwaitsTableBindingWithCandidates()
+            throws Exception {
+        var deps = bundleGenerationDeps();
+        com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(
+                new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/image.png", exchange -> {
+            byte[] body = {1, 2, 3, 4};
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            String imageUrl = "http://127.0.0.1:" + server.getAddress().getPort() + "/image.png";
+            FigmaDesignRequest request = FigmaDesignRequest.imageReference(
+                    "이미지처럼", "allowed-file", List.of("9:9"), null, null, "직원 목록", "crud");
+            var analyzed = operation(request, FigmaDesignOperationStatus.ANALYZED, List.of());
+            when(deps.operationRepository.findLatest("figop-test")).thenReturn(java.util.Optional.of(analyzed));
+            when(deps.figmaApiClient.queryImages("allowed-file", List.of("9:9"))).thenReturn(
+                    new com.krdevops.springai.service.FigmaApiClient.FigmaImageUrls(
+                            java.util.Map.of("9:9", imageUrl), List.of(), java.time.Instant.now()));
+            var uiSpec = new com.krdevops.springai.model.design.UiDesignSpec(
+                    "CRUD_LIST", null, List.of(), List.of(),
+                    List.of(new com.krdevops.springai.model.design.UiDesignSpec.FieldHint(
+                            "title", "제목", com.krdevops.springai.model.design.UiFieldRole.TITLE, "TEXT", 0.9)),
+                    java.util.Map.of(), List.of(), List.of());
+            var analysisResult = new com.krdevops.springai.model.design.DesignAnalysisResult(
+                    "analysis-2", "hash", null, null, "vision", "gpt-4o-mini", "v1",
+                    List.of(), uiSpec, List.of(), LocalDateTime.now());
+            when(deps.designReferenceAnalysisService.analyze(
+                    org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.isNull(),
+                    org.mockito.ArgumentMatchers.eq("crud")))
+                    .thenReturn(analysisResult);
+            @SuppressWarnings("unchecked")
+            org.mockito.ArgumentCaptor<List<com.krdevops.springai.model.contract.GenerationIssue>> issuesCaptor =
+                    org.mockito.ArgumentCaptor.forClass(List.class);
+            when(deps.operationRepository.appendTransition(
+                    org.mockito.ArgumentMatchers.eq("figop-test"),
+                    org.mockito.ArgumentMatchers.eq(FigmaDesignOperationStatus.AWAITING_TABLE_BINDING),
+                    org.mockito.ArgumentMatchers.any(), issuesCaptor.capture(),
+                    org.mockito.ArgumentMatchers.anyList()))
+                    .thenReturn(operation(request, FigmaDesignOperationStatus.AWAITING_TABLE_BINDING, List.of()));
+
+            var result = deps.service.generateBundle("figop-test");
+
+            assertThat(result.status()).isEqualTo(FigmaDesignOperationStatus.AWAITING_TABLE_BINDING);
+            assertThat(issuesCaptor.getValue()).hasSize(2);
+            assertThat(issuesCaptor.getValue().get(0).code()).isEqualTo("DATABASE_TABLE_PENDING");
+            assertThat(issuesCaptor.getValue().get(1).code()).isEqualTo("FIELD_CANDIDATE");
+            verify(deps.figmaApiClient).queryImages("allowed-file", List.of("9:9"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    // ===== 22/23번 문서 A-01(a~e)/T-04: bindFigmaDesignRequestTable =====
+
+    /**
+     * T-04: AWAITING_TABLE_BINDING 상태에서 database/tableName을 채우면 ANALYZED로 되돌아간 뒤
+     * 기존 generateBundle() 파이프라인을 재실행해 고신뢰 매칭이면(ScreenSpecification이 즉시
+     * APPROVED로 생성됨) PREVIEW_READY로 전이한다.
+     */
+    @Test
+    void bindFigmaDesignRequestTableReanalyzesAndReachesPreviewReadyOnApprovedSpecification() {
+        var deps = bundleGenerationDeps();
+        FigmaDesignRequest awaitingRequest = FigmaDesignRequest.referenceStyle(
+                "기존 목록처럼", "allowed-file", List.of("1:2"));
+        FigmaDesignRequest boundRequest = FigmaDesignRequest.referenceStyle(
+                "기존 목록처럼", "allowed-file", List.of("1:2"), "ebt", "emp_list", null, null);
+        var awaiting = operation(awaitingRequest, FigmaDesignOperationStatus.AWAITING_TABLE_BINDING, List.of());
+        var reanalyzed = operation(boundRequest, FigmaDesignOperationStatus.ANALYZED, List.of());
+        when(deps.operationRepository.findLatest("figop-test"))
+                .thenReturn(java.util.Optional.of(awaiting), java.util.Optional.of(reanalyzed));
+        when(deps.operationRepository.appendTransitionWithRequest(
+                "figop-test", boundRequest, FigmaDesignOperationStatus.ANALYZED, List.of(), List.of()))
+                .thenReturn(reanalyzed);
+
+        var analysisResult = new com.krdevops.springai.model.design.DesignAnalysisResult(
+                "analysis-1", "hash", null, null, "figma", "deterministic-mapper", "v1",
+                List.of(), null, List.of(), LocalDateTime.now());
+        when(deps.designReferenceAnalysisService.analyzeFigma(
+                "https://www.figma.com/design/allowed-file/reference", "1:2", null))
+                .thenReturn(analysisResult);
+        var spec = approvedSpecification();
+        when(deps.screenSpecificationService.create("ebt", "emp_list", null, null, null))
+                .thenReturn(spec);
+        var bundle = mock(FigmaExportBundle.class);
+        when(bundle.metadata()).thenReturn(new FigmaExportMetadata(
+                LocalDateTime.now(), "figma-screen-spec-v1", 1, "1.0.0", "registry-1"));
+        when(bundle.withOperationId("figop-test")).thenReturn(bundle);
+        when(bundle.withOrigin(org.mockito.ArgumentMatchers.any())).thenReturn(bundle);
+        when(deps.exportService.exportBundle(new FigmaScreenExportRequest(
+                spec.id(), spec.version(), "emp_list_LIST", null, "DESKTOP",
+                FigmaExportMode.PREVIEW, FigmaSyncMode.PREVIEW))).thenReturn(bundle);
+        when(deps.artifactService.saveFigmaExportBundle(bundle)).thenReturn(
+                new DesignArtifactService.FigmaBundleArtifact(
+                        "emp-list-v1-bundle", "figma-bundles/emp-list/v1",
+                        "emp-list", 1, "a".repeat(64), LocalDateTime.now()));
+        when(deps.operationRepository.appendTransition(
+                org.mockito.ArgumentMatchers.eq("figop-test"),
+                org.mockito.ArgumentMatchers.eq(FigmaDesignOperationStatus.PREVIEW_READY),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(operation(boundRequest, FigmaDesignOperationStatus.PREVIEW_READY, List.of()));
+
+        var result = deps.service.bindTable("figop-test", "ebt", "emp_list");
+
+        assertThat(result.status()).isEqualTo(FigmaDesignOperationStatus.PREVIEW_READY);
+        verify(deps.operationRepository).appendTransitionWithRequest(
+                "figop-test", boundRequest, FigmaDesignOperationStatus.ANALYZED, List.of(), List.of());
+    }
+
+    /**
+     * T-04: 매칭이 애매해 ScreenSpecification이 REVIEW_REQUIRED로 생성되면 자동 확정하지 않고
+     * REJECTED로 전이하며 reviseScreenSpecification 등 수동 경로를 안내한다.
+     * ({@code FigmaDesignOperationStatus}에는 REVIEW_REQUIRED 값 자체가 없다 — C-01에서 이미
+     * 정정된 설계이므로 이 테스트도 REJECTED를 검증한다.)
+     */
+    @Test
+    void bindFigmaDesignRequestTableRejectsWhenScreenSpecificationReviewRequired() throws Exception {
+        var deps = bundleGenerationDeps();
+        FigmaDesignRequest awaitingRequest = FigmaDesignRequest.imageReference(
+                "이미지처럼", "allowed-file", List.of("9:9"));
+        FigmaDesignRequest boundRequest = FigmaDesignRequest.imageReference(
+                "이미지처럼", "allowed-file", List.of("9:9"), "ebt", "emp_list", null, null);
+        var awaiting = operation(awaitingRequest, FigmaDesignOperationStatus.AWAITING_TABLE_BINDING, List.of());
+        var reanalyzed = operation(boundRequest, FigmaDesignOperationStatus.ANALYZED, List.of());
+        when(deps.operationRepository.findLatest("figop-test"))
+                .thenReturn(java.util.Optional.of(awaiting), java.util.Optional.of(reanalyzed));
+        when(deps.operationRepository.appendTransitionWithRequest(
+                "figop-test", boundRequest, FigmaDesignOperationStatus.ANALYZED, List.of(), List.of()))
+                .thenReturn(reanalyzed);
+
+        com.sun.net.httpserver.HttpServer server = com.sun.net.httpserver.HttpServer.create(
+                new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/image.png", exchange -> {
+            byte[] body = {1, 2, 3, 4};
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            String imageUrl = "http://127.0.0.1:" + server.getAddress().getPort() + "/image.png";
+            when(deps.figmaApiClient.queryImages("allowed-file", List.of("9:9"))).thenReturn(
+                    new com.krdevops.springai.service.FigmaApiClient.FigmaImageUrls(
+                            java.util.Map.of("9:9", imageUrl), List.of(), java.time.Instant.now()));
+            var analysisResult = new com.krdevops.springai.model.design.DesignAnalysisResult(
+                    "analysis-2", "hash", null, null, "vision", "gpt-4o-mini", "v1",
+                    List.of(), null, List.of(), LocalDateTime.now());
+            when(deps.designReferenceAnalysisService.analyze(
+                    org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.isNull(),
+                    org.mockito.ArgumentMatchers.isNull()))
+                    .thenReturn(analysisResult);
+            var reviewRequiredSpec = specificationWithStatus(ScreenSpecStatus.REVIEW_REQUIRED);
+            when(deps.screenSpecificationService.create("ebt", "emp_list", null, null, null))
+                    .thenReturn(reviewRequiredSpec);
+            when(deps.operationRepository.appendTransition(
+                    org.mockito.ArgumentMatchers.eq("figop-test"),
+                    org.mockito.ArgumentMatchers.eq(FigmaDesignOperationStatus.REJECTED),
+                    org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyList(),
+                    org.mockito.ArgumentMatchers.anyList()))
+                    .thenReturn(operation(boundRequest, FigmaDesignOperationStatus.REJECTED, List.of()));
+
+            var result = deps.service.bindTable("figop-test", "ebt", "emp_list");
+
+            assertThat(result.status()).isEqualTo(FigmaDesignOperationStatus.REJECTED);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    /** A-01e 완료 게이트: AWAITING_TABLE_BINDING이 아닌 Operation에는 명확한 오류로 거부한다. */
+    @Test
+    void bindFigmaDesignRequestTableRejectsWhenOperationNotAwaitingTableBinding() {
+        var deps = bundleGenerationDeps();
+        FigmaDesignRequest request = FigmaDesignRequest.referenceStyle(
+                "기존 목록처럼", "allowed-file", List.of("1:2"));
+        var analyzed = operation(request, FigmaDesignOperationStatus.ANALYZED, List.of());
+        when(deps.operationRepository.findLatest("figop-test")).thenReturn(java.util.Optional.of(analyzed));
+
+        assertThatThrownBy(() -> deps.service.bindTable("figop-test", "ebt", "emp_list"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("AWAITING_TABLE_BINDING");
+    }
+
+    /** IMAGE_REFERENCE에서 Figma 이미지 export 자체가 실패하면 여전히 즉시 REJECTED다(분석 이전 단계이므로 미룰 후보가 없음). */
+    @Test
+    void generateBundleForImageReferenceStillRejectsWhenImageExportFailsRegardlessOfDatabase() {
+        var deps = bundleGenerationDeps();
+        FigmaDesignRequest request = FigmaDesignRequest.imageReference(
+                "이미지처럼", "allowed-file", List.of("9:9"), null, null, "직원 목록", "crud");
+        var analyzed = operation(request, FigmaDesignOperationStatus.ANALYZED, List.of());
+        when(deps.operationRepository.findLatest("figop-test")).thenReturn(java.util.Optional.of(analyzed));
+        when(deps.figmaApiClient.queryImages("allowed-file", List.of("9:9")))
+                .thenThrow(new RuntimeException("boom"));
+        when(deps.operationRepository.appendTransition(
+                org.mockito.ArgumentMatchers.eq("figop-test"),
+                org.mockito.ArgumentMatchers.eq(FigmaDesignOperationStatus.REJECTED),
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyList(),
                 org.mockito.ArgumentMatchers.anyList()))
                 .thenReturn(operation(request, FigmaDesignOperationStatus.REJECTED, List.of()));
 
         var result = deps.service.generateBundle("figop-test");
 
         assertThat(result.status()).isEqualTo(FigmaDesignOperationStatus.REJECTED);
-        assertThat(issuesCaptor.getValue()).singleElement()
-                .satisfies(issue -> assertThat(issue.code()).isEqualTo("DATABASE_TABLE_REQUIRED"));
-        verify(deps.designReferenceAnalysisService, never()).analyzeFigma(
-                org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
-                org.mockito.ArgumentMatchers.any());
     }
 
     /** R6-035: queryImages()가 준 CDN URL을 실제로 내려받아 analyze()에 넘기고, 임시 파일은 정리한다. */
@@ -387,6 +624,7 @@ class FigmaDesignOrchestrationServiceTest {
             when(bundle.metadata()).thenReturn(new FigmaExportMetadata(
                     LocalDateTime.now(), "figma-screen-spec-v1", 1, "1.0.0", "registry-1"));
             when(bundle.withOperationId("figop-test")).thenReturn(bundle);
+            when(bundle.withOrigin(org.mockito.ArgumentMatchers.any())).thenReturn(bundle);
             when(deps.exportService.exportBundle(org.mockito.ArgumentMatchers.any())).thenReturn(bundle);
             when(deps.artifactService.saveFigmaExportBundle(bundle)).thenReturn(
                     new DesignArtifactService.FigmaBundleArtifact(
@@ -404,6 +642,7 @@ class FigmaDesignOrchestrationServiceTest {
             assertThat(result.status()).isEqualTo(FigmaDesignOperationStatus.PREVIEW_READY);
             assertThat(pathCaptor.getValue()).contains("figma-image-").endsWith(".png");
             assertThat(java.nio.file.Files.exists(java.nio.file.Path.of(pathCaptor.getValue()))).isFalse();
+            verify(bundle).withOrigin(FigmaExportMetadata.Origin.ORCHESTRATED);
         } finally {
             server.stop(0);
         }
@@ -466,6 +705,69 @@ class FigmaDesignOrchestrationServiceTest {
                 org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(),
                 org.mockito.ArgumentMatchers.any(com.krdevops.springai.model.design.UiDesignSpec.class));
+    }
+
+    /**
+     * T-05: COMPONENT_SPECIFIED는 REFERENCE_STYLE/IMAGE_REFERENCE와 달리 이번 절충안의 대상이
+     * 아니다(S-01이 명시적으로 스코프 밖으로 남겨둔 부분) — database/tableName이 없으면
+     * AWAITING_TABLE_BINDING을 거치지 않고 기존과 동일하게 즉시 REJECTED(DATABASE_TABLE_REQUIRED)된다.
+     */
+    @Test
+    void generateBundleForComponentSpecifiedWithoutDatabaseStillRejectsInsteadOfAwaitingTableBinding() {
+        var deps = bundleGenerationDeps();
+        FigmaDesignRequest request = FigmaDesignRequest.componentSpecified(
+                "버튼과 표", "allowed-file", List.of("krds.button"));
+        var analyzed = operation(request, FigmaDesignOperationStatus.ANALYZED, List.of());
+        when(deps.operationRepository.findLatest("figop-test")).thenReturn(java.util.Optional.of(analyzed));
+        when(deps.designSystemQueryService.findLatestRegistry("krds")).thenReturn(
+                new com.krdevops.springai.model.designsystem.ComponentRegistry(
+                        "krds", "1.0.0", "registry-1", null, java.util.Map.of(
+                                "krds.button", new ComponentRegistryEntry(
+                                        "set-key-button", "Button",
+                                        ComponentRegistryEntry.PublishStatus.CURRENT,
+                                        java.util.Map.of(), java.util.Map.of()))));
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<List<com.krdevops.springai.model.contract.GenerationIssue>> issuesCaptor =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        when(deps.operationRepository.appendTransition(
+                org.mockito.ArgumentMatchers.eq("figop-test"),
+                org.mockito.ArgumentMatchers.eq(FigmaDesignOperationStatus.REJECTED),
+                org.mockito.ArgumentMatchers.any(), issuesCaptor.capture(),
+                org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(operation(request, FigmaDesignOperationStatus.REJECTED, List.of()));
+
+        var result = deps.service.generateBundle("figop-test");
+
+        assertThat(result.status()).isEqualTo(FigmaDesignOperationStatus.REJECTED);
+        assertThat(issuesCaptor.getValue()).singleElement()
+                .satisfies(issue -> assertThat(issue.code()).isEqualTo("DATABASE_TABLE_REQUIRED"));
+    }
+
+    /**
+     * T-05: TEXT_DESCRIPTION은 이 절충안과 무관하게 여전히 자동 Bundle 생성을 지원하지 않아
+     * generateBundle() 자체가 즉시 예외를 던진다(AWAITING_TABLE_BINDING을 거칠 여지 자체가 없음).
+     */
+    @Test
+    void generateBundleForTextDescriptionThrowsUnsupported() {
+        var deps = bundleGenerationDeps();
+        FigmaDesignRequest request = FigmaDesignRequest.textDescription("사용자 목록", "allowed-file");
+        var analyzed = operation(request, FigmaDesignOperationStatus.ANALYZED, List.of());
+        when(deps.operationRepository.findLatest("figop-test")).thenReturn(java.util.Optional.of(analyzed));
+
+        assertThatThrownBy(() -> deps.service.generateBundle("figop-test"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("TEXT_DESCRIPTION");
+    }
+
+    /** T-07: 존재하지 않는 Operation ID로 bindFigmaDesignRequestTable을 호출하면 명확한 오류로 거부한다. */
+    @Test
+    void bindFigmaDesignRequestTableRejectsWhenOperationIdNotFound() {
+        var deps = bundleGenerationDeps();
+        when(deps.operationRepository.findLatest("figop-missing")).thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> deps.service.bindTable("figop-missing", "ebt", "emp_list"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("figop-missing");
     }
 
     @Test
@@ -649,6 +951,7 @@ class FigmaDesignOrchestrationServiceTest {
         FigmaExportBundle saved = bundleCaptor.getValue();
         assertThat(saved.figmaScreenSpec().screenId()).isEqualTo("spec-emp-list-screen-mobile");
         assertThat(saved.figmaScreenSpec().viewport()).isEqualTo("MOBILE");
+        assertThat(saved.metadata().origin()).isEqualTo(FigmaExportMetadata.Origin.ORCHESTRATED);
         assertThat(saved.figmaScreenSpec().content().children().get(0).componentResolution().logicalType())
                 .isEqualTo("krds.table");
         verify(deps.artifactService).saveFigmaExportBundle(saved);
@@ -784,7 +1087,7 @@ class FigmaDesignOrchestrationServiceTest {
                 new FigmaPlatformConversionService(new com.krdevops.springai.service.designsystem.ComponentSwapPolicyResolver()),
                 designReferenceAnalysisService, screenSpecificationService,
                 new com.krdevops.springai.service.designsystem.ComponentRegistryResolver(),
-                designSystemQueryService, figmaApiClient);
+                designSystemQueryService, figmaApiClient, new DesignFieldCandidateExtractor());
         return new ScreenSpecificationTestDeps(service, operationRepository, designReferenceAnalysisService,
                 screenSpecificationService, designSystemQueryService, exportService, artifactService, figmaApiClient);
     }
@@ -823,7 +1126,7 @@ class FigmaDesignOrchestrationServiceTest {
                 mock(com.krdevops.springai.service.ScreenSpecificationService.class),
                 new com.krdevops.springai.service.designsystem.ComponentRegistryResolver(),
                 mock(com.krdevops.springai.service.designsystem.DesignSystemQueryService.class),
-                mock(com.krdevops.springai.service.FigmaApiClient.class));
+                mock(com.krdevops.springai.service.FigmaApiClient.class), new DesignFieldCandidateExtractor());
     }
 
     private FigmaScreenExportRequest exportRequest() {

@@ -76,8 +76,12 @@ public class FigmaDesignOrchestrationTool {
             - prompt: 새 화면 설명 (예: "기존 사용자 목록처럼 만들되 더 간단하게")
             - fileKey: Figma 파일 Key
             - referenceNodeIds: 참조할 노드 ID 목록 (예: ["node-123", "node-456"])
-            - database, tableName: 실제 Bundle까지 생성하려면 필수(DB 스키마 기반 CRUD 생성 아키텍처와 통일).
-              생략하면 ANALYZED에서 멈추고, 이후 generateFigmaBundleForOperation 호출 시 거부됩니다.
+            - database, tableName: 실제 Bundle까지 생성하려면 필요(DB 스키마 기반 CRUD 생성 아키텍처와 통일).
+              생략해도 generateFigmaBundleForOperation 호출 시 분석은 그대로 실행되고 AWAITING_TABLE_BINDING
+              으로 전이합니다(REFERENCE_STYLE·IMAGE_REFERENCE 2종에만 해당하는 예외 경로 — 다른 5종
+              요청 유형은 database/tableName 없이 generateFigmaBundleForOperation을 호출하면 즉시
+              REJECTED됩니다). issues의 FIELD_CANDIDATE 항목으로 필드 후보를 확인한 뒤
+              bindFigmaDesignRequestTable로 테이블을 지정해 이어갈 수 있습니다.
             - screenName, featureType: 선택. 생략 시 테이블명·표준 CRUD로 추론됩니다.
 
             출력: FigmaDesignOperation (ANALYZED — generateFigmaBundleForOperation으로 다음 단계 진행)
@@ -149,7 +153,11 @@ public class FigmaDesignOrchestrationTool {
             - prompt: 추가 지시사항 (예: "이미지처럼 정확하게, 하지만 색상은 KRDS 기준으로")
             - fileKey: Figma 파일 Key
             - imageNodeIds: Figma 이미지 노드 ID 목록 (export 경로)
-            - database, tableName: 실제 Bundle까지 생성하려면 필수(기존 CRUD 생성 아키텍처와 통일).
+            - database, tableName: 실제 Bundle까지 생성하려면 필요(기존 CRUD 생성 아키텍처와 통일).
+              생략해도 generateFigmaBundleForOperation 호출 시 이미지 export·분석은 그대로 실행되고
+              AWAITING_TABLE_BINDING으로 전이합니다(REFERENCE_STYLE·IMAGE_REFERENCE 2종에만 해당하는
+              예외 경로). issues의 FIELD_CANDIDATE 항목으로 필드 후보를 확인한 뒤
+              bindFigmaDesignRequestTable로 테이블을 지정해 이어갈 수 있습니다.
 
             출력: FigmaDesignOperation
 
@@ -293,12 +301,18 @@ public class FigmaDesignOrchestrationTool {
     @Tool(description = """
             ANALYZED 상태의 Figma 디자인 Operation에 대해 실제 ScreenSpecification과
             FigmaExportBundle을 생성합니다(REFERENCE_STYLE/IMAGE_REFERENCE/COMPONENT_SPECIFIED/
-            MODIFY_EXISTING/MULTI_SCREEN_FLOW/PLATFORM_CONVERT 지원). database/tableName·
-            screenSpecificationId가 없거나 생성/대상 화면명세가 REVIEW_REQUIRED·미승인이면
-            REJECTED로 전이하고 issues에 다음 단계(reviseScreenSpecification 등)를 안내합니다.
+            MODIFY_EXISTING/MULTI_SCREEN_FLOW/PLATFORM_CONVERT 지원). screenSpecificationId가
+            없거나 생성/대상 화면명세가 REVIEW_REQUIRED·미승인이면 REJECTED로 전이하고 issues에
+            다음 단계(reviseScreenSpecification 등)를 안내합니다.
+
+            database/tableName 미지정 시 동작은 요청 유형별로 다릅니다:
+            - REFERENCE_STYLE·IMAGE_REFERENCE: 분석은 그대로 실행되고 AWAITING_TABLE_BINDING으로
+              전이합니다(issues에 필드 후보 포함). bindFigmaDesignRequestTable로 이어가세요.
+            - 그 외 4종(COMPONENT_SPECIFIED/MODIFY_EXISTING/MULTI_SCREEN_FLOW/PLATFORM_CONVERT):
+              이 예외 경로를 타지 않고 기존과 동일하게 즉시 REJECTED됩니다.
 
             입력: operationId(createDesignFromReference 등이 반환한 값)
-            출력: FigmaDesignOperation (PREVIEW_READY 또는 REJECTED)
+            출력: FigmaDesignOperation (PREVIEW_READY, AWAITING_TABLE_BINDING 또는 REJECTED)
             """)
     public String generateFigmaBundleForOperation(String figmaMcpSecret, String operationId) {
         authorization.authorize(figmaMcpSecret);
@@ -307,6 +321,40 @@ public class FigmaDesignOrchestrationTool {
             return serializeOperation(orchestrationService.generateBundle(operationId));
         } catch (IllegalArgumentException | IllegalStateException e) {
             throw new IllegalStateException("Bundle 생성 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 22/23번 문서 A-01e: createDesignFromReference/createDesignFromImage가 database/tableName
+     * 없이 호출돼 AWAITING_TABLE_BINDING으로 멈춘 Operation에 실제 테이블을 채워 분석을
+     * 재실행한다.
+     */
+    @McpToolRisk(McpToolRiskLevel.APPLY)
+    @Tool(description = """
+            AWAITING_TABLE_BINDING 상태의 Figma 디자인 Operation에 database/tableName을 채워
+            분석을 다시 실행합니다. createDesignFromReference/createDesignFromImage를 database/
+            tableName 없이 호출했을 때 발생하는 중간 상태를 이어서 완료하는 용도입니다.
+
+            입력:
+            - operationId: createDesignFromReference/createDesignFromImage가 반환한 값
+              (status가 AWAITING_TABLE_BINDING이어야 합니다. issues의 FIELD_CANDIDATE 항목으로
+              추천 필드 후보를 미리 확인할 수 있습니다)
+            - database, tableName: 바인딩할 실제 DB 테이블
+
+            출력: FigmaDesignOperation (PREVIEW_READY 또는 REJECTED — 매칭이 애매하면
+            REJECTED와 함께 reviseScreenSpecification 등 수동 경로를 안내합니다)
+
+            주의: AWAITING_TABLE_BINDING 상태가 아닌 Operation에 호출하면 오류로 거부됩니다.
+            """)
+    public String bindFigmaDesignRequestTable(
+            String figmaMcpSecret, String operationId, String database, String tableName) {
+        authorization.authorize(figmaMcpSecret);
+        log.info("Binding table to operation: operationId={}, database={}, tableName={}",
+                operationId, database, tableName);
+        try {
+            return serializeOperation(orchestrationService.bindTable(operationId, database, tableName));
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            throw new IllegalStateException("테이블 바인딩 실패: " + e.getMessage(), e);
         }
     }
 

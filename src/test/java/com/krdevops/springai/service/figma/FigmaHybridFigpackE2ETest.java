@@ -12,8 +12,16 @@ import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.UiDesignSpec;
 import com.krdevops.springai.model.design.UiFieldRole;
 import com.krdevops.springai.model.design.WebCaptureDesignSourceMetadata;
+import com.krdevops.springai.model.designsystem.ComponentBinding;
+import com.krdevops.springai.model.designsystem.ComponentRegistry;
+import com.krdevops.springai.model.designsystem.ComponentRegistryEntry;
+import com.krdevops.springai.model.designsystem.DesignSystemProfile;
+import com.krdevops.springai.model.designsystem.VariableBinding;
+import com.krdevops.springai.model.figma.ComponentRegistrySnapshot;
+import com.krdevops.springai.model.figma.DesignSystemProfileSnapshot;
+import com.krdevops.springai.model.figma.FigmaExportBundle;
+import com.krdevops.springai.model.figma.FigmaExportMetadata;
 import com.krdevops.springai.model.figma.FigmaExportMode;
-import com.krdevops.springai.model.figma.FigmaExportResult;
 import com.krdevops.springai.model.figma.FigmaNodeSpec;
 import com.krdevops.springai.model.figma.FigmaScreenSpec;
 import com.krdevops.springai.model.figma.FigmaScreenType;
@@ -90,8 +98,8 @@ class FigmaHybridFigpackE2ETest {
         when(screenSpecificationService.get(proposed.id())).thenReturn(revised);
         when(screenSpecificationService.approve(proposed.id()))
                 .thenReturn(spec(4, ScreenSpecStatus.APPROVED));
-        FigmaExportResult semantic = exportResult();
-        when(figmaScreenExportService.export(any())).thenReturn(semantic);
+        FigmaExportBundle semantic = exportResult();
+        when(figmaScreenExportService.exportBundle(any())).thenReturn(semantic);
         FigmaImportArtifact referenceArtifact = new FigmaImportArtifact(
                 artifactId, artifactId + ".figpack", artifactBasePath.resolve("reference.figpack").toString(), 10);
         when(artifactService.prepareFigmaImport(artifactId)).thenReturn(referenceArtifact);
@@ -113,6 +121,7 @@ class FigmaHybridFigpackE2ETest {
         assertThat(result.approvedScreenSpecification().status()).isEqualTo(ScreenSpecStatus.APPROVED);
         assertThat(result.approvedScreenSpecification().version()).isEqualTo(4);
         assertThat(result.report().semanticScreenId()).isEqualTo("list");
+        assertThat(result.semanticResult().metadata().origin()).isEqualTo(FigmaExportMetadata.Origin.HYBRID);
         assertThat(store.findResult(artifactId)).contains(result);
     }
 
@@ -160,7 +169,7 @@ class FigmaHybridFigpackE2ETest {
                 FigmaExportMode.PREVIEW, FigmaSyncMode.PREVIEW, true);
     }
 
-    private FigmaExportResult exportResult() {
+    private FigmaExportBundle exportResult() {
         FigmaNodeSpec root = new FigmaNodeSpec(
                 "list-root", FigmaNodeSpec.NodeType.PAGE, "egov.listPage", Map.of(), List.of());
         FigmaScreenSpec semanticSpec = new FigmaScreenSpec(
@@ -169,8 +178,30 @@ class FigmaHybridFigpackE2ETest {
                 "사용자 목록", null, "DESKTOP", "APPROVED",
                 new FigmaScreenSpec.DesignSystemRef("krds", "1.0", "2026.07"),
                 root, List.of());
-        return new FigmaExportResult(
-                FigmaExportResult.Status.SUCCESS, semanticSpec, List.of(), LocalDateTime.now(), null);
+        return new FigmaExportBundle(
+                semanticSpec,
+                new DesignSystemProfileSnapshot(sampleProfile(), LocalDateTime.now()),
+                new ComponentRegistrySnapshot(sampleRegistry(), LocalDateTime.now()),
+                new FigmaExportMetadata(LocalDateTime.now(), FigmaScreenSpec.SCHEMA_VERSION, 4, "1.0", "2026.07"));
+    }
+
+    private DesignSystemProfile sampleProfile() {
+        return new DesignSystemProfile(
+                "krds", "KRDS Design System", "1.0", "2026.07", "KRDS_FIGMA_LIBRARY_FILE_KEY",
+                DesignSystemProfile.Status.PUBLISHED,
+                Map.of("krds.button", new ComponentBinding("FIGMA_BUTTON_KEY", ComponentBinding.BindingStatus.BOUND)),
+                Map.of("color.primary", new VariableBinding(
+                        "VAR_COLOR_PRIMARY", "Colors", ComponentBinding.BindingStatus.BOUND)));
+    }
+
+    private ComponentRegistry sampleRegistry() {
+        return new ComponentRegistry(
+                "krds", "1.0", "2026.07",
+                new ComponentRegistry.LibraryRef("KRDS_FIGMA_LIBRARY_FILE_KEY", "KRDS Design System"),
+                Map.of("krds.button", new ComponentRegistryEntry(
+                        "FIGMA_BUTTON_COMPONENT_SET_KEY",
+                        Map.of("label", new ComponentRegistryEntry.PropertyMapping(
+                                "Label", ComponentRegistryEntry.PropertyType.TEXT, null)))));
     }
 
     private ScreenSpecification spec(int version, ScreenSpecStatus status) {

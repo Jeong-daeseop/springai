@@ -1,8 +1,8 @@
 # Semantic Figma Design System 구현 목록
 
-> 문서 버전: 4.11
+> 문서 버전: 4.13
 > 작성일: 2026-07-30  
-> 상태 재판정일: 2026-08-18
+> 상태 재판정일: 2026-08-19
 > 구현 기준 문서:
 > - [07_Design_System_Component_Mapping_Review.md](./07_Design_System_Component_Mapping_Review.md)
 > - [08_Semantic_Figma_Export_Integrated_Architecture.md](./08_Semantic_Figma_Export_Integrated_Architecture.md)
@@ -537,6 +537,45 @@ DEC-13~15는 2026-07-30 명세 반영 시 기존 Spring MCP·Plugin 경계를 �
 - [x] **R6-T12** 지정 컴포넌트 요청이 승인되지 않은 logical type과 로컬 Node ID 직접 지정을 거부하는지 검증 — (2026-08-17) `FigmaNodeIds.isNodeIdShaped()` 신설 + `FigmaDesignOrchestrationService`의 COMPONENT_SPECIFIED 검증이 원시 Figma nodeId를 `components`에 직접 지정하면 저장 전에 거부하도록 구현. `componentSpecifiedRejectsRawFigmaNodeIdInsteadOfLogicalType`/`componentSpecifiedAcceptsLogicalTypesOnly` 테스트로 검증(미승인 logical type 거부는 기존 `ComponentRegistryResolver`가 이미 커버)
 - [x] **R6-T13** 플랫폼 변환 golden fixture에서 폭·Grid·Navigation·componentSwaps가 Profile 정책과 일치하는지 검증 — (2026-08-17) `FigmaPlatformConversionServiceTest`가 Desktop/Tablet/Mobile 각각의 viewportWidth·gridColumns·navigationStyle이 공유 상수·`ViewportConstraint`와 일치함을, `convertAppliesConfiguredComponentSwapForTargetPlatform`이 Profile 기반 swap 적용을 검증
 
+### 11.4.1 REFERENCE_STYLE/IMAGE_REFERENCE DB 테이블 바인딩 지연(`AWAITING_TABLE_BINDING`)
+
+**배경**: "DB 테이블 바인딩으로 통일" 결정(2026-08-17, §19 변경이력 4.1 참고)에 따라
+REFERENCE_STYLE(R6-033)·IMAGE_REFERENCE(R6-035)도 `database`/`tableName`을 먼저 알아야
+생성이 시작됐다. 디자인(참조 화면/이미지)을 먼저 보고 테이블은 사람이 나중에 고르는
+워크플로우를 지원하지 않는 한계가 있었다 — R6-032가 의도적으로 남겨둔 "자연어→테이블
+자동 매핑 없음" 한계와 같은 근본 원인.
+
+- [x] **R6-065 · P1** REFERENCE_STYLE·IMAGE_REFERENCE 요청은 `database`/`tableName`이 없어도
+  분석은 그대로 실행하고, 사람이 필드 후보를 확인한 뒤 나중에 테이블을 지정할 수 있도록
+  `AWAITING_TABLE_BINDING` 중간 상태를 도입한다 — (2026-08-19, 상세 구현 이력·테스트 목록은
+  [23_REFERENCE_STYLE_IMAGE_REFERENCE_DB_Binding_Deferral_Implementation_List.md](./23_REFERENCE_STYLE_IMAGE_REFERENCE_DB_Binding_Deferral_Implementation_List.md) 참고)
+  `FigmaDesignOperationStatus`에 `ANALYZED`와 `PREVIEW_READY` 사이 `AWAITING_TABLE_BINDING`
+  상태 신설(`ANALYZED→AWAITING_TABLE_BINDING→{PREVIEW_READY,FAILED,REJECTED}` + 이후
+  `AWAITING_TABLE_BINDING→ANALYZED` 재분석 전이 추가 — R6-047의 "모든 응답은 정의된 상태를
+  포함" 계약은 유지). `generateFromReference()`/`generateFromImage()`에 분기를 추가해
+  `database`/`tableName`이 없어도 `analyzeFigma`/`queryImages`+`analyze`는 그대로 실행하고,
+  신규 `DesignFieldCandidateExtractor`(`UiDesignSpec.fieldHints()` 재사용, 별도 저장 인프라
+  없이 기존 `issues` 채널 재사용)로 뽑은 필드 후보를 `FIELD_CANDIDATE` 이슈로 실어
+  `AWAITING_TABLE_BINDING`으로 전이한다. **당초 계획한 전용 컬럼 매처(`FieldRoleToColumnMatcher`)는
+  실제 `egov-mysql` 컬럼 데이터로 구현·테스트(12건)까지 마친 뒤, 기존
+  `ScreenSpecificationService.create()`→`ScreenSpecAssembler.bindingsFromHints()`가 이미
+  동일한 역할힌트↔실제컬럼 매칭과 `NO_COLUMN_CANDIDATE`→`REVIEW_REQUIRED`(→`REJECTED`)
+  판정을 수행하고 있음을 발견해 중복 구현으로 확인되어 사용자 승인 후 전체 삭제**했다.
+  신규 MCP Tool `bindFigmaDesignRequestTable(operationId, database, tableName)`(+ 동일 동작의
+  REST `POST /api/figma/orchestration/bind-table`, 기존 X-API-Key 인증 재사용)이
+  `AWAITING_TABLE_BINDING` Operation에 database/tableName을 채워 `ANALYZED`로 되돌린 뒤 기존
+  `generateBundle()` 파이프라인을 그대로 재호출한다. Operation은 `createOrReuse()` 시점의
+  request 해시로 identity가 고정되는 구조라 "같은 Operation에 나중에 테이블만 채워 넣기"가
+  원래 불가능했음을 설계 중 발견 — `FigmaDesignRequest.withDatabaseTable()`/
+  `FigmaDesignOperation.withRequestAndNextRevision()`/
+  `FigmaDesignOperationRepository.appendTransitionWithRequest()` 신규 오버로드로 모델을
+  확장해 해소(기존 `createOrReuse`/`appendTransition`/`withNextRevision`은 변경 없음). 필드
+  후보 조회는 별도 API 없이 기존 `GET /api/figma/operations/{operationId}/info`(R5-040)가
+  `issues`를 그대로 반환해 충족. REFERENCE_STYLE·IMAGE_REFERENCE 2종에만 한정되며
+  COMPONENT_SPECIFIED/MODIFY_EXISTING/MULTI_SCREEN_FLOW/PLATFORM_CONVERT/TEXT_DESCRIPTION은
+  기존 경로(REJECTED/예외) 그대로 유지됨을 회귀 테스트로 검증. `figma-design-operation-v1.schema.json`의
+  상태 enum에도 반영. 전체 Java 테스트 스위트 통과.
+
 ### 외부 제약 분류 기준
 
 - “이 환경에서 불가능”과 “대상 API 계약·현재 입력 모델에 없는 기능”을 구분한다.
@@ -925,6 +964,8 @@ R7-T01/R7-T04/R7-015/R7-016의 잔여 범위이다.
 
 | 버전 | 일자 | 변경 내용 |
 |---|---|---|
+| 4.13 | 2026-08-19 | **§11.4.1을 정식 `R6-065` ID로 재번호(DEC-03 확정, 23번 문서 v1.6 참고).** 4.12에서 "제안(미착수)"로 문서화했던 `AWAITING_TABLE_BINDING` 절충안이 이번 세션에서 전체 구현 완료됨에 따라 §11.4.1을 완결된 `R6-065` 항목으로 재작성. 당초 PROP-03(`FieldRoleToColumnMatcher`)은 구현 후 기존 `ScreenSpecAssembler.bindingsFromHints()`와 중복 확인돼 삭제, PROP-04(`bindFigmaDesignRequestTable`)는 Operation이 request 해시로 identity가 고정되는 구조적 제약을 발견해 `FigmaDesignRequest`/`FigmaDesignOperation`/`FigmaDesignOperationRepository`에 request 갱신 가능한 신규 오버로드를 추가해 해소. MCP Tool 외 REST 엔드포인트(`POST /api/figma/orchestration/bind-table`)도 추가 구현. 전체 Java 테스트 스위트 통과 확인 |
+| 4.12 | 2026-08-18 | §11.4.1 신설: REFERENCE_STYLE/IMAGE_REFERENCE의 "DB 테이블 바인딩으로 통일" 결정(v4.1)이 남긴 한계 — 디자인을 먼저 보고 테이블은 나중에 고르는 워크플로우 미지원 — 를 보완하는 **제안(미착수)** 절충안을 문서화. `AWAITING_TABLE_BINDING` 중간 상태, `DesignFieldCandidateExtractor`/`FieldRoleToColumnMatcher`/`bindFigmaDesignRequestTable` 3개 신규 컴포넌트(PROP-01~04)로 구성하며 나머지는 기존 REVIEW_REQUIRED/`generateBundle` 경로를 재사용. 코드 변경 없음 — 사용자 승인 전까지 설계 후보로만 존재. |
 | 4.11 | 2026-08-18 | **R7-T01 나머지 구간 실제 실행**: 로컬 eGovFrame(`localhost:8081`) QnA 목록 화면을 실제 로그인 세션으로 캡처(MCP `captureWebPage`) → `/api/figma/hybrid/candidates` 후보 Spec 생성 → `/approve` 승인 → 실제 `FigmaScreenSpec` 생성까지 전체 파이프라인을 서버 REST/MCP 호출로 직접 실행해 검증. 이 로그인 폼이 라디오 선택(업무/USR 유형)을 먼저 클릭해야 하는 다단계 폼임을 발견해 `jsp-design-extractor`에 재사용 가능한 `preClickSelector` 옵션 신설. 로컬 서버 설정은 실행 중 임시로만 조정(`enabled`/키/`allowed-origins`/`sensitive-selectors`/actuator `env` 노출)했고 작업 완료 후 전부 원복. |
 | 4.10 | 2026-08-18 | (문서 상단 버전 표시가 4.3에 머물러 있던 표기 오류도 함께 정정) 서버 코드로 닫을 수 있는 잔여 항목 재조사·구현. **R6-053**: `LegacyScreenRoleResolver` 신설 — JSP/Controller 소스 증거로 화면 유형을 추정해 호출자가 명시한 `screenRole`과 어긋나면 WARNING(자동 판정이 필수 입력을 대체하지 않음). 실제 `EgovEmployerList.jsp` fixture 재현 중 검색/필터 폼을 데이터 입력 폼으로 오판하는 버그를 발견·수정. **R6-T10**: `queryTeamComponents`/`queryTeamStyles`/`queryAllTeamComponents`/`queryAllTeamStyles` 신설로 Team 전체 Library의 `page_size`/`after` cursor pagination 실제 구현(cursor가 진행 없으면 즉시 중단해 무한 루프·중복 방지). **R6-062**: `ThymeleafBindingGenerationService.resolveDesignTokens()`가 `CompanyDesignTokenResolver`에 항상 `null`을 하드코딩해 넘겨 DESIGN.md 화면 Override 병합 로직(R6-056, 구현·테스트는 있었음)이 생성 파이프라인에서 한 번도 실행되지 않던 배선 누락을 발견·수정 — `DesignMdRuleLoader`를 주입해 실제 DESIGN.md 규칙이 있을 때만 병합하도록 연결, end-to-end 테스트로 검증. **R4-020/R6-044/R0-027/R6-040/R6-045/R6-T09/R6-043/R6-054/R6-056/R6-031**은 이전 회차(v4.3)에서 이미 처리. **재조사 후 근거 보강**: R6-T08(file 소속은 실시간 REST 호출로 이미 검증됨을 확인, page 소속은 요청 계약에 pageId 개념이 없어 별도 설계 결정 필요로 재분류). **범위 확정 보류**: R6-063/R6-T16(하드코딩 검사 대상 자체가 미정 — 실제 템플릿 3종은 inline style을 전혀 쓰지 않아 원래 뜻의 CSS 값 우회 검사는 대상 표면이 없음), R6-030(dead code 삭제 여부는 사용자 결정 필요), R7-002(운영 fixture 축적 전 휴리스틱 추측 추가는 보류가 합리적 — 문서의 기존 판단 재확인). Java 전체 테스트 스위트 1576개 통과 확인(신규 테스트 20건 이상 추가). |
 | 4.9 | 2026-08-18 | R7 하이브리드 흐름의 실제 구조를 명확화. `.figpack`은 `FigmaScreenSpec`이 아니라 `document.json` 기반 Reference Snapshot이며, `UiDesignSpec → 후보 ScreenSpecification → 사람 수정·승인 → FigmaScreenSpec`으로 변환됨을 명시. 개념적 MCP 흐름과 실제 `FigmaHybridExportService` 기반 REST 진입점(`/api/figma/hybrid/**`)의 관계를 문서화하고, 운영 `.figpack` 전체 E2E·픽셀 비교 잔여 범위를 R7-T01/R7-T04/R7-015/R7-016으로 재확인. |

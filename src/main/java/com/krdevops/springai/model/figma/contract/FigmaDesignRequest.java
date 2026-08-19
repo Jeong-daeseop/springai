@@ -90,6 +90,16 @@ public record FigmaDesignRequest(
     }
 
     /**
+     * 22/23번 문서 A-01a: {@code AWAITING_TABLE_BINDING}에서 {@code bindFigmaDesignRequestTable}로
+     * database/tableName만 채워 넣은 동일 요청 사본을 만든다.
+     */
+    public FigmaDesignRequest withDatabaseTable(String database, String tableName) {
+        return new FigmaDesignRequest(type, prompt, fileKey, referenceNodeIds, editableNodeIds, imageNodeIds,
+                targetPlatform, components, screens, database, tableName, screenName, featureType,
+                screenSpecificationId);
+    }
+
+    /**
      * TEXT_DESCRIPTION 요청 생성 헬퍼
      */
     public static FigmaDesignRequest textDescription(String prompt, String fileKey) {

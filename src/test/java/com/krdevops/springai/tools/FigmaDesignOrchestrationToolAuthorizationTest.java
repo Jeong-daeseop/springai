@@ -25,4 +25,17 @@ class FigmaDesignOrchestrationToolAuthorizationTest {
                 .isInstanceOf(SecurityException.class);
         verify(orchestration, never()).processTextRequest("화면", "file");
     }
+
+    /** T-07: 잘못된 figmaMcpSecret으로 bindFigmaDesignRequestTable을 호출하면 인증 단계에서 거부한다. */
+    @Test
+    void authenticationRunsBeforeBindingTable() {
+        FigmaDesignOrchestrationService orchestration = mock(FigmaDesignOrchestrationService.class);
+        FigmaDesignOrchestrationTool tool = new FigmaDesignOrchestrationTool(
+                orchestration, new FigmaToolAuthorizationService("expected"), new ObjectMapper(),
+                new FigmaPlatformConversionService(new ComponentSwapPolicyResolver()));
+
+        assertThatThrownBy(() -> tool.bindFigmaDesignRequestTable("wrong", "figop-1", "ebt", "emp_list"))
+                .isInstanceOf(SecurityException.class);
+        verify(orchestration, never()).bindTable("figop-1", "ebt", "emp_list");
+    }
 }
