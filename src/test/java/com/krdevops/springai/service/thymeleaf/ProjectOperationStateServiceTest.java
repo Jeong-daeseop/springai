@@ -12,13 +12,15 @@ import org.springframework.test.context.TestPropertySource;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * CI에는 로컬 전용 ko-sroberta ONNX 모델 파일이 없어, 이 테스트가 필요로 하지 않는 실제 임베딩
- * 모델 auto-config를 끄고(TestPropertySource) StubEmbeddingModelTestConfig로 대체한다. 후자만으로는
- * 부족하다 — TransformersEmbeddingModelAutoConfiguration의 @ConditionalOnMissingBean이 구현
- * 클래스(TransformersEmbeddingModel) 기준이라 인터페이스 스텁 Bean만으로는 비활성화되지 않는다.
+ * CI 러너에는 로컬 전용 ko-sroberta ONNX 모델 파일도, Redis 서버도 없어 이 테스트가 필요로 하지
+ * 않는 실제 임베딩/VectorStore auto-config가 각각 파일 I/O와 연결 단계에서 실패한다.
+ * spring.ai.model.embedding=none + spring.ai.vectorstore.redis.enabled=false(TestPropertySource)로
+ * 끄고 StubEmbeddingModelTestConfig의 no-op Bean으로 대체한다 — 전자만으로는 부족하다.
+ * TransformersEmbeddingModelAutoConfiguration의 @ConditionalOnMissingBean이 구현 클래스
+ * (TransformersEmbeddingModel) 기준이라 인터페이스 스텁 Bean만으로는 비활성화되지 않는다.
  */
 @SpringBootTest
-@TestPropertySource(properties = "spring.ai.model.embedding=none")
+@TestPropertySource(properties = {"spring.ai.model.embedding=none", "spring.ai.vectorstore.redis.enabled=false"})
 @Import(StubEmbeddingModelTestConfig.class)
 @DisplayName("I-5B: ProjectOperationStateService 테스트")
 class ProjectOperationStateServiceTest {

@@ -4,6 +4,7 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.redis.RedisVectorStore;
 import org.springframework.ai.vectorstore.redis.RedisVectorStore.MetadataField;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import redis.clients.jedis.RedisClient;
@@ -18,8 +19,13 @@ import java.time.Duration;
  * EmbeddingModel: TransformersEmbeddingModel (ko-sroberta-multitask ONNX)
  * → EmbeddingModel 인터페이스로 주입받아 구현체 교체에 유연하게 대응
  * → spring.ai.model.embedding=transformers 설정으로 TransformersEmbeddingModel 자동 선택
+ *
+ * spring.ai.vectorstore.redis.enabled=false로 이 설정 전체(RedisClient/RedisVectorStore Bean)를
+ * 끌 수 있다(기본값 true, 운영 동작 불변). 실제 Redis가 없는 CI 등에서 RAG와 무관한 테스트가
+ * RedisVectorStore.afterPropertiesSet()의 연결 시도로 실패하지 않도록 테스트에서 사용한다.
  */
 @Configuration
+@ConditionalOnProperty(prefix = "spring.ai.vectorstore.redis", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class VectorStoreConfig {
 
     @Value("${spring.ai.vectorstore.redis.uri:redis://localhost:6379}")
