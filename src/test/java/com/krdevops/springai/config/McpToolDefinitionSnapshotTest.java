@@ -65,7 +65,8 @@ class McpToolDefinitionSnapshotTest {
      */
     // R6-032~038(2026-08-18): generateFigmaBundleForOperation 추가로 97 → 98.
     // R6-065(2026-08-19): bindFigmaDesignRequestTable 추가로 98 → 99.
-    private static final int EXPECTED_TOOL_METHOD_COUNT = 99;
+    // R8(04번 문서 §11, 2026-08-20): captureWebPageMultiViewport 추가로 99 → 100.
+    private static final int EXPECTED_TOOL_METHOD_COUNT = 100;
 
     /**
      * McpConfig.allToolCallbacks(...)의 toolObjects(...) 인자 개수(등록된 *Tool 컴포넌트 클래스 수).

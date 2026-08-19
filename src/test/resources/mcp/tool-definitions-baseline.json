@@ -503,6 +503,95 @@
     "type" : "object"
   }
 }, {
+  "name" : "captureWebPageMultiViewport",
+  "description" : "captureWebPage와 동일한 화면을 Desktop(1440)/Tablet(768)/Mobile(390) 3개\nviewport(모두 height=1200)로 각각 캡처하고, 같은 selectorHint(태그+id+첫 class)를\n가진 컴포넌트를 viewport 사이에서 대응시킨 결과(RenderedDesignBundle)를 반환합니다.\n요청 파라미터는 captureWebPage와 동일하되 viewport 필드는 무시되고 3종 모두\n자동으로 캡처됩니다. 일부 viewport 캡처가 실패해도 나머지가 성공하면 경고와 함께\n부분 결과를 반환하며, 3개 모두 실패한 경우에만 오류를 던집니다. 컴포넌트 대응은\n부모 selectorHint 비교만 근거로 사용하며(임의 픽셀 임계값 없음), 모든 viewport에\n존재하고 부모가 같으면 MATCHED_ALL, 일부 viewport에 없으면 HIDDEN_IN_SOME, 모든\nviewport에 있지만 부모 selectorHint가 다르면 MOVED로 분류합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "request" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "featureType" : {
+            "type" : "string"
+          },
+          "interactions" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "selector" : {
+                  "type" : "string"
+                },
+                "type" : {
+                  "type" : "string"
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "type" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "profile" : {
+            "const" : "LOCAL_WEB",
+            "type" : "string"
+          },
+          "readiness" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "hiddenSelector" : {
+                "type" : "string"
+              },
+              "readySelector" : {
+                "type" : "string"
+              },
+              "timeoutMillis" : {
+                "format" : "int32",
+                "type" : "integer"
+              }
+            },
+            "required" : [ "hiddenSelector", "readySelector", "timeoutMillis" ],
+            "type" : "object"
+          },
+          "storageStateRef" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          },
+          "viewport" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "deviceScaleFactor" : {
+                "format" : "double",
+                "type" : "number"
+              },
+              "height" : {
+                "format" : "int32",
+                "type" : "integer"
+              },
+              "name" : {
+                "type" : "string"
+              },
+              "width" : {
+                "format" : "int32",
+                "type" : "integer"
+              }
+            },
+            "required" : [ "deviceScaleFactor", "height", "name", "width" ],
+            "type" : "object"
+          }
+        },
+        "required" : [ "featureType", "profile", "readiness", "url", "viewport" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "request" ],
+    "type" : "object"
+  }
+}, {
   "name" : "celsiusToFahrenheit",
   "description" : "섭씨(Celsius) 온도를 화씨(Fahrenheit)로 변환합니다.\ncelsius 파라미터에 변환할 섭씨 온도 값을 입력하세요.\n",
   "inputSchema" : {

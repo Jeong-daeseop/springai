@@ -38,6 +38,7 @@ const schemaNames = [
   "figma-refinement-patch-set-v1.schema.json",
   "figma-refinement-preview-v1.schema.json",
   "figma-generation-report-v2.schema.json",
+  "rendered-design-bundle-v1.schema.json",
 ];
 const schemas = schemaNames.map(read);
 const ajv = new Ajv2020({allErrors:true, strict:true});
@@ -76,6 +77,7 @@ const validateLegacyScreenAnalysis = validator("legacy-screen-analysis-v1.schema
 const validateBindingContract = validator("thymeleaf-binding-contract-v1.schema.json");
 const validateQnaBusinessSpec = validator("qna-screen-specification-v2.schema.json");
 const validateQnaBusinessSpecV3 = validator("qna-screen-specification-v3.schema.json");
+const validateRenderedDesignBundle = validator("rendered-design-bundle-v1.schema.json");
 
 function expectValid(validate, fixture) {
   assert.equal(validate(read(`fixtures/${fixture}`)), true,
@@ -103,6 +105,9 @@ assert.equal(
 );
 expectValid(validateManifest, "valid-figpack-manifest.json");
 expectInvalid(validateManifest, "invalid-figpack-path.json");
+
+expectValid(validateRenderedDesignBundle, "valid-rendered-design-bundle.json");
+expectInvalid(validateRenderedDesignBundle, "invalid-rendered-design-bundle-bad-status.json");
 
 expectValid(validateScreen, "valid-figma-screen-spec.json");
 expectValid(validateScreen, "valid-boundary-figma-screen-spec.json");

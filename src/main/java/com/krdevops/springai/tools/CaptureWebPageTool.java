@@ -5,6 +5,7 @@ import com.krdevops.springai.config.mcp.McpToolRiskLevel;
 
 import com.krdevops.springai.model.capture.CaptureArtifactSummary;
 import com.krdevops.springai.model.capture.CaptureWebPageRequest;
+import com.krdevops.springai.model.capture.RenderedDesignBundle;
 import com.krdevops.springai.service.WebCaptureOrchestrationService;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Component;
@@ -36,5 +37,21 @@ public class CaptureWebPageTool {
             """)
     public CaptureArtifactSummary captureWebPage(CaptureWebPageRequest request) {
         return service.capture(request);
+    }
+
+    @McpToolRisk(McpToolRiskLevel.EXTERNAL)
+    @Tool(description = """
+            captureWebPage와 동일한 화면을 Desktop(1440)/Tablet(768)/Mobile(390) 3개
+            viewport(모두 height=1200)로 각각 캡처하고, 같은 selectorHint(태그+id+첫 class)를
+            가진 컴포넌트를 viewport 사이에서 대응시킨 결과(RenderedDesignBundle)를 반환합니다.
+            요청 파라미터는 captureWebPage와 동일하되 viewport 필드는 무시되고 3종 모두
+            자동으로 캡처됩니다. 일부 viewport 캡처가 실패해도 나머지가 성공하면 경고와 함께
+            부분 결과를 반환하며, 3개 모두 실패한 경우에만 오류를 던집니다. 컴포넌트 대응은
+            부모 selectorHint 비교만 근거로 사용하며(임의 픽셀 임계값 없음), 모든 viewport에
+            존재하고 부모가 같으면 MATCHED_ALL, 일부 viewport에 없으면 HIDDEN_IN_SOME, 모든
+            viewport에 있지만 부모 selectorHint가 다르면 MOVED로 분류합니다.
+            """)
+    public RenderedDesignBundle captureWebPageMultiViewport(CaptureWebPageRequest request) {
+        return service.captureMultiViewport(request);
     }
 }

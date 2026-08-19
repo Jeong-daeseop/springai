@@ -2,8 +2,12 @@ package com.krdevops.springai.service;
 
 import com.krdevops.springai.config.WebCaptureProperties;
 import com.krdevops.springai.model.capture.CaptureArtifactSummary;
+import com.krdevops.springai.model.capture.CaptureWarning;
 import com.krdevops.springai.model.capture.CaptureWebPageRequest;
 import com.krdevops.springai.model.capture.InteractionStep;
+import com.krdevops.springai.model.capture.RenderedDesignBundle;
+import com.krdevops.springai.model.capture.RenderedDesignDocument;
+import com.krdevops.springai.model.capture.ViewportSpec;
 import com.krdevops.springai.model.capture.WebCaptureSessionRequest;
 import com.krdevops.springai.model.capture.WebCaptureSessionResponse;
 import org.springframework.stereotype.Service;
@@ -11,7 +15,11 @@ import org.springframework.stereotype.Service;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +42,51 @@ public class WebCaptureOrchestrationService {
     }
 
     public CaptureArtifactSummary capture(CaptureWebPageRequest request) {
+        return captureInternal(request).summary();
+    }
+
+    /**
+     * R8(04번 문서 §11): Desktop/Tablet/Mobile 세 viewport를 순서대로 캡처해 하나의
+     * {@link RenderedDesignBundle}로 묶는다. 개별 viewport 실패는 {@link CaptureWarning}으로
+     * 기록하고 계속 진행하며("부분 성공 상태 처리"), 최소 1개 viewport가 성공하면 Bundle을
+     * 반환한다. 3개 모두 실패한 경우에만 예외를 던진다.
+     */
+    public RenderedDesignBundle captureMultiViewport(CaptureWebPageRequest baseRequest) {
+        if (!properties.isEnabled()) throw new IllegalStateException("WEB_CAPTURE 기능이 비활성 상태입니다.");
+        Map<String, ViewportSpec> viewports = new LinkedHashMap<>();
+        viewports.put("desktop", ViewportSpec.desktop());
+        viewports.put("tablet", ViewportSpec.tablet());
+        viewports.put("mobile", ViewportSpec.mobile());
+
+        Map<String, String> viewportArtifacts = new LinkedHashMap<>();
+        Map<String, RenderedDesignDocument> documentsByViewport = new LinkedHashMap<>();
+        List<CaptureWarning> warnings = new ArrayList<>();
+        for (var entry : viewports.entrySet()) {
+            CaptureWebPageRequest perViewportRequest = new CaptureWebPageRequest(baseRequest.url(),
+                    baseRequest.profile(), entry.getValue(), baseRequest.readiness(), baseRequest.featureType(),
+                    baseRequest.storageStateRef(), baseRequest.interactions());
+            try {
+                CaptureResult result = captureInternal(perViewportRequest);
+                viewportArtifacts.put(entry.getKey(), result.summary().artifactId());
+                documentsByViewport.put(entry.getKey(), result.document());
+            } catch (Exception e) {
+                warnings.add(new CaptureWarning("VIEWPORT_CAPTURE_FAILED", null,
+                        entry.getKey() + " viewport 캡처 실패: " + e.getMessage()));
+            }
+        }
+        if (documentsByViewport.isEmpty()) {
+            throw new IllegalStateException("모든 viewport 캡처에 실패했습니다: " + warnings);
+        }
+
+        MultiViewportComponentMatcher.Result analysis = MultiViewportComponentMatcher.analyze(documentsByViewport);
+        return new RenderedDesignBundle(RenderedDesignBundle.SCHEMA_VERSION, UUID.randomUUID().toString(),
+                viewportArtifacts, analysis.componentMatches(), analysis.breakpointObservations(), warnings);
+    }
+
+    private record CaptureResult(CaptureArtifactSummary summary, RenderedDesignDocument document) {
+    }
+
+    private CaptureResult captureInternal(CaptureWebPageRequest request) {
         if (!properties.isEnabled()) throw new IllegalStateException("WEB_CAPTURE 기능이 비활성 상태입니다.");
         WebCaptureUrlValidator.ValidatedUrl url = urlValidator.validate(request.url());
         String captureId = UUID.randomUUID().toString();
@@ -42,7 +95,7 @@ public class WebCaptureOrchestrationService {
         RenderedDesignPackageValidator.ValidatedPackage pack =
                 packageValidator.validate(bytes, captureId, documentKey);
         urlValidator.validate(pack.document().source().finalUrl());
-        return artifactService.save(pack);
+        return new CaptureResult(artifactService.save(pack), pack.document());
     }
 
     /**

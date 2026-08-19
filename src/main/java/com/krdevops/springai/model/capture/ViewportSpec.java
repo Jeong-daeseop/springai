@@ -13,4 +13,10 @@ public record ViewportSpec(String name, int width, int height, double deviceScal
     }
 
     public static ViewportSpec desktop() { return new ViewportSpec("desktop", 1440, 1200, 1); }
+
+    /** R8(04번 문서 §11): {@code ResponsiveBreakpointPolicy}의 Tablet 기준(768/8열)과 동일한 폭. */
+    public static ViewportSpec tablet() { return new ViewportSpec("tablet", 768, 1200, 1); }
+
+    /** R8(04번 문서 §11): {@code ResponsiveBreakpointPolicy}의 Mobile 기준(390/4열)과 동일한 폭. */
+    public static ViewportSpec mobile() { return new ViewportSpec("mobile", 390, 1200, 1); }
 }

@@ -171,6 +171,17 @@ try {
 
   await reject({...baseRequest,url:"http://127.0.0.1:4320/spa.do",readiness:{timeoutMillis:1000},interactions:[{type:"click",selector:"#does-not-exist"}]},"test-key",422,"CAPTURE_INTERACTION_FAILED");
 
+  // R8(04번 문서 §11): Desktop 외에 Tablet(768)/Mobile(390) 폭도 허용하고, name/width가 어긋난
+  // 조합(예: tablet인데 1440)이나 목록에 없는 조합은 여전히 VIEWPORT_DENIED로 거부된다.
+  for (const [name, width] of [["tablet", 768], ["mobile", 390]]) {
+    const viewportResponse=await fetch("http://127.0.0.1:4319/v1/captures",{method:"POST",headers:{"Content-Type":"application/json","X-Extractor-Key":"test-key"},body:JSON.stringify({...baseRequest,captureId:`11111111-1111-4111-8111-${name==="tablet"?"000000000012":"000000000013"}`,url:"http://127.0.0.1:4320/list.do",viewport:{name,width,height:1200,deviceScaleFactor:1}})});
+    if(!viewportResponse.ok)throw new Error(`${name} viewport capture failed: ${viewportResponse.status} ${await viewportResponse.text()}`);
+    const viewportZip=await JSZip.loadAsync(await viewportResponse.arrayBuffer());
+    const viewportDocument=JSON.parse(await viewportZip.file("document.json").async("string"));
+    if(viewportDocument.environment.viewportName!==name||viewportDocument.environment.viewportWidth!==width)throw new Error(`${name} viewport not reflected in document: ${JSON.stringify(viewportDocument.environment)}`);
+  }
+  await reject({...baseRequest,viewport:{name:"tablet",width:1440,height:1200,deviceScaleFactor:1}},"test-key",400,"CAPTURE_URL_INVALID");
+
   console.log(`E2E OK: fixtures=4, nodes=${results.map(value=>value.nodes.length).join(",")}, deterministicHash=${repeated.contentHash.slice(0,12)}, security=${JSON.stringify(securityCounters)}`);
 } finally {
   extractor.kill("SIGTERM"); web.close();external.close();fs.rmSync(tempDirectory,{recursive:true,force:true});

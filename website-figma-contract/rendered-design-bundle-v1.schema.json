@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/rendered-design-bundle-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "bundleId", "viewportArtifacts", "componentMatches", "breakpointObservations", "warnings"],
+  "properties": {
+    "schemaVersion": {"const": "rendered-design-bundle-v1"},
+    "bundleId": {"type": "string", "format": "uuid"},
+    "viewportArtifacts": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "desktop": {"type": "string", "format": "uuid"},
+        "tablet": {"type": "string", "format": "uuid"},
+        "mobile": {"type": "string", "format": "uuid"}
+      }
+    },
+    "componentMatches": {"type": "array", "items": {"$ref": "#/$defs/componentMatch"}},
+    "breakpointObservations": {"type": "array", "items": {"$ref": "#/$defs/breakpointObservation"}},
+    "warnings": {"type": "array", "items": {"$ref": "#/$defs/warning"}}
+  },
+  "$defs": {
+    "nullableString": {"type": ["string", "null"]},
+    "componentMatch": {
+      "type": "object", "additionalProperties": false,
+      "required": ["selectorHint", "nodeIdsByViewport", "status"],
+      "properties": {
+        "selectorHint": {"type": "string"},
+        "nodeIdsByViewport": {
+          "type": "object", "additionalProperties": false,
+          "properties": {
+            "desktop": {"type": "string"}, "tablet": {"type": "string"}, "mobile": {"type": "string"}
+          }
+        },
+        "status": {"enum": ["MATCHED_ALL", "HIDDEN_IN_SOME", "MOVED"]}
+      }
+    },
+    "breakpointObservation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["selectorHint", "fromViewport", "toViewport", "change"],
+      "properties": {
+        "selectorHint": {"type": "string"},
+        "fromViewport": {"enum": ["desktop", "tablet", "mobile"]},
+        "toViewport": {"enum": ["desktop", "tablet", "mobile"]},
+        "change": {"enum": ["HIDDEN", "SHOWN", "MOVED"]}
+      }
+    },
+    "warning": {
+      "type": "object", "additionalProperties": false,
+      "required": ["code", "nodeId", "message"],
+      "properties": {
+        "code": {"type": "string"},
+        "nodeId": {"$ref": "#/$defs/nullableString"},
+        "message": {"type": "string"}
+      }
+    }
+  }
+}

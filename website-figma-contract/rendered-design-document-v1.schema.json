@@ -40,7 +40,8 @@
       "type": "object", "additionalProperties": false,
       "required": ["viewportName", "viewportWidth", "viewportHeight", "deviceScaleFactor", "locale", "timezone", "colorScheme", "reducedMotion", "browserEngine"],
       "properties": {
-        "viewportName": {"const": "desktop"}, "viewportWidth": {"const": 1440},
+        "viewportName": {"enum": ["desktop", "tablet", "mobile"]},
+        "viewportWidth": {"enum": [1440, 768, 390]},
         "viewportHeight": {"const": 1200}, "deviceScaleFactor": {"type": "number", "minimum": 0.5, "maximum": 4},
         "locale": {"type": "string"}, "timezone": {"type": "string"},
         "colorScheme": {"enum": ["light", "dark"]}, "reducedMotion": {"type": "boolean"},

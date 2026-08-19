@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "rendered-design-bundle-v1",
+  "bundleId": "9f8c5e2a-1b3d-4a6e-9c7f-2d4e6a8b0c1d",
+  "viewportArtifacts": {
+    "desktop": "0a1b2c3d-1111-4a6e-9c7f-2d4e6a8b0c1d"
+  },
+  "componentMatches": [
+    {
+      "selectorHint": "nav#gnb",
+      "nodeIdsByViewport": {"desktop": "n1"},
+      "status": "PARTIALLY_MATCHED"
+    }
+  ],
+  "breakpointObservations": [],
+  "warnings": []
+}

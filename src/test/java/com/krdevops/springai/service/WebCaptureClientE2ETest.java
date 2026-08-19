@@ -7,6 +7,7 @@ import com.krdevops.springai.mapper.DesignAnalysisRepository;
 import com.krdevops.springai.model.capture.CaptureArtifactSummary;
 import com.krdevops.springai.model.capture.CaptureProfile;
 import com.krdevops.springai.model.capture.CaptureWebPageRequest;
+import com.krdevops.springai.model.capture.RenderedDesignBundle;
 import com.krdevops.springai.model.capture.RenderedDesignDocument;
 import com.krdevops.springai.model.capture.RenderedDesignPackageManifest;
 import com.krdevops.springai.model.capture.RenderedNode;
@@ -223,6 +224,99 @@ class WebCaptureClientE2ETest {
         assertThat(afterClickDocumentKey).isNotEqualTo(initialDocumentKey);
     }
 
+    /** R8(04번 문서 §11): 3개 viewport를 순서대로 캡처해 selectorHint 기준으로 대응시킨 Bundle을 만든다. */
+    @Test
+    void r8_captureMultiViewportBuildsBundleWithComponentMatches(@TempDir Path tempDir) throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        List<String> requestedViewports = new ArrayList<>();
+        HttpServer extractor = extractorServer(exchange -> {
+            var body = mapper.readTree(exchange.getRequestBody());
+            String viewportName = body.get("viewport").get("name").asText();
+            requestedViewports.add(viewportName);
+            int viewportWidth = body.get("viewport").get("width").asInt();
+            List<RenderedNode> nodes = new ArrayList<>(List.of(
+                    node("root", null, null),
+                    node("gnb", "root", "nav#gnb")));
+            if (!"desktop".equals(viewportName)) {
+                nodes.add(node("hamburger", "root", "button.hamburger"));
+            }
+            byte[] figpack = packWithNodesUnchecked(mapper,
+                    body.get("captureId").asText(), body.get("documentKey").asText(),
+                    viewportName, viewportWidth, nodes);
+            exchange.getResponseHeaders().add("Content-Type", "application/vnd.springai.figpack+zip");
+            exchange.sendResponseHeaders(200, figpack.length);
+            exchange.getResponseBody().write(figpack);
+        });
+        WebCaptureProperties properties = properties(tempDir, extractor);
+        WebCaptureOrchestrationService orchestration = orchestration(mapper, properties);
+
+        RenderedDesignBundle bundle = orchestration.captureMultiViewport(new CaptureWebPageRequest(
+                "http://localhost:8080/list.do", CaptureProfile.LOCAL_WEB, ViewportSpec.desktop(), null, "crud"));
+
+        assertThat(requestedViewports).containsExactly("desktop", "tablet", "mobile");
+        assertThat(bundle.viewportArtifacts()).containsOnlyKeys("desktop", "tablet", "mobile");
+        assertThat(bundle.warnings()).isEmpty();
+        var gnb = bundle.componentMatches().stream()
+                .filter(m -> m.selectorHint().equals("nav#gnb")).findFirst().orElseThrow();
+        assertThat(gnb.status()).isEqualTo(com.krdevops.springai.model.capture.ComponentMatch.Status.MATCHED_ALL);
+        var hamburger = bundle.componentMatches().stream()
+                .filter(m -> m.selectorHint().equals("button.hamburger")).findFirst().orElseThrow();
+        assertThat(hamburger.status())
+                .isEqualTo(com.krdevops.springai.model.capture.ComponentMatch.Status.HIDDEN_IN_SOME);
+        assertThat(bundle.breakpointObservations()).contains(
+                new com.krdevops.springai.model.capture.BreakpointObservation("button.hamburger", "desktop",
+                        "tablet", com.krdevops.springai.model.capture.BreakpointObservation.Change.SHOWN));
+    }
+
+    /** R8(04번 문서 §11): 일부 viewport 캡처가 실패해도(부분 성공) 나머지로 Bundle을 만들고 경고를 남긴다. */
+    @Test
+    void r8_captureMultiViewportContinuesOnPartialFailure(@TempDir Path tempDir) throws Exception {
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        HttpServer extractor = extractorServer(exchange -> {
+            var body = mapper.readTree(exchange.getRequestBody());
+            String viewportName = body.get("viewport").get("name").asText();
+            if ("tablet".equals(viewportName)) {
+                byte[] error = "Extractor internal error".getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(500, error.length);
+                exchange.getResponseBody().write(error);
+                return;
+            }
+            int viewportWidth = body.get("viewport").get("width").asInt();
+            byte[] figpack = packWithNodesUnchecked(mapper,
+                    body.get("captureId").asText(), body.get("documentKey").asText(),
+                    viewportName, viewportWidth, List.of(node("root", null, null)));
+            exchange.getResponseHeaders().add("Content-Type", "application/vnd.springai.figpack+zip");
+            exchange.sendResponseHeaders(200, figpack.length);
+            exchange.getResponseBody().write(figpack);
+        });
+        WebCaptureProperties properties = properties(tempDir, extractor);
+        WebCaptureOrchestrationService orchestration = orchestration(mapper, properties);
+
+        RenderedDesignBundle bundle = orchestration.captureMultiViewport(new CaptureWebPageRequest(
+                "http://localhost:8080/list.do", CaptureProfile.LOCAL_WEB, ViewportSpec.desktop(), null, "crud"));
+
+        assertThat(bundle.viewportArtifacts()).containsOnlyKeys("desktop", "mobile");
+        assertThat(bundle.warnings()).hasSize(1);
+        assertThat(bundle.warnings().get(0).code()).isEqualTo("VIEWPORT_CAPTURE_FAILED");
+    }
+
+    /** R8(04번 문서 §11): 3개 viewport 모두 실패하면 부분 결과 없이 예외를 던진다. */
+    @Test
+    void r8_captureMultiViewportFailsWhenAllViewportsFail(@TempDir Path tempDir) throws Exception {
+        HttpServer extractor = extractorServer(exchange -> {
+            byte[] error = "Extractor internal error".getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(500, error.length);
+            exchange.getResponseBody().write(error);
+        });
+        ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+        WebCaptureProperties properties = properties(tempDir, extractor);
+        WebCaptureOrchestrationService orchestration = orchestration(mapper, properties);
+
+        assertThatThrownBy(() -> orchestration.captureMultiViewport(new CaptureWebPageRequest(
+                "http://localhost:8080/list.do", CaptureProfile.LOCAL_WEB, ViewportSpec.desktop(), null, "crud")))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
     @Test
     void storageStateRefMustBeAnExtractorIssuedUuid() {
         assertThatThrownBy(() -> new CaptureWebPageRequest(
@@ -411,6 +505,60 @@ class WebCaptureClientE2ETest {
 
     private Field field(String key, String role, String value, String label) {
         return new Field(key, role, value, label);
+    }
+
+    /** R8(04번 문서 §11) 테스트 전용: selectorHint를 직접 지정한 노드를 만든다. */
+    private static RenderedNode node(String id, String parentId, String selectorHint) {
+        var bounds = new RenderedNode.Bounds(0, 0, 10, 10);
+        return new RenderedNode(id, parentId, "ELEMENT", "div", null, null, null, null,
+                true, bounds, Map.of(), List.of(), selectorHint, 0, 0.0, null);
+    }
+
+    private byte[] packWithNodesUnchecked(ObjectMapper mapper, String captureId, String documentKey,
+            String viewportName, int viewportWidth, List<RenderedNode> nodes) {
+        try {
+            return packWithNodes(mapper, captureId, documentKey, viewportName, viewportWidth, nodes);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /** R8(04번 문서 §11) 테스트 전용: viewport/노드를 직접 지정해 figpack을 만든다(선택 컬럼·필드값이 아닌 selectorHint/부모 관계 검증용). */
+    private byte[] packWithNodes(ObjectMapper mapper, String captureId, String documentKey,
+            String viewportName, int viewportWidth, List<RenderedNode> nodes) throws Exception {
+        RenderedDesignDocumentValidator validator = new RenderedDesignDocumentValidator(mapper);
+        RenderedDesignDocument base = new RenderedDesignDocument(RenderedDesignDocument.SCHEMA_VERSION,
+                captureId, documentKey, "a".repeat(64),
+                new RenderedDesignDocument.Source("RENDERED_WEB_PAGE", "UNKNOWN",
+                        "http://localhost:8080/page.do", "http://localhost:8080/page.do",
+                        "c".repeat(64), "2026-08-20T00:00:00Z"),
+                new RenderedDesignDocument.Environment(viewportName, viewportWidth, 1200, 1, "ko-KR",
+                        "Asia/Seoul", "light", true, "chromium"),
+                new RenderedDesignDocument.Page(viewportName, "root", viewportWidth, 1200, 0, 0, "white"),
+                nodes, List.of(), Map.of(), List.of(), List.of(), List.of(), Map.of("name", "test"));
+        String hash = validator.calculateContentHash(base);
+        RenderedDesignDocument document = new RenderedDesignDocument(base.schemaVersion(), captureId,
+                documentKey, hash, base.source(), base.environment(), base.page(), base.nodes(), base.assets(),
+                base.tokens(), base.componentCandidates(), base.interactions(), base.warnings(), base.extractor());
+        byte[] documentBytes = mapper.writeValueAsBytes(document);
+        byte[] preview = new byte[]{1, 2, 3};
+        var manifest = new RenderedDesignPackageManifest(RenderedDesignPackageManifest.PACKAGE_VERSION,
+                RenderedDesignPackageManifest.MIME_TYPE, captureId, documentKey, hash, List.of(
+                new RenderedDesignPackageManifest.Entry("document.json", documentBytes.length, sha(documentBytes)),
+                new RenderedDesignPackageManifest.Entry("preview.png", preview.length, sha(preview))));
+        Map<String, byte[]> entries = new LinkedHashMap<>();
+        entries.put("manifest.json", mapper.writeValueAsBytes(manifest));
+        entries.put("document.json", documentBytes);
+        entries.put("preview.png", preview);
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(output)) {
+            for (var entry : entries.entrySet()) {
+                zip.putNextEntry(new ZipEntry(entry.getKey()));
+                zip.write(entry.getValue());
+                zip.closeEntry();
+            }
+        }
+        return output.toByteArray();
     }
 
     /** WebCaptureClient가 실제로 보낸 요청 본문에서 captureId/documentKey를 읽는다(index 0/1). */

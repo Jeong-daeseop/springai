@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "rendered-design-bundle-v1",
+  "bundleId": "9f8c5e2a-1b3d-4a6e-9c7f-2d4e6a8b0c1d",
+  "viewportArtifacts": {
+    "desktop": "0a1b2c3d-1111-4a6e-9c7f-2d4e6a8b0c1d",
+    "tablet": "0a1b2c3d-2222-4a6e-9c7f-2d4e6a8b0c1d",
+    "mobile": "0a1b2c3d-3333-4a6e-9c7f-2d4e6a8b0c1d"
+  },
+  "componentMatches": [
+    {
+      "selectorHint": "nav#gnb",
+      "nodeIdsByViewport": {"desktop": "n1", "tablet": "n1", "mobile": "n1"},
+      "status": "MATCHED_ALL"
+    },
+    {
+      "selectorHint": "button.hamburger",
+      "nodeIdsByViewport": {"mobile": "n2"},
+      "status": "HIDDEN_IN_SOME"
+    },
+    {
+      "selectorHint": "div.search-panel",
+      "nodeIdsByViewport": {"desktop": "n3", "tablet": "n3", "mobile": "n3"},
+      "status": "MOVED"
+    }
+  ],
+  "breakpointObservations": [
+    {"selectorHint": "button.hamburger", "fromViewport": "desktop", "toViewport": "tablet", "change": "SHOWN"},
+    {"selectorHint": "div.search-panel", "fromViewport": "tablet", "toViewport": "mobile", "change": "MOVED"}
+  ],
+  "warnings": [
+    {"code": "VIEWPORT_CAPTURE_FAILED", "nodeId": null, "message": "예시: 없음 (모두 성공)"}
+  ]
+}

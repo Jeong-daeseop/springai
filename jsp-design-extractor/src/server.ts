@@ -171,7 +171,14 @@ async function validateRequest(input: CaptureRequest) {
   if (input.storageStateRef !== undefined && !/^[0-9a-f-]{36}$/i.test(input.storageStateRef)) throw new Error("INVALID_ID");
   validateInteractions(input.interactions);
   await validateOrigin(input.url, input.allowedOrigins);
-  if (input.viewport.width !== 1440 || input.viewport.height !== 1200) throw new Error("VIEWPORT_DENIED");
+  // R8(04번 문서 §11): 기존 Desktop 단일 고정값 대신, R6-046(FigmaPlatformConversionService)이
+  // 이미 쓰는 Desktop/Tablet/Mobile 3종 폭만 허용한다(높이는 세 viewport 모두 1200으로 통일 —
+  // 실제 기기 화면 크기가 아니라 "캡처 영역" 관례이며 기존 Desktop도 1440x1200으로 동일했음).
+  const ALLOWED_VIEWPORTS = new Set(["desktop:1440", "tablet:768", "mobile:390"]);
+  if (input.viewport.height !== 1200
+      || !ALLOWED_VIEWPORTS.has(`${input.viewport.name}:${input.viewport.width}`)) {
+    throw new Error("VIEWPORT_DENIED");
+  }
 }
 
 const SESSION_TTL_MILLIS = Number(process.env.EXTRACTOR_SESSION_TTL_MINUTES ?? 30) * 60 * 1000;

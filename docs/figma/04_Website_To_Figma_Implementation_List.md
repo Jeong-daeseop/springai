@@ -1,7 +1,7 @@
 # Website → Figma 단계별 구현목록
 
 **문서명**: 04_Website_To_Figma_Implementation_List.md  
-**버전**: 1.27
+**버전**: 1.28
 **작성일**: 2026-07-22  
 **상태**: Release 1 자동 구현·검증 완료 — 남은 항목은 전부 사람의 시각 검수·승인(quality-baseline, Figma 구조 대조)만 필요
 
@@ -987,25 +987,53 @@ Java `InteractionStepTest`/`WebCaptureClientE2ETest` 신규 테스트로 검증.
 
 ### 착수 게이트
 
-- [ ] 단일 viewport SPA 안정화
-- [ ] viewport 목록과 최대 개수 결정
-- [ ] 반응형 component matching 기준 승인
+- [x] 단일 viewport SPA 안정화 — R7에서 완료(§10)
+- [x] viewport 목록과 최대 개수 결정 — 기존 `ResponsiveBreakpointPolicy`(03번 §I-5A) 3종
+      (Desktop 1440/Tablet 768/Mobile 390, 모두 height=1200) 그대로 재사용(사용자 승인)
+- [x] 반응형 component matching 기준 승인 — 임의 픽셀 임계값 대신 부모 `selectorHint`
+      (R2-05) 일치 여부만 근거로 사용(사용자 승인, "임의 정밀도 발명 금지" 원칙)
 
-### 구현
+### 구현 (Part A — 계약 + springai 백엔드)
 
-- [ ] viewport별 독립 Context
-- [ ] `RenderedDesignBundle` schema
-- [ ] viewport별 document 보존
-- [ ] 공통 component matcher
-- [ ] 숨김·이동·교체 패턴 분석
-- [ ] breakpoint observation 생성
-- [ ] Figma viewport별 Frame 생성
-- [ ] Component Variant 후보 제안
-- [ ] 부분 성공 상태 처리
+- [x] viewport별 독립 Context — `captureMultiViewport()`가 3개 viewport를 순서대로
+      개별 `capture()` 호출(각자 독립 `captureId`/`documentKey`)로 캡처
+- [x] `RenderedDesignBundle` schema — `rendered-design-bundle-v1.schema.json` 신규
+- [x] viewport별 document 보존 — 새 파일 포맷 없이 viewport당 기존 `.figpack` Artifact로
+      각각 독립 저장(기존 Release 1 저장 파이프라인 재사용), Bundle은 artifactId 참조만 보유
+- [x] 공통 component matcher — `MultiViewportComponentMatcher`
+- [x] 숨김·이동 패턴 분석 — `ComponentMatch.Status`(MATCHED_ALL/HIDDEN_IN_SOME/MOVED).
+      **"교체"(다른 selectorHint로의 대체, 예: 표→카드 리스트)는 selectorHint 일치 기준의
+      원리적 한계로 탐지 대상에서 제외**(다른 selectorHint는 애초에 다른 컴포넌트로 취급되어
+      매칭되지 않음 — 임의 유사도 휴리스틱을 발명하지 않기로 한 게이트 결정에 따른 의도된
+      범위 축소, `ComponentMatch` Javadoc에 명시)
+- [x] breakpoint observation 생성 — `BreakpointObservation`(인접 viewport 쌍 desktop→tablet,
+      tablet→mobile 각각 HIDDEN/SHOWN/MOVED)
+- [ ] Figma viewport별 Frame 생성 — **Part B(사용자 명시적 보류)**, `jsp-to-figma-plugin`에서 후속 구현
+- [ ] Component Variant 후보 제안 — **Part B(사용자 명시적 보류)**, `jsp-to-figma-plugin`에서 후속 구현
+- [x] 부분 성공 상태 처리 — 개별 viewport 캡처 실패는 `CaptureWarning`으로 기록하고 계속
+      진행, 최소 1개 viewport가 성공하면 Bundle 반환(3개 모두 실패한 경우에만 예외)
+
+**springai/MCP 연동 (2026-08-20)**: 기존 `WebCaptureOrchestrationService.capture()`를
+`captureInternal()`(Artifact 요약 + 메모리상 `RenderedDesignDocument` 둘 다 반환)로 리팩터링해
+`captureMultiViewport()`가 저장소에서 다시 읽지 않고 각 viewport의 document를 그대로 재사용하도록
+구현. 신규 MCP Tool `captureWebPageMultiViewport`(`CaptureWebPageTool`)로 노출 — Tool 메서드 수
+99→100, `McpToolRiskAnnotationCoverageTest`/`McpToolDefinitionSnapshotTest`의 하드코딩 카운트와
+`tool-definitions-baseline.json` 갱신. Java 신규 테스트: `MultiViewportComponentMatcherTest`(단위,
+MATCHED_ALL/HIDDEN_IN_SOME/MOVED 3분류 + breakpoint observation이 실제로 값이 다른 인접 쌍에만
+붙는지 검증), `WebCaptureClientE2ETest`에 R8 시나리오 3개(정상 매칭, 일부 viewport 실패 시 부분
+Bundle, 전체 실패 시 예외) 추가. `website-figma-contract`에 `rendered-design-bundle-v1.schema.json`
++ fixture 2개 추가, `contract-test.mjs`에 등록. extractor(`server.ts`)는 기존 단일 desktop
+viewport 검증을 desktop/tablet/mobile 3종(모두 height=1200) 허용으로 완화하고
+`rendered-design-document-v1.schema.json`의 `viewportName`/`viewportWidth`를 `const`→`enum`으로
+확장(`scripts/e2e.mjs`에 tablet/mobile 캡처 성공 + 불일치 조합 거부 검증 추가). Java 전체 테스트
+스위트(1403개) + extractor `npm test`/`lint`/`typecheck` + `website-figma-contract` 계약 테스트
+통과.
 
 완료 조건:
 
 - Desktop/Tablet/Mobile 문서를 독립 보존하면서 공통 컴포넌트와 변형 관계를 설명한다.
+  — **Part A(백엔드/계약)만 충족.** Figma 상에서 실제로 "설명"하는 것은 Part B(viewport별
+  Frame 생성, Component Variant 후보 제안)의 몫이며 사용자 요청에 따라 별도로 착수한다.
 
 ---
 
@@ -1105,6 +1133,7 @@ R6 이후에는 앞 단계의 완료 조건을 통과하지 않은 기능을 함
 
 | 버전 | 작성일 | 변경 내용 |
 |---|---|---|
+| 1.28 | 2026-08-20 | **R8(다중 viewport) 착수 게이트 3개 승인 확정 + Part A(계약+springai 백엔드) 구현 완료, Part B(Figma Plugin)는 사용자 명시적 보류.** 게이트: 기존 `ResponsiveBreakpointPolicy` 3종(Desktop 1440/Tablet 768/Mobile 390) 재사용, 매칭 기준은 부모 `selectorHint`(R2-05) 일치 여부만 근거로 사용(임의 픽셀 임계값 배제). 구현: `WebCaptureOrchestrationService.captureMultiViewport()`가 3개 viewport를 순서대로 캡처(기존 `capture()`는 `captureInternal()`로 리팩터링해 Artifact 요약+메모리 document 함께 반환하도록 공유), 개별 viewport 실패는 `CaptureWarning`으로 남기고 계속 진행하는 부분 성공 처리(3개 모두 실패해야 예외). `MultiViewportComponentMatcher`가 부모 selectorHint 비교만으로 `ComponentMatch`(MATCHED_ALL/HIDDEN_IN_SOME/MOVED)와 `BreakpointObservation`(인접 viewport 쌍별 HIDDEN/SHOWN/MOVED)을 생성 — "교체"(다른 selectorHint로의 대체) 패턴은 이 방식의 원리적 한계로 의도적으로 탐지 대상에서 제외. `RenderedDesignBundle`은 새 파일 포맷 없이 viewport별 기존 `.figpack` Artifact를 참조만 한다(각 document 독립 보존). 신규 MCP Tool `captureWebPageMultiViewport` 노출(Tool 메서드 수 99→100, 관련 하드코딩 카운트·baseline 스냅샷 갱신). extractor(`server.ts`)는 단일 desktop viewport 검증을 desktop/tablet/mobile 3종 허용으로 완화, `rendered-design-document-v1.schema.json`의 viewport 필드를 `const`→`enum`으로 확장. 신규 `rendered-design-bundle-v1.schema.json` 계약 추가. `MultiViewportComponentMatcherTest`(단위) + `WebCaptureClientE2ETest` R8 시나리오 3개(정상/부분실패/전체실패) 신규. Java 전체 테스트 스위트(1403개) + extractor `npm test`/`lint`/`typecheck` + `website-figma-contract` 계약 테스트 통과 |
 | 1.27 | 2026-08-19 | **R7(SPA와 동적 상태) 착수 게이트 3개 승인 확정 + 구현 완료.** 게이트: 인증 범위(R6 `storageStateRef` 재사용, 인증/비인증 둘 다 지원), 허용 interaction step(click/fill/select/scroll/hover/keydown 6종 닫힌 allowlist — 사용자가 hover/keydown 추가 요청), arbitrary JavaScript 비지원 원칙 유지. 구현: extractor의 `interactions`/`stateId` 필드가 스키마에 예약만 돼 있고 한 번도 채워진 적 없었던 것을 발견해 실제로 채움 — 사전 등록 6종 interaction step 실행(닫힌 allowlist, 임의 selector/action 런타임 주입 불가), 기존 초기 로딩 전용 MutationObserver 안정화 로직을 재사용 함수(`waitForStable`)로 추출해 각 step 후에도 적용("SPA readiness"/"hydration 판정"/"지속 polling" 항목을 새 개념 없이 기존 primitive 재사용으로 충족), `stateId = sha256(canonical(interactions))`를 `source.stateId`(신규 필수 필드, R2-05와 동일한 canonical+legacy 생성자 패턴)로 기록. springai/MCP 연동: `interactions`는 R6의 credential과 달리 selector/value 문자열이라 MCP 노출에 보안 충돌이 없어 기존 `captureWebPage` Tool에 그대로 추가(REST로 분리할 필요 없음). `WebCaptureOrchestrationService.documentKey()`가 상태 슬롯을 리터럴 `"initial"`로 고정해뒀던 걸 발견해 interactions 기반으로 확장(빈 배열은 계속 `"initial"`, 회귀 없음). `jsp-design-extractor`에 SPA fixture(클릭→입력→선택→hover→scroll→keydown submit)와 실패 케이스 e2e 테스트, Java `InteractionStepTest`/`WebCaptureClientE2ETest` 신규 테스트 추가. Java 전체 테스트 스위트(1397개) + extractor `npm test`/`lint`/`typecheck` + contract 테스트 통과 |
 | 1.26 | 2026-08-19 | **R6 착수 게이트 4개 전부 승인 확정 + 남은 코드 격차 2건 구현.** 게이트: Release 1 완료(코드 게이트 기준), 인증정보 저장소(현재 in-memory+TTL 유지), owner 식별(단일 사용자 신뢰 경계 유지), 보존·폐기 정책(TTL 30분 유지) — 전부 기존 구현을 정식 정책으로 재확인. 이에 따라 profile/owner 권한 검증·요청별 인증 Context·사용자별 artifact 분리 3건은 "범위 밖"으로 재분류(미구현이 아니라 결정에 따른 비대상). **로그인 화면 오탐 방지**: `storageStateRef`가 있는 요청에서만 비밀번호 입력란 존재를 `SESSION_AUTH_SUSPECTED`로 감지(무조건 검사하면 `list.html` fixture의 정상적인 비밀번호 필드까지 오탐됨을 실제 E2E 실행 중 발견해 범위를 좁힘), `scripts/e2e.mjs`에 로그인 fixture 3종과 세션 발급→인증 캡처/무효 세션 거부/서버측 세션 무효화 시뮬레이션 테스트 추가. **springai MCP/REST 연동**: 세션 생성(원문 credential 필요)을 MCP Tool로 노출하면 "인증정보를 MCP에 노출하지 않는다"는 R6 완료 조건과 정면 충돌함을 설계 중 발견(사용자 확인 후) — 신규 REST `POST /api/web-capture/sessions`(X-API-Key, 운영자 전용)로 구현하고 opaque `sessionId`만 `captureWebPage` MCP Tool로 전달하도록 함. `WebCaptureClientE2ETest`/`WebCaptureSessionControllerTest` 신규, Java 전체 테스트 스위트(1388개) + extractor `npm test`/`lint`/`typecheck` 통과 |
 | 1.25 | 2026-07-22 | "생성 옵션" 옆에 "전체" 체크박스 추가 요청. `ui.html`에 `#selectAll` 체크박스 추가 — 체크 시 styles/variables/keepPartial + 동적으로 생성되는 candidates 체크박스 전부를 한 번에 토글. 개별 체크박스를 수동으로 바꾸면 `change` 이벤트 위임으로 "전체" 상태도 자동 동기화(전부 체크됐으면 자동 체크, 하나라도 해제되면 자동 해제). `.figpack` 새로 선택할 때마다 "전체"도 초기화. 별도 빌드 불요(manifest가 `src/ui.html` 직접 참조) |
