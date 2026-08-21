@@ -86,7 +86,13 @@
 - [x] **SSOT-R1-T01** Catalog JSON 직렬화·역직렬화 round-trip
 - [x] **SSOT-R1-T02** 같은 Catalog의 content hash 결정성 보장
 - [~] **SSOT-R1-T03** Registry v2→v3 및 Catalog v1→v2 결정성 테스트 통과, Legacy Catalog의 실제 운영 교체 승인 Gate는 남음
-- [ ] **SSOT-R1-T04** Legacy Reader가 기존 운영 Snapshot을 손실 없이 조회
+- [x] **SSOT-R1-T04** Legacy Reader가 기존 운영 Snapshot을 손실 없이 조회 — (2026-08-20)
+      `ComponentRegistryRepositoryIntegrationTest.legacyShapedRegistryJsonIsReadWithoutDataLoss()`
+      신규. `repository.save()`로 만든 현재-형태 JSON이 아니라 가장 오래된 R1 형태
+      (`componentSetKey`/`properties`만 있는 raw JSON)를 SQL로 직접 삽입해 진짜 legacy
+      데이터를 재현하고, `findVersion()`으로 조회한 결과가 예외 없이 실제 데이터
+      (componentSetKey, properties)를 보존하며 당시 없던 필드는 기존 legacy 호환
+      생성자와 동일한 기본값(UNPUBLISHED/ACTIVE/빈 컬렉션)으로 해석됨을 확인
 
 ## 6. Validator와 Resolver
 

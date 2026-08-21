@@ -336,7 +336,8 @@ async function capture(input: CaptureRequest): Promise<Buffer> {
         const id = idOf(element); const tag = element.tagName.toLowerCase(); const role = element.getAttribute("role") ?? "";
         const visible = style.display !== "none" && style.visibility !== "hidden" && style.opacity !== "0";
         const label = element.getAttribute("aria-label") ?? (element instanceof HTMLInputElement ? element.labels?.[0]?.textContent?.trim() : null) ?? element.getAttribute("placeholder") ?? null;
-        const type = tag === "button" ? "BUTTON" : /^H[1-6]$/.test(element.tagName) ? "HEADING" : tag === "label" ? "LABEL" : tag === "th" ? "TH" : tag === "iframe" ? "IFRAME" : tag === "canvas" ? "CANVAS" : "ELEMENT";
+        const isButtonLikeInput = tag === "input" && ["submit", "button", "reset"].includes((element as HTMLInputElement).type);
+        const type = tag === "button" || isButtonLikeInput ? "BUTTON" : /^H[1-6]$/.test(element.tagName) ? "HEADING" : tag === "label" ? "LABEL" : tag === "th" ? "TH" : tag === "iframe" ? "IFRAME" : tag === "canvas" ? "CANVAS" : "ELEMENT";
         const collectDirectText=!["input","textarea","select","option"].includes(tag)&&!["BUTTON","HEADING","LABEL","TH"].includes(type);
         const childNodes=[...element.childNodes].filter(child => child instanceof Element ? (!EXCLUDED_TAGS.includes(child.tagName) && getComputedStyle(child).display!=="none") : collectDirectText && child.nodeType===Node.TEXT_NODE && !!child.textContent?.trim());
         const childIds=childNodes.map(idOf);
@@ -352,7 +353,7 @@ async function capture(input: CaptureRequest): Promise<Buffer> {
         const rawInset = inlineStyle && (inlineStyle.top || inlineStyle.right || inlineStyle.bottom || inlineStyle.left)
           ? `${inlineStyle.top || "auto"} ${inlineStyle.right || "auto"} ${inlineStyle.bottom || "auto"} ${inlineStyle.left || "auto"}` : undefined;
         const selectValue = element instanceof HTMLSelectElement ? (element.options[element.selectedIndex]?.text ?? null) : null;
-        nodes.push({ id, parentId, type, tag, role, label, text: ["BUTTON","HEADING","LABEL","TH"].includes(type) ? element.textContent?.trim().slice(0, 500) : null,
+        nodes.push({ id, parentId, type, tag, role, label, text: ["BUTTON","HEADING","LABEL","TH"].includes(type) ? (tag === "input" ? (element as HTMLInputElement).value : element.textContent)?.trim().slice(0, 500) : null,
           value: selectValue, visible, bounds: { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height },
           styles: { display: style.display, position: style.position, inset: style.inset, flexDirection: style.flexDirection, alignItems: style.alignItems, justifyContent: style.justifyContent, gridTemplateColumns:style.gridTemplateColumns, gridTemplateRows:style.gridTemplateRows, transform:style.transform, color: style.color, backgroundColor: style.backgroundColor, border:style.border, borderTop:style.borderTop, borderRight:style.borderRight, borderBottom:style.borderBottom, borderLeft:style.borderLeft, borderRadius:style.borderRadius, opacity:style.opacity, overflow:style.overflow, zIndex:style.zIndex, boxShadow:style.boxShadow, textShadow:style.textShadow, filter:style.filter, objectFit:style.objectFit, objectPosition:style.objectPosition, fontFamily: style.fontFamily, fontSize: style.fontSize, fontWeight: style.fontWeight, lineHeight:style.lineHeight, letterSpacing:style.letterSpacing, textAlign:style.textAlign, gap: style.gap, padding: style.padding, margin:style.margin, layoutMode, layoutConfidence, layoutEvidence, layoutFallback:"ABSOLUTE",
             ...(rawWidth ? { rawWidth } : {}), ...(rawHeight ? { rawHeight } : {}), ...(rawInset ? { rawInset } : {}) },
