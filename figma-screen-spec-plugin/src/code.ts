@@ -63,6 +63,22 @@ const DATA_REFINEMENT_PATCH_SET_HASH = "figmaScreenSpec.refinementPatchSetHash";
 /** Bundle metadata.origin(STANDARD/ORCHESTRATED/HYBRID)을 그대로 옮겨 적는다. 값이 없으면 쓰지 않는다. */
 const DATA_ORIGIN = "figmaScreenSpec.origin";
 
+/**
+ * R0-028: PAGE Root의 width/gap/padding을 FigmaScreenSpec.viewport 기준으로 결정한다.
+ * `PlatformLayoutPolicy.defaultPolicy()`(Java)·`planViewportFixtures()`(이 파일 아래)와
+ * 동일한 값을 쓴다 — 이전에는 viewport와 무관하게 Desktop 근사치(40/48/80)가 항상 적용돼
+ * TABLET/MOBILE Bundle을 그릴 때도 잘못된 값이 찍히는 drift가 있었다.
+ */
+const PAGE_VIEWPORT_POLICY: Record<string, { width: number; gapPx: number; paddingPx: number }> = {
+  DESKTOP: { width: 1440, gapPx: 24, paddingPx: 40 },
+  TABLET: { width: 768, gapPx: 16, paddingPx: 24 },
+  MOBILE: { width: 390, gapPx: 12, paddingPx: 16 },
+};
+
+function pageViewportPolicy(viewport?: string): { width: number; gapPx: number; paddingPx: number } {
+  return PAGE_VIEWPORT_POLICY[viewport ?? ""] ?? PAGE_VIEWPORT_POLICY.DESKTOP;
+}
+
 figma.showUI(__html__, { width: 440, height: 720 });
 
 type Pending = { bundle: FigmaExportBundle; issues: ExportIssue[]; contractMode: BundleContractMode };
@@ -357,15 +373,21 @@ async function createViewportFixturesFromSelection(nodeId?: string): Promise<voi
     message: `viewport fixture 생성 완료: ${created.join(", ")}` });
 }
 
-/** R0-028/BASE-18: Mobile에서는 Table logical type을 Card로 명시적으로 전환한다. */
+/**
+ * R0-028/BASE-18: Mobile에서는 Table logical type을 Card로 명시적으로 전환한다.
+ * `ListFigmaScreenBuilder.dataTable()`(Java)가 표 전체 SECTION에 실제로 stamp하는 값은
+ * `"krds.dataTable"`이다 — `"egov.dataTable"`은 컴포넌트 카탈로그 전용 이름이라 어떤 노드에도
+ * 찍히지 않는다(24번 문서 §2 참고). 과거엔 `"egov.dataTable"`/`"krds.table"`을 검사해 이 스왑이
+ * 항상 0건으로 조용히 실패했다.
+ */
 function applyMobileTableCardSwap(frame: FrameNode): number {
   let count = 0;
   const visit = (node: BaseNode & ChildrenMixin): void => {
     const logicalType = node.getPluginData(DATA_LOGICAL_TYPE);
-    if (logicalType === "egov.dataTable" || logicalType === "krds.table") {
+    if (logicalType === "krds.dataTable") {
       node.setPluginData(DATA_LOGICAL_TYPE, "egov.dataCard");
       node.name = `${node.name.replace(/ · CARD$/, "")} · CARD`;
-      node.setPluginData("figmaScreenSpec.componentSwap", "egov.dataTable→egov.dataCard:MOBILE");
+      node.setPluginData("figmaScreenSpec.componentSwap", "krds.dataTable→egov.dataCard:MOBILE");
       if ("layoutMode" in node && node.type === "FRAME") {
         node.layoutMode = "VERTICAL";
         node.itemSpacing = 12;
@@ -1203,7 +1225,7 @@ async function applyBundle(
       }
       staging.root = await syncNode(
         screen.content, staging.container, existing, registry, importedComponents,
-        screen.screenId, screen.screenVersion, changes, issues, reportCounts, bundleOrigin,
+        screen.screenId, screen.screenVersion, changes, issues, reportCounts, screen.viewport, bundleOrigin,
       );
       staging.root.x = 0;
       staging.root.y = 0;
@@ -1624,6 +1646,7 @@ async function syncNode(
   changes: ReconciliationChange[],
   issues: ExportIssue[],
   counts: { reused: number; created: number; archived: number; fallback: number },
+  viewport?: string,
   origin?: string,
 ): Promise<FrameNode> {
   let wrapper = existing.get(spec.logicalNodeId);
@@ -1643,7 +1666,7 @@ async function syncNode(
     existing.delete(spec.logicalNodeId);
     changes.push(change(spec, "REUSE", "기존 Wrapper와 Instance 재사용"));
   }
-  configureWrapper(wrapper, spec, screenId, screenVersion, origin);
+  configureWrapper(wrapper, spec, screenId, screenVersion, viewport, origin);
   parent.appendChild(wrapper);
   if (parent.type === "FRAME") {
     // 원자적 Apply의 Staging Frame은 AUTO 폭이다. PAGE Root까지 STRETCH하면
@@ -1702,7 +1725,7 @@ async function syncNode(
   for (const child of spec.children) {
     await syncNode(
       child, wrapper, existing, registry, importedComponents,
-      screenId, screenVersion, changes, issues, counts, origin);
+      screenId, screenVersion, changes, issues, counts, viewport, origin);
   }
   if (spec.type === "egov.detailSection") {
     await applyDetailTableGrid(wrapper, spec.properties, spec.children);
@@ -2059,6 +2082,7 @@ function configureWrapper(
   spec: FigmaNodeSpec,
   screenId: string,
   screenVersion: number,
+  viewport?: string,
   origin?: string,
 ): void {
   const annotation = describeLayoutAnnotations(spec.properties);
@@ -2081,10 +2105,11 @@ function configureWrapper(
   }
   wrapper.primaryAxisSizingMode = "AUTO";
   wrapper.counterAxisSizingMode = spec.nodeType === "PAGE" ? "FIXED" : "AUTO";
-  wrapper.itemSpacing = spec.nodeType === "PAGE" ? 40 : 16;
-  wrapper.paddingTop = wrapper.paddingBottom = spec.nodeType === "PAGE" ? 48 : 0;
-  wrapper.paddingLeft = wrapper.paddingRight = spec.nodeType === "PAGE" ? 80 : 0;
-  if (spec.nodeType === "PAGE") wrapper.resizeWithoutConstraints(1440, Math.max(1, wrapper.height));
+  const pagePolicy = pageViewportPolicy(viewport);
+  wrapper.itemSpacing = spec.nodeType === "PAGE" ? pagePolicy.gapPx : 16;
+  wrapper.paddingTop = wrapper.paddingBottom = spec.nodeType === "PAGE" ? pagePolicy.paddingPx : 0;
+  wrapper.paddingLeft = wrapper.paddingRight = spec.nodeType === "PAGE" ? pagePolicy.paddingPx : 0;
+  if (spec.nodeType === "PAGE") wrapper.resizeWithoutConstraints(pagePolicy.width, Math.max(1, wrapper.height));
   if (spec.type === "krds.dataTable") wrapper.itemSpacing = 0;
   if (spec.type === "krds.dataTable.header" || spec.type === "krds.dataTable.row") {
     wrapper.itemSpacing = 8;

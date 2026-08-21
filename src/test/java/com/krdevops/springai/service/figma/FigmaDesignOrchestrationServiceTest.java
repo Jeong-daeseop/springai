@@ -955,6 +955,7 @@ class FigmaDesignOrchestrationServiceTest {
         assertThat(saved.figmaScreenSpec().content().children().get(0).componentResolution().logicalType())
                 .isEqualTo("krds.table");
         verify(deps.artifactService).saveFigmaExportBundle(saved);
+        verify(deps.exportService).registerConvertedSpec(saved.figmaScreenSpec());
     }
 
     /** Swap 대상이 아닌 노드와 그 자식은 그대로 유지된다. */

@@ -227,6 +227,15 @@ public class FigmaScreenExportService {
         return figmaScreenSpecRepository.findVersion(screenId, version);
     }
 
+    /**
+     * R6-038: {@code export()}를 거치지 않고 만들어진 {@code FigmaScreenSpec}(PLATFORM_CONVERT 등)을
+     * 기존 {@code /screens/{screenId}/download} 경로로 조회 가능하도록 등록한다. 새 엔드포인트를
+     * 만드는 대신 Plugin이 이미 갖고 있는 "서버에서 조회" 흐름을 그대로 재사용하기 위함이다.
+     */
+    public void registerConvertedSpec(FigmaScreenSpec spec) {
+        figmaScreenSpecRepository.save(spec);
+    }
+
     /** R2-032: DEC-10=FILE 기본값 기준 다운로드용 FigmaExportBundle을 조립한다. */
     public FigmaExportBundle exportBundle(FigmaScreenExportRequest request) {
         FigmaExportResult result = export(request);

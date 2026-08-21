@@ -1,12 +1,14 @@
 # DEC-02 · DEC-09 최종 승인 요청 — 컴포넌트 표준 명명 규칙 및 초기 필수 카탈로그
 
-> 문서 버전: 1.4
+> 문서 버전: 1.5
 > 작성일: 2026-07-27
 > 승인 대상: `DEC-02`(컴포넌트 표준 명명 규칙), `DEC-09`(초기 필수 Component·Pattern·Page Template 목록)
 > 승인자: 조직 KRDS/eGovFrame Figma Library 담당자
 > 근거 문서: [12_Semantic_Figma_Design_System_Implementation_List.md](./12_Semantic_Figma_Design_System_Implementation_List.md) §4,
 > `website-figma-contract/component-catalog-v1.json`,
 > `website-figma-contract/CONTRACT_RULES.md` §6
+>
+> **v1.5 정정(2026-08-21)**: 체크포인트 2와 DEC-09 확인 항목에서 "실제 검토 대상 라이브러리"를 "KRDS Figma Library"로 표기한 건 오기였다. R0-028 라이브 검증 중 실측한 결과, 실제 Property 값(`Label`/`Style`/`Disabled`, `Primary`/`Secondary`/`Ghost` 등)은 **FTC 정부 포털 Design System**(DEC-01이 확정한 라이브러리) 관례이며 KRDS_v1.0.0 (Community)와는 별개의 값 체계를 쓴다(26/27/28번 문서 참고). 승인 당시 검토·승인된 실제 값 자체는 FTC 기준으로 이미 맞았으므로 **재승인 없이 라이브러리 이름 표기만 정정**한다.
 
 ---
 
@@ -40,7 +42,7 @@
 | 체크포인트 | 확인 대상 | 승인 기준 | 적용 항목 |
 |---|---|---|---|
 | 1 | 네임스페이스 구분 | `krds.*` / `egov.*` 분리가 조직의 다른 디자인 시스템 문서와 충돌하지 않음 | `DEC-02` |
-| 2 | Figma Property 관례 | `Label`, `Style`, `Disabled` 등 속성명이 실제 KRDS Figma Library 관례와 어긋나지 않음 | `DEC-02` |
+| 2 | Figma Property 관례 | `Label`, `Style`, `Disabled` 등 속성명이 실제 FTC 정부 포털 Design System Library 관례와 어긋나지 않음(2026-08-21 정정 — 원문은 "KRDS Figma Library"로 오기됐으나 실제 검토 대상은 FTC 정부 포털 Design System이었음) | `DEC-02` |
 | 3 | 별칭 호환성 | 기존 명칭이 누락되지 않았고, 추가가 필요하면 `aliases`에 넣을 수 있음 | `DEC-02` |
 | 4 | 필수 목록 충분성 | 12개 필수 항목만으로 1차 범위 `사용자 목록·등록` 화면 생성이 가능함 | `DEC-09` |
 | 5 | 선택 항목 범위 | Radio/DatePicker를 선택으로 둔 범위가 의도와 맞음 | `DEC-09` |
@@ -117,7 +119,7 @@ DEC-02 / DEC-09 승인 요청드립니다.
 
 확인 부탁드릴 항목은 다음 3가지입니다.
 1. krds.* / egov.* 네임스페이스 구분이 조직 표준과 충돌하지 않는지
-2. Figma Property 명칭과 별칭 구성이 KRDS Figma Library 관례에 맞는지
+2. Figma Property 명칭과 별칭 구성이 FTC 정부 포털 Design System Library 관례에 맞는지
 3. 12개 필수 목록과 제외 범위가 1차 사용자 목록·등록 화면 범위에 충분한지
 
 판정은 승인 / 조건부 승인 / 반려 중 하나로 주시면 되고, 조건부 승인의 경우 수정사항만 함께 적어주시면 됩니다.
@@ -163,8 +165,9 @@ DEC-02 / DEC-09 승인 요청드립니다.
 ### 확인해 주실 것
 
 - [x] `krds.*` / `egov.*` 네임스페이스 구분이 조직의 다른 디자인 시스템 문서와 충돌하지 않는지
-- [x] Figma Property 이름(`Label`, `Style`, `Disabled` 등)이 실제 KRDS Figma Library의 기존
-      관례와 맞는지(이미 Publish된 유사 컴포넌트가 있다면 이름을 거기 맞춰야 할 수 있음)
+- [x] Figma Property 이름(`Label`, `Style`, `Disabled` 등)이 실제 FTC 정부 포털 Design System Library의 기존
+      관례와 맞는지(이미 Publish된 유사 컴포넌트가 있다면 이름을 거기 맞춰야 할 수 있음. 2026-08-21 정정 — 원문은
+      "KRDS Figma Library"로 오기됐으나 실제 검토 대상은 FTC였음)
 - [x] 별칭 목록에 빠진 기존 명칭이 있는지(있다면 `aliases`에 추가해야 함)
 
 ---

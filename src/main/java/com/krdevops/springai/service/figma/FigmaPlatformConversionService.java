@@ -118,6 +118,26 @@ public class FigmaPlatformConversionService {
                 "sha256:platform-layout-default-v1-no-swaps");
     }
 
+    /**
+     * R0-028: {@link #defaultPolicy()}와 같은 Viewport 정의를 쓰는, {@link #convert(String, List, PlatformLayoutPolicy)}
+     * 3-인자 오버로드용 정책 주입 지점이다. {@link ComponentSwapPolicyResolver}는 한 컴포넌트
+     * 참조를 다른 컴포넌트 참조로 완전히 치환하는 규칙만 표현할 수 있다(Component Swap) — 같은
+     * 컴포넌트의 Variant Property 값만 바꾸는 것(예: krds.button의 Size를 Medium→Small로)은
+     * 이 메커니즘의 대상이 아니다(24번 문서 §8.3).
+     *
+     * <p>현재 이 프로젝트의 카탈로그(component-catalog-v1.json)에는 플랫폼별로 서로 다른
+     * Published Component로 바꿔치기할 실제 후보 쌍이 없어 {@code componentSwaps}가 비어 있다 —
+     * {@link #defaultPolicy()}와 마찬가지로 안전한 기본값이다. 실제 컴포넌트 쌍이 카탈로그에
+     * 등록되면(또는 Variant Property 조정 기능이 별도로 생기면) 그때 규칙을 채운다.
+     */
+    public static PlatformLayoutPolicy approvedPolicy() {
+        return new PlatformLayoutPolicy(
+                "platform-layout-approved-v1",
+                defaultPolicy().viewports(),
+                List.of(),
+                "sha256:platform-layout-approved-v1-no-swap-candidates");
+    }
+
     public record ComponentSwapDecision(
             String requestedLogicalType, String resolvedLogicalType, boolean swapped, String reason) {
     }

@@ -71,6 +71,21 @@ class FigmaPlatformConversionServiceTest {
         });
     }
 
+    /**
+     * 24번 문서 §8.3: Component Swap은 서로 다른 컴포넌트로의 완전한 치환만 표현할 수 있고,
+     * krds.button의 Size 같은 Variant Property 조정은 대상이 아니다. 카탈로그에 실제 스왑
+     * 후보 쌍이 없으므로 approvedPolicy()는 defaultPolicy()와 마찬가지로 빈 규칙을 쓴다 —
+     * viewport 정의만 공유하고 규칙은 비어 있다는 것 자체가 검증 대상이다.
+     */
+    @Test
+    void approvedPolicyKeepsDefaultViewportsButHasNoSwapRulesYet() {
+        PlatformLayoutPolicy policy = FigmaPlatformConversionService.approvedPolicy();
+
+        assertThat(policy.viewports()).isEqualTo(FigmaPlatformConversionService.defaultPolicy().viewports());
+        assertThat(policy.componentSwaps()).isEmpty();
+        assertThat(policy.policyVersion()).isEqualTo("platform-layout-approved-v1");
+    }
+
     @Test
     void recalculateGridUsesViewportPaddingAndGapDeterministically() {
         var result = service.recalculateGrid("MOBILE", FigmaPlatformConversionService.defaultPolicy());

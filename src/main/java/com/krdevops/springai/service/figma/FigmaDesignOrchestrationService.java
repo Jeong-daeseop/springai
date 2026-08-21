@@ -290,7 +290,9 @@ public class FigmaDesignOrchestrationService {
         Set<String> logicalTypes = collectLogicalTypes(sourceBundle.figmaScreenSpec().content());
         FigmaPlatformConversionService.PlatformConversionResult conversion;
         try {
-            conversion = platformConversionService.convert(request.targetPlatform(), List.copyOf(logicalTypes));
+            conversion = platformConversionService.convert(
+                    request.targetPlatform(), List.copyOf(logicalTypes),
+                    FigmaPlatformConversionService.approvedPolicy());
         } catch (RuntimeException e) {
             return rejectWithMessage(operation, "PLATFORM_CONVERSION_FAILED", e.getMessage());
         }
@@ -318,6 +320,7 @@ public class FigmaDesignOrchestrationService {
                 .withOperationId(operation.operationId())
                 .withOrigin(FigmaExportMetadata.Origin.ORCHESTRATED);
 
+        screenExportService.registerConvertedSpec(convertedSpec);
         DesignArtifactService.FigmaBundleArtifact saved = artifactService.saveFigmaExportBundle(convertedBundle);
         ArtifactRef artifact = new ArtifactRef(
                 saved.artifactId(), "FIGMA_EXPORT_BUNDLE", saved.relativePath(), saved.contentHash(),
