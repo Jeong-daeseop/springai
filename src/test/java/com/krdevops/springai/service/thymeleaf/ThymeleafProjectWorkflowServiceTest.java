@@ -161,6 +161,22 @@ class ThymeleafProjectWorkflowServiceTest {
     }
 
     @Test
+    void hardcodedDesignLiteralBlocksApprovalAndLeavesProjectUnchanged() {
+        String relative = "templates/hardcoded.html";
+        var preview = workflow.preview(projectRoot, Map.of(
+                relative, "<div style=\"color:#0b5fff; padding:12px; border-radius:8px\">x</div>"));
+
+        assertThat(preview.operation().status()).isEqualTo(ProjectOperationStatus.PREVIEW_READY);
+        assertThat(preview.operation().validationErrors())
+                .hasSize(3)
+                .allMatch(error -> error.contains("DESIGN_TOKEN_HARDCODED"));
+        assertThatThrownBy(() -> workflow.approve(
+                preview.operation().operationId(), preview.previewHash()))
+                .hasMessageContaining("PREVIEW_VALIDATION_FAILED");
+        assertThat(projectRoot.resolve(relative)).doesNotExist();
+    }
+
+    @Test
     void secondFileFailureRollsBackFirstFile() throws Exception {
         Path first = projectRoot.resolve("a.html");
         Files.writeString(first, "<div>original</div>");
