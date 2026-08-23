@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import com.krdevops.springai.service.observability.PipelineInfrastructureSmokeService;
 
 @RestController
 @RequestMapping("/api/operations")
@@ -18,10 +19,16 @@ public class OperationalStatusController {
 
     private final OperationalStatusService statusService;
     private final ArtifactReconciler reconciler;
+    private final PipelineInfrastructureSmokeService infrastructureSmoke;
 
-    public OperationalStatusController(OperationalStatusService statusService, ArtifactReconciler reconciler) {
+    @org.springframework.beans.factory.annotation.Autowired
+    public OperationalStatusController(OperationalStatusService statusService, ArtifactReconciler reconciler, PipelineInfrastructureSmokeService infrastructureSmoke) {
         this.statusService = statusService;
         this.reconciler = reconciler;
+        this.infrastructureSmoke = infrastructureSmoke;
+    }
+    public OperationalStatusController(OperationalStatusService statusService, ArtifactReconciler reconciler) {
+        this(statusService, reconciler, null);
     }
 
     @GetMapping("/status")
@@ -42,5 +49,11 @@ public class OperationalStatusController {
                     "실제 quarantine 실행에는 confirm=true가 필요합니다.");
         }
         return reconciler.reconcile(false);
+    }
+
+    @GetMapping("/infrastructure-smoke")
+    public PipelineInfrastructureSmokeService.SmokeReport infrastructureSmoke() {
+        if (infrastructureSmoke == null) throw new IllegalStateException("Infrastructure smoke service가 구성되지 않았습니다.");
+        return infrastructureSmoke.check();
     }
 }

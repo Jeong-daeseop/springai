@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://schemas.krdevops.local/generation-ownership-manifest-v1",
+  "type": "object", "additionalProperties": false, "required": ["manifestId", "contentHash", "artifacts"],
+  "properties": {"manifestId": {"type": "string"}, "contentHash": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/sha256"}, "artifacts": {"type": "array", "items": {"$ref": "#/$defs/ownership"}}},
+  "$defs": {"ownership": {"type": "object", "additionalProperties": false, "required": ["artifactPath", "regions", "mergePolicy", "owner"], "properties": {"artifactPath": {"type": "string", "minLength": 1}, "regions": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["regionId", "regionType", "contentHash"], "properties": {"regionId": {"type": "string"}, "regionType": {"enum": ["GENERATED", "BINDING", "PROTECTED", "UNKNOWN"]}, "contentHash": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/sha256"}}}}, "mergePolicy": {"enum": ["REGENERATE", "CONTRACT_ONLY", "PRESERVE", "REVIEW_CONFLICT"]}, "owner": {"type": "string", "minLength": 1}}}}
+}

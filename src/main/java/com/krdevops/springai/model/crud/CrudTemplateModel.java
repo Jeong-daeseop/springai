@@ -5,6 +5,7 @@ import com.krdevops.springai.model.design.FormColumnLayout;
 import com.krdevops.springai.model.design.GenerationQueryContract;
 import com.krdevops.springai.model.design.LayoutDensity;
 import com.krdevops.springai.model.design.SearchPanelPlacement;
+import com.krdevops.springai.model.designsystem.DesignComponentRenderInput;
 
 import java.util.List;
 
@@ -38,7 +39,8 @@ public record CrudTemplateModel(
         LayoutDensity layoutDensity,
         FormColumnLayout formColumnLayout,
         ActionPlacement actionPlacement,
-        SearchPanelPlacement searchPanelPlacement
+        SearchPanelPlacement searchPanelPlacement,
+        List<DesignComponentRenderInput> designComponents
 ) {
     public CrudTemplateModel {
         queryContract = queryContract == null ? GenerationQueryContract.empty() : queryContract;
@@ -46,6 +48,23 @@ public record CrudTemplateModel(
         formColumnLayout = formColumnLayout == null ? FormColumnLayout.SINGLE_COLUMN : formColumnLayout;
         actionPlacement = actionPlacement == null ? ActionPlacement.TOP_RIGHT : actionPlacement;
         searchPanelPlacement = searchPanelPlacement == null ? SearchPanelPlacement.ABOVE_TABLE : searchPanelPlacement;
+        designComponents = designComponents == null ? List.of() : List.copyOf(designComponents);
+    }
+
+    /** designComponents 도입 전 canonical 호출자 호환. */
+    public CrudTemplateModel(
+            String packageName, String domain, String domainLc, String domainKr,
+            String tableName, String urlPrefix, String date, String egovVersion,
+            boolean jakartaValidation, PkModel pk, List<FieldModel> pkFields,
+            List<FieldModel> fields, List<FieldModel> listFields,
+            List<FieldModel> nonPkFields, List<FieldModel> formFields, CrudRouteModel route,
+            GenerationQueryContract queryContract, List<FieldModel> detailFields,
+            LayoutDensity layoutDensity, FormColumnLayout formColumnLayout,
+            ActionPlacement actionPlacement, SearchPanelPlacement searchPanelPlacement) {
+        this(packageName, domain, domainLc, domainKr, tableName, urlPrefix, date, egovVersion,
+                jakartaValidation, pk, pkFields, fields, listFields, nonPkFields, formFields,
+                route, queryContract, detailFields, layoutDensity, formColumnLayout,
+                actionPlacement, searchPanelPlacement, List.of());
     }
 
     /** actionPlacement/searchPanelPlacement 도입 전 canonical 호출자 호환. */

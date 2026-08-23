@@ -4,6 +4,7 @@ import com.krdevops.springai.model.crud.CrudGenerationOptions;
 import com.krdevops.springai.service.generation.model.DesignContextReference;
 import com.krdevops.springai.service.generation.model.LayoutOptions;
 import com.krdevops.springai.service.generation.model.ProgramMetadataOverrides;
+import com.krdevops.springai.model.renderer.RendererProfileReference;
 
 import java.nio.file.Path;
 
@@ -25,7 +26,8 @@ public record CrudGenerationCommand(
         String viewType,
         LayoutOptions layout,
         ProgramMetadataOverrides program,
-        DesignContextReference designContext
+        DesignContextReference designContext,
+        RendererProfileReference rendererProfileReference
 ) {
     public CrudGenerationCommand {
         llmProvider = (llmProvider == null || llmProvider.isBlank())
@@ -35,6 +37,26 @@ public record CrudGenerationCommand(
         layout = layout == null ? LayoutOptions.empty() : layout;
         program = program == null ? ProgramMetadataOverrides.empty() : program;
         designContext = designContext == null ? DesignContextReference.empty() : designContext;
+        rendererProfileReference = rendererProfileReference == null
+                ? RendererProfileReference.defaultThymeleafKrds() : rendererProfileReference;
+    }
+
+    /** RendererProfileReference 도입 전 Tool·Java 호출자 호환. */
+    public CrudGenerationCommand(
+            String database,
+            String tableName,
+            String domain,
+            String packageName,
+            Path outputPath,
+            String llmProvider,
+            String egovVersion,
+            String viewType,
+            LayoutOptions layout,
+            ProgramMetadataOverrides program,
+            DesignContextReference designContext) {
+        this(database, tableName, domain, packageName, outputPath, llmProvider, egovVersion,
+                viewType, layout, program, designContext,
+                RendererProfileReference.defaultThymeleafKrds());
     }
 
     public boolean isAuto() {

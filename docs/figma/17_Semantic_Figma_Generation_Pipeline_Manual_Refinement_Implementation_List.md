@@ -166,10 +166,11 @@ Manual Refinement는 `MERGE`·`REPLACE`를 대체하는 동기화 모드가 아�
     `existing`(MERGE의 기존 노드 목록)과 무관하게 desired 트리에서만 `logicalNodeId`를
     부여함을 테스트로 증명했으므로, REPLACE(`existing=[]`)와 MERGE가 동일한 `logicalNodeId`
     집합을 생성한다는 전제는 이제 코드 수준에서 검증됐다.
-  - 다만 이건 `reconcile()` 순수 함수 수준 증명이지, `code.ts`의 `applyRefinementPatches()`가
-    실제 REPLACE 모드로 Figma Desktop에서 승인 Patch를 재적용하는 전체 경로를 실기기로 확인한
-    것은 아니다. Plugin 테스트(`test/refinement/*`)와 Java 테스트(`FigmaRefinementServiceTest`)
-    에는 여전히 REPLACE 시나리오가 없고, 실제 Figma Desktop E2E 증거
+  - `reconcile()` 및 `apply-planner` 순수 함수에서 REPLACE 재생성 트리가 동일
+    `logicalNodeId`로 승인 Patch를 재적용하는 경로를 검증했다(`a REPLACE rematerialized tree
+    reapplies the approved patch by stable logicalNodeId`). 다만 `code.ts`의
+    `applyRefinementPatches()`가 실제 REPLACE 모드로 Figma Desktop에서 승인 Patch를 재적용하는
+    전체 경로를 실기기로 확인한 것은 아니다. 실제 Figma Desktop E2E 증거
     (`qna-detail-refine-msvjatu3`, MR-T14)도 `mode: "MERGE"`만 확인됐다. REPLACE 모드의 전체
     경로 실기기 E2E는 여전히 남은 과제다
 - [x] **MR-R10 · P1** 적용된 Patch Set ID와 Hash를 Root pluginData에 기록한다.

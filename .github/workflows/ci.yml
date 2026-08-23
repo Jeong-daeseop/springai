@@ -13,6 +13,28 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: egov
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
       - name: Checkout
@@ -48,6 +70,28 @@ jobs:
 
       - name: Test and build
         run: ./gradlew clean test bootJar -Pci --stacktrace
+
+      - name: Verify MCP Tool snapshot baseline
+        env:
+          MCP_TOOL_SNAPSHOT_HASH: ${{ vars.MCP_TOOL_SNAPSHOT_HASH }}
+        run: ./gradlew test --tests 'com.krdevops.springai.config.McpToolDefinitionSnapshotTest' -Pci --stacktrace
+
+      - name: Verify REST endpoint snapshot baseline
+        run: ./gradlew test --tests 'com.krdevops.springai.config.RestEndpointSnapshotTest' -Pci --stacktrace
+
+      - name: Verify infrastructure smoke contract
+        run: ./gradlew test --tests 'com.krdevops.springai.service.observability.PipelineInfrastructureSmokeServiceTest' -Pci --stacktrace
+
+      - name: Verify live infrastructure smoke when credentials are configured
+        if: ${{ vars.PIPELINE_INFRA_SMOKE_LIVE == 'true' }}
+        env:
+          PIPELINE_INFRA_SMOKE_LIVE: true
+          SPRING_PROFILES_ACTIVE: test
+          DB_URL: jdbc:mysql://127.0.0.1:3306/egov?useSSL=false&allowPublicKeyRetrieval=true
+          DB_USERNAME: root
+          DB_PASSWORD: root
+          REDIS_URI: redis://127.0.0.1:6379
+        run: ./scripts/pipeline-live-smoke.sh
 
       - name: Test WP9 prod bootJar from isolated working directory
         run: ./gradlew prodBootJarSmoke -Pci --stacktrace

@@ -1,5 +1,12 @@
 {
   "catalogVersion": "v1.0",
+  "source": {
+    "kind": "CHECKED_IN_SNAPSHOT",
+    "uri": "https://www.krds.go.kr/guide/standard-design-system",
+    "revision": "krds-token-baseline-v1.0",
+    "contentHash": "5626bef8d286c74a923b8f03d781bfaff0622a9d69b2c811449b0caefbbb66bc",
+    "syncedAt": "2026-08-21T00:00:00Z"
+  },
   "colors": {
     "primary.60": "#0066CC",
     "gray.10": "#F5F6F8",

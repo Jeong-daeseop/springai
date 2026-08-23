@@ -62,6 +62,20 @@ test("a target node missing from the new tree is SKIP_REMOVED", () => {
   assert.equal(decisions[0].action, "SKIP_REMOVED");
 });
 
+test("a REPLACE rematerialized tree reapplies the approved patch by stable logicalNodeId", () => {
+  const set = patchSet([patch({ logicalNodeId: "screen/detail/contact", propertyPath: "opacity", before: 1, after: 0.8 })]);
+  // REPLACE starts with an empty existing tree, then syncNode() creates this fresh tree
+  // with the same logical identity. The planner must treat it exactly like MERGE.
+  const rematerializedTree = [
+    { logicalNodeId: "screen/detail/contact", logicalType: "krds.detailRow", properties: { opacity: 1 } },
+  ];
+
+  const decisions = planPatchApplication(set, rematerializedTree);
+
+  assert.equal(decisions[0].action, "APPLY");
+  assert.equal(applicableDecisions(decisions).length, 1);
+});
+
 test("a target node whose logical type changed is SKIP_TYPE_CHANGED", () => {
   const set = patchSet([patch()]);
   const tree = [{ logicalNodeId: "qna-detail/detail/contact", logicalType: "krds.button", properties: { width: 160 } }];

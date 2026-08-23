@@ -192,13 +192,20 @@ public class ValidationGateExecutor {
      */
     public ValidationGateResult validateTemplateEngineRender(String contentFragment, Map<String, Object> contextVariables) {
         long start = System.currentTimeMillis();
-        List<String> issues = new ArrayList<>();
+        TemplateRenderProbe probe = renderTemplateEngine(contentFragment, contextVariables);
 
+        long duration = System.currentTimeMillis() - start;
+        return observed(new ValidationGateResult(
+                ValidationGateType.TEMPLATE_ENGINE_RENDER, probe.passed(), probe.issues(), duration, Instant.now()));
+    }
+
+    /** 실제 Spring Template Engine 출력과 오류를 Fixture 재현성 검증에 사용할 수 있게 반환한다. */
+    public TemplateRenderProbe renderTemplateEngine(
+            String contentFragment, Map<String, Object> contextVariables) {
+        List<String> issues = new ArrayList<>();
         try {
             Context context = new Context(Locale.KOREA);
-            if (contextVariables != null) {
-                contextVariables.forEach(context::setVariable);
-            }
+            if (contextVariables != null) contextVariables.forEach(context::setVariable);
             EvaluationContext evaluationContext = SimpleEvaluationContext
                     .forPropertyAccessors(
                             MAP_PROPERTY_ACCESSOR, DataBindingPropertyAccessor.forReadOnlyAccess())
@@ -207,16 +214,19 @@ public class ValidationGateExecutor {
             context.setVariable(
                     ThymeleafEvaluationContext.THYMELEAF_EVALUATION_CONTEXT_CONTEXT_VARIABLE_NAME,
                     evaluationContext);
-            templateEngine.process(contentFragment, context);
+            return new TemplateRenderProbe(true, templateEngine.process(contentFragment, context), List.of());
         } catch (TemplateProcessingException exception) {
             issues.add("실제 렌더 실패: " + exception.getMessage());
         } catch (Exception exception) {
             issues.add("렌더 중 예상치 못한 오류: " + exception.getMessage());
         }
+        return new TemplateRenderProbe(false, null, issues);
+    }
 
-        long duration = System.currentTimeMillis() - start;
-        return observed(new ValidationGateResult(
-                ValidationGateType.TEMPLATE_ENGINE_RENDER, issues.isEmpty(), issues, duration, Instant.now()));
+    public record TemplateRenderProbe(boolean passed, String output, List<String> issues) {
+        public TemplateRenderProbe {
+            issues = List.copyOf(issues);
+        }
     }
 
     /**

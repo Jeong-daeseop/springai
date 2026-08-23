@@ -2,6 +2,8 @@ package com.krdevops.springai.model.design;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import com.krdevops.springai.model.contract.VersionedArtifactReference;
+import org.jspecify.annotations.Nullable;
 
 public record ScreenSpecification(
         String id,
@@ -19,7 +21,9 @@ public record ScreenSpecification(
         FormColumnLayout formColumnLayout,
         ActionPlacement actionPlacement,
         SearchPanelPlacement searchPanelPlacement,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        @Nullable VersionedArtifactReference uiDesignSpecReference,
+        @Nullable VersionedArtifactReference designSystemSnapshotReference
 ) {
     public ScreenSpecification {
         dataSources = dataSources == null ? List.of() : List.copyOf(dataSources);
@@ -32,6 +36,19 @@ public record ScreenSpecification(
         createdAt = createdAt == null ? LocalDateTime.now() : createdAt;
     }
 
+    /** v2 Design IR 참조 도입 전 전체 생성자 호출 호환. */
+    public ScreenSpecification(
+            String id, int version, ScreenSpecStatus status, String screenName,
+            String featureType, String archetype, String database, String primaryTable,
+            List<DataSourceSpec> dataSources, List<PageSpec> pages, List<SpecIssue> issues,
+            LayoutDensity layoutDensity, FormColumnLayout formColumnLayout,
+            ActionPlacement actionPlacement, SearchPanelPlacement searchPanelPlacement,
+            LocalDateTime createdAt) {
+        this(id, version, status, screenName, featureType, archetype, database, primaryTable,
+                dataSources, pages, issues, layoutDensity, formColumnLayout,
+                actionPlacement, searchPanelPlacement, createdAt, null, null);
+    }
+
     /** actionPlacement/searchPanelPlacement 도입 전 호출자 호환. */
     public ScreenSpecification(
             String id, int version, ScreenSpecStatus status, String screenName,
@@ -40,7 +57,7 @@ public record ScreenSpecification(
             LayoutDensity layoutDensity, FormColumnLayout formColumnLayout, LocalDateTime createdAt) {
         this(id, version, status, screenName, featureType, archetype, database, primaryTable,
                 dataSources, pages, issues, layoutDensity, formColumnLayout,
-                ActionPlacement.TOP_RIGHT, SearchPanelPlacement.ABOVE_TABLE, createdAt);
+                ActionPlacement.TOP_RIGHT, SearchPanelPlacement.ABOVE_TABLE, createdAt, null, null);
     }
 
     /** formColumnLayout 도입 전 호출자 호환. */
@@ -51,7 +68,7 @@ public record ScreenSpecification(
             LayoutDensity layoutDensity, LocalDateTime createdAt) {
         this(id, version, status, screenName, featureType, archetype, database, primaryTable,
                 dataSources, pages, issues, layoutDensity, FormColumnLayout.SINGLE_COLUMN,
-                ActionPlacement.TOP_RIGHT, SearchPanelPlacement.ABOVE_TABLE, createdAt);
+                ActionPlacement.TOP_RIGHT, SearchPanelPlacement.ABOVE_TABLE, createdAt, null, null);
     }
 
     /** layoutDensity/formColumnLayout 도입 전 호출자 및 기존 JSON 호환. */
@@ -62,16 +79,29 @@ public record ScreenSpecification(
             LocalDateTime createdAt) {
         this(id, version, status, screenName, featureType, archetype, database, primaryTable,
                 dataSources, pages, issues, LayoutDensity.STANDARD, FormColumnLayout.SINGLE_COLUMN,
-                ActionPlacement.TOP_RIGHT, SearchPanelPlacement.ABOVE_TABLE, createdAt);
+                ActionPlacement.TOP_RIGHT, SearchPanelPlacement.ABOVE_TABLE, createdAt, null, null);
     }
 
     public ScreenSpecification withValidation(ScreenSpecStatus newStatus, List<SpecIssue> newIssues) {
         return new ScreenSpecification(id, version, newStatus, screenName, featureType, archetype,
                 database, primaryTable, dataSources, pages, newIssues, layoutDensity, formColumnLayout,
-                actionPlacement, searchPanelPlacement, createdAt);
+                actionPlacement, searchPanelPlacement, createdAt,
+                uiDesignSpecReference, designSystemSnapshotReference);
     }
 
     public ScreenSpecification withStatus(ScreenSpecStatus newStatus) {
         return withValidation(newStatus, issues);
+    }
+
+    public ScreenSpecification withDesignContext(
+            VersionedArtifactReference designReference,
+            @Nullable VersionedArtifactReference designSystemReference,
+            List<SpecIssue> additionalIssues) {
+        java.util.ArrayList<SpecIssue> combined = new java.util.ArrayList<>(issues);
+        if (additionalIssues != null) combined.addAll(additionalIssues);
+        return new ScreenSpecification(id, version, status, screenName, featureType, archetype,
+                database, primaryTable, dataSources, pages, combined, layoutDensity, formColumnLayout,
+                actionPlacement, searchPanelPlacement, createdAt,
+                designReference, designSystemReference);
     }
 }

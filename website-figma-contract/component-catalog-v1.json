@@ -86,6 +86,20 @@
       "codeProperties": {"value": "table.cell.value"}
     },
     {
+      "logicalType": "krds.card",
+      "aliases": ["card"],
+      "replacement": null,
+      "figmaProperties": {},
+      "codeProperties": {}
+    },
+    {
+      "logicalType": "krds.container",
+      "aliases": ["container"],
+      "replacement": null,
+      "figmaProperties": {},
+      "codeProperties": {}
+    },
+    {
       "logicalType": "egov.pageHeader",
       "aliases": ["pageTitle"],
       "replacement": null,
@@ -99,8 +113,9 @@
       "aliases": ["egov.searchPanel", "searchForm"],
       "replacement": null,
       "figmaProperties": {
-        "label": {"figmaProperty": "Lable#723:0", "type": "TEXT", "values": {}},
-        "placeholder": {"figmaProperty": "↪️Hint#1275:39", "type": "TEXT", "values": {}}
+        "type": {"figmaProperty": "Type", "type": "VARIANT", "values": {"simple": "Simple", "advanced": "Advanced"}},
+        "size": {"figmaProperty": "Size", "type": "VARIANT", "values": {"medium": "medium", "large": "large", "xlarge": "xlarge"}},
+        "state": {"figmaProperty": "State", "type": "VARIANT", "values": {"default": "default", "focus": "focus", "disabled": "disabled"}}
       },
       "codeProperties": {"fields": "form.searchFields", "action": "form.search"}
     },
@@ -167,6 +182,8 @@
     }
   ],
   "patterns": [
+    {"logicalType": "krds.cardList", "aliases": ["card-list", "cardList"], "replacement": null},
+    {"logicalType": "krds.dataTable", "aliases": ["dataTable", "tableLayout"], "replacement": null},
     {"logicalType": "egov.pattern.list", "aliases": ["LIST"], "replacement": null},
     {"logicalType": "egov.pattern.form", "aliases": ["FORM"], "replacement": null},
     {"logicalType": "egov.pattern.detail", "aliases": ["DETAIL"], "replacement": null},

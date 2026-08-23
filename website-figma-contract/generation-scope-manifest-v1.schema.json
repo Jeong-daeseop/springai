@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://schemas.krdevops.local/generation-scope-manifest-v1",
+  "type": "object", "additionalProperties": false, "required": ["manifestId", "contentHash", "rootArtifacts", "dependencyArtifacts", "validationOnlyArtifacts", "preservedArtifacts", "affectedScreens", "selectionReason", "unresolvedDependencies"],
+  "properties": {
+    "manifestId": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/identifier"}, "contentHash": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/sha256"},
+    "rootArtifacts": {"$ref": "#/$defs/refs"}, "dependencyArtifacts": {"$ref": "#/$defs/refs"}, "validationOnlyArtifacts": {"$ref": "#/$defs/refs"}, "preservedArtifacts": {"$ref": "#/$defs/refs"},
+    "affectedScreens": {"type": "array", "items": {"type": "string"}}, "selectionReason": {"type": "string", "minLength": 1}, "unresolvedDependencies": {"type": "array", "items": {"type": "string"}}
+  }, "$defs": {"refs": {"type": "array", "items": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/artifactReference"}}}
+}

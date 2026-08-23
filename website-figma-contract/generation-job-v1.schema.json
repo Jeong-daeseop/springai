@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://schemas.krdevops.local/generation-job-v1",
+  "type": "object", "additionalProperties": false, "required": ["jobId", "type", "status", "operationId", "requestedBy", "requestedAt", "inputRefs", "progress", "currentStage", "attempt", "maxAttempts", "resultArtifactRefs", "cancellable", "expiresAt"],
+  "properties": {
+    "jobId": {"type": "string"}, "type": {"enum": ["BUILD", "BROWSER_RENDER", "SCREENSHOT", "EVIDENCE_BUNDLE", "IMPACT_ANALYSIS"]}, "status": {"enum": ["QUEUED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"]}, "operationId": {"type": "string"}, "requestedBy": {"type": "string"}, "requestedAt": {"type": "string", "format": "date-time"}, "inputRefs": {"type": "array", "minItems": 1, "items": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/artifactReference"}}, "progress": {"type": "integer", "minimum": 0, "maximum": 100}, "currentStage": {"type": "string"}, "attempt": {"type": "integer", "minimum": 0}, "maxAttempts": {"type": "integer", "minimum": 1}, "resultArtifactRefs": {"type": "array", "items": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/artifactReference"}}, "errorCode": {"type": ["string", "null"]}, "errorMessage": {"type": ["string", "null"]}, "cancellable": {"type": "boolean"}, "expiresAt": {"type": "string", "format": "date-time"}
+  }
+}

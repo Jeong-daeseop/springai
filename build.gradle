@@ -104,11 +104,13 @@ if (providers.gradleProperty('ci').isPresent()) {
     }
 }
 
+def npmExecutable = file('/opt/homebrew/bin/npm').exists() ? file('/opt/homebrew/bin/npm').absolutePath : 'npm'
+
 tasks.register('figmaContractTest', Exec) {
     group = 'verification'
     description = 'Semantic Figma JSON Schema와 계약 fixture를 검증합니다.'
     workingDir file('website-figma-contract')
-    commandLine 'npm', 'test'
+    commandLine npmExecutable, 'test'
 }
 
 tasks.register('qnaRuntimeResolverTest', Test) {
@@ -125,21 +127,21 @@ tasks.register('figmaRuntimeBundlePluginTest', Exec) {
     description = 'Runtime Resolver가 생성한 Q&A 7개 Bundle을 Figma Plugin Preview로 검증합니다.'
     dependsOn tasks.named('qnaRuntimeResolverTest')
     workingDir file('figma-screen-spec-plugin')
-    commandLine 'npm', 'run', 'test:runtime-bundles'
+    commandLine npmExecutable, 'run', 'test:runtime-bundles'
 }
 
 tasks.register('figmaRefinementPluginTest', Exec) {
     group = 'verification'
     description = 'MR-P/T01~03: Manual Refinement 속성 정규화·정책·Diff 순수 로직을 검증합니다.'
     workingDir file('figma-screen-spec-plugin')
-    commandLine 'npm', 'run', 'test:refinement'
+    commandLine npmExecutable, 'run', 'test:refinement'
 }
 
 tasks.register('browserGateTest', Exec) {
     group = 'verification'
     description = 'WP8 Playwright 1440/768/390, axe, visual diff Gate를 실제 Chromium으로 검증합니다.'
     workingDir file('jsp-design-extractor')
-    commandLine 'npm', 'run', 'test:browser-gate'
+    commandLine npmExecutable, 'run', 'test:browser-gate'
 }
 
 tasks.register('prodBootJarSmoke', Exec) {
@@ -147,6 +149,27 @@ tasks.register('prodBootJarSmoke', Exec) {
     description = '소스 디렉터리 밖에서 prod bootJar의 Thymeleaf와 정적 리소스를 검증합니다.'
     dependsOn tasks.named('bootJar')
     commandLine 'node', 'scripts/prod-bootjar-smoke.mjs'
+}
+
+tasks.register('pipelineInfrastructureSmoke') {
+    group = 'verification'
+    description = 'DB·Redis 인프라 Smoke 계약 테스트를 실행합니다.'
+    dependsOn tasks.named('test')
+    doLast {
+        logger.lifecycle('Pipeline infrastructure smoke 계약 테스트는 test task의 PipelineInfrastructureSmokeServiceTest에서 검증됩니다.')
+    }
+}
+
+tasks.register('pipelineInfrastructureLiveSmoke', Test) {
+    group = 'verification'
+    description = '운영과 동일한 DB·Redis 연결 설정으로 infrastructure live smoke를 실행합니다.'
+    dependsOn tasks.named('testClasses')
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform { includeTags 'live-infrastructure' }
+    environment 'PIPELINE_INFRA_SMOKE_LIVE', 'true'
+    systemProperty 'spring.profiles.active', System.getenv('SPRING_PROFILES_ACTIVE') ?: 'test'
+    systemProperty 'spring.devtools.restart.enabled', 'false'
 }
 
 tasks.named('check') {
@@ -172,6 +195,8 @@ tasks.named('processResources') {
   from('website-figma-contract') {
     include 'component-catalog-v2.json'
     include 'component-catalog-v1.json'
+    include 'renderer-profile-thymeleaf-krds-v1.json'
+    include 'validator-profile-thymeleaf-krds-v1.json'
     into 'figma/contracts'
   }
     from('website-figma-contract') {

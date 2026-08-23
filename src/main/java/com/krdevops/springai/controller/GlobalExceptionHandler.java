@@ -16,6 +16,8 @@ import org.springframework.web.context.request.async.AsyncRequestTimeoutExceptio
 import java.io.IOException;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.web.server.ResponseStatusException;
+import com.krdevops.springai.model.contract.PipelineErrorResponse;
 
 /**
  * 전역 예외 핸들러 — 컨트롤러에서 처리되지 않은 예외를 통일된 에러 응답으로 변환한다.
@@ -88,6 +90,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<PipelineErrorResponse> handleResponseStatus(ResponseStatusException ex) {
+        String code = "HTTP_" + ex.getStatusCode().value();
+        return ResponseEntity.status(ex.getStatusCode()).body(
+                PipelineErrorResponse.forOperation(code, ex.getReason() == null ? "요청을 처리할 수 없습니다." : ex.getReason(), null));
     }
 
     /** 보안 예외 (Path Traversal 등) → 403 Forbidden */

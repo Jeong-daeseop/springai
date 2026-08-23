@@ -4,6 +4,7 @@ import com.krdevops.springai.model.crud.CrudLayoutMode;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
 import com.krdevops.springai.model.crud.FieldModel;
 import com.krdevops.springai.model.crud.PkModel;
+import com.krdevops.springai.model.designsystem.DesignComponentRenderInput;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -90,6 +91,28 @@ class CrudTemplateRendererTest {
             index += token.length();
         }
         return count;
+    }
+
+    @Test
+    void designComponent입력은업무Binding과분리된이름공간으로노출된다() {
+        CrudTemplateModel base = model(true);
+        DesignComponentRenderInput component = new DesignComponentRenderInput(
+                "map-button", "1.0", "button", "FIGMA_BUTTON",
+                "fragments/button :: button", "thymeleaf-krds",
+                java.util.Map.of("fields", "디자인 값", "label", "저장"),
+                java.util.Map.of("leadingIcon", "save"), "figma-r1", "a".repeat(64));
+        CrudTemplateModel connected = new CrudModelFactory()
+                .withDesignComponents(base, List.of(component));
+
+        var data = renderer.toDataModel(connected);
+
+        assertThat(data.get("fields")).isSameAs(base.fields());
+        assertThat(data.get("route")).isSameAs(base.route());
+        assertThat(data.get("queryContract")).isSameAs(base.queryContract());
+        assertThat(data.get("designComponents")).isEqualTo(List.of(component));
+        assertThat(connected.fields()).isSameAs(base.fields());
+        assertThat(connected.route()).isSameAs(base.route());
+        assertThat(connected.queryContract()).isSameAs(base.queryContract());
     }
 
     // ─── VO 렌더링 ────────────────────────────────────────────────────────────

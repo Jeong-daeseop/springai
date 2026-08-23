@@ -116,6 +116,13 @@ chat:
     max-messages: 8       # 20 → 8: 토큰 예산 확보 (num-ctx 8192 기준)
 
 app:
+  # 5축 파이프라인 발전 계약은 기본 비활성화한다. observe → dual_read → v2_preview → v2_apply 순서로 전환한다.
+  pipeline-evolution:
+    mode: ${APP_PIPELINE_EVOLUTION_MODE:DISABLED}
+    # 이 값 미만의 필수 시각 추론은 자동 승인하지 않는다.
+    auto-approval-confidence-threshold: ${APP_PIPELINE_AUTO_APPROVAL_CONFIDENCE_THRESHOLD:0.85}
+    # 이 값 미만은 원본 Evidence가 있어도 증거 품질 부족으로 Apply를 차단한다.
+    evidence-confidence-threshold: ${APP_PIPELINE_EVIDENCE_CONFIDENCE_THRESHOLD:0.60}
   # R5-004: 명시적으로 켠 경우에만 기본 다운로드가 Catalog+Registry v3 SSOT를 요구한다.
   figma-ssot-bundle-enabled: ${APP_FIGMA_SSOT_BUNDLE_ENABLED:false}
   templates:

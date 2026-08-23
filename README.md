@@ -2,7 +2,7 @@
 
 Spring Boot와 Spring AI로 구현한 eGovFrame 개발 지원 서버입니다. Claude Desktop/Web 또는 다른 MCP 클라이언트가 Streamable HTTP로 연결하여 eGovFrame 코드 생성, Thymeleaf 화면 생성·검증, Figma 디자인 연동, RAG 문서 검색 기능을 사용할 수 있습니다.
 
-현재 MCP 계약 기준은 **92개 Tool 메서드 / 34개 Tool 객체**입니다. 모든 Tool에는 위험 등급이 지정되어 있으며 MCP 인증은 기본적으로 `REQUIRED`(deny-by-default)입니다.
+현재 MCP 계약 기준은 **101개 Tool 메서드 / 36개 Tool 객체**입니다(`McpToolDefinitionSnapshotTest` 회귀 기준선). 모든 Tool에는 위험 등급이 지정되어 있으며 MCP 인증은 기본적으로 `REQUIRED`(deny-by-default)입니다.
 
 ## 주요 기능
 
@@ -161,26 +161,72 @@ CI에서 로컬 ONNX·DB·Redis 의존성을 제외하려면 다음을 사용합
 - [WP0 계약·테스트 기준선](docs/architecture/baseline/ARCH-WP0-baseline-2026-08-03.md)
 - [WP1 MCP 보안 Runbook](docs/architecture/security/ARCH-WP1-MCP-보안-운영-Runbook.md)
 - [전체 아키텍처 재분석](docs/architecture/SpringAI_프로젝트_전체_아키텍처_재분석_2026-08-03.md)
+- [5축 파이프라인 Release Gate 운영 Runbook](docs/figma/31_5Axis_Pipeline_Release_Gate_Operations_Runbook.md)
+- [5축 벤치마크 기반 구현목록](docs/figma/30_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_List.md)
+
+운영 DB·Redis 연결을 실제로 확인하려면 `./scripts/pipeline-live-smoke.sh`를 실행합니다.
 
 기준선 커밋은 `a09ccd2`(WP0), `83f90f5`(WP1), `b2409d2`(문서)입니다.
 
 ## 디렉터리 구조
 
+Java 소스는 `src/main/java/com/krdevops/springai` 아래 775개 파일로 구성됩니다.
+
 ```text
 src/main/java/com/krdevops/springai
-├── config/       # Spring Security, MCP Tool 등록, 애플리케이션 설정
-├── controller/   # REST API
-├── chat/         # 채팅 UI, RAG, SSE
-├── service/      # Application Service와 도메인 처리
-├── mapper/       # JdbcTemplate Repository
-├── tools/        # MCP Tool 구현
-├── model/        # 요청·결과·계약 모델
-└── policy/       # 입력·보안 정책
+├── config/         # Spring Security, 애플리케이션 설정
+│   ├── mcp/        # MCP Tool 위험 등급·인가·민감정보 마스킹(McpAuthorizingToolCallback 등)
+│   └── observability/
+├── controller/     # REST API
+├── chat/           # 채팅 UI, RAG, SSE
+│   ├── config/rag/transformers/  # ONNX 임베딩 설정
+│   ├── context/ controller/ dto/ repository/ response/ service/ util/
+├── exception/      # 전역 예외 처리
+├── mapper/         # JdbcTemplate Repository
+├── model/          # 요청·결과·계약 모델(9개 최상위 + 하위 패키지)
+│   ├── artifact/ board/ capture/ contract/ crud/ masterdetail/
+│   ├── design/role/ designsystem/ operation/ parity/ thymeleaf/ write/
+│   └── figma/      # contract/ hybrid/ ops/ refinement/ request/
+├── policy/         # 입력·보안 정책
+├── service/        # Application Service와 도메인 처리(86개 최상위 + 하위 패키지)
+│   ├── artifact/ auth/ common/ contract/ designsystem/ menu/
+│   ├── observability/ operation/ parity/ resilience/ sql/ thymeleaf/ workflow/ write/
+│   ├── figma/builder/
+│   ├── initializr/template/
+│   ├── security/template/
+│   └── generation/ # api/ board/ crud/ layout/ masterdetail/ mcp/ model/ pipeline/processor/ source/
+├── tools/          # MCP Tool 구현(McpConfig에 등록)
+│   └── generation/ # Board/Crud/MasterDetail Generation·ScreenSource·JoinQuery Tool
+├── util/
+└── vo/
 
-docs/             # 아키텍처·구현계획·운영 문서
-templates/        # eGovFrame 생성 템플릿
-website-figma-contract/ # Figma JSON Schema와 계약 테스트
+src/main/resources/
+├── db/migration/   # Flyway
+├── model/          # ONNX 임베딩 모델 배치 경로
+├── static/js/
+└── templates/      # Thymeleaf (board/ crud/ egov/ legacy-thymeleaf/ masterdetail/ security/)
+
+docs/               # 아키텍처·구현계획·Figma 통합·운영 문서
+templates/          # eGovFrame FreeMarker 생성 템플릿(boot-thymeleaf/, war-thymeleaf/)
+prompts/            # Tool 프롬프트 템플릿(crud/menu/security/system-prompt 등)
+scripts/            # springai-server.sh 등 운영 스크립트
 ```
+
+### Figma 연동 서브 프로젝트 (독립 Node.js 프로젝트)
+
+`DesignReferenceTool`/`FigmaDesignOrchestrationTool` 기반 Figma↔Thymeleaf 파이프라인은 Spring Boot 단일 앱이 아니라, 계약(JSON Schema)으로 연결된 별도 Node.js 프로젝트 여러 개로 구성됩니다. 각 프로젝트의 `README.md`에 상세 사용법이 있습니다.
+
+| 디렉터리 | 역할 |
+|---|---|
+| `website-figma-contract/` | Website→Figma 파이프라인이 공유하는 기술 중립 계약(JSON Schema, `component-catalog-v1/v2.json`). `figmaContractTest` Gradle task로 검증 |
+| `figma-screen-spec-plugin/` | Spring이 내려준 `.figma-export-bundle.json`을 Published FTC/KRDS Component Instance 기반 Figma 화면으로 생성·동기화하는 Figma Plugin. `figmaRuntimeBundlePluginTest`/`figmaRefinementPluginTest`로 검증 |
+| `jsp-design-extractor/` | Playwright/Chromium으로 로컬 화면(JSP/Thymeleaf)을 캡처해 `figpack-v1`을 생성. `browserGateTest`(Playwright 1440/768/390, axe, visual diff)로 검증 |
+| `jsp-to-figma-plugin/` | `figpack-v1`을 검증하고 현재 Figma 파일에 Frame/Text 구조를 생성하는 로컬 전용 Plugin |
+| `krds-design-system-author-plugin/` | `design-system-spec-v1` JSON으로 Figma Variable Collection·Component Set·Variant를 제자리 생성/갱신하는 로컬 전용 Plugin |
+| `component-contracts/` | Primitive/Semantic 디자인 토큰 정의(`tokens/primitive/`, `tokens/semantic/`) |
+| `figma-capture/` | 캡처된 참조 화면 스크린샷 자산 |
+
+이 서브 프로젝트들은 `build.gradle`의 `check` 태스크(`figmaContractTest`, `qnaRuntimeResolverTest`, `figmaRuntimeBundlePluginTest`, `figmaRefinementPluginTest`)와 별도 등록 task(`browserGateTest`)로 Java 빌드 파이프라인에 연결됩니다.
 
 ## 로그
 

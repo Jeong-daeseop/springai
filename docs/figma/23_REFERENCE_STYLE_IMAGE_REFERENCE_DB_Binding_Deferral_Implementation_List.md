@@ -1,8 +1,8 @@
 # REFERENCE_STYLE / IMAGE_REFERENCE DB 테이블 바인딩 지연 절충안 — 구현 목록
 
-> 문서 버전: 1.6
+> 문서 버전: 1.7
 > 작성일: 2026-08-19
-> 상태: **구현 완료** — P0/P1 전 항목(C-01~05, S-01~05, A-01~02, T-01~07) 완료, 전체 Java 테스트 스위트 통과. 잔여는 DEC-03(12번 문서 §11.4.1 정식 `R6-0xx` 재번호 시점) 결정뿐.
+> 상태: **구현 완료** — P0/P1 전 항목(C-01~05, S-01~05, A-01~03, T-01~07) 완료, 전체 Java 테스트 스위트 통과. 12번 문서 §11.4.1은 `R6-065`로 정식 재번호 완료.
 > 근거 문서: [22_Reference_Image_Request_DB_Binding_Deferral_Proposal.md](./22_Reference_Image_Request_DB_Binding_Deferral_Proposal.md)
 > 관련 문서: [12_Semantic_Figma_Design_System_Implementation_List.md](./12_Semantic_Figma_Design_System_Implementation_List.md) §11.4.1(원 반영 위치)
 
@@ -37,7 +37,7 @@
 
 - [x] **DEC-01 · P0**(2026-08-19) 이 절충안의 착수 여부와 시점을 확정한다 — 세션 내내 항목별 사용자 승인을 받으며 순차 착수, C-01~T-07 전체 완료로 사실상 확정됨
 - [x] **DEC-02 · P1**(대상 소멸, 2026-08-19) ~~`FieldRoleToColumnMatcher`의 신뢰도 threshold 초기값을 확정한다~~ — S-03 삭제로 이 결정 자체가 불필요해짐. 실제 필드↔컬럼 매칭은 기존 `ScreenSpecAssembler.bindingsFromHints()`가 담당하며, 그쪽의 매칭/threshold 정책은 이 절충안이 새로 정의할 대상이 아니라 기존 CRUD 생성 파이프라인의 기존 정책을 그대로 따름
-- [!] **DEC-03 · P2** `AWAITING_TABLE_BINDING` 도입 완료 후 12번 문서 §11.4.1을 정식 `R6-0xx` ID로 재번호할 시점을 확정한다(착수 직후 vs 전체 완료 후)
+- [x] **DEC-03 · P2** `AWAITING_TABLE_BINDING` 구현 완료에 따라 12번 문서 §11.4.1을 정식 `R6-065`로 재번호했다(2026-08-19, 12번 문서 §19 변경 이력 4.13 및 본 문서 v1.7 반영).
 
 ---
 
@@ -263,7 +263,7 @@
 - [x] PK가 없는 매칭 결과는 자동 확정되지 않는다(기존 `ScreenSpecAssembler`의 PK 강제 로직 + REVIEW_REQUIRED→REJECTED 경로, C-05로 확인)
 - [x] 나머지 5종 요청 유형과 기존 `database`/`tableName` 지정 경로는 회귀 없이 동일하게 동작한다(T-05/T-06)
 - [x] 전체 Java 테스트 스위트가 통과한다(2026-08-19, C-03/A-02 포함 최종 확인)
-- [ ] 12번 문서 §11.4.1이 정식 `R6-0xx` ID로 재번호되고 완료 Gate가 명시된다(**잔여** — DEC-03 결정 후 별도 진행)
+- [x] 12번 문서 §11.4.1이 정식 `R6-065` ID로 재번호되고 완료 Gate가 명시된다(2026-08-19, 12번 문서 §19 변경 이력 4.13에서 확인).
 
 ---
 
@@ -271,6 +271,7 @@
 
 | 버전 | 일자 | 변경 내용 |
 |---|---|---|
+| 1.7 | 2026-08-21 | **DEC-03 및 완료 Gate 문서 동기화.** 12번 문서 §11.4.1이 이미 `R6-065`로 정식 재번호된 사실을 확인해 DEC-03과 §10 마지막 Gate를 `[x]`로 갱신하고, 문서 상태를 전체 구현 완료로 정정. A-03도 상태 요약에 포함. |
 | 1.6 | 2026-08-19 | **A-01(a~e)~A-03, C-03~C-05, T-03~T-07 전체 완료.** A-01b(`FigmaDesignOperation.withRequestAndNextRevision`)·A-01c(`FigmaDesignOperationRepository.appendTransitionWithRequest` — `canonicalRequestView()`가 database/tableName을 해시 계산에서 애초에 제외하고 있어 사용자 확인 후 그 부분은 그대로 두고 해시 변경 시에만 멱등성 행 추가하도록 조건부 구현)·A-01d(`AWAITING_TABLE_BINDING → ANALYZED` 전이 + baseline 재생성)·A-01e(`FigmaDesignOrchestrationService.bindTable()` + `FigmaDesignOrchestrationTool.bindFigmaDesignRequestTable` MCP Tool) 순서로 구현. C-04로 관련 Tool description을 S-01 이후 실제 동작에 맞게 정정(기존 문구가 stale 상태였음을 발견). A-02로 `POST /api/figma/orchestration/bind-table` REST 엔드포인트 추가(기존 X-API-Key 인증 재사용, 신규 SecurityConfig 변경 없음). A-03은 기존 `GET /operations/{operationId}/info`가 `issues`를 그대로 반환해 신규 API 없이 충족 확인. C-03으로 `figma-design-operation-v1.schema.json`에 상태값 반영, 계약 테스트 통과. T-03/T-06은 기존 테스트가 이미 커버해 신규 코드 없이 완료 처리, T-04/T-05/T-07은 신규 테스트 8건(Service 6 + Tool 1 + Controller 1) 추가. C-05는 별도 fixture 파일 대신 T-04의 인라인 fixture로 충족. 매 항목마다 사용자 승인 후 순차 착수했으며, 전체 Java 테스트 스위트를 여러 차례 재확인해 회귀 없음을 검증. 잔여는 DEC-03(12번 문서 §11.4.1 정식 `R6-0xx` 재번호 시점)뿐 |
 | 1.5 | 2026-08-19 | **S-03(`FieldRoleToColumnMatcher`) 삭제 + S-04/S-05 재해석 + A-01 구조적 제약 발견·확장 계획 수립.** S-04/S-05 설계 중 `ScreenSpecificationService.create(...)`가 이미 `ScreenSpecAssembler.bindingsFromHints()`로 역할힌트↔실제컬럼 매칭과 `NO_COLUMN_CANDIDATE`→`REVIEW_REQUIRED` 판정을 수행하고 있음을 발견 — S-03이 기존 기능 중복 구현이었음이 확인돼 사용자 승인 후 전체 삭제(`FieldRoleToColumnMatcher`/`FieldColumnMatch`/`FieldMatchResult`/전용 테스트 12건 제거, `ColumnMeta.fromRow()`도 함께 제거해 `ColumnMeta` 원상복구). S-04/S-05는 기존 `finalizeFromScreenSpecification()`이 이미 충족함을 확인해 새 코드 없이 완료 처리. 이어서 A-01(`bindFigmaDesignRequestTable`) 설계 중 `FigmaDesignOperationRepository.appendTransition()`이 `request`를 절대 변경하지 않는(`withNextRevision()`에 request 파라미터 없음, operationId가 request 해시로 identity 고정) 구조적 제약을 발견 — 사용자 검토 후 Operation 모델을 확장하는 방향(A-01a~e)으로 계획 수립. 이 모델이 7가지 디자인 요청 전체가 공유하고 `.figpack` 하이브리드 흐름과는 무관함을 코드로 확인. 전체 스위트(1,588개) 통과. 실제 A-01a~e 구현은 다음 세션 |
 | 1.4 | 2026-08-19 | **S-03(`FieldRoleToColumnMatcher`) 구현 완료 + S-02 전용 테스트(T-01) 보강.** `SchemaReaderTool.getTableSchema()`가 구조화 데이터가 아닌 포맷 문자열을 반환함을 발견해 착수 전 사용자와 확인 후 `CrudSchemaQueryService`/`ColumnMeta`(CRUD 생성 파이프라인 재사용, `ColumnMeta.fromRow()` 정적 팩토리 신설) 기반으로 전환. 매처는 DB에 접근하지 않는 순수 함수(`List<ColumnMeta>` 입력)로 설계. DEC-02(역할↔컬럼 키워드 사전)는 임의 추측 대신 `docker exec`로 실제 `ebt.LETTNQAINFO`/`LETTNBBS`/`LETTNBBSMASTER`/`LETTNEMPLYRINFO` 컬럼·코멘트를 조회해 근거 마련(사용자 승인 경로). 테스트 작성 중 STATUS 키워드 "여부"가 `EMAIL_ANSWER_AT`(메일답변여부)와 오매칭되는 실제 충돌을 발견해 정정. 신규 테스트 17건(매처 12 + 추출기 5), 전체 스위트(1,600개) 통과. S-04/S-05(실제 오케스트레이션 흐름 연결)는 착수 전 별도 확인 예정 |

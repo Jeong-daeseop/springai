@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema", "$id": "https://schemas.krdevops.local/screen-review-session-v1",
+  "type": "object", "additionalProperties": false, "required": ["sessionId", "evidenceBundleRef", "reviewerRoles", "comments", "requestedChanges", "approvalDecision", "visibility", "expiresAt", "auditTrail"],
+  "properties": {
+    "sessionId": {"type": "string"}, "evidenceBundleRef": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/artifactReference"}, "reviewerRoles": {"type": "array", "minItems": 1, "items": {"enum": ["DESIGNER", "BUSINESS", "DEVELOPER", "QA", "APPROVER"]}},
+    "comments": {"type": "array", "items": {"type": "object"}}, "requestedChanges": {"type": "array", "items": {"type": "object"}}, "approvalDecision": {"enum": ["PENDING", "APPROVED", "REJECTED", "INVALIDATED"]}, "visibility": {"const": "PRIVATE"}, "expiresAt": {"type": "string", "format": "date-time"}, "auditTrail": {"type": "array", "items": {"type": "object"}}
+  }
+}

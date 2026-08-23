@@ -93,6 +93,12 @@ Component Set·Variant·Variable Key와 승인 증적만 보존하는 불변 Bin
 
 - Preview/Apply는 `catalogVersion`과 `registryVersion`을 명시해야 한다.
 - Apply 시 `catalogHash`가 다르거나 필수 원자 Component Binding이 없으면 fail-closed 한다.
+
+Profile별 `overrides`는 Catalog 논리 계약을 바꾸지 않는 제한적 Binding 선택 정책이다. `components`에는
+`componentSetKey`와 `variantKeys`만, `variables`에는 `variableId`와 `collectionName`만 허용한다.
+별칭·replacement·Property·Role·composition·허용 Variant 값과 같은 논리 계약 필드는 Override로
+재정의할 수 없으며, 빈 Override 객체와 미정의 필드는 Schema에서 거부한다. Override는 해당 Profile의
+Published Binding을 선택하는 용도로만 사용하고 Catalog/Registry 교차 검증과 승인·Hash 정책을 우회하지 않는다.
 - Pattern과 Page Template은 `composition`을 재귀적으로 해석하되 순환 참조를 허용하지 않는다.
 - 승인된 Registry Snapshot은 제자리 변경하지 않고 새 `registryVersion`으로 저장한다.
 - 과거 산출물 재현과 Rollback을 위해 Catalog/Registry 버전과 Hash를 함께 보존한다.

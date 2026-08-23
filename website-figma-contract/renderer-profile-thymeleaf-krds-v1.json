@@ -1,0 +1,29 @@
+{
+  "profileId": "thymeleaf-krds",
+  "version": "1.0",
+  "contentHash": "8e2801b468b8c3b6f361f4bf861e491f882f25911585611ed5783c20b279b5df",
+  "status": "APPROVED",
+  "rendererType": "THYMELEAF",
+  "templateEngine": "FREEMARKER",
+  "templateSetVersion": "crud-thymeleaf-1.0",
+  "templateSetHash": "ddffe4624efb4248d3751804043696b4e5ef7ddc495ae67bef2d7e3a4c96e4f8",
+  "componentMappingVersion": "1.0",
+  "supportedFeatures": [
+    "CRUD_LIST",
+    "CRUD_DETAIL",
+    "CRUD_CREATE",
+    "CRUD_UPDATE",
+    "CRUD_SEARCH",
+    "COMPOSITE_PRIMARY_KEY",
+    "SCREEN_FIELD_SUBSET",
+    "LAYOUT_DECORATION"
+  ],
+  "forbiddenFallbacks": [
+    "UNMAPPED_COMPONENT",
+    "UNSUPPORTED_VARIANT",
+    "RASTERIZED_BUSINESS_CONTROL"
+  ],
+  "outputConventionVersion": "egov-thymeleaf-1.0",
+  "validatorProfile": "thymeleaf-krds-validator@1.0#74a5db0f2aeb6b54133238c4bfb9f86e58955867638c18b15da1859c9f38fd52",
+  "supportedViewTypes": ["THYMELEAF"]
+}

@@ -1,0 +1,1 @@
+{"manifestId":"owner-1","contentHash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","artifacts":[{"artifactPath":"templates/qna/list.html","regions":[{"regionId":"main","regionType":"GENERATED","contentHash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}],"mergePolicy":"REGENERATE","owner":"springai"}]}

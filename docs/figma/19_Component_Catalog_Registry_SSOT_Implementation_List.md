@@ -1,9 +1,16 @@
 # Component Catalog·ComponentRegistry 논리 계약 단일 원천화 구현목록
 
-> 문서 버전: 1.0  
+> 문서 버전: 1.1
 > 작성일: 2026-08-17  
 > 기준 명세: [18_Component_Catalog_Registry_SSOT_Impact_and_Implementation_Specification.md](./18_Component_Catalog_Registry_SSOT_Impact_and_Implementation_Specification.md)  
-> 상태: 핵심 계약·Resolver·Registry v3 저장 구현 완료 / 운영 전환·Figma E2E 진행 전
+> 상태: Profile 제한적 Override 계약까지 구현 완료 / 기존 운영 전환·호환 Gate 잔여
+
+### 2026-08-21 추가 구현
+
+- `component-catalog-v2.json`에 `krds.card`·`krds.container` 원자 계약과 `krds.cardList` Pattern 계약을 추가했다.
+- `krds.cardList`는 독립 Published Component가 아니라 `krds.container` + `krds.card` 조합으로 고정했다.
+- 실제 KRDS Figma Component Set Binding(`card=0fe078…`, `container=69ea…`)을 Registry v2 Q&A fixture와 Registry v3 fixture에 반영했다. Pattern 자체에는 Component Set Binding을 만들지 않는다.
+- 계약 테스트에서 조합 대상·실제 Binding Key·Pattern 무Binding을 회귀 검증한다. 구조적 Table→CardList 변환 및 Grid 재계산은 별도 구현 범위로 남는다.
 
 ---
 
@@ -56,7 +63,7 @@
 - [x] **SSOT-R0-008 · P0** `component-registry-v3.schema.json` 작성
 - [x] **SSOT-R0-009 · P0** Registry `catalogVersion`·`schemaVersion`·`sourceRevision` 정의
 - [x] **SSOT-R0-010 · P0** Registry 승인자·승인시각·content hash 계약 정의
-- [ ] **SSOT-R0-011 · P1** Profile별 제한적 `overrides` Schema와 허용 정책 정의
+- [x] **SSOT-R0-011 · P1** Profile별 제한적 `overrides` Schema와 허용 정책 정의 — `design-system-profile-v1.schema.json`에 componentSetKey/variantKeys 및 variableId/collectionName만 허용하는 Profile Override 계약을 추가하고, 논리 계약(Property·Role·composition·alias·replacement·허용 Variant 값) 변경은 금지하도록 `CONTRACT_RULES.md` §5.1에 명시. 유효 Profile fixture와 Java `DesignSystemProfile.Overrides` 모델을 함께 반영
 - [x] **SSOT-R0-012 · P0** Catalog/Registry 교차 검증 오류 코드 정의
 - [x] **SSOT-R0-013 · P1** v1 Catalog → v2 결정형 변환 규칙·누락 합성 대상 fail-closed 구현
 - [x] **SSOT-R0-014 · P1** v2 Registry → v3 Binding Snapshot 결정형 변환·Hash·비원자 Binding 제외 규칙 구현

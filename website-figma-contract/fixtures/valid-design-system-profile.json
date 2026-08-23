@@ -17,5 +17,19 @@
       "collectionName": "Foundation",
       "status": "BOUND"
     }
+  },
+  "overrides": {
+    "components": {
+      "krds.button": {
+        "variantKeys": {
+          "Style=Primary, Size=Medium, State=Default": "FTC_BUTTON_PRIMARY_MEDIUM"
+        }
+      }
+    },
+    "variables": {
+      "color.primary": {
+        "collectionName": "FTC Foundation"
+      }
+    }
   }
 }

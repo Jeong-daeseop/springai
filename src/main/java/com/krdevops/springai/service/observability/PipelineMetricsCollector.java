@@ -1,0 +1,4 @@
+package com.krdevops.springai.service.observability;
+import org.springframework.stereotype.Service;
+import java.util.Map; import java.util.concurrent.ConcurrentHashMap; import java.util.concurrent.atomic.LongAdder;
+@Service public class PipelineMetricsCollector { private final Map<String,LongAdder> metrics=new ConcurrentHashMap<>(); public void increment(String name){if(name==null||!name.matches("[a-z][a-z0-9_]{2,63}"))throw new IllegalArgumentException("Metric 이름이 올바르지 않습니다.");metrics.computeIfAbsent(name,k->new LongAdder()).increment();} public long count(String name){LongAdder a=metrics.get(name);return a==null?0:a.sum();} public void requireSafeLabels(Map<String,String> labels){if(labels!=null&&labels.keySet().stream().anyMatch(k->k.matches("(?i).*(prompt|secret|password|token|data).*") ))throw new IllegalArgumentException("업무 Data·Prompt·Secret을 Metric에 포함할 수 없습니다.");} }

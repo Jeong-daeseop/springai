@@ -27,6 +27,16 @@ class FigmaFileAllowlistValidatorTest {
     }
 
     @Test
+    void enforcesTheApprovedFtcFileAndRejectsTheRetiredKrdsFile() {
+        var validator = validatorWithAllowlist(List.of("mVy5h1UbORVqQoBm8Wr1bT"));
+
+        assertThat(validator.isFileKeyAllowed("mVy5h1UbORVqQoBm8Wr1bT")).isTrue();
+        assertThatThrownBy(() -> validator.validateFileKey("6fcm04dwSEH2IUizZfaZCj"))
+                .isInstanceOfSatisfying(FigmaFileAllowlistValidator.FigmaAllowlistException.class,
+                        ex -> assertThat(ex.getCode()).isEqualTo("FIGMA_FILE_NOT_ALLOWED"));
+    }
+
+    @Test
     void rejectsNullOrBlankFileKeys() {
         var validator = validatorWithAllowlist(List.of("key1"));
         assertThat(validator.isFileKeyAllowed(null)).isFalse();

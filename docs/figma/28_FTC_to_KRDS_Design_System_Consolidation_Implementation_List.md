@@ -44,15 +44,15 @@
 
 ## 4. R2 — 데이터 최신성 확인
 
-- [~] **R2-001 · P1** `component-catalog-v1.json`의 `krds.searchPanel` 하드코딩 노드 ID(`"Lable#723:0"`, `"↪️Hint#1275:39"`)가 FTC 라이브러리 현재 버전과 일치하는지 Figma MCP(`get_design_context`, `eGovFrame` 파일 node `388:1064` 실제 인스턴스)로 조회. **결과: stale 가능성이 높다** — 조회된 컴포넌트 설명이 "통합검색/게시판 목록 검색 영역. Type=Simple/Advanced(기간 필터 포함)"으로, 카탈로그가 전제하는 Label/Hint 속성이 아니라 `Type`이라는 별도 Variant 속성을 언급하고 있고 참조된 마스터 컴포넌트 node ID도 `318:156`으로 카탈로그의 `723:0`/`1275:39`와 다르다. 다만 `get_design_context`는 React 코드로 근사 변환된 결과라 Figma의 실제 Component Property 패널 원본 이름까지는 확인하지 못했다 — **Figma Desktop에서 Search Panel 마스터 컴포넌트(node 318:156)를 직접 열어 Component Property 목록을 읽는 사람 확인이 필요**(R3-004로 이관)
+- [x] **R2-001 · P1** `component-catalog-v1.json`의 Search Panel 매핑을 FTC 현재 컴포넌트 계약으로 갱신. FTC Search Panel 마스터 `75:98`을 Figma MCP로 조회한 결과 공개 Property는 `Type`(`Simple`/`Advanced`), `Size`(`medium`/`large`/`xlarge`), `State`(`default`/`focus`/`disabled`)이며 Label/Hint 텍스트 Property는 노출되지 않는다. 기존 stale 노드 ID(`"Lable#723:0"`, `"↪️Hint#1275:39"`)를 제거하고 해당 Variant 축으로 교체했다. `search__pc`(`420:10492`)와 `search__mo`(`420:10659`)는 FTC Search Panel의 반응형 구현 항목으로 기록한다.
 - [x] **R2-002 · P2** 다른 하드코딩된 FTC 특정 노드 참조가 카탈로그에 더 있는지 전수 확인 — `grep figmaProperty component-catalog-v1.json` 결과 `krds.searchPanel`의 `label`/`placeholder` 2건이 유일함. 다른 6개 컴포넌트(button/textField/select/checkbox/pagination/pageHeader)는 전부 노드 ID 없는 순수 property명만 사용 — 추가로 손볼 곳 없음
 
 ## 5. R3 — 라이브 검증 (Figma Desktop, 사람 확인 필요 — 브라우저 자동화 불가)
 
-- [~] **R3-001 · P0** allowlist 수정 후 FTC 파일 기준 요청이 정상 동작하는지 확인 — 로컬 서버(`.env` 로드)에서 실제 MCP `convertPlatform` 호출로 검증 완료: fileKey=`mVy5h1UbORVqQoBm8Wr1bT`(FTC)가 이제 allowlist를 통과해 `status: "ANALYZED"`까지 정상 진행됨(허구의 `screenSpecificationId`라 그 이후 단계에서는 당연히 막힘 — allowlist 게이트 자체가 통과한다는 것만 확인 범위). **Figma 캔버스에 실제로 화면이 그려지는지까지는 Figma Desktop이 필요해 이 부분만 사람 확인으로 남음**
+- [~] **R3-001 · P0** allowlist 수정 후 FTC 파일 기준 요청이 정상 동작하는지 확인 — 로컬 서버(`.env` 로드)에서 실제 MCP `convertPlatform` 호출로 검증 완료: fileKey=`mVy5h1UbORVqQoBm8Wr1bT`(FTC)가 이제 allowlist를 통과해 `status: "ANALYZED"`까지 정상 진행됨. `FigmaFileAllowlistValidatorTest.enforcesTheApprovedFtcFileAndRejectsTheRetiredKrdsFile` 회귀 테스트도 추가했다. 허구의 `screenSpecificationId`라 그 이후 단계에서는 당연히 막힘 — allowlist 게이트 자체가 통과한다는 것만 확인 범위. **Figma 캔버스에 실제로 화면이 그려지는지까지는 Figma Desktop이 필요해 이 부분만 사람 확인으로 남음**
 - [x] **R3-002 · P1** KRDS fileKey 요청이 차단되는지 확인 — 같은 방식으로 실제 MCP 호출 검증 완료: fileKey=`6fcm04dwSEH2IUizZfaZCj`(KRDS)가 `isError: true`, `"Figma 파일 접근이 허용되지 않습니다: 6fcm04dwSEH2IUizZfaZCj"`로 정확히 거부됨(`FigmaFileAllowlistValidator`의 `FigmaAllowlistException` 메시지와 일치)
 - [x] **R3-003 · P1** Java 전체 테스트(`./gradlew test`) 통과 확인 — 완료, BUILD SUCCESSFUL(allowlist는 `.env`/런타임 설정이라 컴파일된 테스트에 직접 영향 없음을 함께 확인)
-- [!] **R3-004 · P1** Figma Desktop에서 Search Panel 마스터 컴포넌트(node `318:156`)를 직접 열어 실제 Component Property 이름·값을 확인하고, `component-catalog-v1.json`의 `krds.searchPanel` `figmaProperty` 값(`"Lable#723:0"`, `"↪️Hint#1275:39"`)을 최신 값으로 교체할지 결정(R2-001에서 stale 가능성 확인됨). **2026-08-21 확인: 연결된 Figma MCP의 FTC fileKey(`mVy5h1UbORVqQoBm8Wr1bT`)에서 해당 node가 존재하지 않는다고 응답했고, 최상위 페이지(`0:1 Cover`)만 조회됨. 정확한 현재 Property 값 없이 카탈로그를 임의 변경하지 않음. Figma Desktop에서 node를 재확인한 뒤 재개 필요.**
+- [x] **R3-004 · P1** FTC Search Panel 마스터(`75:98`, `[FTC 고유] Search Panel`)와 반응형 항목(`search__pc` `420:10492`, `search__mo` `420:10659`)을 확인하고, `component-catalog-v1.json` 및 v2의 `krds.searchPanel` 매핑을 `Type`/`Size`/`State` Variant Property로 갱신했다. 기존 stale Label/Hint node 참조는 제거했다.
 
 ---
 

@@ -245,7 +245,35 @@
 }, {
   "controller" : "OperationalStatusController",
   "method" : "GET",
+  "path" : "/api/operations/infrastructure-smoke"
+}, {
+  "controller" : "OperationalStatusController",
+  "method" : "GET",
   "path" : "/api/operations/status"
+}, {
+  "controller" : "PipelineArtifactController",
+  "method" : "GET",
+  "path" : "/api/pipeline/evidence/{bundleId}"
+}, {
+  "controller" : "PipelineArtifactController",
+  "method" : "GET",
+  "path" : "/api/pipeline/handoff/{bundleId}"
+}, {
+  "controller" : "PipelineArtifactController",
+  "method" : "POST",
+  "path" : "/api/pipeline/handoff/{bundleId}/projection"
+}, {
+  "controller" : "PipelineReleaseGateController",
+  "method" : "GET",
+  "path" : "/api/pipeline/mcp-tools"
+}, {
+  "controller" : "PipelineReleaseGateController",
+  "method" : "GET",
+  "path" : "/api/pipeline/operations"
+}, {
+  "controller" : "PipelineReleaseGateController",
+  "method" : "POST",
+  "path" : "/api/pipeline/release-readiness"
 }, {
   "controller" : "RagController",
   "method" : "POST",

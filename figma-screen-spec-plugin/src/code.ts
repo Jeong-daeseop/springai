@@ -362,15 +362,91 @@ async function createViewportFixturesFromSelection(nodeId?: string): Promise<voi
     frame.paddingRight = policy.paddingPx;
     frame.paddingTop = policy.paddingPx;
     frame.paddingBottom = policy.paddingPx;
+    normalizeViewportContent(frame, policy.width - policy.paddingPx * 2);
     frame.setPluginData("figmaScreenSpec.layoutPolicy",
       `platform-layout-default-v1:${policy.platform}`);
     frame.setPluginData("figmaScreenSpec.gridColumns", String(policy.gridColumns));
-    const swapCount = policy.platform === "MOBILE" ? applyMobileTableCardSwap(frame) : 0;
+  const swapCount = policy.platform === "MOBILE" ? applyMobileTableCardSwap(frame) : 0;
+    if (policy.platform === "MOBILE") normalizeMobilePagination(frame, policy.width - policy.paddingPx * 2);
     created.push(`${policy.platform}:${policy.width}px${swapCount ? ` · Table→Card ${swapCount}건` : ""}`);
   });
   figma.currentPage.selection = [source];
   figma.ui.postMessage({ type: "LAYOUT_POLICY_RESULT", ok: true,
     message: `viewport fixture 생성 완료: ${created.join(", ")}` });
+}
+
+/** Mobile 페이지네이션의 Desktop용 number_button 그룹이 화면 밖으로 넘치지 않게 한다. */
+function normalizeMobilePagination(frame: FrameNode, contentWidth: number): void {
+  const paginations = frame.findAll(node => node.type === "FRAME" && /\/pagination(?:\s|·|$)/.test(node.name)) as FrameNode[];
+  for (const pagination of paginations) {
+    const groups = pagination.findAll(node => /number_button/i.test(node.name));
+    for (const group of groups) {
+      group.visible = false;
+      group.setPluginData("figmaScreenSpec.mobileVisibility", "hidden-number-button");
+    }
+    pagination.findAll(node => /input_button/i.test(node.name)).forEach(node => {
+      node.visible = true;
+      node.setPluginData("figmaScreenSpec.mobileVisibility", "visible-input-button");
+    });
+  }
+}
+
+/** Tablet/Mobile 복제본에 Desktop 자식 폭이 남지 않도록 내부 Layout을 viewport에 맞춘다. */
+function normalizeViewportContent(frame: FrameNode, contentWidth: number): void {
+  const tables = frame.findAll(node => node.type === "FRAME" && /\/table(?:\s|·|$)/.test(node.name)) as FrameNode[];
+  for (const table of tables) {
+    const children = table.children.filter(child => "x" in child && "width" in child) as SceneNode[];
+    const right = Math.max(table.width, ...children.map(child => child.x + child.width));
+    if (right > contentWidth) {
+      const ratio = contentWidth / right;
+      for (const child of children) {
+        child.x *= ratio;
+        (child as any).resize(Math.max(1, child.width * ratio), child.height);
+      }
+      table.resize(contentWidth, table.height);
+    }
+    normalizeNestedChildren(table);
+  }
+  const searches = frame.findAll(node => node.type === "FRAME" && /\/search(?:\s|·|$)/.test(node.name)) as FrameNode[];
+  for (const search of searches) {
+    for (const child of search.children) {
+      if ("width" in child && child.width > search.width && "resize" in child) {
+        (child as any).resize(search.width, child.height);
+      }
+    }
+  }
+}
+
+/** Table 내부 Header/Row의 Desktop 셀 좌표도 각 행 폭 안으로 맞춘다. */
+function normalizeNestedChildren(container: FrameNode): void {
+  for (const child of container.children) {
+    if (child.type !== "FRAME") continue;
+    const descendants = child.children.filter(node => "x" in node && "width" in node) as SceneNode[];
+    if (descendants.length > 0) {
+      const right = Math.max(child.width, ...descendants.map(node => node.x + node.width));
+      if (right > child.width) {
+        const ratio = child.width / right;
+        for (const node of descendants) {
+          node.x *= ratio;
+          (node as any).resize(Math.max(1, node.width * ratio), node.height);
+        }
+      }
+      const dateCell = descendants.find(node => /cell-4/.test(node.name));
+      if (dateCell && dateCell.width < 160) {
+        const delta = 160 - dateCell.width;
+        const titleCell = descendants.find(node => /cell-2/.test(node.name));
+        const reducible = titleCell ? Math.max(0, titleCell.width - 120) : 0;
+        const applied = Math.min(delta, reducible);
+        if (titleCell && applied > 0) (titleCell as any).resize(titleCell.width - applied, titleCell.height);
+        (dateCell as any).resize(dateCell.width + applied, dateCell.height);
+        const dateIndex = descendants.indexOf(dateCell);
+        for (let i = dateIndex + 1; i < descendants.length; i++) descendants[i].x += applied;
+      }
+      child.findAll(node => node.type === "TEXT" && /^\d{4}-\d{2}-\d{2}$/.test(node.characters)).forEach(node => {
+        (node as TextNode).textAutoResize = "WIDTH_AND_HEIGHT";
+      });
+    }
+  }
 }
 
 /**
@@ -382,14 +458,25 @@ async function createViewportFixturesFromSelection(nodeId?: string): Promise<voi
  */
 function applyMobileTableCardSwap(frame: FrameNode): number {
   let count = 0;
+  // 목록 전용 결과 툴바가 비어 있으면 Mobile 카드 목록에서 빈 100px 영역을 남기지 않는다.
+  frame.findAll(node => node.type === "FRAME" && /resultToolbar/.test(node.name)).forEach(node => {
+    if (node.type === "FRAME" && node.children.every(child => !child.visible)) {
+      node.visible = false;
+      node.setPluginData("figmaScreenSpec.mobileVisibility", "hidden-empty-toolbar");
+    }
+  });
   const visit = (node: BaseNode & ChildrenMixin): void => {
     const logicalType = node.getPluginData(DATA_LOGICAL_TYPE);
     if (logicalType === "krds.dataTable") {
-      node.setPluginData(DATA_LOGICAL_TYPE, "egov.dataCard");
-      node.name = `${node.name.replace(/ · CARD$/, "")} · CARD`;
-      node.setPluginData("figmaScreenSpec.componentSwap", "krds.dataTable→egov.dataCard:MOBILE");
+      node.setPluginData(DATA_LOGICAL_TYPE, "krds.cardList");
+      node.name = `${node.name.replace(/krds\.dataTable|egov\.dataCard/g, "krds.cardList").replace(/ · CARD$/, "")} · CARD`;
+      node.setPluginData("figmaScreenSpec.componentSwap", "krds.dataTable→krds.cardList:MOBILE");
+      node.setPluginData("figmaScreenSpec.patternComposition", "krds.container+krds.card");
+      let cardCount = 0;
       if ("layoutMode" in node && node.type === "FRAME") {
         node.layoutMode = "VERTICAL";
+        node.primaryAxisSizingMode = "AUTO";
+        node.counterAxisSizingMode = "AUTO";
         node.itemSpacing = 12;
         node.paddingLeft = 12;
         node.paddingRight = 12;
@@ -397,14 +484,41 @@ function applyMobileTableCardSwap(frame: FrameNode): number {
         node.paddingBottom = 12;
         node.children.forEach(child => {
           if (child.type === "FRAME") {
+            if (child.getPluginData(DATA_LOGICAL_TYPE) === "krds.dataTable.header") {
+              child.visible = false;
+              child.setPluginData("figmaScreenSpec.patternRole", "krds.cardList.header-hidden");
+              return;
+            }
+            if (child.getPluginData(DATA_LOGICAL_TYPE) === "krds.dataTable.row") {
+              child.setPluginData(DATA_LOGICAL_TYPE, "krds.card");
+              child.setPluginData("figmaScreenSpec.patternRole", "krds.cardList.card");
+              child.name = `${child.name.replace(/krds\.dataTable\.row/g, "krds.card").replace(/ · CARD$/, "")} · CARD`;
+              cardCount += 1;
+            }
             child.layoutMode = "VERTICAL";
+            child.primaryAxisSizingMode = "AUTO";
+            child.counterAxisSizingMode = "AUTO";
             child.itemSpacing = 4;
             child.paddingLeft = 8;
             child.paddingRight = 8;
             child.paddingTop = 8;
             child.paddingBottom = 8;
+            child.children.forEach(cell => {
+              if ("resize" in cell) {
+                cell.resize(Math.max(0, child.width - child.paddingLeft - child.paddingRight), cell.height);
+              }
+              if ("layoutSizingHorizontal" in cell && child.layoutMode === "VERTICAL") {
+                cell.layoutSizingHorizontal = "FILL";
+              }
+            });
           }
         });
+      }
+      node.setPluginData("figmaScreenSpec.cardCount", String(cardCount));
+      if (cardCount === 0) {
+        node.setPluginData("figmaScreenSpec.cardListWarning", "CARD_ROWS_NOT_FOUND");
+      } else {
+        node.setPluginData("figmaScreenSpec.cardListWarning", "");
       }
       count += 1;
     }

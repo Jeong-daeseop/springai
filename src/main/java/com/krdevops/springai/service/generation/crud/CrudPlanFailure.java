@@ -20,7 +20,10 @@ public record CrudPlanFailure(
         String canonicalUrl,
         List<String> warnings
 ) {
-    public enum Kind { TABLE_NOT_FOUND, METADATA_BLOCKED, ALIAS_CONFLICT, LAYOUT_MISSING }
+    public enum Kind {
+        TABLE_NOT_FOUND, METADATA_BLOCKED, ALIAS_CONFLICT, LAYOUT_MISSING,
+        MAPPING_BLOCKED, RENDERER_CAPABILITY_BLOCKED
+    }
 
     public CrudPlanFailure {
         failedFiles = failedFiles == null ? List.of() : List.copyOf(failedFiles);

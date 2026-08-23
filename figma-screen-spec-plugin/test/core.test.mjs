@@ -525,6 +525,39 @@ test("R5-T08: preview and reconciliation preserve logical identity across a swap
   assert.equal(reconcile(swapped, existing).filter(change => change.changeType === "CONFLICT").length, 0);
 });
 
+test("R5-T03: 신규 logicalNodeId만 ADD로 판정되고 기존 노드는 REUSE된다", () => {
+  const desired = validBundle().figmaScreenSpec.content;
+  const existing = flattenForTest(desired).map(({node}, index) => ({
+    logicalNodeId: node.logicalNodeId,
+    logicalType: node.type,
+    parentLogicalNodeId: index === 0 ? null : "user-list",
+    order: index,
+  }));
+  desired.children.push(node("user-list/new-row", "egov.tableRow", {}, [], "FRAME"));
+  const changes = reconcile(desired, existing);
+  assert.equal(changes.filter(change => change.changeType === "ADD").map(change => change.logicalNodeId)
+    .join(","), "user-list/new-row");
+  assert.ok(changes.filter(change => change.changeType === "REUSE").length >= 1);
+});
+
+test("R5-T08: 7개 요청을 순차 적용해도 Preview diff와 Reconciliation 결과가 일치한다", () => {
+  let existing = [];
+  for (let request = 1; request <= 7; request += 1) {
+    const desired = validBundle().figmaScreenSpec.content;
+    desired.children.push(node(`user-list/request-${request}`, "egov.tableRow", {}, [], "FRAME"));
+    const preview = reconcile(desired, existing);
+    const expectedAdds = request === 1 ? 3 : 1;
+    assert.equal(preview.filter(change => change.changeType === "ADD").length, expectedAdds);
+    assert.equal(preview.filter(change => change.changeType === "CONFLICT").length, 0);
+    existing = flattenForTest(desired).map(({node: current}, index) => ({
+      logicalNodeId: current.logicalNodeId,
+      logicalType: current.type,
+      parentLogicalNodeId: index === 0 ? null : "user-list",
+      order: index,
+    }));
+  }
+});
+
 test("v1 legacy migration computes mappings but never enables migration apply", () => {
   const preview = previewLegacyMigration(legacyV1Bundle(), [
     {nodeId:"1:1", name:"user-list egov listPage", nodeType:"FRAME", logicalNodeId:null, hasLocalInstance:false},

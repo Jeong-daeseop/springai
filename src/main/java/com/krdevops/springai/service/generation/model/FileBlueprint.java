@@ -15,4 +15,18 @@ public record FileBlueprint(
         Path targetPath,
         RenderRequest renderRequest
 ) {
+    public FileBlueprint {
+        if (layerKey == null || layerKey.isBlank()) {
+            throw new IllegalArgumentException("layerKey는 필수입니다.");
+        }
+        if (displayName == null || displayName.isBlank()) {
+            throw new IllegalArgumentException("displayName은 필수입니다.");
+        }
+        if (targetPath == null || targetPath.toString().isBlank()) {
+            throw new IllegalArgumentException("targetPath는 필수입니다.");
+        }
+        layerKey = layerKey.trim();
+        displayName = displayName.trim();
+        targetPath = targetPath.normalize();
+    }
 }

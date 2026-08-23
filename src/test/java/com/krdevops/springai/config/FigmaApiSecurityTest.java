@@ -55,6 +55,49 @@ class FigmaApiSecurityTest {
     }
 
     @Test
+    void pipelineReleaseGateRejectsMissingApiKey() throws Exception {
+        Filter filter = config(disabledTokenService()).apiKeyFilter();
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/pipeline/release-readiness");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(request, response, new MockFilterChain());
+
+        assertThat(response.getStatus()).isEqualTo(401);
+    }
+
+    @Test
+    void pipelineReleaseGateAcceptsConfiguredApiKey() throws Exception {
+        Filter filter = config(disabledTokenService()).apiKeyFilter();
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/pipeline/release-readiness");
+        request.addHeader("X-API-Key", "rest-secret");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void pipelineEvidenceAndHandoffEndpointsRejectMissingApiKey() throws Exception {
+        Filter filter = config(disabledTokenService()).apiKeyFilter();
+
+        assertBearerResult(filter, null, "GET", "/api/pipeline/evidence/e1", 401);
+        assertBearerResult(filter, null, "GET", "/api/pipeline/handoff/h1", 401);
+        assertBearerResult(filter, null, "POST", "/api/pipeline/handoff/h1/projection", 401);
+    }
+
+    @Test
+    void pipelineEvidenceAndHandoffEndpointsAcceptConfiguredApiKey() throws Exception {
+        Filter filter = config(disabledTokenService()).apiKeyFilter();
+
+        assertApiKeyResult(filter, "GET", "/api/pipeline/evidence/e1", 200);
+        assertApiKeyResult(filter, "GET", "/api/pipeline/handoff/h1", 200);
+        assertApiKeyResult(filter, "POST", "/api/pipeline/handoff/h1/projection", 200);
+    }
+
+    @Test
     void figmaScreensGetAcceptsValidShortLivedBearerToken() throws Exception {
         FigmaRestTokenService tokenService = new FigmaRestTokenService("token-secret", 900);
         String token = tokenService.issue().token();
@@ -114,7 +157,15 @@ class FigmaApiSecurityTest {
     private void assertBearerResult(Filter filter, String token, String method, String path, int expected)
             throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest(method, path);
-        request.addHeader("Authorization", "Bearer " + token);
+        if (token != null) request.addHeader("Authorization", "Bearer " + token);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filter.doFilter(request, response, new MockFilterChain());
+        assertThat(response.getStatus()).isEqualTo(expected);
+    }
+
+    private void assertApiKeyResult(Filter filter, String method, String path, int expected) throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest(method, path);
+        request.addHeader("X-API-Key", "rest-secret");
         MockHttpServletResponse response = new MockHttpServletResponse();
         filter.doFilter(request, response, new MockFilterChain());
         assertThat(response.getStatus()).isEqualTo(expected);

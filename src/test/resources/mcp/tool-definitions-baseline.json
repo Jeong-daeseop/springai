@@ -2555,6 +2555,28 @@
       "SemanticRole" : {
         "enum" : [ "PAGE_HEADER", "SEARCH_PANEL", "DATA_TABLE", "DATA_TABLE_CELL", "DATA_PAGINATION", "FORM_CONTAINER", "FORM_SECTION", "FIELD_TEXT", "FIELD_TEXTAREA", "FIELD_SELECT", "FIELD_CHECKBOX", "ACTION_PRIMARY", "ACTION_SECONDARY", "ACTION_DESTRUCTIVE" ],
         "type" : "string"
+      },
+      "VersionedArtifactReference" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "artifactId" : {
+            "type" : "string"
+          },
+          "artifactType" : {
+            "type" : "string"
+          },
+          "contentHash" : {
+            "type" : "string"
+          },
+          "schemaVersion" : {
+            "type" : "string"
+          },
+          "sourceRevision" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "artifactId", "artifactType", "contentHash", "schemaVersion" ],
+        "type" : "object"
       }
     },
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
@@ -2606,6 +2628,9 @@
           },
           "database" : {
             "type" : "string"
+          },
+          "designSystemSnapshotReference" : {
+            "$ref" : "#/$defs/VersionedArtifactReference"
           },
           "featureType" : {
             "type" : "string"
@@ -2772,6 +2797,9 @@
           "status" : {
             "enum" : [ "DRAFT", "REVIEW_REQUIRED", "APPROVED", "SUPERSEDED" ],
             "type" : "string"
+          },
+          "uiDesignSpecReference" : {
+            "$ref" : "#/$defs/VersionedArtifactReference"
           },
           "version" : {
             "format" : "int32",

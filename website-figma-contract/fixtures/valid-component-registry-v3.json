@@ -15,7 +15,9 @@
     "krds.searchPanel":{"componentSetKey":"SEARCH_PANEL_SET_KEY","componentName":"SearchPanel","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
     "krds.pageHeader":{"componentSetKey":"PAGE_HEADER_SET_KEY","componentName":"PageHeader","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
     "krds.tableHeader":{"componentSetKey":"TABLE_HEADER_SET_KEY","componentName":"TableHeader","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
-    "krds.tableCell":{"componentSetKey":"TABLE_CELL_SET_KEY","componentName":"TableCell","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}}
+    "krds.tableCell":{"componentSetKey":"TABLE_CELL_SET_KEY","componentName":"TableCell","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
+    "krds.card":{"componentSetKey":"0fe0785591a7e90fa2f0fda74b2272d333276fbc","componentName":"card","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}},
+    "krds.container":{"componentSetKey":"69ea2628b9dbb120006b6c2920385df621ecf121","componentName":"container","publishStatus":"CURRENT","lifecycleStatus":"CURRENT","variants":{}}
   },
   "variables":{},
   "sourceRevision":"publish-2026-08-17",

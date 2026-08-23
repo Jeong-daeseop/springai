@@ -1,0 +1,30 @@
+{
+  "evidenceVersion": "v1",
+  "capturedAt": "2026-08-21T00:00:00Z",
+  "fileKey": "DlDsooAxMZngQpbzBXf0RD",
+  "fixture": {
+    "sourceNodeId": "388:1060",
+    "fixtureNodeId": "668:755",
+    "fixtureName": "QA · R5-T03-T08-R8-023 · MERGE fixture",
+    "addedNodeId": "668:919",
+    "addedLogicalNodeId": "qa/r5-t03/new-node",
+    "addedDecision": "ADD"
+  },
+  "r5": {
+    "status": "FIXTURE_MATERIALIZED_PLUGIN_APPLY_PENDING",
+    "note": "use_figma로 실제 Figma 문서에 격리 fixture와 ADD marker를 생성했지만, 이 호스트에서는 프로젝트 Plugin의 private pluginData API를 직접 실행할 수 없어 figma-screen-spec-plugin의 전체 Apply callback까지는 실행하지 못함"
+  },
+  "r8": {
+    "instanceId": "668:759",
+    "managedValue": "default",
+    "currentValue": "focus",
+    "userOverrideDetected": true,
+    "status": "RUNTIME_DIVERGENCE_REPRODUCED",
+    "note": "공유 fixture metadata로 managed/current 값 불일치를 실제 Figma Instance에서 재현함. 운영 Plugin의 preservation failure Issue 발행까지는 별도 Plugin 실행 필요"
+  },
+  "hostLimitation": {
+    "code": "FIGMA_HOST_PRIVATE_PLUGIN_DATA_UNSUPPORTED",
+    "message": "use_figma host에서 setPluginData가 지원되지 않고 setSharedPluginData만 지원됨"
+  },
+  "screenshot": "r5-r8-qa-fixture-668-755.png"
+}

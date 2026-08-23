@@ -6,10 +6,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Assumptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.ai.tool.method.MethodToolCallback;
+import com.krdevops.springai.service.pipeline.McpRegisteredToolCatalog;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
@@ -87,6 +89,9 @@ class McpToolDefinitionSnapshotTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private McpRegisteredToolCatalog registeredToolCatalog;
+
     @Test
     void toolMethodCount_matchesRegisteredContract() {
         // AGENTS.md 등 문서상의 "@Tool(" 언급은 세지 않는다 — 여기서는 실제로 Spring이
@@ -128,6 +133,16 @@ class McpToolDefinitionSnapshotTest {
                 .as("MCP Tool 계약(이름/설명/입력 JSON Schema)이 baseline과 달라졌습니다(ORT-PRN-007 위반 가능성). "
                         + "의도된 변경이라면 " + BASELINE_PATH + " 파일을 삭제한 뒤 이 테스트를 다시 실행해 갱신하세요.")
                 .isEqualTo(stored);
+    }
+
+    @Test
+    void toolSnapshotHash_matchesOperationalBaselineWhenConfigured() {
+        String expected = System.getenv("MCP_TOOL_SNAPSHOT_HASH");
+        Assumptions.assumeTrue(expected != null && !expected.isBlank(),
+                "MCP_TOOL_SNAPSHOT_HASH가 설정된 운영 CI에서만 baseline hash를 비교합니다.");
+        assertThat(registeredToolCatalog.matchesSnapshot(expected))
+                .as("운영 MCP Tool snapshot hash가 baseline과 다릅니다")
+                .isTrue();
     }
 
     /** Tool 이름 오름차순으로 정렬된 현재 Tool 계약 스냅샷을 만든다. */

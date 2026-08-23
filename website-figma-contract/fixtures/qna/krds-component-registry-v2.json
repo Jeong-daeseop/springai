@@ -168,6 +168,24 @@
       "requiredProperties": ["size", "check", "state", "label"], "codeComponent": "KrdsCheckbox", "documentationUrl": null,
       "contractVersion": "2.1.0"
     },
+    "krds.card": {
+      "componentSetKey": "0fe0785591a7e90fa2f0fda74b2272d333276fbc",
+      "componentName": "card",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["card"], "variants": {}, "properties": {},
+      "roles": ["content.card"], "supportedPlatforms": ["DESKTOP", "TABLET", "MOBILE"],
+      "variantAxes": {}, "requiredProperties": [], "codeComponent": "KrdsCard", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    },
+    "krds.container": {
+      "componentSetKey": "69ea2628b9dbb120006b6c2920385df621ecf121",
+      "componentName": "container",
+      "publishStatus": "CURRENT", "lifecycleStatus": "CURRENT", "replacementLogicalType": null,
+      "aliases": ["container"], "variants": {}, "properties": {},
+      "roles": ["layout.container"], "supportedPlatforms": ["DESKTOP", "TABLET", "MOBILE"],
+      "variantAxes": {}, "requiredProperties": [], "codeComponent": "KrdsContainer", "documentationUrl": null,
+      "contractVersion": "2.1.0"
+    },
     "krds.button": {
       "componentSetKey": "104d078e1895f788a91cfc8c42073fe6bc85e77a",
       "componentName": "button",

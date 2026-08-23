@@ -12,7 +12,8 @@
     "libraryFileKey": {"type": ["string", "null"]},
     "status": {"enum": ["DRAFT", "IN_REVIEW", "APPROVED", "REJECTED", "PUBLISHED"]},
     "components": {"type": "object", "additionalProperties": {"$ref": "#/$defs/componentBinding"}},
-    "variables": {"type": "object", "additionalProperties": {"$ref": "#/$defs/variableBinding"}}
+    "variables": {"type": "object", "additionalProperties": {"$ref": "#/$defs/variableBinding"}},
+    "overrides": {"$ref": "#/$defs/overrides"}
   },
   "$defs": {
     "bindingStatus": {"enum": ["BOUND", "UNBOUND", "DEPRECATED"]},
@@ -33,6 +34,32 @@
         "variableId": {"type": ["string", "null"]},
         "collectionName": {"type": ["string", "null"]},
         "status": {"$ref": "#/$defs/bindingStatus"}
+      }
+    },
+    "overrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "components": {"type": "object", "additionalProperties": {"$ref": "#/$defs/componentOverride"}},
+        "variables": {"type": "object", "additionalProperties": {"$ref": "#/$defs/variableOverride"}}
+      }
+    },
+    "componentOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "componentSetKey": {"type": "string", "minLength": 1},
+        "variantKeys": {"type": "object", "additionalProperties": {"type": "string", "minLength": 1}}
+      }
+    },
+    "variableOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "variableId": {"type": "string", "minLength": 1},
+        "collectionName": {"type": "string", "minLength": 1}
       }
     }
   }

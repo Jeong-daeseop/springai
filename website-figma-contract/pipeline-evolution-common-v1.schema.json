@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/pipeline-evolution-common-v1",
+  "$defs": {
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"},
+    "schemaVersion": {"type": "string", "pattern": "^[1-9][0-9]*\\.[0-9]+(?:\\.[0-9]+)?$"},
+    "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "artifactReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifactId", "artifactType", "schemaVersion", "contentHash"],
+      "properties": {
+        "artifactId": {"$ref": "#/$defs/identifier"},
+        "artifactType": {"$ref": "#/$defs/identifier"},
+        "schemaVersion": {"$ref": "#/$defs/schemaVersion"},
+        "contentHash": {"$ref": "#/$defs/sha256"},
+        "sourceRevision": {"type": ["string", "null"], "minLength": 1}
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message"],
+      "properties": {
+        "code": {"$ref": "#/$defs/identifier"},
+        "severity": {"enum": ["INFO", "WARNING", "ERROR", "FATAL"]},
+        "message": {"type": "string", "minLength": 1},
+        "target": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

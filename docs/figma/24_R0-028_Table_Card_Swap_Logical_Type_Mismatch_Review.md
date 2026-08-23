@@ -1,5 +1,7 @@
 # R0-028 Mobile Table→Card Component Swap 미작동 원인 검토서
 
+> 현재 기준(2026-08-21): 과거 조사에서 사용한 `egov.dataCard`는 임시 명칭이다. Catalog와 Plugin 런타임의 공식 Pattern은 `krds.cardList`이며, `krds.container` + `krds.card` 조합으로 기록한다. 아래 과거 분석·커밋 인용은 당시 원인 추적 증적으로 보존한다.
+
 > 문서 버전: 1.4
 > 작성일: 2026-08-20
 > 관련 문서: [12_Semantic_Figma_Design_System_Implementation_List.md](./12_Semantic_Figma_Design_System_Implementation_List.md) R0-028, [25_R0-028_Option_A_Implementation_Plan_Scope_Adjusted.md](./25_R0-028_Option_A_Implementation_Plan_Scope_Adjusted.md)(구현 계획)

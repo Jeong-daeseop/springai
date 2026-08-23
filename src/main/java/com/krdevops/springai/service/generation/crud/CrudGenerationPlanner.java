@@ -23,7 +23,14 @@ import com.krdevops.springai.service.generation.model.GenerationStage;
 import com.krdevops.springai.service.generation.model.GenerationWarning;
 import com.krdevops.springai.service.generation.model.ProcessorStep;
 import com.krdevops.springai.service.generation.pipeline.processor.SharedProcessorIds;
-import lombok.RequiredArgsConstructor;
+import com.krdevops.springai.service.designsystem.RequiredComponentMappingApplyGate;
+import com.krdevops.springai.model.renderer.RendererCapabilityRequirement;
+import com.krdevops.springai.model.renderer.RendererFeature;
+import com.krdevops.springai.model.renderer.RendererFallback;
+import com.krdevops.springai.model.renderer.RendererProfile;
+import com.krdevops.springai.service.renderer.RendererCapabilityMatrixService;
+import com.krdevops.springai.service.renderer.RendererProfileLoader;
+import org.springframework.beans.factory.annotation.Autowired;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +39,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
 
 /**
  * CRUD 생성 Blueprint를 조립한다. 명세서 §12.1.
@@ -43,7 +52,6 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class CrudGenerationPlanner {
 
     private static final String PACKAGE_PREFIX = "egovframework.let.";
@@ -54,6 +62,57 @@ public class CrudGenerationPlanner {
     private final CrudModelFactory crudModelFactory;
     private final ThymeleafLayoutValidator thymeleafLayoutValidator;
     private final BoardRouteCollisionDetector routeCollisionDetector;
+    private final RequiredComponentMappingApplyGate componentMappingApplyGate;
+    private final RendererProfileLoader rendererProfileLoader;
+    private final RendererCapabilityMatrixService rendererCapabilityMatrixService;
+
+    @Autowired
+    public CrudGenerationPlanner(
+            CrudSchemaQueryService crudSchemaQueryService,
+            CrudProgramMetadataService crudProgramMetadataService,
+            GenerationDesignContextService generationDesignContextService,
+            CrudModelFactory crudModelFactory,
+            ThymeleafLayoutValidator thymeleafLayoutValidator,
+            BoardRouteCollisionDetector routeCollisionDetector,
+            RequiredComponentMappingApplyGate componentMappingApplyGate,
+            RendererProfileLoader rendererProfileLoader,
+            RendererCapabilityMatrixService rendererCapabilityMatrixService) {
+        this.crudSchemaQueryService = crudSchemaQueryService;
+        this.crudProgramMetadataService = crudProgramMetadataService;
+        this.generationDesignContextService = generationDesignContextService;
+        this.crudModelFactory = crudModelFactory;
+        this.thymeleafLayoutValidator = thymeleafLayoutValidator;
+        this.routeCollisionDetector = routeCollisionDetector;
+        this.componentMappingApplyGate = componentMappingApplyGate;
+        this.rendererProfileLoader = rendererProfileLoader;
+        this.rendererCapabilityMatrixService = rendererCapabilityMatrixService;
+    }
+
+    /** MAP-012/R2-007 도입 전 7-arg 호출자 호환. */
+    public CrudGenerationPlanner(
+            CrudSchemaQueryService crudSchemaQueryService,
+            CrudProgramMetadataService crudProgramMetadataService,
+            GenerationDesignContextService generationDesignContextService,
+            CrudModelFactory crudModelFactory,
+            ThymeleafLayoutValidator thymeleafLayoutValidator,
+            BoardRouteCollisionDetector routeCollisionDetector,
+            RequiredComponentMappingApplyGate componentMappingApplyGate) {
+        this(crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
+                crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector,
+                componentMappingApplyGate, null, null);
+    }
+
+    /** MAP-012 도입 전 단위 테스트·Java 호출자 호환. */
+    public CrudGenerationPlanner(
+            CrudSchemaQueryService crudSchemaQueryService,
+            CrudProgramMetadataService crudProgramMetadataService,
+            GenerationDesignContextService generationDesignContextService,
+            CrudModelFactory crudModelFactory,
+            ThymeleafLayoutValidator thymeleafLayoutValidator,
+            BoardRouteCollisionDetector routeCollisionDetector) {
+        this(crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
+                crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector, null);
+    }
 
     public CrudGenerationPlan plan(CrudGenerationCommand command) {
         String database = command.database();
@@ -108,6 +167,45 @@ public class CrudGenerationPlanner {
         CrudTemplateModel model = crudModelFactory.fromSchema(
                 tableName, domain, packageName, egovVersion, rawColumns, metadata,
                 viewType, subsetMode, screenSpecification);
+        if (viewType == CrudViewType.THYMELEAF && componentMappingApplyGate != null) {
+            try {
+                model = crudModelFactory.withDesignComponents(model,
+                        componentMappingApplyGate.requireForApply(screenSpecification,
+                                RequiredComponentMappingApplyGate.THYMELEAF_KRDS_PROFILE));
+            } catch (RequiredComponentMappingApplyGate.RequiredComponentMappingException exception) {
+                return CrudGenerationPlan.rejected(new CrudPlanFailure(
+                        CrudPlanFailure.Kind.MAPPING_BLOCKED, "Component Mapping Apply Gate 실패",
+                        exception.issues(), metadata.menuIntegrationStatus(),
+                        metadata.programKoreanName(), null, model.route().canonicalListPath(), warnings));
+            }
+        }
+
+        // R2-007: Thymeleaf 생성은 Command가 고정한 승인 RendererProfile과
+        // 화면/스키마 요구 Capability를 생성 전(preflight)에 반드시 통과해야 한다.
+        // 레거시 6/7-arg fixture는 이 협력자를 주입하지 않으므로 기존 JSP 테스트 경로를 보존한다.
+        if (viewType == CrudViewType.THYMELEAF
+                && rendererProfileLoader != null && rendererCapabilityMatrixService != null) {
+            try {
+                RendererProfile profile = rendererProfileLoader.loadApproved(
+                        command.rendererProfileReference().profileId(),
+                        command.rendererProfileReference().version());
+                if (!command.rendererProfileReference().identifies(profile)) {
+                    return rendererCapabilityFailure(metadata, model,
+                            List.of("RENDERER_PROFILE_REFERENCE_MISMATCH: Command의 RendererProfile ID·Version·Hash가 승인 Profile과 일치하지 않습니다."),
+                            warnings);
+                }
+                rendererCapabilityMatrixService.requireSupported(profile,
+                        rendererCapabilityRequirement(model, screenSpecification, layoutMode));
+            } catch (RendererCapabilityMatrixService.RendererCapabilityException exception) {
+                List<String> issues = exception.assessment().issues().stream()
+                        .map(issue -> issue.code() + "[" + issue.target() + "]: " + issue.message())
+                        .toList();
+                return rendererCapabilityFailure(metadata, model, issues, warnings);
+            } catch (RuntimeException exception) {
+                return rendererCapabilityFailure(metadata, model,
+                        List.of("RENDERER_PROFILE_LOAD_OR_VALIDATE_FAILED: " + exception.getMessage()), warnings);
+            }
+        }
 
         if (viewType == CrudViewType.JSP && detailSubsetRequested(screenSpecification)) {
             warnings.add("JSP 생성에서는 detail 화면 필드 subset을 지원하지 않아 표준 상세 필드를 사용합니다.");
@@ -206,6 +304,42 @@ public class CrudGenerationPlanner {
                         .findFirst()
                         .map(page -> page.selectionSource() != FieldSelectionSource.DEFAULT)
                         .orElse(false);
+    }
+
+    private static boolean screenFieldSubsetRequested(ScreenSpecification screenSpecification) {
+        return screenSpecification != null
+                && screenSpecification.pages().stream()
+                        .anyMatch(page -> page.selectionSource() != FieldSelectionSource.DEFAULT);
+    }
+
+    private static RendererCapabilityRequirement rendererCapabilityRequirement(
+            CrudTemplateModel model, ScreenSpecification screenSpecification, CrudLayoutMode layoutMode) {
+        Set<RendererFeature> features = new LinkedHashSet<>(Set.of(
+                RendererFeature.CRUD_LIST,
+                RendererFeature.CRUD_DETAIL,
+                RendererFeature.CRUD_CREATE,
+                RendererFeature.CRUD_UPDATE,
+                RendererFeature.CRUD_SEARCH));
+        if (model.pkFields() != null && model.pkFields().size() > 1) {
+            features.add(RendererFeature.COMPOSITE_PRIMARY_KEY);
+        }
+        if (screenFieldSubsetRequested(screenSpecification)) {
+            features.add(RendererFeature.SCREEN_FIELD_SUBSET);
+        }
+        if (layoutMode != CrudLayoutMode.NONE) {
+            features.add(RendererFeature.LAYOUT_DECORATION);
+        }
+        return new RendererCapabilityRequirement(features, Set.<RendererFallback>of());
+    }
+
+    private static CrudGenerationPlan rendererCapabilityFailure(
+            CrudProgramMetadata metadata, CrudTemplateModel model, List<String> issues,
+            List<String> warnings) {
+        return CrudGenerationPlan.rejected(new CrudPlanFailure(
+                CrudPlanFailure.Kind.RENDERER_CAPABILITY_BLOCKED,
+                "Renderer Capability 검증 실패", issues,
+                metadata.menuIntegrationStatus(), metadata.programKoreanName(), null,
+                model.route().canonicalListPath(), warnings));
     }
 
     /** route의 모든 alias(role별 GET/POST)를 대상으로 기존 Controller와의 충돌을 검사한다. */

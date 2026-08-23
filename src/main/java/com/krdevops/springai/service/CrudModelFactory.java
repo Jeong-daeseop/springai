@@ -16,6 +16,7 @@ import com.krdevops.springai.model.design.GenerationQueryContract;
 import com.krdevops.springai.model.design.LayoutDensity;
 import com.krdevops.springai.model.design.SearchPanelPlacement;
 import com.krdevops.springai.model.design.FieldSelectionSource;
+import com.krdevops.springai.model.designsystem.DesignComponentRenderInput;
 import com.krdevops.springai.policy.SensitiveFieldPolicy;
 import com.krdevops.springai.policy.UiFieldRolePolicy;
 import com.krdevops.springai.util.CrudMappingUtils;
@@ -53,6 +54,22 @@ public class CrudModelFactory {
     private static final Set<String> SYSTEM_MANAGED_FIELDS = Set.of(
             "frstRegistPnttm", "frstRegisterId", "lastUpdtPnttm", "lastUpdusrId"
     );
+
+    /**
+     * DB·Controller·VO 기반 업무 계약을 변경하지 않고 승인된 디자인 입력만 별도 영역에 연결한다.
+     */
+    public CrudTemplateModel withDesignComponents(
+            CrudTemplateModel model, List<DesignComponentRenderInput> designComponents) {
+        if (model == null) throw new IllegalArgumentException("model은 필수입니다.");
+        return new CrudTemplateModel(
+                model.packageName(), model.domain(), model.domainLc(), model.domainKr(),
+                model.tableName(), model.urlPrefix(), model.date(), model.egovVersion(),
+                model.jakartaValidation(), model.pk(), model.pkFields(), model.fields(),
+                model.listFields(), model.nonPkFields(), model.formFields(), model.route(),
+                model.queryContract(), model.detailFields(), model.layoutDensity(),
+                model.formColumnLayout(), model.actionPlacement(), model.searchPanelPlacement(),
+                designComponents);
+    }
 
     /**
      * rawColumns 를 기반으로 FreeMarker 렌더링용 CrudTemplateModel 을 생성한다.

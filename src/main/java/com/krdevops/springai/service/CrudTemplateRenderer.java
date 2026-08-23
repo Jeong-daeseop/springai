@@ -206,7 +206,7 @@ public class CrudTemplateRenderer {
      * FreeMarker 2.3.33이 Java record accessor를 지원하지만,
      * BeansWrapper 설정에 따라 불안정할 수 있으므로 명시적 Map으로 전달한다.
      */
-    private Map<String, Object> toDataModel(CrudTemplateModel model) {
+    Map<String, Object> toDataModel(CrudTemplateModel model) {
         return toDataModel(model,
                 ThymeleafLayoutValidator.DEFAULT_LAYOUT_VIEW,
                 ThymeleafLayoutValidator.DEFAULT_BREADCRUMB_VIEW,
@@ -241,6 +241,7 @@ public class CrudTemplateRenderer {
         data.put("formColumnLayout",  model.formColumnLayout());
         data.put("actionPlacement",   model.actionPlacement());
         data.put("searchPanelPlacement", model.searchPanelPlacement());
+        data.put("designComponents",  model.designComponents());
         data.put("nonPkFields",       model.nonPkFields());
         data.put("formFields",        model.formFields());
         data.put("queryContract",     model.queryContract());

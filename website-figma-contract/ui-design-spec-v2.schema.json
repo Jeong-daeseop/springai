@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.krdevops.local/ui-design-spec-v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["specId", "schemaVersion", "contentHash", "source", "nodes", "responsivePolicySet", "responsiveStructureSet", "renderabilityAssessments", "issues", "confidenceSummary"],
+  "properties": {
+    "specId": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/identifier"},
+    "schemaVersion": {"const": "2.0"},
+    "contentHash": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/sha256"},
+    "source": {"$ref": "#/$defs/source"},
+    "designSystemSnapshotRef": {"anyOf": [{"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/artifactReference"}, {"type": "null"}]},
+    "nodes": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+    "responsivePolicySet": {"type": "array", "items": {"$ref": "#/$defs/responsivePolicy"}},
+    "responsiveStructureSet": {"type": "array", "items": {"$ref": "#/$defs/responsiveStructure"}},
+    "renderabilityAssessments": {"type": "array", "items": {"$ref": "#/$defs/renderability"}},
+    "issues": {"type": "array", "items": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/issue"}},
+    "confidenceSummary": {"type": "number", "minimum": 0, "maximum": 1}
+  },
+  "$defs": {
+    "source": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sourceType", "sourceRevision"],
+      "properties": {
+        "sourceType": {"enum": ["FIGMA", "IMAGE", "PDF", "WEB_CAPTURE"]},
+        "fileKey": {"type": ["string", "null"]}, "nodeId": {"type": ["string", "null"]},
+        "sourceRevision": {"type": "string", "minLength": 1}
+      }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["sourceNodeRefs", "confidence", "inferenceMethod", "requiresReview"],
+      "properties": {
+        "sourceNodeRefs": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "inferenceMethod": {"type": "string", "minLength": 1},
+        "requiresReview": {"type": "boolean"},
+        "legacyUnknown": {"type": "boolean", "default": false}
+      }
+    },
+    "node": {
+      "type": "object", "additionalProperties": false,
+      "required": ["semanticId", "role", "evidence"],
+      "properties": {
+        "semanticId": {"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/identifier"},
+        "role": {"type": "string", "minLength": 1}, "logicalType": {"type": ["string", "null"]},
+        "geometry": {"anyOf": [{"$ref": "#/$defs/geometry"}, {"type": "null"}]},
+        "layoutConstraints": {"type": "object", "additionalProperties": {"type": "string"}},
+        "componentRef": {"anyOf": [{"$ref": "#/$defs/componentReference"}, {"type": "null"}]},
+        "evidence": {"$ref": "#/$defs/evidence"},
+        "tokenBindings": {"type": "array", "items": {"$ref": "#/$defs/tokenBinding"}},
+        "interactionCandidates": {"type": "array", "items": {"$ref": "#/$defs/interactionCandidate"}}
+      }
+    },
+    "geometry": {"type": "object", "additionalProperties": false, "required": ["x", "y", "width", "height"], "properties": {"x": {"type": "number"}, "y": {"type": "number"}, "width": {"type": "number", "minimum": 0}, "height": {"type": "number", "minimum": 0}}},
+    "componentReference": {"type": "object", "additionalProperties": false, "required": ["logicalType", "componentSetKey"], "properties": {"logicalType": {"type": "string", "minLength": 1}, "componentSetKey": {"type": "string", "minLength": 1}, "mappingRef": {"anyOf": [{"$ref": "https://schemas.krdevops.local/pipeline-evolution-common-v1#/$defs/artifactReference"}, {"type": "null"}]}}},
+    "tokenBinding": {"type": "object", "additionalProperties": false, "required": ["property", "tokenName"], "properties": {"property": {"type": "string", "minLength": 1}, "tokenName": {"type": "string", "minLength": 1}, "variableId": {"type": ["string", "null"]}}},
+    "interactionCandidate": {"type": "object", "additionalProperties": false, "required": ["trigger", "result", "evidence"], "properties": {"trigger": {"type": "string", "minLength": 1}, "result": {"type": "string", "minLength": 1}, "evidence": {"$ref": "#/$defs/evidence"}}},
+    "responsivePolicy": {
+      "type": "object", "additionalProperties": false, "required": ["semanticId", "behavior", "evidence"],
+      "properties": {"semanticId": {"type": "string"}, "behavior": {"enum": ["REFLOW", "WRAP", "RESIZE", "HIDE", "SWAP", "FIXED"]}, "evidence": {"$ref": "#/$defs/evidence"}}
+    },
+    "responsiveStructure": {
+      "type": "object", "additionalProperties": false, "required": ["viewportId", "visibleSemanticIds", "order"],
+      "properties": {"viewportId": {"type": "string", "minLength": 1}, "visibleSemanticIds": {"type": "array", "items": {"type": "string"}}, "order": {"type": "array", "items": {"type": "string"}}}
+    },
+    "renderability": {
+      "type": "object", "additionalProperties": false, "required": ["semanticId", "decision", "approved"],
+      "properties": {"semanticId": {"type": "string"}, "decision": {"enum": ["NATIVE", "COMPOSED", "APPROXIMATED", "RASTERIZED", "UNSUPPORTED"]}, "lossDescription": {"type": ["string", "null"]}, "approved": {"type": "boolean"}}
+    }
+  }
+}

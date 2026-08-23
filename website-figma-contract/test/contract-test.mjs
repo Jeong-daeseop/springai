@@ -7,6 +7,17 @@ import addFormats from "ajv-formats";
 const here = new URL("../", import.meta.url);
 const read = path => JSON.parse(fs.readFileSync(new URL(path, here), "utf8"));
 const schemaNames = [
+  "pipeline-evolution-common-v1.schema.json",
+  "ui-design-spec-v2.schema.json",
+  "design-code-component-mapping-v1.schema.json",
+  "renderer-profile-v1.schema.json",
+  "generation-scope-manifest-v1.schema.json",
+  "generation-ownership-manifest-v1.schema.json",
+  "preview-evidence-bundle-v1.schema.json",
+  "screen-review-session-v1.schema.json",
+  "design-system-knowledge-snapshot-v1.schema.json",
+  "screen-handoff-bundle-v1.schema.json",
+  "generation-job-v1.schema.json",
   "figma-common-v1.schema.json",
   "common-contract-v1.schema.json",
   "rendered-design-document-v1.schema.json",
@@ -78,6 +89,18 @@ const validateBindingContract = validator("thymeleaf-binding-contract-v1.schema.
 const validateQnaBusinessSpec = validator("qna-screen-specification-v2.schema.json");
 const validateQnaBusinessSpecV3 = validator("qna-screen-specification-v3.schema.json");
 const validateRenderedDesignBundle = validator("rendered-design-bundle-v1.schema.json");
+const pipelineEvolutionContracts = [
+  [validator("ui-design-spec-v2.schema.json"), "valid-ui-design-spec-v2.json"],
+  [validator("design-code-component-mapping-v1.schema.json"), "valid-design-code-component-mapping-v1.json"],
+  [validator("renderer-profile-v1.schema.json"), "valid-renderer-profile-v1.json"],
+  [validator("generation-scope-manifest-v1.schema.json"), "valid-generation-scope-manifest-v1.json"],
+  [validator("generation-ownership-manifest-v1.schema.json"), "valid-generation-ownership-manifest-v1.json"],
+  [validator("preview-evidence-bundle-v1.schema.json"), "valid-preview-evidence-bundle-v1.json"],
+  [validator("screen-review-session-v1.schema.json"), "valid-screen-review-session-v1.json"],
+  [validator("design-system-knowledge-snapshot-v1.schema.json"), "valid-design-system-knowledge-snapshot-v1.json"],
+  [validator("screen-handoff-bundle-v1.schema.json"), "valid-screen-handoff-bundle-v1.json"],
+  [validator("generation-job-v1.schema.json"), "valid-generation-job-v1.json"],
+];
 
 function expectValid(validate, fixture) {
   assert.equal(validate(read(`fixtures/${fixture}`)), true,
@@ -89,6 +112,13 @@ function expectInvalid(validate, fixture) {
     `${fixture} must be rejected`);
   assert.ok(validate.errors?.length, `${fixture} must return a precise schema error`);
 }
+
+for (const [validate, fixture] of pipelineEvolutionContracts) expectValid(validate, fixture);
+assert.equal(validator("renderer-profile-v1.schema.json")(
+  read("renderer-profile-thymeleaf-krds-v1.json")), true,
+  "배포 RendererProfile은 renderer-profile-v1 Schema를 준수해야 한다");
+expectInvalid(validator("generation-scope-manifest-v1.schema.json"),
+  "invalid-pipeline-artifact-hash.json");
 
 expectValid(validateDocument, "valid-minimal.json");
 for (const name of ["invalid-enum.json", "invalid-source-content-hash.json"]) {
@@ -144,6 +174,11 @@ assert.equal(new Set(qnaSuite.screens.map(screen => screen.screenId)).size, 6,
   "Q&A 회귀 Suite의 Screen ID는 중복될 수 없다");
 assert.equal(validateRegistryV2(read("fixtures/qna/krds-component-registry-v2.json")), true,
   `Q&A KRDS registry: ${JSON.stringify(validateRegistryV2.errors)}`);
+const qnaRegistryV2 = read("fixtures/qna/krds-component-registry-v2.json");
+assert.equal(qnaRegistryV2.components["krds.card"].componentSetKey,
+  "0fe0785591a7e90fa2f0fda74b2272d333276fbc");
+assert.equal(qnaRegistryV2.components["krds.container"].componentSetKey,
+  "69ea2628b9dbb120006b6c2920385df621ecf121");
 assert.equal(validateRegistryV2(read("fixtures/qna/krds-component-registry-v2.2.0-candidate.json")), true,
   `Q&A KRDS registry 2.2.0 candidate: ${JSON.stringify(validateRegistryV2.errors)}`);
 assert.equal(read("fixtures/qna/krds-component-registry-v2.2.0-candidate.json").registryVersion, "2.2.0",
@@ -288,12 +323,37 @@ assert.equal(validatePlatformLayoutPolicy(read("fixtures/valid-platform-layout-p
   `valid-platform-layout-policy.json: ${JSON.stringify(validatePlatformLayoutPolicy.errors)}`);
 assert.equal(validateKrdsTokenCatalog(read("fixtures/valid-krds-token-catalog.json")), true,
   `valid-krds-token-catalog.json: ${JSON.stringify(validateKrdsTokenCatalog.errors)}`);
+// R0-029: 공식 Token SSOT에서 동기화한 체크인 Snapshot은 payload hash를 고정해
+// 수동 복사·부분 수정으로 인한 drift를 Contract Gate에서 즉시 검출한다.
+const tokenCatalog = read("fixtures/valid-krds-token-catalog.json");
+const stableTokenJson = value => Array.isArray(value)
+  ? `[${value.map(stableTokenJson).join(",")}]`
+  : value && typeof value === "object"
+    ? `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableTokenJson(value[key])}`).join(",")}}`
+    : JSON.stringify(value);
+const {source: tokenSource, ...tokenPayload} = tokenCatalog;
+assert.equal(tokenSource.kind, "CHECKED_IN_SNAPSHOT");
+assert.equal(tokenSource.contentHash,
+  crypto.createHash("sha256").update(stableTokenJson(tokenPayload)).digest("hex"),
+  "KRDS Token SSOT Snapshot hash drift");
 assert.equal(validateCatalogV2(read("component-catalog-v2.json")), true,
   `component-catalog-v2.json: ${JSON.stringify(validateCatalogV2.errors)}`);
 const catalogV2 = read("component-catalog-v2.json");
 const registryV3 = read("fixtures/valid-component-registry-v3.json");
 assert.deepEqual(catalogV2Issues(catalogV2), []);
 assert.deepEqual(registryV3Issues(catalogV2, registryV3), []);
+assert.deepEqual(catalogV2.components["krds.cardList"].composition,
+  ["krds.container", "krds.card"],
+  "krds.cardList는 독립 컴포넌트가 아니라 container + card 조합 패턴이어야 한다");
+assert.deepEqual(catalogV2.components["krds.dataTable"].composition,
+  ["krds.tableHeader", "krds.tableCell"],
+  "krds.dataTable은 런타임 Layout Recipe로서 tableHeader + tableCell 조합이어야 한다");
+assert.equal(registryV3.bindings["krds.card"].componentSetKey,
+  "0fe0785591a7e90fa2f0fda74b2272d333276fbc");
+assert.equal(registryV3.bindings["krds.container"].componentSetKey,
+  "69ea2628b9dbb120006b6c2920385df621ecf121");
+assert.equal(registryV3.bindings["krds.cardList"], undefined,
+  "krds.cardList 패턴에는 독립 Published Component Binding을 만들지 않는다");
 for (const binding of Object.values(registryV3.bindings)) {
   assert.deepEqual(Object.keys(binding).sort(),
     ["componentName", "componentSetKey", "lifecycleStatus", "publishStatus", "variants"].sort(),
@@ -309,7 +369,8 @@ assert.deepEqual(catalogV2Issues(compositionCycleCatalogV2),
   ["COMPOSITION_CYCLE:krds.button"]);
 assert.deepEqual(
   registryV3Issues(catalogV2, read("fixtures/invalid-component-registry-v3-unknown-binding.json")),
-  ["REQUIRED_BINDING_MISSING:krds.button", "REQUIRED_BINDING_MISSING:krds.checkbox",
+  ["REQUIRED_BINDING_MISSING:krds.button", "REQUIRED_BINDING_MISSING:krds.card",
+    "REQUIRED_BINDING_MISSING:krds.checkbox", "REQUIRED_BINDING_MISSING:krds.container",
     "REQUIRED_BINDING_MISSING:krds.pageHeader",
     "REQUIRED_BINDING_MISSING:krds.pagination", "REQUIRED_BINDING_MISSING:krds.searchPanel",
     "REQUIRED_BINDING_MISSING:krds.select", "REQUIRED_BINDING_MISSING:krds.tableCell",

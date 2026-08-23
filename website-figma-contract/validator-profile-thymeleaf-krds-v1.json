@@ -1,0 +1,24 @@
+{
+  "profileId": "thymeleaf-krds-validator",
+  "version": "1.0",
+  "contentHash": "74a5db0f2aeb6b54133238c4bfb9f86e58955867638c18b15da1859c9f38fd52",
+  "status": "APPROVED",
+  "gatePolicies": {
+    "THYMELEAF_PARSE": "BLOCK",
+    "TEMPLATE_ENGINE_RENDER": "BLOCK",
+    "BINDING_VALIDATION": "BLOCK",
+    "ROUTE_PARITY": "BLOCK",
+    "OVERFLOW_CHECK": "WARN",
+    "BUILD_VALIDATION": "BLOCK",
+    "BROWSER_RENDER": "BLOCK",
+    "ACCESSIBILITY": "BLOCK",
+    "VISUAL_PARITY": "BLOCK"
+  },
+  "requiredEvidence": [
+    "BINDING_VALIDATION",
+    "BUILD_VALIDATION",
+    "BROWSER_RENDER",
+    "ACCESSIBILITY",
+    "VISUAL_PARITY"
+  ]
+}

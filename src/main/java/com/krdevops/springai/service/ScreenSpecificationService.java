@@ -6,7 +6,9 @@ import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.design.FieldSourceType;
 import com.krdevops.springai.model.design.SpecIssue;
 import com.krdevops.springai.model.design.UiDesignSpec;
-import lombok.RequiredArgsConstructor;
+import com.krdevops.springai.model.design.UiDesignSpecV2;
+import com.krdevops.springai.model.contract.VersionedArtifactReference;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,7 +22,6 @@ import java.util.HashMap;
 import com.krdevops.springai.model.design.DataSourceSpec;
 
 @Service
-@RequiredArgsConstructor
 public class ScreenSpecificationService {
 
     private final CrudSchemaQueryService schemaQueryService;
@@ -28,6 +29,36 @@ public class ScreenSpecificationService {
     private final ScreenDataBindingResolver dataBindingResolver;
     private final ScreenSpecValidator validator;
     private final ScreenSpecRepository repository;
+    private final UiDesignSpecV2ToV1Projection v2Projection;
+    private final UiDesignSpecV2QualityValidator v2QualityValidator;
+
+    @Autowired
+    public ScreenSpecificationService(
+            CrudSchemaQueryService schemaQueryService,
+            ScreenSpecAssembler assembler,
+            ScreenDataBindingResolver dataBindingResolver,
+            ScreenSpecValidator validator,
+            ScreenSpecRepository repository,
+            UiDesignSpecV2ToV1Projection v2Projection,
+            UiDesignSpecV2QualityValidator v2QualityValidator) {
+        this.schemaQueryService = schemaQueryService;
+        this.assembler = assembler;
+        this.dataBindingResolver = dataBindingResolver;
+        this.validator = validator;
+        this.repository = repository;
+        this.v2Projection = v2Projection;
+        this.v2QualityValidator = v2QualityValidator;
+    }
+
+    /** v2 의존성 도입 전 단위 테스트·Java 호출자 호환. v1 메서드만 사용할 수 있다. */
+    public ScreenSpecificationService(
+            CrudSchemaQueryService schemaQueryService,
+            ScreenSpecAssembler assembler,
+            ScreenDataBindingResolver dataBindingResolver,
+            ScreenSpecValidator validator,
+            ScreenSpecRepository repository) {
+        this(schemaQueryService, assembler, dataBindingResolver, validator, repository, null, null);
+    }
 
     public ScreenSpecification create(
             String database, String tableName, String screenName, String featureType, UiDesignSpec uiSpec) {
@@ -46,6 +77,37 @@ public class ScreenSpecificationService {
         specification = validator.validate(dataBindingResolver.resolve(specification));
         repository.save(specification);
         return specification;
+    }
+
+    public ScreenSpecification createFromV2(
+            String database, String tableName, String screenName, String featureType,
+            UiDesignSpecV2 uiSpec, List<String> listColumns, List<String> detailColumns) {
+        if (uiSpec == null) throw new IllegalArgumentException("UiDesignSpecV2는 필수입니다.");
+        if (v2Projection == null || v2QualityValidator == null) {
+            throw new IllegalStateException("UiDesignSpecV2 생성 의존성이 구성되지 않았습니다.");
+        }
+        List<Map<String, Object>> columns = schemaQueryService.fetchColumns(database, tableName);
+        if (columns.isEmpty()) {
+            throw new IllegalArgumentException("테이블이 존재하지 않거나 컬럼이 없습니다: "
+                    + database + "." + tableName);
+        }
+        ScreenSpecification specification = assembler.assemble(
+                database, tableName, screenName, featureType, columns,
+                v2Projection.project(uiSpec, featureType), listColumns, detailColumns);
+        VersionedArtifactReference designRef = new VersionedArtifactReference(
+                uiSpec.specId(), "UI_DESIGN_SPEC_V2", uiSpec.schemaVersion(),
+                uiSpec.contentHash(), uiSpec.source().sourceRevision());
+        specification = specification.withDesignContext(
+                designRef, uiSpec.designSystemSnapshotRef(), qualityIssues(uiSpec));
+        specification = validator.validate(dataBindingResolver.resolve(specification));
+        repository.save(specification);
+        return specification;
+    }
+
+    public ScreenSpecification createFromV2(
+            String database, String tableName, String screenName, String featureType,
+            UiDesignSpecV2 uiSpec) {
+        return createFromV2(database, tableName, screenName, featureType, uiSpec, null, null);
     }
 
     public ScreenSpecification get(String specificationId) {
@@ -111,7 +173,8 @@ public class ScreenSpecificationService {
                 proposed.screenName(), proposed.featureType(), proposed.archetype(),
                 current.database(), current.primaryTable(), proposed.dataSources(), proposed.pages(),
                 issues, current.layoutDensity(), current.formColumnLayout(),
-                current.actionPlacement(), current.searchPanelPlacement(), LocalDateTime.now());
+                current.actionPlacement(), current.searchPanelPlacement(), LocalDateTime.now(),
+                current.uiDesignSpecReference(), current.designSystemSnapshotReference());
         ScreenSpecification validated = validator.validate(revision);
         repository.save(validated);
         return validated;
@@ -131,5 +194,15 @@ public class ScreenSpecificationService {
         if (alias == null || column == null) return false;
         Set<String> columns = columnsByAlias.get(alias);
         return columns != null && columns.contains(column.toUpperCase(Locale.ROOT));
+    }
+
+    private List<SpecIssue> qualityIssues(UiDesignSpecV2 uiSpec) {
+        return v2QualityValidator.validateForAutoApproval(uiSpec).issues().stream()
+                .map(issue -> new SpecIssue(
+                        issue.code().name(),
+                        issue.severity() == UiDesignSpecV2QualityValidator.Severity.BLOCK
+                                ? SpecIssue.Severity.ERROR : SpecIssue.Severity.WARNING,
+                        issue.message(), issue.target()))
+                .toList();
     }
 }

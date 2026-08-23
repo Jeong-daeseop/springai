@@ -9,7 +9,19 @@
     "colors": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/color"}},
     "typography": {"type": "object", "minProperties": 1, "additionalProperties": {"$ref": "#/$defs/typeStyle"}},
     "spacing": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "integer", "minimum": 0}},
-    "radius": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "integer", "minimum": 0}}
+    "radius": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "integer", "minimum": 0}},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "uri", "revision", "contentHash", "syncedAt"],
+      "properties": {
+        "kind": {"enum": ["OFFICIAL_DESIGN_SYSTEM", "CHECKED_IN_SNAPSHOT"]},
+        "uri": {"type": "string", "minLength": 1},
+        "revision": {"type": "string", "minLength": 1},
+        "contentHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "syncedAt": {"type": "string", "format": "date-time"}
+      }
+    }
   },
   "$defs": {
     "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
