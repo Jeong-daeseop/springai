@@ -3,6 +3,7 @@ package com.krdevops.springai.tools.generation;
 import com.krdevops.springai.config.mcp.McpToolRisk;
 import com.krdevops.springai.config.mcp.McpToolRiskLevel;
 import com.krdevops.springai.model.generation.GenerationOwnershipManifest;
+import com.krdevops.springai.service.CodeService;
 import com.krdevops.springai.service.generation.CrudGenerationOperationIdFactory;
 import com.krdevops.springai.service.generation.CrudGenerationSnapshotStore;
 import com.krdevops.springai.service.generation.RegionMarkerParser;
@@ -34,6 +35,7 @@ public class CrudGenerationSnapshotTool {
 
     private final CrudGenerationPlanner crudGenerationPlanner;
     private final CrudGenerationSnapshotStore snapshotStore;
+    private final CodeService codeService;
 
     @McpToolRisk(McpToolRiskLevel.DB_WRITE)
     @Tool(description = """
@@ -45,9 +47,13 @@ public class CrudGenerationSnapshotTool {
             다르면 충돌(BOTH_CHANGED)로 판정되어 사람 검토가 필요합니다.
             database/tableName/domain/packageName/outputPath/viewType은 원래 이 화면을 생성할 때
             썼던 값과 동일해야 합니다.
+            이 Tool은 기본 Layout 옵션·eGovFrame 5.0으로 원래 생성됐다고 가정하므로, 비기본
+            Layout 옵션으로 생성된 화면은 파일 목록이 어긋나 일부 파일을 못 찾거나 잘못된 위치로
+            추정할 수 있습니다.
             """)
     public String adoptCurrentAsBaseline(String database, String tableName, String domain,
             String packageName, String outputPath, String viewType) {
+        codeService.validateOutputRoot(outputPath);
         CrudGenerationCommand command = new CrudGenerationCommand(
                 database, tableName, domain, packageName, Path.of(outputPath),
                 "auto", "5.0", viewType, LayoutOptions.empty(), ProgramMetadataOverrides.empty(),
@@ -73,6 +79,12 @@ public class CrudGenerationSnapshotTool {
             artifacts.add(new GenerationOwnershipManifest.ArtifactOwnership(
                     relative, manifestRegions, GenerationOwnershipManifest.MergePolicy.REGENERATE, "springai"));
             adoptedFileCount++;
+        }
+
+        if (adoptedFileCount == 0) {
+            return "채택 실패 — 대상 화면의 파일을 디스크에서 하나도 찾지 못했습니다. "
+                    + "database/tableName/domain/packageName/outputPath/viewType이 원래 생성 때와 "
+                    + "동일한지 확인하세요.";
         }
 
         String operationId = CrudGenerationOperationIdFactory.forScreen(outputPath, tableName, viewType);
