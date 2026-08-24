@@ -1,5 +1,6 @@
 package com.krdevops.springai.service.generation.crud;
 
+import com.krdevops.springai.config.PipelineEvolutionProperties;
 import com.krdevops.springai.model.crud.CrudGenerationOptions;
 import com.krdevops.springai.model.crud.CrudLayerDefinition;
 import com.krdevops.springai.model.crud.CrudLayoutMode;
@@ -24,6 +25,8 @@ import com.krdevops.springai.service.generation.model.GenerationWarning;
 import com.krdevops.springai.service.generation.model.ProcessorStep;
 import com.krdevops.springai.service.generation.pipeline.processor.SharedProcessorIds;
 import com.krdevops.springai.service.designsystem.RequiredComponentMappingApplyGate;
+import com.krdevops.springai.service.migration.LegacyCompatibilityService;
+import com.krdevops.springai.service.migration.PipelineMigrationGuard;
 import com.krdevops.springai.model.renderer.RendererCapabilityRequirement;
 import com.krdevops.springai.model.renderer.RendererFeature;
 import com.krdevops.springai.model.renderer.RendererFallback;
@@ -65,6 +68,9 @@ public class CrudGenerationPlanner {
     private final RequiredComponentMappingApplyGate componentMappingApplyGate;
     private final RendererProfileLoader rendererProfileLoader;
     private final RendererCapabilityMatrixService rendererCapabilityMatrixService;
+    private final PipelineEvolutionProperties pipelineEvolutionProperties;
+    private final PipelineMigrationGuard pipelineMigrationGuard;
+    private final LegacyCompatibilityService legacyCompatibilityService;
 
     @Autowired
     public CrudGenerationPlanner(
@@ -76,7 +82,10 @@ public class CrudGenerationPlanner {
             BoardRouteCollisionDetector routeCollisionDetector,
             RequiredComponentMappingApplyGate componentMappingApplyGate,
             RendererProfileLoader rendererProfileLoader,
-            RendererCapabilityMatrixService rendererCapabilityMatrixService) {
+            RendererCapabilityMatrixService rendererCapabilityMatrixService,
+            PipelineEvolutionProperties pipelineEvolutionProperties,
+            PipelineMigrationGuard pipelineMigrationGuard,
+            LegacyCompatibilityService legacyCompatibilityService) {
         this.crudSchemaQueryService = crudSchemaQueryService;
         this.crudProgramMetadataService = crudProgramMetadataService;
         this.generationDesignContextService = generationDesignContextService;
@@ -86,6 +95,9 @@ public class CrudGenerationPlanner {
         this.componentMappingApplyGate = componentMappingApplyGate;
         this.rendererProfileLoader = rendererProfileLoader;
         this.rendererCapabilityMatrixService = rendererCapabilityMatrixService;
+        this.pipelineEvolutionProperties = pipelineEvolutionProperties;
+        this.pipelineMigrationGuard = pipelineMigrationGuard;
+        this.legacyCompatibilityService = legacyCompatibilityService;
     }
 
     /** MAP-012/R2-007 도입 전 7-arg 호출자 호환. */
@@ -99,7 +111,9 @@ public class CrudGenerationPlanner {
             RequiredComponentMappingApplyGate componentMappingApplyGate) {
         this(crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
                 crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector,
-                componentMappingApplyGate, null, null);
+                componentMappingApplyGate, null, null,
+                new PipelineEvolutionProperties(), new PipelineMigrationGuard(),
+                new LegacyCompatibilityService());
     }
 
     /** MAP-012 도입 전 단위 테스트·Java 호출자 호환. */
@@ -162,6 +176,18 @@ public class CrudGenerationPlanner {
         ScreenSpecification screenSpecification = generationDesignContextService.resolve(
                 database, tableName, metadata.programKoreanName(), "crud",
                 options.designReferenceId(), options.screenSpecificationId());
+
+        // R0-DUAL: v2 Design IR 참조가 붙은 명세로 실제 Apply를 시도하는지 여부.
+        // OBSERVE/DUAL_READ 단계는 v2를 관찰·비교만 해야 하므로, 이 상태에서 v2 Apply가
+        // 시도되면 조용히 legacy로 넘기지 않고 즉시 fail-closed 한다.
+        boolean v2ApplyRequested = screenSpecification != null
+                && screenSpecification.uiDesignSpecReference() != null;
+        PipelineEvolutionProperties.Mode mode = pipelineEvolutionProperties.getMode();
+        pipelineMigrationGuard.requireLegacyApply(
+                mode == PipelineEvolutionProperties.Mode.OBSERVE, v2ApplyRequested);
+        legacyCompatibilityService.requireLegacyApplyDuringDualRead(
+                mode == PipelineEvolutionProperties.Mode.DUAL_READ, v2ApplyRequested);
+
         ScreenSubsetMode subsetMode = viewType == CrudViewType.THYMELEAF
                 ? ScreenSubsetMode.LIST_AND_DETAIL : ScreenSubsetMode.LIST_ONLY;
         CrudTemplateModel model = crudModelFactory.fromSchema(

@@ -118,7 +118,7 @@ chat:
 app:
   # 5축 파이프라인 발전 계약은 기본 비활성화한다. observe → dual_read → v2_preview → v2_apply 순서로 전환한다.
   pipeline-evolution:
-    mode: ${APP_PIPELINE_EVOLUTION_MODE:DISABLED}
+    mode: ${APP_PIPELINE_EVOLUTION_MODE:DUAL_READ}
     # 이 값 미만의 필수 시각 추론은 자동 승인하지 않는다.
     auto-approval-confidence-threshold: ${APP_PIPELINE_AUTO_APPROVAL_CONFIDENCE_THRESHOLD:0.85}
     # 이 값 미만은 원본 Evidence가 있어도 증거 품질 부족으로 Apply를 차단한다.
