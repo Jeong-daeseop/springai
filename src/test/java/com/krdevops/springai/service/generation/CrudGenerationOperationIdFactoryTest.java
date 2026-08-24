@@ -37,4 +37,15 @@ class CrudGenerationOperationIdFactoryTest {
         assertThatThrownBy(() -> CrudGenerationOperationIdFactory.forScreen(null, "EMP", "jsp"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void 상대경로와_절대경로는_같은_operationId를_만든다() {
+        String relative = "some-output-dir";
+        String absolute = java.nio.file.Path.of(relative).toAbsolutePath().normalize().toString();
+
+        String fromRelative = CrudGenerationOperationIdFactory.forScreen(relative, "EMP", "jsp");
+        String fromAbsolute = CrudGenerationOperationIdFactory.forScreen(absolute, "EMP", "jsp");
+
+        assertThat(fromRelative).isEqualTo(fromAbsolute);
+    }
 }
