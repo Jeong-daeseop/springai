@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RegionMarkerParserTest {
 
@@ -104,5 +105,22 @@ class RegionMarkerParserTest {
     void 해시는_같은_내용에_대해_결정적이다() {
         assertThat(RegionMarkerParser.hashOf("same")).isEqualTo(RegionMarkerParser.hashOf("same"));
         assertThat(RegionMarkerParser.hashOf("a")).isNotEqualTo(RegionMarkerParser.hashOf("b"));
+    }
+
+    @Test
+    void end_마커가_같은_줄의_코드_뒤에_오면_내용이_stripped되지_않는다() {
+        String content = "// @region:generated:x start\ndoWork(); // @region:generated:x end\nAFTER";
+
+        List<RegionMarkerParser.ParsedRegion> regions = RegionMarkerParser.parse(content);
+
+        assertThat(regions).hasSize(1);
+        assertThat(regions.get(0).content()).isEqualTo("\ndoWork(); // ");
+    }
+
+    @Test
+    void hashOf_null이_들어오면_IllegalArgumentException을_던진다() {
+        assertThatThrownBy(() -> RegionMarkerParser.hashOf(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("regionContent");
     }
 }
