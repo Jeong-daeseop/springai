@@ -4,6 +4,7 @@
 
 <mapper namespace="${packageName}.service.impl.${domain}Mapper">
 
+    <!-- @region:binding:resultMap start -->
     <resultMap id="${domainLc}Map" type="${packageName}.service.${domain}VO">
 <#list pkFields as p>
         <id property="${p.javaName}" column="${p.columnName}"/>
@@ -15,6 +16,7 @@
         <result property="${f.javaName}" column="${f.columnName}"/>
 </#list>
     </resultMap>
+    <!-- @region:binding:resultMap end -->
 
     <!-- 검색 조건 -->
     <sql id="searchCondition">

@@ -53,5 +53,8 @@
     </div>
 </div>
 <script src="<%=contextPath%>/resources/js/krds.min.js"></script>
+<%-- @region:protected:customSection start --%>
+<%-- 이 위치의 커스텀 마크업/스크립트는 재생성 시 보존됩니다. --%>
+<%-- @region:protected:customSection end --%>
 </body>
 </html>

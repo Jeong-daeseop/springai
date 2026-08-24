@@ -39,18 +39,27 @@ public class Egov${domain}ServiceImpl extends EgovAbstractServiceImpl
     @Override
     @Transactional
     public void insert${domain}(${domain}VO ${domainLc}VO) throws Exception {
+        // @region:protected:beforeInsert start
+        // 저장 전 커스텀 검증/가공 로직을 이 안에 작성하면 재생성 시 보존됩니다.
+        // @region:protected:beforeInsert end
         ${domainLc}Mapper.insert${domain}(${domainLc}VO);
     }
 
     @Override
     @Transactional
     public void update${domain}(${domain}VO ${domainLc}VO) throws Exception {
+        // @region:protected:beforeUpdate start
+        // 수정 전 커스텀 검증/가공 로직을 이 안에 작성하면 재생성 시 보존됩니다.
+        // @region:protected:beforeUpdate end
         ${domainLc}Mapper.update${domain}(${domainLc}VO);
     }
 
     @Override
     @Transactional
     public void delete${domain}(${domain}VO ${domainLc}VO) throws Exception {
+        // @region:protected:beforeDelete start
+        // 삭제 전 커스텀 검증/가공 로직을 이 안에 작성하면 재생성 시 보존됩니다.
+        // @region:protected:beforeDelete end
         ${domainLc}Mapper.delete${domain}(${domainLc}VO);
     }
 }

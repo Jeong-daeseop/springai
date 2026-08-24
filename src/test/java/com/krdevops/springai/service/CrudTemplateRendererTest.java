@@ -298,6 +298,16 @@ class CrudTemplateRendererTest {
         assertThat(result).contains("<result property=\"userNm\" column=\"USER_NM\"");
     }
 
+    // ─── ServiceImpl 렌더링 — Region 마커 보존 확인 ────────────────────────────
+
+    @Test
+    void ServiceImpl_렌더_결과에는_protected_Region_마커가_있다() {
+        String rendered = renderer.renderByLayerKey("serviceImpl", model(true));
+        var regions = com.krdevops.springai.service.generation.RegionMarkerParser.parse(rendered);
+        assertThat(regions).anyMatch(region ->
+                region.regionType() == com.krdevops.springai.model.generation.GenerationOwnershipManifest.RegionType.PROTECTED);
+    }
+
     // ─── thymeleafList — decorate/standalone 분리(body include) 검증 ─────────
 
     @Test
