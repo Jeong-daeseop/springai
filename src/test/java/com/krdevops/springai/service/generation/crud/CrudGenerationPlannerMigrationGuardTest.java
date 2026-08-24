@@ -32,9 +32,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * R0-DUAL: {@link PipelineMigrationGuard}·{@link LegacyCompatibilityService}가
@@ -98,6 +101,45 @@ class CrudGenerationPlannerMigrationGuardTest {
                 .hasMessage("PAST_GUARD_MARKER");
     }
 
+    /** V2_APPLY 필수화: 화면명세 참조 없는 Thymeleaf 생성은 DB 조회도 하기 전에 차단되어야 한다. */
+    @Test
+    void v2ApplyModeBlocksThymeleafGenerationWithoutDesignReference() {
+        CrudGenerationPlanner planner = plannerWithMode(PipelineEvolutionProperties.Mode.V2_APPLY);
+
+        CrudGenerationPlan plan = planner.plan(thymeleafCommand(DesignContextReference.empty()));
+
+        assertThat(plan.failed()).isTrue();
+        assertThat(plan.failure().kind()).isEqualTo(CrudPlanFailure.Kind.MAPPING_BLOCKED);
+        assertThat(plan.failure().validationSummary()).contains("승인된 화면명세가 필요합니다");
+        assertThat(plan.failure().failedFiles()).anyMatch(line -> line.contains("analyzeFigmaReference"));
+        verify(crudSchemaQueryService, never()).fetchColumns(any(), any());
+    }
+
+    /** screenSpecificationId가 있으면 V2_APPLY 필수화 검사를 통과해 그 다음 단계로 진행해야 한다. */
+    @Test
+    void v2ApplyModeAllowsThymeleafGenerationWithScreenSpecificationId() {
+        CrudGenerationPlanner planner = plannerWithMode(PipelineEvolutionProperties.Mode.V2_APPLY);
+        given(crudSchemaQueryService.fetchColumns(any(), any()))
+                .willThrow(new RuntimeException("PAST_V2_APPLY_GUARD_MARKER"));
+
+        assertThatThrownBy(() -> planner.plan(
+                thymeleafCommand(new DesignContextReference(null, "spec-approved-1"))))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("PAST_V2_APPLY_GUARD_MARKER");
+    }
+
+    /** JSP 생성은 RequiredComponentMappingApplyGate 대상이 아니므로 V2_APPLY에서도 영향받지 않아야 한다. */
+    @Test
+    void v2ApplyModeDoesNotAffectJspGenerationWithoutDesignReference() {
+        CrudGenerationPlanner planner = plannerWithMode(PipelineEvolutionProperties.Mode.V2_APPLY);
+        given(crudSchemaQueryService.fetchColumns(any(), any()))
+                .willThrow(new RuntimeException("PAST_V2_APPLY_GUARD_MARKER"));
+
+        assertThatThrownBy(() -> planner.plan(command()))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("PAST_V2_APPLY_GUARD_MARKER");
+    }
+
     private CrudGenerationPlanner plannerWithMode(PipelineEvolutionProperties.Mode mode) {
         PipelineEvolutionProperties properties = new PipelineEvolutionProperties();
         properties.setMode(mode);
@@ -113,6 +155,13 @@ class CrudGenerationPlannerMigrationGuardTest {
                 "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp",
                 Path.of("/tmp/egov-test"), "auto", "5.0", "jsp",
                 LayoutOptions.empty(), ProgramMetadataOverrides.empty(), DesignContextReference.empty());
+    }
+
+    private static CrudGenerationCommand thymeleafCommand(DesignContextReference designContext) {
+        return new CrudGenerationCommand(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp",
+                Path.of("/tmp/egov-test"), "auto", "5.0", "thymeleaf",
+                LayoutOptions.empty(), ProgramMetadataOverrides.empty(), designContext);
     }
 
     private static ScreenSpecification specificationWithV2Reference() {

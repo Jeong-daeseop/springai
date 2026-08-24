@@ -148,6 +148,24 @@ public class CrudGenerationPlanner {
         log.info("[plan] 시작: table={}, domain={}, outputPath={}, egovVersion={}, viewType={}",
                  tableName, domain, outputPath, egovVersion, viewType.value());
 
+        // V2_APPLY 필수화: Thymeleaf 생성은 승인된 화면명세(Figma 디자인 참조) 없이는 더 이상
+        // 스키마만으로 진행할 수 없다 — RequiredComponentMappingApplyGate가 결국 막을 것을
+        // DB 조회도 하기 전에 조기에, 다음 행동을 알려주는 메시지와 함께 막는다.
+        if (viewType == CrudViewType.THYMELEAF && pipelineEvolutionProperties.usesV2Apply()
+                && isBlank(options.designReferenceId()) && isBlank(options.screenSpecificationId())) {
+            log.warn("[plan] V2_APPLY: 승인된 화면명세 없이 Thymeleaf 생성 시도 차단: table={}", tableName);
+            return CrudGenerationPlan.rejected(new CrudPlanFailure(
+                    CrudPlanFailure.Kind.MAPPING_BLOCKED,
+                    "V2_APPLY 모드에서는 Thymeleaf 생성 전 Figma 디자인 참조로 승인된 화면명세가 필요합니다",
+                    List.of(
+                            "1. analyzeFigmaReference(figmaUrl, nodeId, featureType=\"crud\") 호출 → 분석 ID 획득",
+                            "2. createScreenSpecification(database, tableName, screenName, featureType=\"crud\", "
+                                    + "designAnalysisId) 호출 — APPROVED면 바로 사용, REVIEW_REQUIRED면 "
+                                    + "reviseScreenSpecification() 후 approveScreenSpecification() 호출",
+                            "3. buildFullCrudPrompt(..., screenSpecificationId=승인된 화면명세 ID)로 다시 호출"),
+                    null, null, null, null, List.of()));
+        }
+
         List<Map<String, Object>> rawColumns = crudSchemaQueryService.fetchColumns(database, tableName);
         if (rawColumns.isEmpty()) {
             log.warn("[plan] 테이블 없음: {}.{}", database, tableName);
@@ -321,6 +339,10 @@ public class CrudGenerationPlanner {
                     new CrudRenderRequest(layer.layerKey(), model, viewType, layoutReference, layoutMode)));
         }
         return files;
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private static boolean detailSubsetRequested(ScreenSpecification screenSpecification) {

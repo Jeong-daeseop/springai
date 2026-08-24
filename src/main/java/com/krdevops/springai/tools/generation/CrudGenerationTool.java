@@ -52,6 +52,12 @@ public class CrudGenerationTool {
             programStorePath: 프로그램 저장 경로 메타데이터입니다.
             designReferenceId: analyzeDesignReference()가 반환한 분석 ID입니다. 화면명세 초안 생성에 사용합니다.
             screenSpecificationId: APPROVED 상태의 화면명세 ID입니다. designReferenceId보다 우선합니다.
+            [필수] app.pipeline-evolution.mode=V2_APPLY(현재 운영 기본값)에서는 viewType="thymeleaf" +
+            llmProvider="auto" 조합에 designReferenceId 또는 screenSpecificationId 중 하나가 반드시 있어야
+            합니다 — 없으면 DB 조회 전에 즉시 실패하며, analyzeFigmaReference() → createScreenSpecification()
+            → (필요 시 reviseScreenSpecification()) → approveScreenSpecification() 순서로 화면명세를 먼저
+            승인한 뒤 그 screenSpecificationId로 다시 호출하라는 안내를 받습니다. viewType="jsp"는 이 제약과
+            무관합니다.
             우선순위는 명시 파라미터 > DB 자동조회(LETTNPROGRMLIST/LETTNMENUINFO, domain 기준 목록/상세/등록/수정/삭제 화면별 매칭) > 기존 규칙(packageName+domain) fallback 입니다.
             domain과 일치하는 프로그램이 LETTNPROGRMLIST에 여러 건(목록 화면 기준) 있으면 자동 선택하지 않고 실패하니 programFileName을 명시하세요.
 
