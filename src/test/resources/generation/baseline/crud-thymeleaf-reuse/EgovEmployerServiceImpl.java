@@ -39,18 +39,27 @@ public class EgovEmployerServiceImpl extends EgovAbstractServiceImpl
     @Override
     @Transactional
     public void insertEmployer(EmployerVO employerVO) throws Exception {
+        // @region:protected:beforeInsert start
+        // 저장 전 커스텀 검증/가공 로직을 이 안에 작성하면 재생성 시 보존됩니다.
+        // @region:protected:beforeInsert end
         employerMapper.insertEmployer(employerVO);
     }
 
     @Override
     @Transactional
     public void updateEmployer(EmployerVO employerVO) throws Exception {
+        // @region:protected:beforeUpdate start
+        // 수정 전 커스텀 검증/가공 로직을 이 안에 작성하면 재생성 시 보존됩니다.
+        // @region:protected:beforeUpdate end
         employerMapper.updateEmployer(employerVO);
     }
 
     @Override
     @Transactional
     public void deleteEmployer(EmployerVO employerVO) throws Exception {
+        // @region:protected:beforeDelete start
+        // 삭제 전 커스텀 검증/가공 로직을 이 안에 작성하면 재생성 시 보존됩니다.
+        // @region:protected:beforeDelete end
         employerMapper.deleteEmployer(employerVO);
     }
 }

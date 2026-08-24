@@ -167,4 +167,8 @@ public class EgovEmployerController {
         model.addAttribute("currentPageSuffix", currentPageSuffix);
         model.addAttribute("menuContextUrl", "/emp/employerList.do");
     }
+
+    // @region:protected:customActions start
+    // 이 위치에 추가한 커스텀 @RequestMapping 메서드는 재생성 시 보존됩니다.
+    // @region:protected:customActions end
 }

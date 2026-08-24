@@ -4,6 +4,7 @@
 
 <mapper namespace="egovframework.let.emp.service.impl.EmployerMapper">
 
+    <!-- @region:binding:resultMap start -->
     <resultMap id="employerMap" type="egovframework.let.emp.service.EmployerVO">
         <id property="emplyrId" column="EMPLYR_ID"/>
         <result property="emplyrNm" column="EMPLYR_NM"/>
@@ -12,6 +13,7 @@
         <result property="frstRegistPnttm" column="FRST_REGIST_PNTTM"/>
         <result property="lastUpdtPnttm" column="LAST_UPDT_PNTTM"/>
     </resultMap>
+    <!-- @region:binding:resultMap end -->
 
     <!-- 검색 조건 -->
     <sql id="searchCondition">

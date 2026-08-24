@@ -6,7 +6,7 @@
   "rendererType": "THYMELEAF",
   "templateEngine": "FREEMARKER",
   "templateSetVersion": "crud-thymeleaf-1.0",
-  "templateSetHash": "ddffe4624efb4248d3751804043696b4e5ef7ddc495ae67bef2d7e3a4c96e4f8",
+  "templateSetHash": "29016287edae14de61733b3c7179de1bec0c7021441349dae24da18991859879",
   "componentMappingVersion": "1.0",
   "supportedFeatures": [
     "CRUD_LIST",
