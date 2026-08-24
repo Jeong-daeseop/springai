@@ -51,6 +51,7 @@ class McpToolRiskAnnotationCoverageTest {
         // R6-065(2026-08-19): bindFigmaDesignRequestTable 추가로 98 → 99.
         // R8(04번 문서 §11, 2026-08-20): captureWebPageMultiViewport 추가로 99 → 100.
         // R8 Part B(04번 문서 §11, 2026-08-20): prepareFigmaBundleImport 추가로 100 → 101.
-        assertThat(scannedMethods).isEqualTo(101);
+        // Region Ownership Task 8: adoptCurrentAsBaseline 추가로 101 → 102.
+        assertThat(scannedMethods).isEqualTo(102);
     }
 }

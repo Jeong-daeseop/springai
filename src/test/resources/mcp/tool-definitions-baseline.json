@@ -1,4 +1,33 @@
 [ {
+  "name" : "adoptCurrentAsBaseline",
+  "description" : "5축 파이프라인 Ownership 보호(app.pipeline-evolution.mode=V2_PREVIEW 이상)를 켜기 전\n이미 생성돼 있던 CRUD 화면을 위한 부트스트랩 Tool입니다.\n지금 디스크에 있는 파일 내용을 그대로 신뢰해 다음 재생성부터 비교 기준(Base)으로 쓸\n스냅샷만 등록하며, 파일은 전혀 건드리지 않습니다.\n이 Tool을 호출하지 않고 기존 화면을 재생성하면, Base가 없어 Current와 New가 조금이라도\n다르면 충돌(BOTH_CHANGED)로 판정되어 사람 검토가 필요합니다.\ndatabase/tableName/domain/packageName/outputPath/viewType은 원래 이 화면을 생성할 때\n썼던 값과 동일해야 합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "database" : {
+        "type" : "string"
+      },
+      "domain" : {
+        "type" : "string"
+      },
+      "outputPath" : {
+        "type" : "string"
+      },
+      "packageName" : {
+        "type" : "string"
+      },
+      "tableName" : {
+        "type" : "string"
+      },
+      "viewType" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "database", "tableName", "domain", "packageName", "outputPath", "viewType" ],
+    "type" : "object"
+  }
+}, {
   "name" : "analyzeCapturedDesign",
   "description" : "Design Artifact를 기존 UiDesignSpec 분석 결과로 결정론적으로 변환합니다.\n반환된 analysisId는 createScreenSpecification에 전달할 수 있습니다.\n",
   "inputSchema" : {

@@ -20,6 +20,7 @@ import com.krdevops.springai.tools.generation.CrudScreenSourceTool;
 import com.krdevops.springai.tools.generation.JoinQueryTool;
 import com.krdevops.springai.tools.generation.MasterDetailGenerationTool;
 import com.krdevops.springai.tools.generation.MasterDetailScreenSourceTool;
+import com.krdevops.springai.tools.generation.CrudGenerationSnapshotTool;
 import com.krdevops.springai.tools.DateTimeTool;
 import com.krdevops.springai.tools.DesignReferenceTool;
 import com.krdevops.springai.tools.EmployeeTool;
@@ -103,6 +104,7 @@ public class McpConfig {
             ThymeleafBindingGenerationTool thymeleafBindingGenerationTool,
             ThymeleafProjectWorkflowTool thymeleafProjectWorkflowTool,
             ThymeleafBaselineApprovalTool thymeleafBaselineApprovalTool,
+            CrudGenerationSnapshotTool crudGenerationSnapshotTool,
             McpToolRiskAnnotationResolver riskResolver,
             ToolAuthorizationPolicy authorizationPolicy,
             McpSensitiveDataRedactor redactor,
@@ -120,7 +122,7 @@ public class McpConfig {
                         figmaDesignOrchestrationTool,
                         figmaApprovedSpecificationTool, thymeleafBindingGenerationTool,
                         thymeleafProjectWorkflowTool,
-                        thymeleafBaselineApprovalTool)
+                        thymeleafBaselineApprovalTool, crudGenerationSnapshotTool)
                 .build();
 
         // ARCH-0108/ARCH-0103: 모든 등록 Tool을 ToolAuthorizationPolicy로 감싸고,

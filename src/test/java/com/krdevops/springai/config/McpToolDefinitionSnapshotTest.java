@@ -69,7 +69,8 @@ class McpToolDefinitionSnapshotTest {
     // R6-065(2026-08-19): bindFigmaDesignRequestTable 추가로 98 → 99.
     // R8(04번 문서 §11, 2026-08-20): captureWebPageMultiViewport 추가로 99 → 100.
     // R8 Part B(04번 문서 §11, 2026-08-20): prepareFigmaBundleImport 추가로 100 → 101.
-    private static final int EXPECTED_TOOL_METHOD_COUNT = 101;
+    // Region Ownership Task 8: adoptCurrentAsBaseline 추가로 101 → 102.
+    private static final int EXPECTED_TOOL_METHOD_COUNT = 102;
 
     /**
      * McpConfig.allToolCallbacks(...)의 toolObjects(...) 인자 개수(등록된 *Tool 컴포넌트 클래스 수).
@@ -80,8 +81,9 @@ class McpToolDefinitionSnapshotTest {
      * ARCH-WP2 업데이트: 35 → 34 (FigmaThymeleafBridgeTool 제거)
      * WP8 3차 pass 업데이트: 34 → 35 (ThymeleafBaselineApprovalTool 추가)
      * WP6 생성 진입점 결선: 35 → 36 (ThymeleafBindingGenerationTool 추가)
+     * Region Ownership Task 8: 36 → 37 (CrudGenerationSnapshotTool 추가)
      */
-    private static final int EXPECTED_TOOL_OBJECT_COUNT = 36;
+    private static final int EXPECTED_TOOL_OBJECT_COUNT = 37;
 
     @Autowired
     private ToolCallbackProvider allToolCallbacks;
