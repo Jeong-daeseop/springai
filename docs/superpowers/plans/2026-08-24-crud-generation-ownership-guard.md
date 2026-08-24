@@ -269,13 +269,33 @@ public final class RegionMarkerParser {
                     return null;
                 }
                 int interiorStart = pendingStart.markerEnd();
-                int interiorEnd = token.markerStart();
+                int interiorEnd = findInteriorEnd(content, token.markerStart());
                 regions.add(new ParsedRegion(pendingStart.id(), toRegionType(pendingStart.type()),
                         content.substring(interiorStart, interiorEnd), interiorStart, interiorEnd));
                 pendingStart = null;
             }
         }
         return pendingStart != null ? null : regions;
+    }
+
+    /**
+     * 실제 구현 중 발견(Task 1 리뷰): 끝 마커 앞의 주석 여는 기호(<code>// </code>,
+     * <code>&lt;!-- </code>, <code>&lt;%-- </code>)를 그대로 두면 마커 사이 구간에 다음 Region의
+     * 주석 기호까지 섞여 들어간다({@code "\nA\n// "}처럼) — {@code token.markerStart()}를 그대로
+     * interiorEnd로 쓰면 안 된다. 끝 마커가 자기 줄에 혼자 있으면(줄 앞부분이 공백/주석기호뿐이면)
+     * 그 줄 시작(직전 개행 바로 다음)까지 되감고, 마커 앞에 실제 코드가 있으면(인라인 마커) 되감지
+     * 않는다.
+     */
+    private static int findInteriorEnd(String content, int markerStart) {
+        int i = markerStart - 1;
+        while (i >= 0 && content.charAt(i) != '\n') {
+            char c = content.charAt(i);
+            if (Character.isLetterOrDigit(c) || c == '_') {
+                return markerStart; // 마커 앞에 실제 코드가 있음 — 인라인, 되감지 않는다.
+            }
+            i--;
+        }
+        return i >= 0 ? i + 1 : markerStart;
     }
 
     private static GenerationOwnershipManifest.RegionType toRegionType(String type) {
