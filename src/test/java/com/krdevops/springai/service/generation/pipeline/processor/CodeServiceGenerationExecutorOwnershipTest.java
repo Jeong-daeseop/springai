@@ -182,6 +182,56 @@ class CodeServiceGenerationExecutorOwnershipTest {
         assertThat(snapshotStore.findLatest(operationId)).isEmpty();
     }
 
+    @Test
+    void 마커가_깨져_UNKNOWN으로_강등된_Region은_Apply를_차단하고_아무것도_안_쓴다() throws Exception {
+        CodeServiceGenerationExecutor executor = executor();
+        String v1 = "HEADER\n// @region:protected:custom start\nORIGINAL\n// @region:protected:custom end\nFOOTER";
+        Path target = outputRoot.resolve("EmployerServiceImpl.java");
+        executor.execute(new RenderedGenerationPlan(context(outputRoot),
+                List.of(RenderedFilePlan.rendered(new FileBlueprint("serviceImpl", "EmployerServiceImpl.java",
+                        target, null), v1)), List.of(), List.of()));
+
+        // 사람이 실수로 end 마커를 지웠다고 가정 — RegionMarkerParser가 파일 전체를 unknown.file/UNKNOWN
+        // Region 1개로 강등시킨다.
+        String broken = "HEADER\n// @region:protected:custom start\nORIGINAL\nFOOTER";
+        Files.writeString(target, broken);
+
+        String v2 = "HEADER\n// @region:protected:custom start\nORIGINAL\n// @region:protected:custom end\nFOOTER";
+        GenerationExecution execution = executor.execute(new RenderedGenerationPlan(context(outputRoot),
+                List.of(RenderedFilePlan.rendered(new FileBlueprint("serviceImpl", "EmployerServiceImpl.java",
+                        target, null), v2)), List.of(), List.of()));
+
+        assertThat(execution.succeededFiles()).isEmpty();
+        assertThat(execution.failedFiles()).hasSize(1);
+        assertThat(execution.failedFiles().get(0).source()).isEqualTo("ownership-guard");
+        assertThat(target).hasContent(broken);
+    }
+
+    @Test
+    void Current에_같은_id_Region이_없으면_Type을_알아도_Apply를_차단하고_아무것도_안_쓴다() throws Exception {
+        CodeServiceGenerationExecutor executor = executor();
+        String v1 = "// @region:protected:a start\nORIGINAL\n// @region:protected:a end\n";
+        Path target = outputRoot.resolve("EmployerServiceImpl.java");
+        executor.execute(new RenderedGenerationPlan(context(outputRoot),
+                List.of(RenderedFilePlan.rendered(new FileBlueprint("serviceImpl", "EmployerServiceImpl.java",
+                        target, null), v1)), List.of(), List.of()));
+
+        // 사람이 마커 자체는 well-formed하게 유지하되 id만 "a"→"b"로 바꿔버렸다고 가정 — 파일은
+        // UNKNOWN으로 강등되지 않지만, New가 보존하려는 id "a" Region을 Current에서 찾을 수 없다.
+        String handEdited = "// @region:protected:b start\nHAND_EDITED\n// @region:protected:b end\n";
+        Files.writeString(target, handEdited);
+
+        String v2 = "// @region:protected:a start\nORIGINAL\n// @region:protected:a end\n";
+        GenerationExecution execution = executor.execute(new RenderedGenerationPlan(context(outputRoot),
+                List.of(RenderedFilePlan.rendered(new FileBlueprint("serviceImpl", "EmployerServiceImpl.java",
+                        target, null), v2)), List.of(), List.of()));
+
+        assertThat(execution.succeededFiles()).isEmpty();
+        assertThat(execution.failedFiles()).hasSize(1);
+        assertThat(execution.failedFiles().get(0).source()).isEqualTo("ownership-guard");
+        assertThat(target).hasContent(handEdited);
+    }
+
     private GenerationContext context(Path outputPath) {
         return new GenerationContext(
                 "crud", "ebt", "EMP", "emp", "egovframework.let.emp",

@@ -203,7 +203,12 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
                         && (type == GenerationOwnershipManifest.RegionType.PROTECTED
                             || type == GenerationOwnershipManifest.RegionType.BINDING)
                         && comparison.status() != ThreeWayRegionComparison.ChangeStatus.BOTH_CHANGED;
-                if (protectedRegionVanished) {
+                // 마커가 깨져(짝 안 맞음·id 중복) RegionMarkerParser가 파일 전체를 UNKNOWN으로
+                // 강등한 경우, 3-way 비교 결과가 자연스럽게 CURRENT_ONLY/NEW_ONLY로 나오더라도
+                // 안전하게 판단할 수 없으므로 강제로 BOTH_CHANGED로 승격해 사람 검토를 요구한다.
+                boolean unknownRegion = type == GenerationOwnershipManifest.RegionType.UNKNOWN
+                        && comparison.status() != ThreeWayRegionComparison.ChangeStatus.UNCHANGED;
+                if (protectedRegionVanished || unknownRegion) {
                     comparison = new ThreeWayRegionComparison(comparisonId, baseHash, currentHash, newHash,
                             ThreeWayRegionComparison.ChangeStatus.BOTH_CHANGED);
                 }
@@ -226,6 +231,7 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
         // 계산한 결과이므로, Executor가 그 서비스를 따로 다시 호출할 필요가 없다.
         Set<String> preservedComparisonIds = new LinkedHashSet<>(mergePlan.preservedRegionIds());
 
+        Set<String> splicedComparisonIds = new LinkedHashSet<>();
         List<ProjectChangeSet.FileChange> changes = new ArrayList<>();
         Map<String, List<RegionMarkerParser.ParsedRegion>> finalRegionsByPath = new LinkedHashMap<>();
         // 실제 쓰기 대상은 여기서 정해지는 toApply뿐이다 — Planner→Renderer→Executor 사이에 다른
@@ -233,10 +239,21 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
         for (RenderedFilePlan file : toApply) {
             String relative = outputRoot.relativize(file.targetPath()).toString();
             String spliced = spliceRegions(file.source(), newRegionsByPath.get(relative),
-                    relative, currentContentByPath.get(relative), preservedComparisonIds);
+                    relative, currentContentByPath.get(relative), preservedComparisonIds,
+                    splicedComparisonIds);
             finalRegionsByPath.put(relative, RegionMarkerParser.parse(spliced));
             changes.add(new ProjectChangeSet.FileChange(relative, currentHashByPath.get(relative),
                     spliced, sha256(spliced)));
+        }
+
+        Set<String> unresolvedPreserved = new LinkedHashSet<>(preservedComparisonIds);
+        unresolvedPreserved.removeAll(splicedComparisonIds);
+        if (!unresolvedPreserved.isEmpty()) {
+            List<GenerationFailure> failures = new ArrayList<>(renderFailures);
+            failures.add(new GenerationFailure("ownership-guard",
+                    "보존 대상 Region을 실제로 복원할 수 없어 Apply 중단(마커 손상 가능성): "
+                            + unresolvedPreserved));
+            return new GenerationExecution(plan, List.of(), failures);
         }
 
         createDirectoriesIfMissing(outputRoot);
@@ -260,9 +277,12 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
         return new GenerationExecution(plan, toApply, renderFailures);
     }
 
-    /** PRESERVE 대상 Region만 New 콘텐츠에서 Current 내용으로 치환한다. */
+    /** PRESERVE 대상 Region만 New 콘텐츠에서 Current 내용으로 치환한다. 실제로 치환에 성공한
+     * comparisonId를 splicedComparisonIds에 기록한다 — 호출자가 "보존하기로 했는데 실제로는
+     * 못 한" 케이스를 감지할 수 있게 한다. */
     private String spliceRegions(String newContent, List<RegionMarkerParser.ParsedRegion> newRegions,
-            String relative, String currentContent, Set<String> preservedComparisonIds) {
+            String relative, String currentContent, Set<String> preservedComparisonIds,
+            Set<String> splicedComparisonIds) {
         if (currentContent == null) {
             return newContent;
         }
@@ -278,8 +298,10 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
             currentRegions.stream()
                     .filter(current -> current.regionId().equals(region.regionId()))
                     .findFirst()
-                    .ifPresent(currentRegion -> result.replace(
-                            region.startIndex(), region.endIndex(), currentRegion.content()));
+                    .ifPresent(currentRegion -> {
+                        result.replace(region.startIndex(), region.endIndex(), currentRegion.content());
+                        splicedComparisonIds.add(comparisonId);
+                    });
         }
         return result.toString();
     }
