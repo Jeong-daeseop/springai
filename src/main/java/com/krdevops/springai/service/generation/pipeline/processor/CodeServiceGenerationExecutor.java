@@ -41,9 +41,10 @@ import java.util.Set;
  * Service, Thymeleaf Layout 생성 등 이 Pipeline 밖의 다른 경로는 여전히
  * {@code codeService.saveGeneratedCode}를 직접 호출한다 — ARCH-0717/0718 별도 항목.)
  *
- * <p>{@code pipelineEvolutionProperties.usesV2Preview()}가 false면(현재 운영 기본값
- * {@code DUAL_READ} 포함) 기존 {@link ProjectWritePolicy#BEST_EFFORT_COMPATIBILITY} 경로를 그대로
- * 쓴다. true(모드 {@code V2_PREVIEW} 이상)면 Region Ownership 3-way 비교 + Revision drift 감지가
+ * <p>{@code pipelineEvolutionProperties.usesV2Preview()}가 false면(명시적으로
+ * {@code DISABLED}/{@code OBSERVE}/{@code DUAL_READ}로 낮춘 경우) 기존
+ * {@link ProjectWritePolicy#BEST_EFFORT_COMPATIBILITY} 경로를 그대로 쓴다. true(모드
+ * {@code V2_PREVIEW} 이상, 현재 운영 기본값 {@code V2_APPLY})면 Region Ownership 3-way 비교 + Revision drift 감지가
  * 추가된 경로를 탄다 — 상세는 {@code docs/superpowers/specs/2026-08-24-crud-generation-ownership-guard-design.md}.
  */
 @Slf4j

@@ -116,9 +116,10 @@ chat:
     max-messages: 8       # 20 → 8: 토큰 예산 확보 (num-ctx 8192 기준)
 
 app:
-  # 5축 파이프라인 발전 계약은 기본 비활성화한다. observe → dual_read → v2_preview → v2_apply 순서로 전환한다.
+  # 5축 파이프라인은 신규 Apply(V2_APPLY)를 기본 활성화한다. 장애·롤백 시
+  # APP_PIPELINE_EVOLUTION_MODE=V2_PREVIEW 또는 DUAL_READ를 명시해 단계적으로 낮출 수 있다.
   pipeline-evolution:
-    mode: ${APP_PIPELINE_EVOLUTION_MODE:DUAL_READ}
+    mode: ${APP_PIPELINE_EVOLUTION_MODE:V2_APPLY}
     # 이 값 미만의 필수 시각 추론은 자동 승인하지 않는다.
     auto-approval-confidence-threshold: ${APP_PIPELINE_AUTO_APPROVAL_CONFIDENCE_THRESHOLD:0.85}
     # 이 값 미만은 원본 Evidence가 있어도 증거 품질 부족으로 Apply를 차단한다.

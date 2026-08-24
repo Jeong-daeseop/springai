@@ -11,7 +11,8 @@ Region 단위로 쪼개고, 이미 존재하는 8개 판정 클래스(`Ownership
 결과를 평가한 뒤, `ApprovedWriteConflictGuard`가 Apply 전 충돌을 막는다. Base는 신규
 `CrudGenerationSnapshotStore`(MySQL, `ThymeleafProjectOperationRepository`와 동일한 패턴)에
 저장한다. 이 전체는 `PipelineEvolutionProperties.usesV2Preview()`(모드 `V2_PREVIEW` 이상) 뒤에서만
-동작하며, 현재 운영 기본값 `DUAL_READ`에서는 기존 동작이 그대로 유지된다.
+동작하며, 현재 운영 기본값 `V2_APPLY`에서는 신규 Apply 경로가 활성화된다. 장애·롤백 시
+`APP_PIPELINE_EVOLUTION_MODE=V2_PREVIEW` 또는 `DUAL_READ`를 명시하면 단계적으로 낮출 수 있다.
 
 **Tech Stack:** Spring Boot 4.1 / Spring AI 2.0 MCP 서버, MySQL(JdbcTemplate, Flyway migration),
 Jackson(record JSON 직렬화), JUnit 5 + AssertJ + Mockito, FreeMarker 템플릿.
@@ -21,7 +22,7 @@ Jackson(record JSON 직렬화), JUnit 5 + AssertJ + Mockito, FreeMarker 템플�
 - 패키지 루트는 `com.krdevops.springai`. 신규 클래스는 기존 서브패키지 관례를 따른다
   (`service.generation`, `mapper`, `tools.generation`).
 - 이 기능 전체는 `PipelineEvolutionProperties.usesV2Preview()`가 `true`일 때만 동작해야 한다 —
-  `false`(현재 운영 기본값 `DUAL_READ` 포함)일 때는 기존 `BEST_EFFORT_COMPATIBILITY` 경로가
+  `false`(명시적으로 `DISABLED`/`OBSERVE`/`DUAL_READ`로 낮춘 경우)일 때는 기존 `BEST_EFFORT_COMPATIBILITY` 경로가
   1바이트도 안 바뀐 채로 그대로 동작해야 한다.
 - 기존 호출자·테스트 호환을 위해, DI 대상 클래스에 새 협력자를 추가할 때는 `CrudGenerationPlanner`가
   이미 쓰는 패턴(전체 인자 `@Autowired` 생성자 + 이전 인자 개수의 호환 생성자가 안전한 기본값으로
@@ -778,9 +779,9 @@ import java.util.Map;
  * Service, Thymeleaf Layout 생성 등 이 Pipeline 밖의 다른 경로는 여전히
  * {@code codeService.saveGeneratedCode}를 직접 호출한다 — ARCH-0717/0718 별도 항목.)
  *
- * <p>{@code pipelineEvolutionProperties.usesV2Preview()}가 false면(현재 운영 기본값
- * {@code DUAL_READ} 포함) 기존 {@link ProjectWritePolicy#BEST_EFFORT_COMPATIBILITY} 경로를 그대로
- * 쓴다. true(모드 {@code V2_PREVIEW} 이상)면 Region Ownership 3-way 비교 + Revision drift 감지가
+ * <p>{@code pipelineEvolutionProperties.usesV2Preview()}가 false면(명시적으로
+ * {@code DISABLED}/{@code OBSERVE}/{@code DUAL_READ}로 낮춘 경우) 기존 {@link ProjectWritePolicy#BEST_EFFORT_COMPATIBILITY} 경로를 그대로
+ * 쓴다. true(모드 {@code V2_PREVIEW} 이상, 현재 운영 기본값 {@code V2_APPLY})면 Region Ownership 3-way 비교 + Revision drift 감지가
  * 추가된 경로를 탄다 — 상세는 {@code docs/superpowers/specs/2026-08-24-crud-generation-ownership-guard-design.md}.
  */
 @Slf4j
@@ -1821,9 +1822,6 @@ git commit -m "feat: add adoptCurrentAsBaseline MCP tool for pre-existing screen
 
 ## 전체 완료 확인
 
-- [ ] `./gradlew test` 전체 통과 (MySQL·Redis 로컬 기동 상태에서, `docker start egov-mysql`)
-- [ ] `./gradlew bootJar` 성공
-- [ ] `app.pipeline-evolution.mode`가 여전히 `DUAL_READ`인 상태에서 기존 CRUD 생성 MCP Tool 호출이
-      전과 동일하게 동작하는지 수동 확인(회귀 없음 최종 검증)
-- [ ] 이 구현이 끝나야 `app.pipeline-evolution.mode`를 `V2_PREVIEW`로 전환할 수 있는 전제 조건이
-      충족된다 — 전환 자체는 이 플랜의 범위 밖이며 별도로 요청해야 한다.
+- [x] `./gradlew test` 전체 통과 및 `./gradlew bootJar` 성공을 확인했다.
+- [x] `app.pipeline-evolution.mode` 기본값을 `V2_APPLY`로 전환했다. 장애·롤백 시
+      `APP_PIPELINE_EVOLUTION_MODE=V2_PREVIEW` 또는 `DUAL_READ`를 명시할 수 있다.

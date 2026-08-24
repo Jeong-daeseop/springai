@@ -31,8 +31,8 @@
 - Region 단위(Generated/Binding/Protected/Unknown)로 "생성기가 다시 만들려는 내용"과 "사람이 실제로
   고친 내용"을 구분해, 사람이 고친 부분은 자동 보존하고 충돌은 사람 검토로 넘긴다.
 - 파일 단위 동시 수정 경합(Revision)은 기존 `ATOMIC_APPROVED` 인프라를 그대로 재사용해 막는다.
-- 이 보호는 `V2_PREVIEW` 이상에서만 켜지고, `DISABLED`/`OBSERVE`/`DUAL_READ`의 기존 동작(현재 운영
-  기본값 `DUAL_READ`)은 전혀 바꾸지 않는다.
+- 이 보호는 `V2_PREVIEW` 이상에서만 켜지고, 현재 운영 기본값은 `V2_APPLY`다. 장애·롤백 시
+  `DISABLED`/`OBSERVE`/`DUAL_READ`를 명시하면 기존 동작으로 단계적으로 낮출 수 있다.
 
 ## 비목표
 
@@ -220,8 +220,8 @@ New가 조금이라도 다르면 의도적으로 `BOTH_CHANGED`(충돌)로 판�
   5. 둘 다 바뀜(`BOTH_CHANGED`) → Apply 전체 중단, 파일 하나도 안 씀 확인
   6. 동시 수정 경합 → `ATOMIC_APPROVED`의 `CONFLICT`로 별도 실패 사유 확인
   7. `adoptCurrentAsBaseline` → 파일 미변경, 스냅샷만 생성, 이후 재생성이 그 Base로 비교됨
-  8. `usesV2Preview()==false`(현재 운영 기본값 `DUAL_READ`) → 기존 `BEST_EFFORT_COMPATIBILITY`
-     경로 그대로, 회귀 없음 확인
+  8. `usesV2Preview()==false`(명시적으로 `DISABLED`/`OBSERVE`/`DUAL_READ`로 낮춘 경우) → 기존
+     `BEST_EFFORT_COMPATIBILITY` 경로 그대로, 회귀 없음 확인
 
 ## 롤아웃 순서
 
@@ -229,5 +229,5 @@ New가 조금이라도 다르면 의도적으로 `BOTH_CHANGED`(충돌)로 판�
 2. `CodeServiceGenerationExecutor`에 섹션 "아키텍처 개요"의 분기 연결(`usesV2Preview()` 게이트 뒤)
 3. 6개 레이어 FreeMarker 템플릿에 마커 삽입
 4. `adoptCurrentAsBaseline` MCP Tool 추가 + `McpConfig` 등록
-5. 통합 테스트 전체 통과 확인 후, `app.pipeline-evolution.mode`를 `V2_PREVIEW`로 전환할 수 있는
-   상태가 됨(이 스펙의 구현 완료가 그 전환의 전제 조건)
+5. 통합 테스트 전체 통과 후, `app.pipeline-evolution.mode` 기본값을 `V2_APPLY`로 전환한다.
+   운영 장애·롤백 시에는 `V2_PREVIEW` 또는 `DUAL_READ`를 명시한다.
