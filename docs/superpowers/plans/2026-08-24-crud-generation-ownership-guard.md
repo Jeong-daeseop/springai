@@ -1267,7 +1267,7 @@ Executor가 직접 쓰지 않는다 — `SemanticMergePlanService.preview()`가 
 Run: `./gradlew test --tests "com.krdevops.springai.service.generation.pipeline.processor.CodeServiceGenerationExecutorOwnershipTest"`
 Expected: PASS (1 test)
 
-- [ ] **Step 6: 나머지 5개 시나리오 테스트 추가** — 같은 테스트 클래스에 순서대로 추가하고, 매번
+- [ ] **Step 6: 나머지 4개 시나리오 테스트 추가** — 같은 테스트 클래스에 순서대로 추가하고, 매번
   `./gradlew test --tests "...CodeServiceGenerationExecutorOwnershipTest"`로 통과를 확인한다.
 
 ```java
@@ -1352,57 +1352,53 @@ Expected: PASS (1 test)
     }
 
     @Test
-    void 쓰기_직전_파일이_바뀌면_ATOMIC_APPROVED_CONFLICT로_별도_실패사유를_보고한다() throws Exception {
-        CodeServiceGenerationExecutor executor = executor();
-        String v1 = "class EmployerVO {}";
-        Path target = outputRoot.resolve("EmployerVO.java");
-        executor.execute(new RenderedGenerationPlan(context(outputRoot),
-                List.of(RenderedFilePlan.rendered(
-                        new FileBlueprint("vo", "EmployerVO.java", target, null), v1)), List.of(), List.of()));
+    void ATOMIC_APPROVED_CONFLICT_상태는_write_guard_실패로_변환되고_스냅샷을_갱신하지_않는다() {
+        // 진짜 동시성 경합은 결정론적으로 재현하기 어렵다 — writePort를 Mock으로 대체해 CONFLICT를
+        // 직접 유도한다. Current를 다시 읽어 drift를 감지하는 것 자체는 이미
+        // FileSystemApprovedProjectWritePortTest가 실제 파일로 검증하므로 여기서 중복하지 않는다.
+        // 이 테스트는 오직 "execute()가 CONFLICT를 write-guard 실패로 정확히 옮기는지"만 본다.
+        ApprovedProjectWritePort writePort = org.mockito.Mockito.mock(ApprovedProjectWritePort.class);
+        org.mockito.BDDMockito.given(writePort.apply(org.mockito.ArgumentMatchers.any()))
+                .willReturn(ApplyOutcome.conflict(List.of("EmployerVO.java")));
+        CodeService codeService = new CodeService(egovProperties(outputRoot));
+        PipelineEvolutionProperties properties = new PipelineEvolutionProperties();
+        properties.setMode(PipelineEvolutionProperties.Mode.V2_PREVIEW);
+        InMemoryCrudGenerationSnapshotStore snapshotStore = new InMemoryCrudGenerationSnapshotStore();
+        CodeServiceGenerationExecutor executor = new CodeServiceGenerationExecutor(
+                codeService, writePort, properties, snapshotStore,
+                new SemanticMergePlanService(new OwnershipConflictDetector(), new GeneratedRegionPreservationService()),
+                new ApprovedWriteConflictGuard());
 
-        // beforeHash 계산 시점 이후 실제 write 직전에 파일이 다시 바뀐 상황을 흉내낸다 —
-        // Current 읽기 이후 파일을 즉시 덮어써 drift를 만든다.
-        Files.writeString(target, "class EmployerVO { /* concurrent edit */ }");
-        Thread racer = new Thread(() -> {
-            try {
-                Files.writeString(target, "class EmployerVO { /* raced */ }");
-            } catch (IOException ignored) {
-            }
-        });
-        // 실행 순서를 완전히 결정론적으로 만들 수는 없으므로, 대신 beforeHash를 일부러 오래된 값으로
-        // 재현하기 쉽게 v1 저장 직후 파일을 한 번 더 고쳐 CONFLICT를 유도한다(위 racer는 생략 가능).
-        GenerationExecution execution = executor.execute(new RenderedGenerationPlan(context(outputRoot),
-                List.of(RenderedFilePlan.rendered(
-                        new FileBlueprint("vo", "EmployerVO.java", target, null), v1)), List.of(), List.of()));
+        RenderedFilePlan file = RenderedFilePlan.rendered(
+                new FileBlueprint("vo", "EmployerVO.java", outputRoot.resolve("EmployerVO.java"), null), "class X{}");
+        GenerationExecution execution = executor.execute(
+                new RenderedGenerationPlan(context(outputRoot), List.of(file), List.of(), List.of()));
 
-        assertThat(execution.failedFiles()).isEmpty(); // Current를 다시 읽으므로 이번엔 drift 없음(회귀 방지 확인용 baseline)
+        assertThat(execution.succeededFiles()).isEmpty();
+        assertThat(execution.failedFiles()).hasSize(1);
+        assertThat(execution.failedFiles().get(0).source()).isEqualTo("write-guard");
+        String operationId = CrudGenerationOperationIdFactory.forScreen(
+                outputRoot.toString(), "EMP", "thymeleaf");
+        assertThat(snapshotStore.findLatest(operationId)).isEmpty();
     }
 ```
 
-> 마지막 시나리오는 진짜 동시성 경합을 결정론적으로 재현하기 어려우므로, "Current를 매번 다시
-> 읽기 때문에 순차 호출에서는 CONFLICT가 나지 않는다"는 것만 우선 확인한다. 진짜 `CONFLICT` 경로
-> (beforeHash가 stale한 상태로 `writePort.apply()`를 직접 호출하는 경우)는 이미
-> `FileSystemApprovedProjectWritePortTest`에서 `ATOMIC_APPROVED` 자체의 drift 감지로 커버되어
-> 있으므로 중복 검증하지 않는다 — 이 Task에서는 "CONFLICT 상태를 받으면 `write-guard` 실패로
-> 변환한다"는 매핑 로직만 별도로 단위 검증한다.
-
-- [ ] **Step 7: CONFLICT → GenerationFailure 매핑을 직접 단위 검증하는 테스트 추가**
+이 테스트를 추가하려면 파일 상단 import 블록에 다음을 더한다:
 
 ```java
-    @Test
-    void ATOMIC_APPROVED_CONFLICT_상태는_write_guard_실패로_변환된다() {
-        // ApplyOutcome.conflict(...)를 직접 만들어, execute()가 CONFLICT를 어떻게 다루는지
-        // writePort 목킹 없이 outcome 매핑 로직 자체를 문서로 남긴다.
-        var outcome = com.krdevops.springai.service.write.ApplyOutcome.conflict(List.of("EmployerVO.java"));
-        assertThat(outcome.status()).isEqualTo(com.krdevops.springai.service.write.ApplyOutcome.Status.CONFLICT);
-        assertThat(outcome.conflictingPaths()).containsExactly("EmployerVO.java");
-    }
+import com.krdevops.springai.service.generation.CrudGenerationOperationIdFactory;
+import com.krdevops.springai.service.generation.GeneratedRegionPreservationService;
+import com.krdevops.springai.service.generation.OwnershipConflictDetector;
+import com.krdevops.springai.service.generation.SemanticMergePlanService;
+import com.krdevops.springai.service.generation.ApprovedWriteConflictGuard;
+import com.krdevops.springai.service.write.ApplyOutcome;
+import com.krdevops.springai.service.write.ApprovedProjectWritePort;
 ```
 
 - [ ] **Step 8: 전체 테스트 통과 확인 (Task 5 기준선도 함께)**
 
 Run: `./gradlew test --tests "com.krdevops.springai.service.generation.pipeline.processor.*"`
-Expected: PASS — `CodeServiceGenerationExecutorTest`(기존 3개) + `CodeServiceGenerationExecutorOwnershipTest`(신규 7개) 전부
+Expected: PASS — `CodeServiceGenerationExecutorTest`(기존 3개) + `CodeServiceGenerationExecutorOwnershipTest`(신규 6개) 전부
 
 - [ ] **Step 9: 커밋**
 
