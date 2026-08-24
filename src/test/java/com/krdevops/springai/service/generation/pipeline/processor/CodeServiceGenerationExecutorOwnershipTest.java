@@ -208,20 +208,30 @@ class CodeServiceGenerationExecutorOwnershipTest {
     }
 
     @Test
-    void Current에_같은_id_Region이_없으면_Type을_알아도_Apply를_차단하고_아무것도_안_쓴다() throws Exception {
+    void 보존_대상_Region이_Current에서_통째로_사라지면_스플라이스_실패로_Apply를_차단한다() throws Exception {
         CodeServiceGenerationExecutor executor = executor();
-        String v1 = "// @region:protected:a start\nORIGINAL\n// @region:protected:a end\n";
+        // Base/New 모두 protected Region "a"와 "c"를 갖는다 — 각각 Base/New 간 내용이 동일해
+        // 3-way 비교 단계에서는 어느 쪽도 개별적으로 문제를 일으키지 않는다.
+        String v1 = "// @region:protected:a start\nORIGINAL_A\n// @region:protected:a end\n"
+                + "// @region:protected:c start\nORIGINAL_C\n// @region:protected:c end\n";
         Path target = outputRoot.resolve("EmployerServiceImpl.java");
         executor.execute(new RenderedGenerationPlan(context(outputRoot),
                 List.of(RenderedFilePlan.rendered(new FileBlueprint("serviceImpl", "EmployerServiceImpl.java",
                         target, null), v1)), List.of(), List.of()));
 
-        // 사람이 마커 자체는 well-formed하게 유지하되 id만 "a"→"b"로 바꿔버렸다고 가정 — 파일은
-        // UNKNOWN으로 강등되지 않지만, New가 보존하려는 id "a" Region을 Current에서 찾을 수 없다.
-        String handEdited = "// @region:protected:b start\nHAND_EDITED\n// @region:protected:b end\n";
+        // 사람이 Region "a"의 마커 쌍(start~end)과 내용을 통째로 삭제했다고 가정 — id를 바꾸거나
+        // 마커를 짝 안 맞게 남긴 게 아니라 완전히 지운 것이므로 "c"는 여전히 well-formed하게
+        // 남아 RegionMarkerParser가 파일 전체를 UNKNOWN으로 강등시키지 않는다. Current에는 "c" 하나만
+        // 파싱된다.
+        String handEdited = "// @region:protected:c start\nORIGINAL_C\n// @region:protected:c end\n";
         Files.writeString(target, handEdited);
 
-        String v2 = "// @region:protected:a start\nORIGINAL\n// @region:protected:a end\n";
+        // New는 Base와 동일 — "a"는 New에서 여전히 PROTECTED로 타입이 알려져 unknownRegion 강제
+        // 승격이 발동하지 않는다. Base/New 모두 "a"를 가지므로 newRegion·baseRegion은 존재하지만
+        // Current에는 없어 CURRENT_ONLY로 자연스럽게 분류되고 preservedComparisonIds에 들어간다.
+        // spliceRegions()가 Current에서 "a"를 찾지 못해 splicedComparisonIds에 못 넣으므로
+        // unresolvedPreserved 체크가 Apply를 차단해야 한다.
+        String v2 = v1;
         GenerationExecution execution = executor.execute(new RenderedGenerationPlan(context(outputRoot),
                 List.of(RenderedFilePlan.rendered(new FileBlueprint("serviceImpl", "EmployerServiceImpl.java",
                         target, null), v2)), List.of(), List.of()));
@@ -229,6 +239,12 @@ class CodeServiceGenerationExecutorOwnershipTest {
         assertThat(execution.succeededFiles()).isEmpty();
         assertThat(execution.failedFiles()).hasSize(1);
         assertThat(execution.failedFiles().get(0).source()).isEqualTo("ownership-guard");
+        // Fix 1(Region 소유권 충돌) 경로가 아니라 Fix 2(스플라이스 실패) 경로로 정확히 들어왔는지
+        // 메시지 텍스트로 구분한다 — 향후 회귀가 Fix 1 경로로 잘못 흘러도 이 테스트가 잡아낸다.
+        assertThat(execution.failedFiles().get(0).description())
+                .doesNotContain("Region 소유권 충돌로 Apply 중단")
+                .contains("보존 대상 Region을 실제로 복원할 수 없어 Apply 중단")
+                .contains("EmployerServiceImpl.java::a");
         assertThat(target).hasContent(handEdited);
     }
 
