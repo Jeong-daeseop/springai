@@ -15,4 +15,16 @@ class GenerationOwnershipManifestTest {
         assertThat(manifest.hasValidContentHash()).isTrue();
         assertThat(manifest.artifacts()).containsExactly(artifact);
     }
+
+    @Test
+    void regionsFor는_해당_artifactPath의_Region_목록을_반환하고_없으면_빈_리스트다() {
+        var region = new GenerationOwnershipManifest.Region("controller.generated",
+                GenerationOwnershipManifest.RegionType.GENERATED, "a".repeat(64));
+        var artifact = new GenerationOwnershipManifest.ArtifactOwnership("src/Controller.java",
+                List.of(region), GenerationOwnershipManifest.MergePolicy.REGENERATE, "springai");
+        var manifest = GenerationOwnershipManifest.builder("ownership-2").artifacts(List.of(artifact)).build();
+
+        assertThat(manifest.regionsFor("src/Controller.java")).containsExactly(region);
+        assertThat(manifest.regionsFor("없는파일.java")).isEmpty();
+    }
 }

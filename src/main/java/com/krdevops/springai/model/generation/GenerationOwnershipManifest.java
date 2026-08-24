@@ -33,6 +33,15 @@ public record GenerationOwnershipManifest(
         return contentHash.equals(ContentHashes.sha256Hex(canonical().getBytes(StandardCharsets.UTF_8)));
     }
 
+    /** {@code artifactPath}에 해당하는 Region 목록. 없으면 빈 리스트(3-way 비교에서 Base 없음으로 취급). */
+    public List<Region> regionsFor(String artifactPath) {
+        return artifacts.stream()
+                .filter(artifact -> artifact.artifactPath().equals(artifactPath))
+                .findFirst()
+                .map(ArtifactOwnership::regions)
+                .orElse(List.of());
+    }
+
     public static final class Builder {
         private final String manifestId;
         private List<ArtifactOwnership> artifacts = List.of();
