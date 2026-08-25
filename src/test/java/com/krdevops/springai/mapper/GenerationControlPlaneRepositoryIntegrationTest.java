@@ -6,6 +6,7 @@ import com.krdevops.springai.model.controlplane.GenerationOperationStatus;
 import com.krdevops.springai.model.controlplane.ValidationEvidence;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
@@ -15,15 +16,22 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@EnabledIfEnvironmentVariable(named = "DB_PASSWORD", matches = ".+")
 class GenerationControlPlaneRepositoryIntegrationTest {
 
     private final JdbcTemplate jdbc = new JdbcTemplate(new DriverManagerDataSource(
             "jdbc:mysql://localhost:3306/ebt?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8",
             System.getenv().getOrDefault("DB_USERNAME", "ebt"),
-            System.getenv().getOrDefault("DB_PASSWORD", "ebt01")));
+            requiredDbPassword()));
     private final GenerationControlPlaneRepository repository =
             new GenerationControlPlaneRepository(jdbc, new ObjectMapper().findAndRegisterModules());
     private final String operationId = "control-plane-test-" + UUID.randomUUID();
+
+    private static String requiredDbPassword() {
+        String value = System.getenv("DB_PASSWORD");
+        if (value == null || value.isBlank()) throw new IllegalStateException("DB_PASSWORD 환경변수가 필요합니다.");
+        return value;
+    }
 
     @AfterEach
     void cleanup() {

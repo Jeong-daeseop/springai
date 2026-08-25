@@ -9,6 +9,7 @@ import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.api.MigrationInfo;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
@@ -25,6 +26,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *
  * <p>DB 연결이 필요한 통합 테스트라 {@code -Pci}에서 제외된다(다른 {@code *IntegrationTest}와 동일).
  */
+@EnabledIfEnvironmentVariable(named = "DB_PASSWORD", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "DB_ROOT_PASSWORD", matches = ".+")
 class FlywayMigrationIntegrationTest {
 
     private static final String HOST_URL_PREFIX =
@@ -32,13 +35,21 @@ class FlywayMigrationIntegrationTest {
     private static final String URL_SUFFIX =
             "?useSSL=false&allowPublicKeyRetrieval=true&characterEncoding=UTF-8";
     private static final String DB_USER = System.getenv().getOrDefault("DB_USERNAME", "ebt");
-    private static final String DB_PASSWORD = System.getenv().getOrDefault("DB_PASSWORD", "ebt01");
+    private static final String DB_PASSWORD = requiredEnvironment("DB_PASSWORD");
     // ebt 계정은 ebt/let 스키마에만 국한된 최소 권한이라(GRANT ALL ON ebt.*) 새 스키마를
     // 만들 수 없다. root는 이 테스트가 스키마 생성·권한 부여·삭제(cleanup)에만 짧게 쓰고,
     // 실제 Flyway migration 자체는 항상 ebt 계정으로 실행해 운영과 동일한 권한 경계를 지킨다.
-    private static final String ROOT_PASSWORD = System.getenv().getOrDefault("DB_ROOT_PASSWORD", "admin");
+    private static final String ROOT_PASSWORD = requiredEnvironment("DB_ROOT_PASSWORD");
 
     private String createdTestSchema;
+
+    private static String requiredEnvironment(String name) {
+        String value = System.getenv(name);
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException(name + " 환경변수가 필요한 DB 통합 테스트입니다.");
+        }
+        return value;
+    }
 
     private JdbcTemplate rootJdbc() {
         return new JdbcTemplate(new DriverManagerDataSource(HOST_URL_PREFIX + URL_SUFFIX, "root", ROOT_PASSWORD));

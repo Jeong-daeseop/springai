@@ -20,7 +20,7 @@
   <p class="lead">CRUD 생성과 Thymeleaf 전환 작업을 공통 읽기 모델로 조회합니다. 이 화면은 적용·승인 기능을 제공하지 않습니다.</p>
   <section class="panel" aria-labelledby="auth-title"><h2 id="auth-title">조회 인증</h2><div class="form">
     <label>API Key<input id="apiKey" type="password" autocomplete="off" placeholder="X-API-Key"></label>
-    <span class="hint">Key는 현재 탭의 sessionStorage에만 저장됩니다.</span><button id="loadMetrics" type="button">운영 지표 조회</button>
+    <span class="hint">Key는 브라우저 저장소에 기록하지 않고 현재 페이지 메모리에서만 사용합니다.</span><button id="loadMetrics" type="button">운영 지표 조회</button>
   </div><p id="message" role="status" aria-live="polite"></p></section>
   <section class="panel" aria-labelledby="metrics-title"><h2 id="metrics-title">운영 지표</h2><div class="cards">
     <div class="card"><span>CRUD 전체 Revision</span><strong id="crudRows">-</strong></div><div class="card"><span>CRUD 최신 Operation</span><strong id="crudOperations">-</strong></div>
@@ -34,8 +34,8 @@
     <button id="loadOperation" type="button">상세·증적·준비 상태 조회</button>
   </div><pre id="operationResult" aria-live="polite">조회 결과가 여기에 표시됩니다.</pre></section>
 </main><script>
-(()=>{'use strict';const el=id=>document.getElementById(id),key=el('apiKey');key.value=sessionStorage.getItem('generationOperationsApiKey')||'';
-const text=(id,value)=>{el(id).textContent=String(value??0)},headers=()=>{const value=key.value.trim();if(!value)throw new Error('API Key를 입력하세요.');sessionStorage.setItem('generationOperationsApiKey',value);return{'X-API-Key':value}},
+(()=>{'use strict';const el=id=>document.getElementById(id),key=el('apiKey');
+const text=(id,value)=>{el(id).textContent=String(value??0)},headers=()=>{const value=key.value.trim();if(!value)throw new Error('API Key를 입력하세요.');return{'X-API-Key':value}},
 request=async path=>{const response=await fetch(path,{headers:headers(),credentials:'same-origin'});if(!response.ok)throw new Error(`조회 실패 (${response.status})`);return response.json()},message=(value,kind)=>{el('message').textContent=value;el('message').dataset.kind=kind};
 el('loadMetrics').addEventListener('click',async()=>{try{const[m,c,r]=await Promise.all([request('/api/generation-operations/metrics'),request('/api/generation-operations/metrics/readiness-comparison'),request('/api/generation-operations/metrics/readiness-comparison/report')]);text('crudRows',m.crud?.totalRows);text('crudOperations',m.crud?.latestOperations);text('thymeleafRows',m.thymeleaf?.totalRows);text('thymeleafOperations',m.thymeleaf?.latestOperations);text('comparisonTotal',c.total);text('comparisonMatched',c.matched);text('comparisonMismatch',c.mismatch);el('mismatchReasons').textContent=JSON.stringify(c.mismatchReasons||{},null,2);el('comparisonReport').textContent=JSON.stringify(r,null,2);message('운영 지표를 갱신했습니다.','ok')}catch(e){message(e.message,'error')}});
 el('loadOperation').addEventListener('click',async()=>{const id=el('operationId').value.trim();if(!id){message('Operation ID를 입력하세요.','error');return}const type=el('sourceType').value,base=`/api/generation-operations/${encodeURIComponent(id)}`,query=`?sourceType=${encodeURIComponent(type)}`;try{const[operation,evidence,readiness]=await Promise.all([request(base+query),request(base+'/evidence'+query),request(base+'/readiness'+query)]);el('operationResult').textContent=JSON.stringify({operation,evidence,readiness},null,2);message('Operation 조회를 완료했습니다.','ok')}catch(e){message(e.message,'error')}})})();
