@@ -1,12 +1,16 @@
 package com.krdevops.springai.service.generation.pipeline.processor;
 
 import com.krdevops.springai.config.PipelineEvolutionProperties;
+import com.krdevops.springai.config.observability.ObservabilityContextHolder;
+import com.krdevops.springai.model.controlplane.GenerationAuditRecord;
+import com.krdevops.springai.model.controlplane.GenerationOperationStatus;
 import com.krdevops.springai.model.artifact.ContentHashes;
 import com.krdevops.springai.model.generation.GenerationOwnershipManifest;
 import com.krdevops.springai.model.generation.ThreeWayRegionComparison;
 import com.krdevops.springai.model.write.ProjectChangeSet;
 import com.krdevops.springai.model.write.ProjectWritePolicy;
 import com.krdevops.springai.service.CodeService;
+import com.krdevops.springai.service.controlplane.CrudGenerationAuditPort;
 import com.krdevops.springai.service.generation.ApprovedWriteConflictGuard;
 import com.krdevops.springai.service.generation.CrudGenerationOperationIdFactory;
 import com.krdevops.springai.service.generation.CrudGenerationSnapshotStore;
@@ -35,6 +39,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.time.Instant;
+import java.util.UUID;
 
 /**
  * WP7 2차 pass/ARCH-0716: CRUD Pipeline 내 유일한 WRITE 어댑터. (Board/Master-Detail Orchestration
@@ -57,6 +63,7 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
     private final CrudGenerationSnapshotStore snapshotStore;
     private final SemanticMergePlanService semanticMergePlanService;
     private final ApprovedWriteConflictGuard approvedWriteConflictGuard;
+    private final CrudGenerationAuditPort auditPort;
 
     @Autowired
     public CodeServiceGenerationExecutor(
@@ -65,13 +72,26 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
             PipelineEvolutionProperties pipelineEvolutionProperties,
             CrudGenerationSnapshotStore snapshotStore,
             SemanticMergePlanService semanticMergePlanService,
-            ApprovedWriteConflictGuard approvedWriteConflictGuard) {
+            ApprovedWriteConflictGuard approvedWriteConflictGuard,
+            CrudGenerationAuditPort auditPort) {
         this.codeService = codeService;
         this.writePort = writePort;
         this.pipelineEvolutionProperties = pipelineEvolutionProperties;
         this.snapshotStore = snapshotStore;
         this.semanticMergePlanService = semanticMergePlanService;
         this.approvedWriteConflictGuard = approvedWriteConflictGuard;
+        this.auditPort = auditPort;
+    }
+
+    public CodeServiceGenerationExecutor(
+            CodeService codeService,
+            ApprovedProjectWritePort writePort,
+            PipelineEvolutionProperties pipelineEvolutionProperties,
+            CrudGenerationSnapshotStore snapshotStore,
+            SemanticMergePlanService semanticMergePlanService,
+            ApprovedWriteConflictGuard approvedWriteConflictGuard) {
+        this(codeService, writePort, pipelineEvolutionProperties, snapshotStore, semanticMergePlanService,
+                approvedWriteConflictGuard, CrudGenerationAuditPort.none());
     }
 
     /** Ownership Guard 도입 전 4-arg 호출자·테스트 호환. */
@@ -80,7 +100,7 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
             PipelineEvolutionProperties pipelineEvolutionProperties, CrudGenerationSnapshotStore snapshotStore) {
         this(codeService, writePort, pipelineEvolutionProperties, snapshotStore,
                 new SemanticMergePlanService(new OwnershipConflictDetector(), new GeneratedRegionPreservationService()),
-                new ApprovedWriteConflictGuard());
+                new ApprovedWriteConflictGuard(), CrudGenerationAuditPort.none());
     }
 
     /** Ownership Guard 도입 전 2-arg 호출자·테스트 호환 — usesV2Preview()가 항상 false이므로 legacy 경로만 탄다. */
@@ -219,12 +239,17 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
         }
 
         var mergePlan = semanticMergePlanService.preview(allComparisons, regionTypes);
+        List<String> changedFiles = toApply.stream()
+                .map(file -> outputRoot.relativize(file.targetPath()).toString()).toList();
         try {
             approvedWriteConflictGuard.requireApplyAllowed(mergePlan);
         } catch (ApprovedWriteConflictGuard.ApplyConflictBlockedException conflict) {
+            recordAudit(operationId, plan, mergePlan, changedFiles, GenerationOperationStatus.CONFLICT,
+                    "ownership-guard", "사용자 수정과 새 생성 결과가 동시에 변경됨");
             List<GenerationFailure> failures = new ArrayList<>(renderFailures);
             failures.add(new GenerationFailure("ownership-guard",
-                    "Region 소유권 충돌로 Apply 중단: " + conflict.plan().conflictRegionIds()));
+                    "사용자 수정과 새 생성 결과의 Region 충돌로 Apply 중단: "
+                            + conflict.plan().conflictRegionIds()));
             return new GenerationExecution(plan, List.of(), failures);
         }
 
@@ -250,6 +275,8 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
         Set<String> unresolvedPreserved = new LinkedHashSet<>(preservedComparisonIds);
         unresolvedPreserved.removeAll(splicedComparisonIds);
         if (!unresolvedPreserved.isEmpty()) {
+            recordAudit(operationId, plan, mergePlan, changedFiles, GenerationOperationStatus.FAILED,
+                    "ownership-guard", "보존 대상 Region 복원 실패: " + unresolvedPreserved);
             List<GenerationFailure> failures = new ArrayList<>(renderFailures);
             failures.add(new GenerationFailure("ownership-guard",
                     "보존 대상 Region을 실제로 복원할 수 없어 Apply 중단(마커 손상 가능성): "
@@ -262,12 +289,16 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
                 outputPath, null, changes, List.of(), ProjectWritePolicy.ATOMIC_APPROVED));
 
         if (outcome.status() == ApplyOutcome.Status.CONFLICT) {
+            recordAudit(operationId, plan, mergePlan, changedFiles, GenerationOperationStatus.CONFLICT,
+                    "write-guard", "동시 파일 수정: " + outcome.conflictingPaths());
             List<GenerationFailure> failures = new ArrayList<>(renderFailures);
             failures.add(new GenerationFailure("write-guard",
                     "동시 수정으로 파일 Revision이 어긋나 Apply 중단: " + outcome.conflictingPaths()));
             return new GenerationExecution(plan, List.of(), failures);
         }
         if (outcome.status() != ApplyOutcome.Status.APPLIED) {
+            recordAudit(operationId, plan, mergePlan, changedFiles, GenerationOperationStatus.FAILED,
+                    "write-guard", outcome.failureDetail());
             List<GenerationFailure> failures = new ArrayList<>(renderFailures);
             failures.add(new GenerationFailure("write-guard",
                     "Apply 실패(" + outcome.status() + "): " + outcome.failureDetail()));
@@ -275,7 +306,25 @@ public class CodeServiceGenerationExecutor implements GenerationExecutor {
         }
 
         snapshotStore.save(operationId, buildOwnershipManifest(operationId, finalRegionsByPath));
+        recordAudit(operationId, plan, mergePlan, changedFiles, GenerationOperationStatus.APPLIED, null, null);
         return new GenerationExecution(plan, toApply, renderFailures);
+    }
+
+    private void recordAudit(String operationId, RenderedGenerationPlan plan,
+            SemanticMergePlanService.SemanticMergePlan mergePlan, List<String> changedFiles,
+            GenerationOperationStatus status, String failureStage, String failureDetail) {
+        var context = ObservabilityContextHolder.current();
+        try {
+            auditPort.append(new GenerationAuditRecord(
+                    UUID.randomUUID().toString(), operationId, 0, plan.context().outputPath(),
+                    plan.context().tableName(), null, context.channel(), context.actorId(),
+                    System.getProperty("spring.profiles.active", "UNKNOWN"), mergePlan.changedRegionIds(),
+                    mergePlan.preservedRegionIds(), mergePlan.conflictRegionIds(), changedFiles, status,
+                    failureStage, failureDetail, Instant.now()));
+        } catch (RuntimeException exception) {
+            // 감사 저장 장애가 기존 파일 생성 결과를 바꾸지 않도록 한다.
+            log.error("[pipeline] CRUD 생성 감사 이력 저장 실패: operationId={}", operationId, exception);
+        }
     }
 
     /** PRESERVE 대상 Region만 New 콘텐츠에서 Current 내용으로 치환한다. 실제로 치환에 성공한

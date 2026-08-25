@@ -235,6 +235,30 @@
   "method" : "POST",
   "path" : "/api/figma/tokens"
 }, {
+  "controller" : "GenerationOperationsController",
+  "method" : "GET",
+  "path" : "/api/generation-operations/metrics"
+}, {
+  "controller" : "GenerationOperationsController",
+  "method" : "GET",
+  "path" : "/api/generation-operations/metrics/readiness-comparison"
+}, {
+  "controller" : "GenerationOperationsController",
+  "method" : "GET",
+  "path" : "/api/generation-operations/metrics/readiness-comparison/report"
+}, {
+  "controller" : "GenerationOperationsController",
+  "method" : "GET",
+  "path" : "/api/generation-operations/{operationId}"
+}, {
+  "controller" : "GenerationOperationsController",
+  "method" : "GET",
+  "path" : "/api/generation-operations/{operationId}/evidence"
+}, {
+  "controller" : "GenerationOperationsController",
+  "method" : "GET",
+  "path" : "/api/generation-operations/{operationId}/readiness"
+}, {
   "controller" : "OperationalStatusController",
   "method" : "POST",
   "path" : "/api/operations/artifacts/reconcile"

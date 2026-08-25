@@ -571,7 +571,9 @@ public class ThymeleafProjectWorkflowService {
         try (var ignored = ObservabilityContextHolder.openOperation(snapshot.operation().operationId())) {
             eventPort.append(new OperationEvent(UUID.randomUUID().toString(), snapshot.operation().operationId(),
                     "THYMELEAF_PROJECT", snapshot.revision(), from == null ? null : from.name(), to.name(), type,
-                    context.actorId() == null ? "system" : context.actorId(), context.correlationId(),
+                    context.actorId() == null ? "system" : context.actorId(),
+                    context.channel() == null ? "UNKNOWN" : context.channel(),
+                    System.getProperty("spring.profiles.active", "UNKNOWN"), context.correlationId(),
                     snapshot.previewHash(), java.time.Instant.now()));
         }
     }

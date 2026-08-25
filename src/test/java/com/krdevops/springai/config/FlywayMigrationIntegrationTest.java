@@ -1,5 +1,9 @@
 package com.krdevops.springai.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.mapper.ReadinessComparisonRepository;
+import com.krdevops.springai.model.controlplane.GenerationSourceType;
+import com.krdevops.springai.model.controlplane.ReadinessComparisonRecord;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.FlywayException;
 import org.flywaydb.core.api.MigrationInfo;
@@ -10,6 +14,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -82,7 +87,25 @@ class FlywayMigrationIntegrationTest {
                 "AI_FIGMA_GENERATION_REPORT", "AI_FIGMA_REVIEW_HISTORY", "AI_FIGMA_SCREEN_SPEC",
                 "AI_FIGMA_REFINEMENT_SET", "AI_FIGMA_REFINEMENT_PATCH",
                 "AI_GENERATION_HISTORY", "AI_SCREEN_SPECIFICATION",
-                "AI_THYMELEAF_PROJECT_OPERATION", "AI_THYMELEAF_PROJECT_OPERATION_IDEMPOTENCY");
+                "AI_THYMELEAF_PROJECT_OPERATION", "AI_THYMELEAF_PROJECT_OPERATION_IDEMPOTENCY",
+                "AI_GENERATION_OPERATION_AUDIT", "AI_GENERATION_VALIDATION_EVIDENCE",
+                "AI_GENERATION_READINESS_COMPARISON");
+        List<String> eventColumns = testSchemaJdbc.queryForList("""
+                SELECT COLUMN_NAME FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'AI_OPERATION_EVENT'
+                """, String.class, createdTestSchema);
+        assertThat(eventColumns).contains("CALLER_TYPE", "ENVIRONMENT_NAME");
+        var comparisonRepository = new ReadinessComparisonRepository(
+                testSchemaJdbc, new ObjectMapper().findAndRegisterModules());
+        Instant observedAt = Instant.parse("2026-08-25T00:00:00Z");
+        comparisonRepository.append(new ReadinessComparisonRecord(UUID.randomUUID().toString(),
+                "migration-test", GenerationSourceType.CRUD, true, false, false,
+                "COMMON_EVIDENCE_MISSING", List.of(), List.of(), List.of("BUILD"), observedAt));
+        var report = comparisonRepository.report(observedAt.minusSeconds(1), observedAt.plusSeconds(1)).orElseThrow();
+        assertThat(report.total()).isEqualTo(1);
+        assertThat(report.mismatchRate()).isEqualTo(1.0);
+        assertThat(report.mismatchReasons()).containsEntry("COMMON_EVIDENCE_MISSING", 1L);
+        assertThat(report.sourceTypeCounts()).containsEntry("CRUD", 1L);
         assertThat(flyway.info().pending()).isEmpty();
     }
 

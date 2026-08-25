@@ -14,4 +14,9 @@ public class EgovWebController {
     public String chatPage() {
         return "chat";
     }
+
+    @GetMapping("/ai/generation-operations")
+    public String generationOperationsPage() {
+        return "generation-operations";
+    }
 }
