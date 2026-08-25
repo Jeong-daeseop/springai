@@ -124,6 +124,11 @@ app:
     auto-approval-confidence-threshold: ${APP_PIPELINE_AUTO_APPROVAL_CONFIDENCE_THRESHOLD:0.85}
     # 이 값 미만은 원본 Evidence가 있어도 증거 품질 부족으로 Apply를 차단한다.
     evidence-confidence-threshold: ${APP_PIPELINE_EVIDENCE_CONFIDENCE_THRESHOLD:0.60}
+  # CRUD_명시적_승인_단계_구현_명세서.md §4 옵션 B. 기본값(빈 목록·false)에서는 기존 동작과
+  # 완전히 동일하다 — 운영 중 특정 테이블을 여기 추가해야만 승인 게이트가 켜진다.
+  crud-generation:
+    approval-required-tables: []
+    approval-required-for-all: false
   # R5-004: 명시적으로 켠 경우에만 기본 다운로드가 Catalog+Registry v3 SSOT를 요구한다.
   figma-ssot-bundle-enabled: ${APP_FIGMA_SSOT_BUNDLE_ENABLED:false}
   templates:

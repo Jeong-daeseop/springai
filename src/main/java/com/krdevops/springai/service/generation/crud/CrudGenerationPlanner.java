@@ -1,6 +1,9 @@
 package com.krdevops.springai.service.generation.crud;
 
 import com.krdevops.springai.config.PipelineEvolutionProperties;
+import com.krdevops.springai.config.observability.ObservabilityContextHolder;
+import com.krdevops.springai.model.controlplane.GenerationAuditRecord;
+import com.krdevops.springai.model.controlplane.GenerationOperationStatus;
 import com.krdevops.springai.model.crud.CrudGenerationOptions;
 import com.krdevops.springai.model.crud.CrudLayerDefinition;
 import com.krdevops.springai.model.crud.CrudLayoutMode;
@@ -24,7 +27,9 @@ import com.krdevops.springai.service.generation.model.GenerationStage;
 import com.krdevops.springai.service.generation.model.GenerationWarning;
 import com.krdevops.springai.service.generation.model.ProcessorStep;
 import com.krdevops.springai.service.generation.pipeline.processor.SharedProcessorIds;
+import com.krdevops.springai.service.controlplane.CrudGenerationAuditPort;
 import com.krdevops.springai.service.designsystem.RequiredComponentMappingApplyGate;
+import com.krdevops.springai.service.generation.CrudGenerationOperationIdFactory;
 import com.krdevops.springai.service.migration.LegacyCompatibilityService;
 import com.krdevops.springai.service.migration.PipelineMigrationGuard;
 import com.krdevops.springai.model.renderer.RendererCapabilityRequirement;
@@ -38,12 +43,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.LinkedHashSet;
+import java.util.UUID;
 
 /**
  * CRUD 생성 Blueprint를 조립한다. 명세서 §12.1.
@@ -71,6 +78,8 @@ public class CrudGenerationPlanner {
     private final PipelineEvolutionProperties pipelineEvolutionProperties;
     private final PipelineMigrationGuard pipelineMigrationGuard;
     private final LegacyCompatibilityService legacyCompatibilityService;
+    private final CrudGenerationApprovalPolicy approvalPolicy;
+    private final CrudGenerationAuditPort auditPort;
 
     @Autowired
     public CrudGenerationPlanner(
@@ -85,7 +94,9 @@ public class CrudGenerationPlanner {
             RendererCapabilityMatrixService rendererCapabilityMatrixService,
             PipelineEvolutionProperties pipelineEvolutionProperties,
             PipelineMigrationGuard pipelineMigrationGuard,
-            LegacyCompatibilityService legacyCompatibilityService) {
+            LegacyCompatibilityService legacyCompatibilityService,
+            CrudGenerationApprovalPolicy approvalPolicy,
+            CrudGenerationAuditPort auditPort) {
         this.crudSchemaQueryService = crudSchemaQueryService;
         this.crudProgramMetadataService = crudProgramMetadataService;
         this.generationDesignContextService = generationDesignContextService;
@@ -98,6 +109,29 @@ public class CrudGenerationPlanner {
         this.pipelineEvolutionProperties = pipelineEvolutionProperties;
         this.pipelineMigrationGuard = pipelineMigrationGuard;
         this.legacyCompatibilityService = legacyCompatibilityService;
+        this.approvalPolicy = approvalPolicy;
+        this.auditPort = auditPort == null ? CrudGenerationAuditPort.none() : auditPort;
+    }
+
+    /** APR-B03 도입 전 12-arg 호출자 호환. */
+    public CrudGenerationPlanner(
+            CrudSchemaQueryService crudSchemaQueryService,
+            CrudProgramMetadataService crudProgramMetadataService,
+            GenerationDesignContextService generationDesignContextService,
+            CrudModelFactory crudModelFactory,
+            ThymeleafLayoutValidator thymeleafLayoutValidator,
+            BoardRouteCollisionDetector routeCollisionDetector,
+            RequiredComponentMappingApplyGate componentMappingApplyGate,
+            RendererProfileLoader rendererProfileLoader,
+            RendererCapabilityMatrixService rendererCapabilityMatrixService,
+            PipelineEvolutionProperties pipelineEvolutionProperties,
+            PipelineMigrationGuard pipelineMigrationGuard,
+            LegacyCompatibilityService legacyCompatibilityService) {
+        this(crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
+                crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector,
+                componentMappingApplyGate, rendererProfileLoader, rendererCapabilityMatrixService,
+                pipelineEvolutionProperties, pipelineMigrationGuard, legacyCompatibilityService,
+                null, CrudGenerationAuditPort.none());
     }
 
     /** MAP-012/R2-007 도입 전 7-arg 호출자 호환. */
@@ -157,6 +191,25 @@ public class CrudGenerationPlanner {
             return CrudGenerationPlan.rejected(new CrudPlanFailure(
                     CrudPlanFailure.Kind.MAPPING_BLOCKED,
                     "V2_APPLY 모드에서는 Thymeleaf 생성 전 Figma 디자인 참조로 승인된 화면명세가 필요합니다",
+                    List.of(
+                            "1. analyzeFigmaReference(figmaUrl, nodeId, featureType=\"crud\") 호출 → 분석 ID 획득",
+                            "2. createScreenSpecification(database, tableName, screenName, featureType=\"crud\", "
+                                    + "designAnalysisId) 호출 — APPROVED면 바로 사용, REVIEW_REQUIRED면 "
+                                    + "reviseScreenSpecification() 후 approveScreenSpecification() 호출",
+                            "3. buildFullCrudPrompt(..., screenSpecificationId=승인된 화면명세 ID)로 다시 호출"),
+                    null, null, null, null, List.of()));
+        }
+
+        // CRUD_명시적_승인_단계_구현_명세서.md §4 옵션 B: 고위험으로 지정된 테이블(또는 전체)은
+        // viewType과 무관하게 승인된 화면명세 없이는 auto 생성을 차단한다. 위 V2_APPLY 가드와
+        // 달리 이 정책은 Thymeleaf에 한정되지 않는다 — approvalRequiredForAll이면 JSP도 막힌다.
+        if (approvalPolicy != null && approvalPolicy.requiresApproval(tableName)
+                && isBlank(options.designReferenceId()) && isBlank(options.screenSpecificationId())) {
+            log.warn("[plan] 고위험 테이블 승인 정책: 승인된 화면명세 없이 생성 시도 차단: table={}", tableName);
+            recordApprovalPolicyBlocked(outputPath, tableName, viewType.value());
+            return CrudGenerationPlan.rejected(new CrudPlanFailure(
+                    CrudPlanFailure.Kind.MAPPING_BLOCKED,
+                    "이 테이블은 승인된 화면명세 없이 생성이 차단됩니다(고위험 테이블 정책)",
                     List.of(
                             "1. analyzeFigmaReference(figmaUrl, nodeId, featureType=\"crud\") 호출 → 분석 ID 획득",
                             "2. createScreenSpecification(database, tableName, screenName, featureType=\"crud\", "
@@ -343,6 +396,23 @@ public class CrudGenerationPlanner {
 
     private static boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    /** APR-B04: 승인 정책으로 차단된 시도도 다른 실패 사유와 동일하게 감사 이력에 남긴다. */
+    private void recordApprovalPolicyBlocked(String outputPath, String tableName, String viewType) {
+        String operationId = CrudGenerationOperationIdFactory.forScreen(outputPath, tableName, viewType);
+        var context = ObservabilityContextHolder.current();
+        try {
+            auditPort.append(new GenerationAuditRecord(
+                    UUID.randomUUID().toString(), operationId, 0, outputPath, tableName, null,
+                    context.channel(), context.actorId(),
+                    System.getProperty("spring.profiles.active", "UNKNOWN"),
+                    List.of(), List.of(), List.of(), List.of(),
+                    GenerationOperationStatus.REJECTED, "approval-policy",
+                    "고위험 테이블 정책: 승인된 화면명세 없이 생성 시도 차단", Instant.now()));
+        } catch (RuntimeException exception) {
+            log.error("[plan] 승인 정책 차단 감사 이력 저장 실패: operationId={}", operationId, exception);
+        }
     }
 
     private static boolean detailSubsetRequested(ScreenSpecification screenSpecification) {

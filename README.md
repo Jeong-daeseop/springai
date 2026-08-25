@@ -136,6 +136,26 @@ Claude Desktop 설정은 사용 중인 `mcp-remote` 버전의 custom header 전�
 
 자세한 절차는 [WP1 MCP 보안 Runbook](docs/architecture/security/ARCH-WP1-MCP-보안-운영-Runbook.md)을 참고하십시오.
 
+## CRUD 생성 승인 정책(고위험 테이블)
+
+CRUD 자동 생성(`llmProvider=auto`)은 기본적으로 사람의 승인 없이 즉시 파일을 저장합니다. 특정
+테이블만 승인된 화면명세(`designReferenceId`/`screenSpecificationId`) 없이는 생성을 차단하고
+싶다면 `application.yaml`에 테이블명을 추가하십시오.
+
+```yaml
+app:
+  crud-generation:
+    approval-required-tables:
+      - LETTNEMPLYRINFO   # 여기 등록된 테이블은 승인된 화면명세 없이는 auto 생성이 차단됩니다
+    approval-required-for-all: false   # true면 viewType·목록과 무관하게 전체 테이블에 강제
+```
+
+기본값(빈 목록·`false`)에서는 기존 동작과 완전히 동일합니다. 차단된 시도는 다른 실패와 동일하게
+`AI_GENERATION_OPERATION_AUDIT`에 `failureStage=approval-policy`로 남고, `/api/generation-operations/**`
+(14.1절)로 조회할 수 있습니다. 배경과 대안 비교는
+[CRUD 명시적 승인 단계 도입 타당성 검토](docs/architecture/CRUD_명시적_승인_단계_도입_타당성_검토.md)를
+참고하십시오.
+
 ## 개발 및 검증
 
 ```bash
@@ -163,6 +183,8 @@ CI에서 로컬 ONNX·DB·Redis 의존성을 제외하려면 다음을 사용합
 - [전체 아키텍처 재분석](docs/architecture/SpringAI_프로젝트_전체_아키텍처_재분석_2026-08-03.md)
 - [5축 파이프라인 Release Gate 운영 Runbook](docs/figma/31_5Axis_Pipeline_Release_Gate_Operations_Runbook.md)
 - [5축 벤치마크 기반 구현목록](docs/figma/30_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_List.md)
+- [CRUD 명시적 승인 단계 구현 명세서](docs/architecture/CRUD_명시적_승인_단계_구현_명세서.md) /
+  [구현목록](docs/architecture/CRUD_명시적_승인_단계_구현목록.md)
 
 운영 DB·Redis 연결을 실제로 확인하려면 `./scripts/pipeline-live-smoke.sh`를 실행합니다.
 
