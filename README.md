@@ -181,6 +181,9 @@ CI에서 로컬 ONNX·DB·Redis 의존성을 제외하려면 다음을 사용합
 - [WP0 계약·테스트 기준선](docs/architecture/baseline/ARCH-WP0-baseline-2026-08-03.md)
 - [WP1 MCP 보안 Runbook](docs/architecture/security/ARCH-WP1-MCP-보안-운영-Runbook.md)
 - [전체 아키텍처 재분석](docs/architecture/SpringAI_프로젝트_전체_아키텍처_재분석_2026-08-03.md)
+- [SpringAI 아키텍처 다이어그램](docs/figma/artifacts/SpringAI_Architecture_Target_Pipeline.html)
+  (런타임 요청 흐름·생성 파이프라인·MySQL 데이터 흐름·Thymeleaf 마이그레이션 승인 워크플로우 등
+  14개 다이어그램, 브라우저에서 직접 열람)
 - [5축 파이프라인 Release Gate 운영 Runbook](docs/figma/31_5Axis_Pipeline_Release_Gate_Operations_Runbook.md)
 - [5축 벤치마크 기반 구현목록](docs/figma/30_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_List.md)
 - [CRUD 명시적 승인 단계 구현 명세서](docs/architecture/CRUD_명시적_승인_단계_구현_명세서.md) /
