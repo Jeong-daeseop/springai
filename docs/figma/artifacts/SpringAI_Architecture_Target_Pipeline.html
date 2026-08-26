@@ -52,16 +52,20 @@
 
   * { box-sizing: border-box; }
 
+  html { overflow-x: hidden; }
+
   body {
     margin: 0;
     background: var(--bg);
     color: var(--ink);
     font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", -apple-system, sans-serif;
     padding: 48px 24px 80px;
+    overflow-x: hidden;
   }
 
   main {
     max-width: 1180px;
+    width: 100%;
     margin: 0 auto;
   }
 
@@ -148,6 +152,7 @@
 
   .svg-scroll {
     overflow-x: auto;
+    max-width: 100%;
     border-radius: 8px;
   }
 
@@ -206,6 +211,13 @@
     color: var(--surface);
     letter-spacing: 0.02em;
   }
+  .ver-tag.proposed {
+    background: transparent;
+    border: 1px dashed var(--accent);
+    color: var(--accent);
+  }
+  .node-box.proposed { fill: var(--accent-soft); stroke: var(--accent); stroke-dasharray: 6 4; }
+  .ver-tag.implemented { background: var(--good); color: var(--surface); }
   .step-badge circle { fill: var(--accent); }
   .step-badge text { fill: var(--surface); font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; font-weight: 600; }
 
@@ -311,6 +323,55 @@
   .contract-boundary div:nth-child(2) { border-left-color: var(--rest); }
   .contract-boundary div:nth-child(3) { border-left-color: var(--good); }
 
+  .finding-box {
+    margin: 18px 0 22px;
+    padding: 20px 22px;
+    border: 1px solid var(--rest);
+    border-radius: 14px;
+    background: var(--rest-soft);
+  }
+  .finding-box h4 { margin: 0 0 8px; font-size: 15px; }
+  .finding-box p { margin: 0; color: var(--ink); font-size: 13px; line-height: 1.65; }
+  .finding-box p + p { margin-top: 10px; }
+
+  .data-table-wrap {
+    overflow-x: auto;
+    max-width: 100%;
+    margin-top: 16px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .data-table-wrap td, .data-table-wrap th { overflow-wrap: anywhere; }
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 980px; }
+  table.data-table th, table.data-table td {
+    padding: 9px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+    line-height: 1.55;
+  }
+  table.data-table thead th {
+    background: var(--surface-2);
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--ink-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  table.data-table tbody tr:last-child td { border-bottom: none; }
+  table.data-table td code, table.data-table th code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0.05em 0.35em;
+  }
+  table.data-table tr.pattern-worm td:first-child { border-left: 3px solid var(--ink-muted); }
+  table.data-table tr.pattern-revision td:first-child { border-left: 3px solid var(--accent); }
+  table.data-table tr.pattern-upsert td:first-child { border-left: 3px solid var(--rest); }
+  table.data-table .unverified { opacity: 0.6; font-style: italic; }
+
   @media (max-width: 980px) {
     .pipeline-steps { grid-template-columns: 1fr; gap: 12px; }
     .pipeline-step { min-height: auto; }
@@ -396,7 +457,7 @@
           <!-- Row 4: shared service layer -->
           <rect class="node-box hub" x="360" y="404" width="440" height="72" rx="10"></rect>
           <text class="node-title" x="580" y="432" text-anchor="middle">Application / Generation Services</text>
-          <text class="node-sub" x="580" y="450" text-anchor="middle">CRUD·Board·Master-Detail·Thymeleaf·Figma 서비스 공유</text>
+          <text class="node-sub" x="580" y="450" text-anchor="middle">CRUD 소스·Board·Master-Detail·Thymeleaf·Figma 서비스 공유</text>
 
           <!-- Row 5: downstream systems -->
           <rect class="node-box" x="40" y="540" width="230" height="64" rx="8"></rect>
@@ -471,7 +532,7 @@
       <div class="pipeline-steps" aria-label="SpringAI 목표 화면 생성 7단계">
         <div class="pipeline-step visual"><span class="number">01 · VISUAL INPUT</span><strong>Figma / 디자인</strong><small>프레임·컴포넌트·시각 참조</small></div>
         <div class="pipeline-step visual"><span class="number">02 · VISUAL CONTRACT</span><strong>시각 구조와 디자인 토큰</strong><small>Layout·Token·Component 선택</small></div>
-        <div class="pipeline-step visual"><span class="number">03 · NORMALIZE</span><strong>UiDesignSpec</strong><small>시각 의미의 내부 계약화</small></div>
+        <div class="pipeline-step visual"><span class="number">03 · NORMALIZE</span><strong>UiDesignSpec</strong><small>시각 의미의 내부 계약화 · v2 진행 중(12번)</small></div>
         <div class="pipeline-step binding"><span class="number">04 · BUSINESS BINDING</span><strong>DB·Controller·VO·권한 결합</strong><small>Route·Field·Validation·CSRF</small></div>
         <div class="pipeline-step gate"><span class="number">05 · APPROVAL GATE</span><strong>APPROVED ScreenSpecification</strong><small>시각·업무 계약의 승인본</small></div>
         <div class="pipeline-step"><span class="number">06 · GENERATE</span><strong>FreeMarker 기반 Thymeleaf 생성</strong><small>Skeleton 생성 후 Binding 적용</small></div>
@@ -631,7 +692,9 @@
         6개 조각(figmaScreenSpec·designSystemProfile·componentRegistry·resolvedComponentRegistry·
         screenPattern·variantRuleSet)을 조립하고, <code>FigmaExportController</code>의
         <code>GET /screens/{screenId}/download</code> 엔드포인트가 파일명
-        <code>{screenId}.figma-export-bundle.json</code>으로 내려줍니다. <b>Thymeleaf 코드 생성(6번 경로)과는
+        <code>{screenId}.figma-export-bundle.json</code>으로 내려줍니다. 이때 <code>generateFigmaScreenSpec()</code>이
+        먼저 MySQL <code>AI_FIGMA_SCREEN_SPEC</code>(PK: SCREEN_ID, SCREEN_VERSION, revision-append)에 기록한 뒤
+        조립을 시작합니다 — 13번 다이어그램 참고. <b>Thymeleaf 코드 생성(6번 경로)과는
         완전히 독립된 별도 소비 경로</b>이며, <code>figma-screen-spec-plugin</code>이 이를 검증한 뒤 실제
         Component Instance로 화면을 생성합니다.
         <code>figma-screen-spec-plugin</code> 박스의 <span style="color:var(--good)">3번 배지</span>를 클릭하면
@@ -642,7 +705,7 @@
       </figcaption>
     </figure>
 
-    <h3 class="subsection-title">2.2 코드 생성 Tool 오케스트레이션</h3>
+    <h3 class="subsection-title" id="generate-crud-project-usecase">2.2 코드 생성 Tool 오케스트레이션</h3>
     <p class="subsection-sub">
       화면 하나를 만들기까지 사람이 순서대로 호출해야 하는 MCP Tool 체인입니다. 아래는 파일 위치가 아니라
       <b>Tool 실행 순서와 서로의 전제 조건</b>을 보여줍니다 — 특히 1·2단계는 같은 layout 파일 경로를 두고
@@ -650,7 +713,7 @@
     </p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 1080" role="img" aria-label="ProjectInitializrTool.initializeProject가 프로젝트 골격과 정적 layout을 만들고, ThymeleafLayoutTool.generateThymeleafLayout이 같은 layout 파일을 덮어써 동적 GNB로 업그레이드하며 packageName이 일치해야 한다. 이후 선택적으로 DesignReferenceTool 계열이 화면명세를 만들거나 ScreenSourceTool 계열로 화면 1개만 미리보기할 수 있고, CrudPromptBuilderTool 등 화면 생성 Tool의 결과는 CrudGenerationDispatchService가 llmProvider에 따라 auto면 서버가 직접 파일을 저장하고 claude면 프롬프트 텍스트만 반환해 Claude Desktop이 코드를 작성하도록 갈라진다. auto 경로는 선택적으로 JoinQueryTool로 JOIN을 보강한 뒤 선택적으로 MenuTool이 메뉴를 등록한다.">
+        <svg viewBox="0 0 1180 1180" role="img" aria-label="ProjectInitializrTool.initializeProject가 프로젝트 골격과 정적 layout을 만들고, ThymeleafLayoutTool.generateThymeleafLayout이 같은 layout 파일을 덮어써 동적 GNB로 업그레이드하며 packageName이 일치해야 한다. 이후 선택적으로 DesignReferenceTool 계열이 화면명세를 만들거나 ScreenSourceTool 계열로 화면 1개만 미리보기할 수 있고, CrudPromptBuilderTool 등 화면 생성 Tool의 결과는 CrudGenerationDispatchService가 llmProvider에 따라 auto면 서버가 직접 파일을 저장하고 claude면 프롬프트 텍스트만 반환해 Claude Desktop이 코드를 작성하도록 갈라진다. auto 경로는 CrudGenerationApprovalPolicy가 고위험 테이블로 설정된 경우 승인된 화면명세 없이는 차단하며, 통과하면 선택적으로 JoinQueryTool로 JOIN을 보강한 뒤 선택적으로 MenuTool이 메뉴를 등록한다.">
           <defs>
             <marker id="arrow2b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow2bAccent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
@@ -690,6 +753,7 @@
             <text class="node-title" x="240" y="350" text-anchor="middle">DesignReferenceTool 계열 (선택)</text>
             <text class="node-sub" x="240" y="368" text-anchor="middle">analyzeFigmaReference → createScreenSpecification</text>
             <text class="node-sub" x="240" y="386" text-anchor="middle">→ approveScreenSpecification</text>
+            <text class="node-sub" x="240" y="404" text-anchor="middle" style="font-size:9.5px;fill:var(--accent)">→ MySQL AI_DESIGN_ANALYSIS · AI_SCREEN_SPECIFICATION 기록(13번 참고)</text>
             <g class="jump-badge"><circle cx="402" cy="334" r="12"></circle><text x="402" y="338" text-anchor="middle">5</text></g>
           </a>
 
@@ -699,13 +763,13 @@
           <text class="node-sub" x="890" y="386" text-anchor="middle">파일 저장 없음 — 미세 조정·확인용, 3단계 진행과 무관한 종점</text>
 
           <path class="edge dashed" marker-end="url(#arrow2b)" d="M240,430 L240,470"></path>
-          <text class="edge-label" x="250" y="455" style="font-size:9px">screenSpecificationId 전달</text>
+          <text class="edge-label" x="300" y="455" style="font-size:9px">screenSpecificationId 전달</text>
 
           <text class="group-label" x="40" y="456">3단계 · 화면 생성 Tool (셋 중 하나 선택)</text>
           <rect class="node-box accent" x="40" y="470" width="340" height="100" rx="8"></rect>
           <text class="node-title" x="210" y="504" text-anchor="middle">CrudPromptBuilderTool</text>
           <text class="node-sub" x="210" y="522" text-anchor="middle">.buildFullCrudPrompt()</text>
-          <text class="node-sub" x="210" y="540" text-anchor="middle">단일 테이블 CRUD</text>
+          <text class="node-sub" x="210" y="540" text-anchor="middle">단일 테이블 CRUD 소스</text>
 
           <rect class="node-box accent" x="420" y="470" width="340" height="100" rx="8"></rect>
           <text class="node-title" x="590" y="504" text-anchor="middle">BoardGenerationTool</text>
@@ -733,11 +797,15 @@
           <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M680,700 Q800,730 850,760"></path>
           <text class="edge-label accent" x="800" y="725" style="font-size:9px">isAuto()==false (claude 등)</text>
 
-          <rect class="node-box good" x="140" y="760" width="380" height="100" rx="8"></rect>
-          <text class="node-title" x="330" y="792" text-anchor="middle">GenerateCrudProjectUseCase</text>
-          <text class="node-sub" x="330" y="810" text-anchor="middle">CrudGenerationPlanner → CrudModelFactory</text>
-          <text class="node-sub" x="330" y="828" text-anchor="middle">서버가 직접 디스크에 파일 저장</text>
-          <g class="jump-badge"><circle cx="502" cy="774" r="12"></circle><text x="502" y="778" text-anchor="middle">7</text></g>
+          <a class="diagram-link" href="#local-screen-detail">
+            <title>7번 다이어그램: 로컬 화면(실행 중인 JSP/Thymeleaf) 상세로 이동</title>
+            <rect class="node-box good" x="140" y="760" width="380" height="100" rx="8"></rect>
+            <text class="node-title" x="330" y="792" text-anchor="middle">GenerateCrudProjectUseCase</text>
+            <text class="node-sub" x="330" y="810" text-anchor="middle">CrudGenerationPlanner → CrudModelFactory</text>
+            <text class="node-sub" x="330" y="828" text-anchor="middle">서버가 직접 디스크에 파일 저장</text>
+            <text class="node-sub" x="330" y="846" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ AI_GENERATION_HISTORY(자동)·AI_CRUD_SNAPSHOT 기록(13번)</text>
+            <g class="jump-badge"><circle cx="502" cy="774" r="12"></circle><text x="502" y="778" text-anchor="middle">7</text></g>
+          </a>
 
           <rect class="node-box" x="620" y="760" width="400" height="100" rx="8"></rect>
           <text class="node-title" x="820" y="788" text-anchor="middle">BuildCrudPromptUseCase</text>
@@ -745,21 +813,32 @@
           <text class="node-sub" x="820" y="824" text-anchor="middle">프롬프트 텍스트만 반환, 파일 저장 없음</text>
           <text class="node-sub" x="820" y="842" text-anchor="middle" style="fill:var(--ink-muted)">→ Claude Desktop이 코드 작성(springai 밖 책임)</text>
 
-          <path class="edge dashed" marker-end="url(#arrow2b)" d="M330,860 L330,900"></path>
-          <text class="edge-label" x="340" y="885" style="font-size:9px">선택 — JOIN 필요 시</text>
+          <path class="edge good" marker-end="url(#arrow2bGood)" d="M330,860 L330,875"></path>
 
-          <rect class="node-box" x="140" y="900" width="380" height="80" rx="8" style="stroke-dasharray:6 5"></rect>
-          <text class="node-title" x="330" y="930" text-anchor="middle">JoinQueryTool (선택)</text>
-          <text class="node-sub" x="330" y="948" text-anchor="middle">생성된 소스에 JOIN SELECT·resultMap·VO 필드 추가</text>
-          <text class="node-sub" x="330" y="966" text-anchor="middle" style="fill:var(--ink-muted)">getTableRelations()가 JOIN 후보를 탐지했을 때</text>
+          <rect class="node-box good" x="140" y="875" width="380" height="72" rx="8"></rect>
+          <text class="node-title" x="330" y="898" text-anchor="middle" style="font-size:12.5px">CrudGenerationApprovalPolicy(신규)</text>
+          <text class="node-sub" x="330" y="915" text-anchor="middle" style="font-size:9px">고위험 테이블(설정 시)이면 승인된 화면명세 없이 여기서 차단</text>
+          <text class="node-sub" x="330" y="931" text-anchor="middle" style="font-size:8.5px;fill:var(--ink-muted)">기본값 빈 목록 — 켜기 전엔 기존 동작과 동일 · 2026-08-26 커밋 5b8244a</text>
 
-          <path class="edge dashed" marker-end="url(#arrow2b)" d="M330,980 Q330,1000 500,1015"></path>
-          <text class="edge-label" x="360" y="1000" style="font-size:9px">선택</text>
+          <path class="edge dashed" marker-end="url(#arrow2b)" d="M330,947 L330,987"></path>
+          <text class="edge-label" x="340" y="972" style="font-size:9px">선택 — JOIN 필요 시</text>
 
-          <rect class="node-box" x="440" y="1015" width="300" height="55" rx="8" style="stroke-dasharray:6 5"></rect>
-          <text class="node-title" x="590" y="1038" text-anchor="middle">MenuTool (선택)</text>
-          <text class="node-sub" x="590" y="1055" text-anchor="middle">.generateMenuInsertSql() — GNB/LNB 메뉴 등록</text>
+          <rect class="node-box" x="140" y="987" width="380" height="80" rx="8" style="stroke-dasharray:6 5"></rect>
+          <text class="node-title" x="330" y="1017" text-anchor="middle">JoinQueryTool (선택)</text>
+          <text class="node-sub" x="330" y="1035" text-anchor="middle">생성된 소스에 JOIN SELECT·resultMap·VO 필드 추가</text>
+          <text class="node-sub" x="330" y="1053" text-anchor="middle" style="fill:var(--ink-muted)">getTableRelations()가 JOIN 후보를 탐지했을 때</text>
+
+          <path class="edge dashed" marker-end="url(#arrow2b)" d="M330,1067 Q330,1087 500,1102"></path>
+          <text class="edge-label" x="360" y="1087" style="font-size:9px">선택</text>
+
+          <rect class="node-box" x="440" y="1102" width="300" height="55" rx="8" style="stroke-dasharray:6 5"></rect>
+          <text class="node-title" x="590" y="1125" text-anchor="middle">MenuTool (선택)</text>
+          <text class="node-sub" x="590" y="1142" text-anchor="middle">.generateMenuInsertSql() — GNB/LNB 메뉴 등록</text>
         </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--ink-muted)"></i>Tool·서비스·선택 단계</span>
+        <span><i class="swatch" style="background:var(--good)"></i>auto 경로 — 실제 파일 저장 + AI_GENERATION_HISTORY·AI_CRUD_GENERATION_SNAPSHOT DB 기록까지 일어나는 유일한 지점</span>
       </div>
       <figcaption>
         1·2단계는 <b>같은 layout 파일 경로</b>(<code>templates/layout/{default,gnb,lnb,breadcrumb,footer}.html</code>)를
@@ -767,13 +846,29 @@
         2단계가 <code>overwriteLayout=true</code>(기본값)로 이를 <code>LETTNMENUINFO</code> 기반 동적 GNB로
         완전히 덮어씁니다. <code>generateThymeleafLayout()</code>의 Tool 설명 자체가 "<code>packageName</code>은
         <code>initializeProject()</code>에 전달했던 것과 반드시 동일해야 한다"고 명시합니다 — 다르면
-        <code>EgovGnbMenuInterceptor</code>가 실제 CRUD 패키지와 어긋난 위치에 생성되어 동작하지 않습니다.
+        <code>EgovGnbMenuInterceptor</code>가 실제 CRUD 소스 패키지와 어긋난 위치에 생성되어 동작하지 않습니다.
         3단계 이후가 이번에 새로 밝혀진 진짜 분기 지점입니다 — <code>CrudGenerationDispatchService</code>의
         JavaDoc이 스스로 "llmProvider(auto vs claude/기타) 분기가 존재하는 <b>유일한 지점</b>"이라고 명시합니다.
         <code>auto</code>면 서버가 직접 파일을 저장해 7번 다이어그램의 로컬 화면이 되고, <code>claude</code> 등이면
         서버는 프롬프트 텍스트만 돌려주고 <b>코드를 실제로 쓰는 주체가 springai에서 Claude Desktop으로 바뀝니다</b>.
         <code>ScreenSourceTool</code> 계열(3단계 위 대안)과 <code>JoinQueryTool</code>(auto 경로 이후 선택)은
         메인 흐름을 보조하는 별도 진입점입니다.
+      </figcaption>
+      <figcaption style="margin-top:10px">
+        <b>(2026-08-26 갱신)</b> 위 다이어그램에 <code>CrudGenerationApprovalPolicy(신규)</code> 박스가
+        추가된 대로, <code>CrudGenerationPlanner</code>(7번 <code>GenerateCrudProjectUseCase</code> 내부) 안에
+        조건부 승인 게이트가 추가됐습니다(커밋 <code>5b8244a</code>) — <code>CrudGenerationApprovalPolicy</code>가
+        <code>app.crud-generation.approval-required-tables</code>(테이블 목록) 또는
+        <code>approval-required-for-all</code>(전체 강제) 설정을 확인해, 지정된 테이블은 viewType과
+        무관하게 승인된 화면명세(<code>designReferenceId</code>/<code>screenSpecificationId</code>) 없이는
+        <code>crudSchemaQueryService.fetchColumns()</code> 호출 전에 즉시 차단합니다. 기존
+        V2_APPLY+Thymeleaf 전용 화면명세 필수화 가드와 별개이며, 이 가드는 JSP 뷰에도 적용될 수 있다는
+        점이 다릅니다. 기본값은 빈 목록·<code>false</code>라 켜기 전까지는 기존 동작과 동일합니다.
+        차단 시 <code>AI_GENERATION_OPERATION_AUDIT</code>에 <code>REJECTED</code>/
+        <code>failureStage=approval-policy</code>로 기록되어 14.1절 API로 조회됩니다. 배경은
+        <code>docs/architecture/CRUD_명시적_승인_단계_도입_타당성_검토.md</code> 참고 — 검토 당시
+        옵션 A(Thymeleaf식 3단계 preview/approve/apply)도 함께 검토했으나, 기존 Tool 계약을 깨는
+        변경이라 채택하지 않았습니다.
       </figcaption>
     </figure>
 
@@ -957,6 +1052,9 @@
         (<code>KrdsComponentResolutionService</code>, import 구문 기준 여전히 Legacy <code>ComponentRegistry</code>
         참조)는 아직 이 신규 경로로 넘어가지 않았고, <code>ComponentRegistryDualReadService</code>가 두 결과를
         병렬 계산해 비교하는 동안 실제 선택값은 계속 Legacy입니다.
+        MySQL 저장은 두 박스가 다릅니다 — <b>Registry (Legacy)</b>는 <code>AI_COMPONENT_REGISTRY</code>(v1/v2,
+        초안 upsert + 승인 revision-append 이중모드, 10번↔13번 다이어그램 참고)에, <b>Registry Snapshot</b>은
+        <code>AI_COMPONENT_REGISTRY_V3</code>(REST 전용, 현재 MCP Tool 경로 없음, 13번 참고)에 저장됩니다.
       </figcaption>
     </figure>
   </section>
@@ -972,7 +1070,7 @@
     </p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 420" role="img" aria-label="Legacy Registry v2와 Q&amp;A ScreenSpecification v3 fixture를 MySQL에 적재한 뒤, 화면 빌더가 semanticRoot를 만들고 Component Resolution 서비스가 결정론적으로 컴포넌트를 해석해 FigmaScreenSpec v2와 FigmaExportBundle v2를 조립, figma-screen-spec-plugin에 전달하는 6단계 파이프라인.">
+        <svg viewBox="0 0 1180 420" role="img" aria-label="Q&amp;A Runtime Resolver 파이프라인(이 문서에서 목표 화면 생성 파이프라인과는 별개인 6단계 파이프라인) — Legacy Registry v2와 Q&amp;A ScreenSpecification v3 fixture를 MySQL에 적재한 뒤, 화면 빌더가 semanticRoot를 만들고 Component Resolution 서비스가 결정론적으로 컴포넌트를 해석해 FigmaScreenSpec v2와 FigmaExportBundle v2를 조립, figma-screen-spec-plugin에 전달한다.">
           <defs>
             <marker id="arrow4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
               <path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path>
@@ -1023,16 +1121,16 @@
 
           <!-- Edges -->
           <path class="edge accent" marker-end="url(#arrow4Accent)" d="M360,90 L430,90"></path>
-          <text class="edge-label accent" x="365" y="80">readDefaultQnaContracts / importContracts</text>
+          <text class="edge-label accent" x="395" y="28" text-anchor="middle">readDefaultQnaContracts / importContracts</text>
 
           <path class="edge accent" marker-end="url(#arrow4Accent)" d="M750,90 L820,90"></path>
-          <text class="edge-label accent" x="755" y="80" style="font-size:9.5px">저장된 ScreenSpecification</text>
+          <text class="edge-label accent" x="785" y="28" text-anchor="middle" style="font-size:9.5px">저장된 ScreenSpecification</text>
 
           <path class="edge accent" marker-end="url(#arrow4Accent)" d="M980,140 L980,280"></path>
           <text class="edge-label accent" x="990" y="215">semanticRoot 전달</text>
 
           <path class="edge accent" marker-end="url(#arrow4Accent)" d="M820,330 L750,330"></path>
-          <text class="edge-label accent" x="700" y="320" text-anchor="end">ResolutionResult</text>
+          <text class="edge-label accent" x="785" y="320" text-anchor="middle" style="font-size:9.5px">ResolutionResult</text>
 
           <path class="edge accent" marker-end="url(#arrow4Accent)" d="M430,330 L360,330"></path>
           <text class="edge-label accent" x="395" y="320" text-anchor="end" style="font-size:9px">7개 Bundle JSON</text>
@@ -1108,6 +1206,11 @@
 
           <path class="edge" marker-end="url(#arrow5)" d="M860,240 Q1030,240 1030,130"></path>
           <text class="edge-label" x="900" y="215">승인 후 APPROVED로 전환</text>
+
+          <text class="edge-label" x="440" y="150" text-anchor="middle">→ MySQL AI_DESIGN_ANALYSIS(RESULT_JSON, 캐시)</text>
+          <text class="edge-label" x="740" y="150" text-anchor="middle">→ AI_SCREEN_SPECIFICATION(초안 upsert)</text>
+          <text class="edge-label" x="1010" y="150" text-anchor="middle">→ AI_SCREEN_SPECIFICATION(승인 revision append)</text>
+          <text class="edge-label" x="740" y="320" text-anchor="middle">→ AI_SCREEN_SPECIFICATION(재승인 시 새 revision, 13번 참고)</text>
         </svg>
       </div>
       <figcaption>
@@ -1134,7 +1237,7 @@
     <p class="section-sub">2번 다이어그램의 <b>6번 배지</b>를 펼친 내부 흐름입니다. layout은 프로젝트당 한 번만 만들고 재사용합니다.</p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 340" role="img" aria-label="generateThymeleafLayout으로 공통 layout을 한 번 만든 뒤, buildFullCrudPrompt 등을 반복 호출해 CrudModelFactory가 DB 스키마를 CRUD 모델로 만들고, FreeMarker 템플릿으로 렌더링한 소스를 CodeSaverTool이 파일로 저장해 로컬 화면을 만든다.">
+        <svg viewBox="0 0 1180 440" role="img" aria-label="generateThymeleafLayout으로 공통 layout을 한 번 만든 뒤, buildFullCrudPrompt 등을 반복 호출해 CrudModelFactory가 DB 스키마를 CRUD 모델로 만든다. 이후 CrudGenerationDispatchService.isAuto() 값에 따라 갈라진다 — auto 경로는 CrudGenerationRenderer(내부적으로 CrudTemplateRenderer)가 서버에서 직접 렌더링한 뒤 CodeServiceGenerationExecutor가 ApprovedProjectWritePort로 파일을 저장하고, claude 등 경로는 CodeTemplateTool이 반환한 .ftl 원문을 Claude Desktop이 직접 렌더링해 CodeSaverTool.saveCode()로 저장한다. 두 경로 모두 결과는 7번 다이어그램(로컬 화면)으로 이어진다.">
           <defs>
             <marker id="arrow6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow6Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
@@ -1158,26 +1261,47 @@
           <text class="node-sub" x="825" y="94" text-anchor="middle">DB 스키마 + 5번의 screenSpecification</text>
           <text class="node-sub" x="825" y="112" text-anchor="middle">GenerationDesignContextService가 APPROVED 재검증</text>
 
-          <rect class="node-box" x="180" y="210" width="280" height="90" rx="8"></rect>
-          <g class="step-badge"><circle cx="202" cy="232" r="13"></circle><text x="202" y="236" text-anchor="middle">4</text></g>
-          <text class="node-title" x="320" y="246" text-anchor="middle">CodeTemplateTool</text>
-          <text class="node-sub" x="320" y="264" text-anchor="middle">FreeMarker 렌더링</text>
-          <text class="node-sub" x="320" y="282" text-anchor="middle">Controller/Service/Mapper/VO/View</text>
+          <path class="edge accent" marker-end="url(#arrow6Accent)" d="M825,130 Q825,168 200,206"></path>
+          <text class="edge-label accent" x="470" y="180" text-anchor="middle" style="font-size:9px">isAuto()==true</text>
+          <path class="edge accent" marker-end="url(#arrow6Accent)" d="M825,130 Q825,168 980,206"></path>
+          <text class="edge-label accent" x="940" y="180" text-anchor="middle" style="font-size:9px">isAuto()==false (claude 등)</text>
+
+          <text class="group-label" x="200" y="199" text-anchor="middle">auto 경로 — 서버가 직접 렌더링·저장</text>
+          <rect class="node-box" x="60" y="210" width="280" height="90" rx="8"></rect>
+          <g class="step-badge"><circle cx="82" cy="232" r="13"></circle><text x="82" y="235" text-anchor="middle" style="font-size:10px">4a</text></g>
+          <text class="node-title" x="200" y="246" text-anchor="middle">CrudGenerationRenderer</text>
+          <text class="node-sub" x="200" y="264" text-anchor="middle">CrudTemplateRenderer(FreeMarker)</text>
+          <text class="node-sub" x="200" y="282" text-anchor="middle" style="font-size:8.5px">CodeTemplateTool과 같은 .ftl, 다른 렌더러 클래스</text>
 
           <a class="diagram-link" href="#local-screen-detail">
             <title>7번 다이어그램: 로컬 화면 상세로 이동</title>
-            <rect class="node-box" x="520" y="210" width="280" height="90" rx="8"></rect>
-            <g class="step-badge"><circle cx="542" cy="232" r="13"></circle><text x="542" y="236" text-anchor="middle">5</text></g>
-            <text class="node-title" x="660" y="246" text-anchor="middle">CodeSaverTool.saveCode()</text>
-            <text class="node-sub" x="660" y="264" text-anchor="middle">파일 시스템에 저장</text>
-            <text class="jump-hint" x="660" y="282" text-anchor="middle" style="font-size:9px">↳ 7번(로컬 화면)</text>
-            <g class="jump-badge"><circle cx="782" cy="224" r="12"></circle><text x="782" y="228" text-anchor="middle">7</text></g>
+            <rect class="node-box" x="60" y="330" width="280" height="90" rx="8"></rect>
+            <g class="step-badge"><circle cx="82" cy="352" r="13"></circle><text x="82" y="355" text-anchor="middle" style="font-size:10px">5a</text></g>
+            <text class="node-title" x="200" y="366" text-anchor="middle">CodeServiceGenerationExecutor</text>
+            <text class="node-sub" x="200" y="384" text-anchor="middle">→ ApprovedProjectWritePort.apply()</text>
+            <text class="jump-hint" x="200" y="402" text-anchor="middle" style="font-size:9px">↳ 7번(로컬 화면)</text>
+            <g class="jump-badge"><circle cx="322" cy="344" r="12"></circle><text x="322" y="348" text-anchor="middle">7</text></g>
           </a>
 
-          <path class="edge accent" marker-end="url(#arrow6Accent)" d="M290,85 L360,85"></path>
-          <path class="edge accent" marker-end="url(#arrow6Accent)" d="M650,85 L710,85"></path>
-          <path class="edge" marker-end="url(#arrow6)" d="M825,130 Q825,180 460,240"></path>
-          <path class="edge" marker-end="url(#arrow6)" d="M460,255 L520,255"></path>
+          <text class="group-label" x="980" y="199" text-anchor="middle">claude 경로 — Claude Desktop이 직접 렌더링</text>
+          <rect class="node-box" x="840" y="210" width="280" height="90" rx="8"></rect>
+          <g class="step-badge"><circle cx="862" cy="232" r="13"></circle><text x="862" y="235" text-anchor="middle" style="font-size:10px">4b</text></g>
+          <text class="node-title" x="980" y="246" text-anchor="middle">CodeTemplateTool</text>
+          <text class="node-sub" x="980" y="264" text-anchor="middle">.ftl 원문 반환 (디버깅·확인용)</text>
+          <text class="node-sub" x="980" y="282" text-anchor="middle" style="font-size:8.5px">실제 렌더링은 Claude Desktop이 직접 수행</text>
+
+          <a class="diagram-link" href="#local-screen-detail">
+            <title>7번 다이어그램: 로컬 화면 상세로 이동</title>
+            <rect class="node-box" x="840" y="330" width="280" height="90" rx="8"></rect>
+            <g class="step-badge"><circle cx="862" cy="352" r="13"></circle><text x="862" y="355" text-anchor="middle" style="font-size:10px">5b</text></g>
+            <text class="node-title" x="980" y="366" text-anchor="middle">CodeSaverTool.saveCode()</text>
+            <text class="node-sub" x="980" y="384" text-anchor="middle">CodeService.saveGeneratedCode() — 직접 파일쓰기</text>
+            <text class="jump-hint" x="980" y="402" text-anchor="middle" style="font-size:9px">↳ 7번(로컬 화면)</text>
+            <g class="jump-badge"><circle cx="1102" cy="344" r="12"></circle><text x="1102" y="348" text-anchor="middle">7</text></g>
+          </a>
+
+          <path class="edge" marker-end="url(#arrow6)" d="M200,300 L200,330"></path>
+          <path class="edge" marker-end="url(#arrow6)" d="M980,300 L980,330"></path>
         </svg>
       </div>
       <figcaption>
@@ -1188,9 +1312,20 @@
         <code>generationDesignContextService.resolve(...)</code> → <code>crudModelFactory.fromSchema(...)</code>)를
         통해 3단계로 직접 전달됩니다 — 승인 시점(5번)과 이 3단계 진입 시점 두 번 <code>APPROVED</code> 상태를
         검증하는 이중 게이트입니다.
-        목표 상태에서는 승인된 계약으로 먼저 Thymeleaf Skeleton을 만들고 <code>th:object</code>,
-        <code>th:field</code>, route, validation, error, CSRF를 적용한 뒤, Thymeleaf parse/render와 binding audit,
-        프로젝트 build, Desktop·Tablet·Mobile 렌더 검증을 모두 통과해야 완료됩니다. 즉 FreeMarker 렌더링과
+        <b>2026-08-26 정정:</b> 3단계 이후는 <code>CrudGenerationDispatchService.isAuto()</code>로 갈라지는
+        두 개의 서로 다른 경로입니다 — 이전 버전은 이 갈림을 그리지 않고 <code>llmProvider=claude</code>
+        전용 Tool(<code>CodeTemplateTool</code>·<code>CodeSaverTool</code>)을 "auto 경로 이후"인 것처럼
+        표시하는 오류가 있었습니다. <b>auto</b> 경로는 <code>CrudGenerationRenderer</code>(내부
+        <code>CrudTemplateRenderer</code>, <code>CodeTemplateTool</code>과 같은 <code>.ftl</code> 템플릿을
+        쓰지만 별개 클래스)가 서버에서 직접 렌더링한 뒤 <code>CodeServiceGenerationExecutor</code>가
+        <code id="approved-project-write-port-6">ApprovedProjectWritePort</code>로 저장합니다(14번 다이어그램의 그 Port와 동일). <b>claude</b>
+        경로는 <code>CodeTemplateTool</code>이 <code>.ftl</code> 원문만 반환하고(디버깅·확인 용도라고 코드
+        주석에 명시됨), 실제 렌더링은 Claude Desktop이 수행한 뒤 <code>CodeSaverTool.saveCode()</code>가
+        <code>ApprovedProjectWritePort</code> 없이 별도의 경로 검증(<code>CodeService.validateOutputRoot</code>)만
+        거쳐 직접 파일에 씁니다. 목표 상태에서는 두 경로 모두 승인된 계약으로 먼저 Thymeleaf Skeleton을
+        만들고 <code>th:object</code>, <code>th:field</code>, route, validation, error, CSRF를 적용한 뒤,
+        <span id="thymeleaf-validate-gate">Thymeleaf parse/render와 binding audit,
+        프로젝트 build, Desktop·Tablet·Mobile 렌더 검증을 모두 통과해야 완료됩니다.</span> 즉 렌더링과
         파일 저장은 종점이 아니라 검증 게이트의 입력입니다.
       </figcaption>
     </figure>
@@ -1244,9 +1379,15 @@
         </svg>
       </div>
       <figcaption>
-        이 4계층은 springai 저장소 안에 있지 않습니다 — springai가 <code>tools/CodeSaverTool</code>로
-        만들어낸 <b>대상 eGovFrame 프로젝트</b>에서 Tomcat이 직접 실행하는 코드입니다. Controller가 Service를,
-        Service가 Mapper를 호출하는 표준 eGovFrame 레이어드 아키텍처를 그대로 따릅니다.
+        이 4계층은 springai 저장소 안에 있지 않습니다 — springai가 만들어낸 <b>대상 eGovFrame
+        프로젝트</b>에서 Tomcat이 직접 실행하는 코드입니다. Controller가 Service를, Service가 Mapper를
+        호출하는 표준 eGovFrame 레이어드 아키텍처를 그대로 따릅니다.
+        <b>2026-08-26 정정:</b> 파일을 실제로 쓰는 주체는 <code>tools/CodeSaverTool</code> 하나가
+        아니라 6번 다이어그램에서 정리한 두 경로 중 하나입니다 — <code>llmProvider=auto</code>면
+        <code>CodeServiceGenerationExecutor</code>가 <code>ApprovedProjectWritePort</code>로,
+        <code>claude</code> 등이면 <code>tools/CodeSaverTool.saveCode()</code>가
+        <code>CodeService.saveGeneratedCode()</code>로 저장합니다. 어느 경로로 쓰였든 결과 파일과
+        여기서 그리는 실행 계층 구조는 동일합니다.
       </figcaption>
     </figure>
   </section>
@@ -1416,6 +1557,7 @@
             <text class="jump-hint" x="820" y="282" text-anchor="middle" style="font-size:9px">↳ 3번(Registry 계약 진화)</text>
             <g class="jump-badge"><circle cx="942" cy="224" r="12"></circle><text x="942" y="228" text-anchor="middle">3</text></g>
           </a>
+          <text class="edge-label" x="820" y="320" text-anchor="middle" style="font-size:9.5px">→ MySQL AI_COMPONENT_REGISTRY · AI_DESIGN_SYSTEM_PROFILE · AI_FIGMA_REVIEW_HISTORY 기록(13번)</text>
 
           <path class="edge" marker-end="url(#arrow10)" d="M300,85 L360,85"></path>
           <path class="edge accent" marker-end="url(#arrow10)" d="M620,85 L680,85"></path>
@@ -1495,11 +1637,632 @@
     </figure>
   </section>
 
+  <section class="diagram-block" id="pipeline-evolution-detail">
+    <h2>12. Pipeline Evolution — 목표 화면 생성 파이프라인의 Release Gate와 신규 계약 <span class="ver-tag">신규 반영</span></h2>
+    <p class="section-sub">
+      5축 벤치마크 명세(29·30번 문서)의 R0~R5 계약이 <code>feat: complete 5-axis pipeline release gates</code>
+      커밋으로 실제 코드에 반영되었습니다. 이 계층은 <b>목표 화면 생성 파이프라인</b>(2번 다이어그램
+      2.1절에서 정의한 그 S1~S7 파이프라인 — 이 문서의 유일한 S-번호 파이프라인입니다)의 S3·S6·S7단계
+      위에 얹히는 <b>확장</b>입니다(S3는 2번 다이어그램에, S6·S7은 6번 다이어그램에 표시됩니다. S4
+      Business Binding·S5 Approval Gate는 기존 계약 그대로 유지).
+      <code>app.pipeline-evolution.mode</code>의 기본값은
+      <code>8445977 feat: default pipeline-evolution.mode to V2_APPLY</code> 커밋 이후 <code>V2_APPLY</code>로
+      전환되어(<code>application.yaml:122</code>), 운영 <code>auto</code> 생성 경로에 이미 적용되는 상태입니다.
+      장애·롤백 시에는 <code>APP_PIPELINE_EVOLUTION_MODE</code> 환경변수로 <code>V2_PREVIEW</code> 이하 단계로
+      단계적으로 낮출 수 있습니다.
+    </p>
+    <aside class="target-pipeline" aria-labelledby="pipeline-mode-title">
+      <h4 id="pipeline-mode-title">PipelineEvolutionProperties.mode 전환 단계</h4>
+      <p>
+        <code>app.pipeline-evolution.mode</code> 하나의 Flag가 v2 계약의 쓰기·읽기·Preview·Apply 사용 여부를
+        전부 통제합니다. <code>autoApprovalConfidenceThreshold=0.85</code>, <code>evidenceConfidenceThreshold=0.60</code>
+        는 모든 Mode에서 공통으로 적용되는 시각 추론 자동 승인 임계값입니다.
+      </p>
+      <div class="pipeline-steps" style="grid-template-columns: repeat(5, minmax(0, 1fr));" aria-label="Mode 전환 5단계">
+        <div class="pipeline-step"><span class="number">01 · DISABLED</span><strong>미기록</strong><small>v2 Artifact 쓰기 없음</small></div>
+        <div class="pipeline-step visual"><span class="number">02 · OBSERVE</span><strong>관찰 기록</strong><small>v2 병행 생성, 기존 결과는 미변경</small></div>
+        <div class="pipeline-step visual"><span class="number">03 · DUAL_READ</span><strong>이중 읽기</strong><small>Preview에서 v1/v2 비교, Apply는 기존 경로</small></div>
+        <div class="pipeline-step binding"><span class="number">04 · V2_PREVIEW</span><strong>신규 Preview 우선</strong><small>Scope·Region판정·Revision 불일치 fail-closed</small></div>
+        <div class="pipeline-step gate"><span class="number">05 · V2_APPLY</span><strong>신규 Apply</strong><small>v2·Snapshot·Manifest 필수로 Apply · 현재 기본값</small></div>
+      </div>
+    </aside>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1180 790" role="img" aria-label="목표 화면 생성 파이프라인(2번 다이어그램에서 정의한 S1~S7 파이프라인)의 S3·S6·S7단계(S4 Business Binding·S5 Approval Gate는 기존 계약 그대로 유지) 위에 UiDesignSpecV2·Component-Fragment Mapping·RendererProfile/Scope/Region판정이 신규 v2 계약으로 얹히고, 그 결과가 PreviewEvidenceBundle과 ScreenHandoffBundle로 조립된 뒤 PipelineReleaseGateController와 PipelineArtifactController라는 신규 REST 표면을 통해 사람 또는 Agent에게 releaseReady·failedGateNames·nextAllowedActions로 전달된다.">
+          <defs>
+            <marker id="arrow12" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow12Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow12Good" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--good)"></path></marker>
+            <marker id="arrow12Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+          </defs>
+
+          <!-- Row 1: existing pipeline anchors -->
+          <text class="group-label" x="590" y="14" text-anchor="middle">목표 화면 생성 파이프라인 앵커 (S3는 2번, S6·S7은 6번 다이어그램)</text>
+          <a class="diagram-link" href="#figma-thymeleaf-pipeline">
+            <title>2번 다이어그램: 목표 화면 생성 파이프라인 S3단계로 이동</title>
+            <rect class="node-box" x="40" y="24" width="260" height="50" rx="8"></rect>
+            <text class="node-title" x="170" y="45" text-anchor="middle">S3 · UiDesignSpec</text>
+            <text class="node-sub" x="170" y="62" text-anchor="middle">목표 화면 생성 파이프라인의 시각 계약</text>
+            <g class="jump-badge"><circle cx="282" cy="38" r="12"></circle><text x="282" y="42" text-anchor="middle">2</text></g>
+          </a>
+
+          <path class="edge dashed" marker-end="url(#arrow12)" d="M300,49 L313,49"></path>
+          <rect class="node-box" x="313" y="24" width="60" height="50" rx="6" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="343" y="45" text-anchor="middle">S4</text>
+          <text class="node-sub" x="343" y="62" text-anchor="middle" style="font-size:10px">Binding</text>
+
+          <path class="edge dashed" marker-end="url(#arrow12)" d="M373,49 L386,49"></path>
+          <rect class="node-box" x="386" y="24" width="60" height="50" rx="6" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="416" y="45" text-anchor="middle">S5</text>
+          <text class="node-sub" x="416" y="62" text-anchor="middle" style="font-size:10px">Gate</text>
+
+          <path class="edge dashed" marker-end="url(#arrow12)" d="M446,49 L460,49"></path>
+          <a class="diagram-link" href="#thymeleaf-gen-detail">
+            <title>6번 다이어그램: Thymeleaf 생성 서비스 상세로 이동</title>
+            <rect class="node-box" x="460" y="24" width="260" height="50" rx="8"></rect>
+            <text class="node-title" x="590" y="45" text-anchor="middle">S6 · Thymeleaf 생성</text>
+            <text class="node-sub" x="590" y="62" text-anchor="middle">FreeMarker (6번 다이어그램)</text>
+            <g class="jump-badge"><circle cx="702" cy="38" r="12"></circle><text x="702" y="42" text-anchor="middle">6</text></g>
+          </a>
+
+          <path class="edge dashed" marker-end="url(#arrow12)" d="M720,49 L880,49"></path>
+          <a class="diagram-link" href="#thymeleaf-validate-gate">
+            <title>6번 다이어그램: 검증 게이트(Binding·Build·Render) 설명으로 이동 — S7은 목표 화면 생성 파이프라인(2번 다이어그램)의 단계 번호이며 아래 R0~R5(계약 진화 작업 스트림)와는 별개의 번호 체계입니다</title>
+            <rect class="node-box" x="880" y="24" width="260" height="50" rx="8"></rect>
+            <text class="node-title" x="1010" y="45" text-anchor="middle">S7 · VALIDATE</text>
+            <text class="node-sub" x="1010" y="62" text-anchor="middle">Binding·Build·Render·A11y·Evidence</text>
+            <g class="jump-badge"><circle cx="1122" cy="38" r="12"></circle><text x="1122" y="42" text-anchor="middle">6</text></g>
+          </a>
+
+          <text class="edge-label" x="590" y="94" text-anchor="middle">S4 Business Binding · S5 Approval Gate는 기존 필수 계약으로 유지 — 신규 v2 계약이 대체하지 않음</text>
+
+          <!-- Row 2: new v2 contracts -->
+          <rect class="node-box accent" x="40" y="170" width="260" height="72" rx="8"></rect>
+          <text class="node-title" x="170" y="197" text-anchor="middle">UiDesignSpecV2</text>
+          <text class="node-sub" x="170" y="215" text-anchor="middle">Evidence·Confidence(0.85/0.60)</text>
+
+          <rect class="node-box accent" x="460" y="170" width="260" height="72" rx="8"></rect>
+          <text class="node-title" x="590" y="197" text-anchor="middle">Component↔Fragment Mapping</text>
+          <text class="node-sub" x="590" y="215" text-anchor="middle">DesignCodeComponentMapping</text>
+          <text class="node-sub" x="590" y="231" text-anchor="middle" style="font-size:9px;fill:var(--rest)">⚠ AI_DESIGN_CODE_COMPONENT_MAPPING 호출자 미확인(13번 참고)</text>
+
+          <rect class="node-box accent" x="880" y="170" width="260" height="72" rx="8"></rect>
+          <text class="node-title" x="1010" y="197" text-anchor="middle">Renderer·Scope·Region판정</text>
+          <text class="node-sub" x="1010" y="215" text-anchor="middle">thymeleaf-krds@1.0 · Dependency</text>
+
+          <path class="edge dashed" marker-end="url(#arrow12)" d="M170,74 L170,170"></path>
+          <path class="edge dashed accent" marker-end="url(#arrow12Accent)" d="M590,74 L590,170"></path>
+          <path class="edge dashed" marker-end="url(#arrow12)" d="M1010,74 L1010,170"></path>
+          <text class="edge-label accent" x="600" y="130">mode≥OBSERVE부터 v2 기록 시작 (현재 기본값 V2_APPLY)</text>
+
+          <!-- Row 3: Evidence -->
+          <rect class="node-box good" x="330" y="300" width="520" height="70" rx="10"></rect>
+          <text class="node-title" x="590" y="328" text-anchor="middle">PreviewEvidenceBundle</text>
+          <text class="node-sub" x="590" y="347" text-anchor="middle">Binding·Build·Render·A11y·Visual Evidence 결합</text>
+
+          <path class="edge accent" marker-end="url(#arrow12Accent)" d="M170,242 Q170,280 380,300"></path>
+          <path class="edge accent" marker-end="url(#arrow12Accent)" d="M590,242 L590,300"></path>
+          <path class="edge accent" marker-end="url(#arrow12Accent)" d="M1010,242 Q1010,280 800,300"></path>
+
+          <!-- Row 4: Handoff -->
+          <rect class="node-box good" x="330" y="420" width="520" height="70" rx="10"></rect>
+          <text class="node-title" x="590" y="448" text-anchor="middle">ScreenHandoffBundle</text>
+          <text class="node-sub" x="590" y="467" text-anchor="middle">changedFiles·componentMappings·nextAllowedActions</text>
+
+          <path class="edge good" marker-end="url(#arrow12Good)" d="M590,370 L590,420"></path>
+          <text class="edge-label good" x="600" y="400">승인·Diff·Evidence 인수인계</text>
+
+          <!-- Row 5: new REST surface -->
+          <rect class="node-box rest" x="80" y="540" width="460" height="90" rx="8"></rect>
+          <text class="node-title" x="310" y="566" text-anchor="middle">PipelineReleaseGateController</text>
+          <text class="node-sub" x="310" y="584" text-anchor="middle">POST /api/pipeline/release-readiness</text>
+          <text class="node-sub" x="310" y="602" text-anchor="middle">GET /operations · GET /mcp-tools</text>
+
+          <rect class="node-box rest" x="640" y="540" width="460" height="90" rx="8"></rect>
+          <text class="node-title" x="870" y="566" text-anchor="middle">PipelineArtifactController</text>
+          <text class="node-sub" x="870" y="584" text-anchor="middle">GET /evidence/{id} · GET /handoff/{id}</text>
+          <text class="node-sub" x="870" y="602" text-anchor="middle">POST /handoff/{id}/projection?audience=</text>
+
+          <path class="edge" marker-end="url(#arrow12)" d="M700,370 Q760,460 780,540"></path>
+          <text class="edge-label" x="700" y="480">evidence 조회</text>
+          <path class="edge good" marker-end="url(#arrow12Good)" d="M590,490 Q590,520 780,540"></path>
+          <text class="edge-label good" x="620" y="520">handoff 조회·projection</text>
+
+          <!-- Row 6: consumer -->
+          <rect class="node-box rest" x="330" y="680" width="520" height="84" rx="10"></rect>
+          <text class="node-title" x="590" y="707" text-anchor="middle">사람 · Agent</text>
+          <text class="node-sub" x="590" y="725" text-anchor="middle">releaseReady·failedGateNames·nextAllowedActions</text>
+          <text class="node-sub" x="590" y="743" text-anchor="middle">auditSnapshotHash (X-API-Key 인증)</text>
+
+          <path class="edge rest" marker-end="url(#arrow12Rest)" d="M310,630 Q310,655 460,680"></path>
+          <path class="edge rest" marker-end="url(#arrow12Rest)" d="M870,630 Q870,655 720,680"></path>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--ink-muted)"></i>목표 화면 생성 파이프라인 앵커</span>
+        <span><i class="swatch" style="background:var(--accent)"></i>신규 v2 계약 (R0/R1)</span>
+        <span><i class="swatch" style="background:var(--good)"></i>Evidence · Handoff (R3/R5)</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>신규 REST 표면 (<code>/api/pipeline/**</code>)</span>
+      </div>
+      <figcaption>
+        <b>commit <code>d009058</code> "feat: complete 5-axis pipeline release gates"</b>가 이 계층 전체를 한 번에
+        추가했습니다(299 files changed, +22394). S4 Business Binding(DB·Controller·VO·권한)과 S5 Approval Gate
+        (<code>ScreenSpecification.status == APPROVED</code>)는 기존 계약 그대로 유지되며 이번 확장의 대상이
+        아닙니다. S3단계는 <code>UiDesignSpecV2</code>(Source·Evidence·Confidence·
+        Renderability), S6단계는 <code>DesignCodeComponentMapping</code>(Figma Property → Fragment Parameter)과
+        <code>RendererProfile</code>·<code>GenerationScopeManifest</code>·<code>GenerationOwnershipManifest</code>로
+        확장됩니다. S7단계 이후 결과는 <code>PreviewEvidenceBundle</code> → <code>ScreenHandoffBundle</code> 순으로
+        조립되고, 이 두 Bundle은 <b>기존 <code>/api/**</code>와 별개인 신규 <code>/api/pipeline/**</code></b> 표면으로
+        노출됩니다: <code>PipelineReleaseGateController</code>는 호출자가 전달한 Binding·Build·Render·Accessibility
+        Gate 결과를 <code>PipelineReleaseReadiness</code>로 평가해 <code>ready</code>/<code>failedGateNames</code>를
+        돌려주고, <code>PipelineArtifactController</code>는 저장된 Evidence·Handoff Bundle을 조회하거나
+        <code>audience</code>(DESIGNER·BUSINESS·DEVELOPER·QA·APPROVER·AGENT)별 <code>Projection</code>을
+        <code>releaseReady</code>·<code>nextAllowedActions</code>·<code>auditSnapshotHash</code>와 함께 반환합니다.
+        1번 다이어그램과 동일하게 이 신규 REST 표면도 <code>X-API-Key</code>만으로 호출되며 MCP Tool 위험 등급
+        인가 게이트를 거치지 않습니다. <b>기본값이 <code>V2_APPLY</code></b>로 전환되어 이 도표의 흐름이 이미 운영
+        <code>auto</code> 생성 경로에 적용되는 상태입니다 — 자세한 배포 전 점검 절차는
+        <code>docs/figma/31_5Axis_Pipeline_Release_Gate_Operations_Runbook.md</code>를 참고하십시오.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section class="diagram-block" id="mysql-ai-tables-detail">
+    <h2>13. MySQL AI_* 테이블 데이터 흐름 — 생성·갱신 계약 <span class="ver-tag">신규 반영</span></h2>
+    <p class="section-sub">
+      1번 다이어그램의 <b>MySQL</b> 박스 하나를 펼친 것입니다. Flyway 마이그레이션(<code>src/main/resources/db/migration/V1~V15__*.sql</code>,
+      <code>spring.flyway.baseline-version=1</code>)이 정의하는 <code>AI_*</code> 테이블 20종을 실제 운영 DB(<code>docker exec egov-mysql
+      mysql -u ebt -pebt01 ebt -e "SHOW TABLES"</code>)에 대조해 코드-DB 드리프트가 없음을 확인했습니다. 다수 Repository는
+      <code>@PostConstruct</code>의 <code>CREATE TABLE IF NOT EXISTS</code>를 병행하지만, V1 마이그레이션 주석 기준으로 이는
+      "9개 legacy Repository의 이중 안전망"일 뿐이며 <b>DDL의 진실은 Flyway</b>입니다.
+    </p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1180 460" role="img" aria-label="MCP Tool과 Service 메서드 호출이 JdbcTemplate 기반 Repository를 거쳐 3가지 영속 계약(WORM 단순 append-only, PK에 REVISION을 포함하는 Revision-append, ON DUPLICATE KEY UPDATE 또는 직접 UPDATE를 쓰는 Upsert/Mutable) 중 하나로 AI_ 테이블에 쓰인다. AI_ARTIFACT AI_OPERATION_EVENT AI_OPERATION_LOCK은 코드는 있으나 실제 row가 0건으로 미배선 상태이고, 12번 다이어그램의 PreviewEvidenceBundle과 ScreenHandoffBundle은 MySQL이 아니라 ConcurrentHashMap 인메모리로 재시작 시 소실된다.">
+          <defs>
+            <marker id="arrow13" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+          </defs>
+
+          <rect class="node-box hub" x="340" y="20" width="500" height="54" rx="8"></rect>
+          <text class="node-title" x="590" y="53" text-anchor="middle">AI 결과 생성·조회 진입점 (MCP Tool · Service 메서드)</text>
+
+          <path class="edge" marker-end="url(#arrow13)" d="M590,74 L590,110"></path>
+
+          <rect class="node-box hub" x="340" y="110" width="500" height="66" rx="8"></rect>
+          <text class="node-title" x="590" y="138" text-anchor="middle">JdbcTemplate Repository — mapper/*.java</text>
+          <text class="node-sub" x="590" y="156" text-anchor="middle">Flyway V1~V15가 DDL 정의 · @PostConstruct는 legacy 이중 안전망</text>
+
+          <path class="edge" marker-end="url(#arrow13)" d="M590,176 Q590,205 210,230"></path>
+          <path class="edge" marker-end="url(#arrow13)" d="M590,176 L590,230"></path>
+          <path class="edge" marker-end="url(#arrow13)" d="M590,176 Q590,205 970,230"></path>
+
+          <rect class="node-box" x="40" y="230" width="340" height="104" rx="10"></rect>
+          <text class="node-title" x="210" y="256" text-anchor="middle">WORM · 단순 append-only</text>
+          <text class="node-sub" x="210" y="275" text-anchor="middle">리비전 없음 · UPDATE 전혀 없음</text>
+          <text class="node-sub" x="210" y="294" text-anchor="middle">AI_GENERATION_HISTORY(52) · AI_OPERATION_EVENT(0)</text>
+          <text class="node-sub" x="210" y="313" text-anchor="middle">AI_COMPONENT_REGISTRY_V3(0) · 감사로그 3종</text>
+
+          <rect class="node-box accent" x="420" y="230" width="340" height="104" rx="10"></rect>
+          <text class="node-title" x="590" y="256" text-anchor="middle">Revision-append</text>
+          <text class="node-sub" x="590" y="275" text-anchor="middle">PK(ID,REVISION) — 새 버전만 추가</text>
+          <text class="node-sub" x="590" y="294" text-anchor="middle">AI_THYMELEAF_PROJECT_OPERATION(2991)</text>
+          <text class="node-sub" x="590" y="313" text-anchor="middle">AI_CRUD_GENERATION_SNAPSHOT(51) · AI_SCREEN_SPECIFICATION(21)</text>
+
+          <rect class="node-box rest" x="800" y="230" width="340" height="104" rx="10"></rect>
+          <text class="node-title" x="970" y="256" text-anchor="middle">Upsert / Mutable UPDATE</text>
+          <text class="node-sub" x="970" y="275" text-anchor="middle">ON DUPLICATE KEY UPDATE 또는 직접 UPDATE</text>
+          <text class="node-sub" x="970" y="294" text-anchor="middle">AI_DESIGN_ANALYSIS(17, 캐시) · AI_OPERATION_LOCK(분산락)</text>
+          <text class="node-sub" x="970" y="313" text-anchor="middle">AI_ARTIFACT(0) · AI_SCREEN_PATTERN · AI_VARIANT_RULE_SET</text>
+
+          <text class="group-label" x="590" y="352" text-anchor="middle">참고 — 코드는 있지만 다른 상태인 것들</text>
+
+          <rect class="node-box rest" x="40" y="362" width="540" height="78" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="310" y="390" text-anchor="middle">AI_ARTIFACT · AI_OPERATION_EVENT · AI_OPERATION_LOCK</text>
+          <text class="node-sub" x="310" y="408" text-anchor="middle">코드는 완비 — 실제 생성 흐름의 호출 경로에는 아직 미배선(row 0건 다수)</text>
+
+          <a class="diagram-link" href="#pipeline-evolution-detail">
+            <title>12번 다이어그램: Pipeline Evolution Release Gate로 이동 — PreviewEvidenceBundle·ScreenHandoffBundle 정의부</title>
+            <rect class="node-box rest" x="600" y="362" width="540" height="78" rx="8" style="stroke-dasharray:5 4"></rect>
+            <text class="node-title" x="870" y="390" text-anchor="middle">⚠ PreviewEvidenceBundle · ScreenHandoffBundle</text>
+            <text class="node-sub" x="870" y="408" text-anchor="middle">MySQL 아닌 ConcurrentHashMap 인메모리 — 재시작 시 소실</text>
+            <g class="jump-badge"><circle cx="1122" cy="376" r="12"></circle><text x="1122" y="380" text-anchor="middle">12</text></g>
+          </a>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--ink-muted)"></i>WORM · append-only</span>
+        <span><i class="swatch" style="background:var(--accent)"></i>Revision-append(불변 버전)</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>Upsert · Mutable UPDATE / 참고(미배선·인메모리)</span>
+      </div>
+      <figcaption>
+        20개 <code>AI_*</code> 테이블은 세 가지 영속 계약 중 하나를 따릅니다. <b>WORM(append-only)</b>은
+        <code>INSERT</code>만 있고 <code>UPDATE</code>가 전혀 없는 불변 로그(예: <code>AI_GENERATION_HISTORY</code>).
+        <b>Revision-append</b>는 PK에 <code>REVISION</code> 컬럼을 포함해 수정 대신 항상 <code>MAX(REVISION)+1</code>
+        새 행을 추가하는 방식(예: <code>AI_THYMELEAF_PROJECT_OPERATION</code>, <code>AI_CRUD_GENERATION_SNAPSHOT</code>) —
+        승인·재현성이 중요한 산출물에 씁니다. <b>Upsert/Mutable UPDATE</b>는 <code>ON DUPLICATE KEY UPDATE</code>
+        또는 직접 <code>UPDATE</code>로 값을 덮어씁니다(예: <code>AI_DESIGN_ANALYSIS</code>는 <code>SOURCE_HASH+PROVIDER_ID+
+        MODEL_ID+PROMPT_VERSION</code> 기준 캐시, <code>AI_OPERATION_LOCK</code>은 분산락). <code>AI_SCREEN_SPECIFICATION</code>과
+        <code>AI_COMPONENT_REGISTRY</code>(v1/v2)는 초안 단계에서는 <code>save()</code>로 upsert하다가 승인 시점에
+        <code>saveImmutable()</code>로 전환되는 <b>이중 모드</b>입니다. <code>AI_ARTIFACT</code>·<code>AI_OPERATION_EVENT</code>·
+        <code>AI_OPERATION_LOCK</code>은 Repository 코드가 이미 존재하지만 실측 row가 0건 — 설계는 끝났으나 실제 CRUD 소스
+        생성 흐름의 호출부에서 아직 이 테이블들을 호출하지 않는 <b>미배선</b> 상태입니다. 테이블별 정확한 파일·라인 근거는
+        아래 표를 참고하십시오.
+      </figcaption>
+    </figure>
+
+    <div class="finding-box">
+      <h4>⚠ 발견: 12번 다이어그램의 Evidence·Handoff Bundle은 MySQL이 아니라 인메모리입니다</h4>
+      <p>
+        <code>PreviewEvidenceBundle</code>·<code>ScreenHandoffBundle</code>·<code>GenerationJob</code>·
+        <code>ScreenReviewSession</code>·<code>DesignSystemKnowledgeSnapshot</code> — 12번 다이어그램(Pipeline
+        Evolution Release Gate)이 그리는 Row 3·4의 산출물은 전부 <code>ConcurrentHashMap</code> 기반 인메모리
+        Repository입니다(<code>service/evidence/PreviewEvidenceBundleRepository.java:14</code>,
+        <code>service/handoff/ScreenHandoffBundleRepository.java:5</code>,
+        <code>service/job/GenerationJobRepository.java:5</code>,
+        <code>service/review/ScreenReviewSessionRepository.java:11</code>). MySQL 테이블은 전혀 없어
+        <b>애플리케이션 재시작 시 전부 소실</b>됩니다.
+      </p>
+      <p>
+        같은 도표의 <code>AI_THYMELEAF_PROJECT_OPERATION</code>은 V2 마이그레이션 주석에서 정확히 이런
+        "재시작 시 승인 작업 소실" 문제를 MySQL로 이관해 해결한 선례입니다. Evidence·Handoff Bundle은 아직
+        그 이관이 이뤄지지 않은 상태이며, 12번 다이어그램의 <code>app.pipeline-evolution.mode</code> 기본값이
+        이미 <code>V2_APPLY</code>로 운영 경로에 적용 중이라는 점(위 12번 섹션 참고)과 맞물려 재점검이 필요한
+        지점입니다.
+      </p>
+    </div>
+
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>테이블</th><th>패턴</th><th>핵심 컬럼(AI 결과물)</th><th>생성 주체</th><th>갱신 방식</th><th>실측 row</th></tr>
+        </thead>
+        <tbody>
+          <tr class="pattern-worm"><td><code>AI_GENERATION_HISTORY</code></td><td>WORM</td><td>TABLE_NAME, DOMAIN, PACKAGE_NAME, OUTPUT_PATH, GENERATED_FILES</td><td><code>GenerationHistoryRepository.insert()</code><br><span class="unverified">mapper/GenerationHistoryRepository.java:52</span></td><td>없음(append-only)</td><td>52</td></tr>
+          <tr class="pattern-upsert"><td><code>AI_DESIGN_ANALYSIS</code></td><td>Upsert(캐시)</td><td>RESULT_JSON(LONGTEXT), SOURCE_HASH+PROVIDER_ID+MODEL_ID+PROMPT_VERSION UNIQUE</td><td><code>DesignAnalysisRepository.saveOrGet()</code><br><span class="unverified">mapper/DesignAnalysisRepository.java:53</span></td><td>INSERT … ON DUPLICATE KEY UPDATE(사실상 캐시 재사용)</td><td>17</td></tr>
+          <tr class="pattern-revision"><td><code>AI_SCREEN_SPECIFICATION</code></td><td>Revision + Upsert(이중모드)</td><td>SPEC_STATUS, SPEC_JSON, PK(SPEC_ID, SPEC_VERSION)</td><td><code>ScreenSpecRepository.save()</code>/<code>saveImmutable()</code><br><span class="unverified">mapper/ScreenSpecRepository.java:51-79</span></td><td>초안=upsert, 승인본=새 버전 append</td><td>21</td></tr>
+          <tr class="pattern-revision"><td><code>AI_COMPONENT_REGISTRY</code>(v1/v2)</td><td>Revision + Upsert(이중모드)</td><td>REGISTRY_JSON, PK(PROFILE_ID, REGISTRY_VERSION)</td><td><code>ComponentRegistryRepository.save()</code>/<code>saveImmutable()</code><br><span class="unverified">mapper/ComponentRegistryRepository.java:48-62</span></td><td>save()=upsert, saveImmutable()=중복 시 예외</td><td>4</td></tr>
+          <tr class="pattern-worm"><td><code>AI_COMPONENT_REGISTRY_V3</code></td><td>WORM</td><td>CATALOG_VERSION, SCHEMA_VERSION, SOURCE_REVISION, APPROVED_BY/AT, CONTENT_HASH, REGISTRY_JSON</td><td><code>ComponentRegistrySnapshotV3Repository.saveImmutable()</code><br><span class="unverified">mapper/ComponentRegistrySnapshotV3Repository.java:23-32</span></td><td>없음(WORM)</td><td>0(미사용)</td></tr>
+          <tr class="pattern-worm"><td><code>AI_DESIGN_CODE_COMPONENT_MAPPING</code></td><td>WORM</td><td>MAPPING_STATUS, LOGICAL_TYPE, FIGMA_COMPONENT_SET_KEY, THYMELEAF_FRAGMENT, APPROVED_BY/AT, CONTENT_HASH, MAPPING_JSON</td><td><code>DesignCodeComponentMappingRepository.saveImmutable()</code><br><span class="unverified">mapper/DesignCodeComponentMappingRepository.java:23-34</span></td><td>없음(WORM)</td><td class="unverified">미확인(신규)</td></tr>
+          <tr class="pattern-revision"><td><code>AI_FIGMA_DESIGN_OPERATION</code> + <code>_IDEMPOTENCY</code></td><td>Revision</td><td>STATUS(ANALYZED/CONFLICT/APPLIED 등), OPERATION_JSON, PK(OPERATION_ID, REVISION)</td><td><code>FigmaDesignOperationRepository.createOrReuse()</code><br><span class="unverified">mapper/FigmaDesignOperationRepository.java:93-128</span></td><td><code>appendTransition()</code>/<code>transitionToApplied()</code>가 다음 revision INSERT(:135-170)</td><td>3</td></tr>
+          <tr class="pattern-worm"><td><code>AI_FIGMA_GENERATION_REPORT</code></td><td>WORM</td><td>SUCCESS_YN, REPORT_JSON</td><td><code>FigmaGenerationReportRepository</code> insert</td><td>없음</td><td class="unverified">미확인</td></tr>
+          <tr class="pattern-worm"><td><code>AI_FIGMA_REVIEW_HISTORY</code></td><td>WORM</td><td>EVENT_TYPE, EVENT_STATUS, ACTOR, COMMENT_TEXT</td><td><code>FigmaReviewHistoryRepository</code> insert</td><td>없음(append-only 감사로그)</td><td class="unverified">미확인</td></tr>
+          <tr class="pattern-revision"><td><code>AI_FIGMA_SCREEN_SPEC</code></td><td>Revision</td><td>SPEC_JSON, PK(SCREEN_ID, SCREEN_VERSION)</td><td><code>FigmaScreenSpecRepository</code> insert</td><td>신규 버전 append</td><td class="unverified">미확인</td></tr>
+          <tr class="pattern-upsert"><td><code>AI_FIGMA_REFINEMENT_SET</code> / <code>_PATCH</code></td><td>Upsert</td><td>REFINEMENT_STATUS, APPROVED_BY/AT / BEFORE_VALUE_JSON, AFTER_VALUE_JSON, CONFLICT_STATUS</td><td><code>FigmaRefinementRepository</code> insert</td><td><code>UPDATE AI_FIGMA_REFINEMENT_SET SET …</code>(승인 상태 전이)<br><span class="unverified">mapper/FigmaRefinementRepository.java:154</span></td><td class="unverified">미확인</td></tr>
+          <tr class="pattern-worm"><td><code>AI_FIGMA_LIBRARY_INVENTORY</code></td><td>WORM</td><td>SNAPSHOT_JSON, PK(PROFILE_ID, REGISTRY_VERSION, INVENTORY_VERSION)</td><td>insert-only 스냅샷</td><td>없음</td><td class="unverified">미확인</td></tr>
+          <tr class="pattern-upsert"><td><code>AI_SCREEN_PATTERN</code></td><td>Upsert</td><td>PATTERN_STATUS, PATTERN_JSON</td><td>insert</td><td><code>UPDATE AI_SCREEN_PATTERN SET PATTERN_STATUS=?, PATTERN_JSON=?</code></td><td class="unverified">미확인</td></tr>
+          <tr class="pattern-upsert"><td><code>AI_VARIANT_RULE_SET</code></td><td>Upsert</td><td>RULE_SET_STATUS, RULE_SET_JSON</td><td>insert</td><td><code>UPDATE … SET RULE_SET_STATUS, RULE_SET_JSON</code></td><td class="unverified">미확인</td></tr>
+          <tr class="pattern-revision"><td><code>AI_CRUD_GENERATION_SNAPSHOT</code></td><td>Revision</td><td>SNAPSHOT_JSON(GenerationOwnershipManifest 전체), PK(OPERATION_ID, REVISION)</td><td><code>CrudGenerationSnapshotRepository.save()</code><br><span class="unverified">mapper/CrudGenerationSnapshotRepository.java:42-58</span></td><td>MAX(REVISION)+1 계산 후 append</td><td>51</td></tr>
+          <tr class="pattern-revision"><td><code>AI_THYMELEAF_PROJECT_OPERATION</code> + <code>_IDEMPOTENCY</code> + <code>_SCREEN_OPERATION_INDEX</code></td><td>Revision(+색인 upsert)</td><td>STATUS, SNAPSHOT_JSON</td><td><code>ThymeleafProjectOperationRepository</code><br><span class="unverified">mapper/ThymeleafProjectOperationRepository.java:73-119</span></td><td>INDEX 테이블만 <code>ON DUPLICATE KEY UPDATE</code></td><td><b>2991</b>(최다 사용)</td></tr>
+          <tr class="pattern-worm"><td><code>AI_GENERATION_OPERATION_AUDIT</code></td><td>WORM(신설 · 14.1절 참고)</td><td>OPERATION_ID, OPERATION_REVISION, CHANGED_REGIONS_JSON, PRESERVED_REGIONS_JSON, CONFLICT_REGIONS_JSON, STATUS, PK(AUDIT_ID)</td><td><code>GenerationControlPlaneRepository.append(GenerationAuditRecord)</code><br><span class="unverified">mapper/GenerationControlPlaneRepository.java:32-35</span></td><td>없음(append-only, CONFLICT·FAILED·APPLIED 매 시도)</td><td class="unverified">미확인(신규)</td></tr>
+          <tr class="pattern-worm"><td><code>AI_GENERATION_VALIDATION_EVIDENCE</code></td><td>WORM(신설 · 14.1절 참고)</td><td>OPERATION_ID, GATE_TYPE, STATUS, SEVERITY, CONTENT_HASH, PK(EVIDENCE_ID)</td><td><code>GenerationControlPlaneRepository.append(ValidationEvidence)</code><br><span class="unverified">mapper/GenerationControlPlaneRepository.java:65-67</span></td><td>없음(append-only, RENDER·BUILD·BINDING Gate마다)</td><td class="unverified">미확인(신규)</td></tr>
+          <tr class="pattern-worm"><td><code>AI_GENERATION_READINESS_COMPARISON</code></td><td>WORM(신설 · 14.1절 참고)</td><td>OPERATION_ID, SOURCE_TYPE, LEGACY_READY, COMMON_READY, MATCHED, PK(COMPARISON_ID)</td><td><code>ReadinessComparisonRepository.append(ReadinessComparisonRecord)</code><br><span class="unverified">mapper/ReadinessComparisonRepository.java:29-31</span></td><td>없음(append-only, 30일 관측용)</td><td class="unverified">미확인(신규)</td></tr>
+          <tr class="pattern-upsert"><td><code>AI_ARTIFACT</code> + <code>_LINK</code></td><td>Upsert</td><td>ARTIFACT_TYPE, MEDIA_TYPE, CONTENT_HASH(UNIQUE), STORAGE_URI, STATUS</td><td><code>ArtifactCatalogRepository</code> insert<br><span class="unverified">:51, 86</span></td><td><code>UPDATE AI_ARTIFACT SET STATUS=? WHERE ARTIFACT_ID=?</code>(:105)</td><td>0(미사용/미배선)</td></tr>
+          <tr class="pattern-worm"><td><code>AI_OPERATION_EVENT</code></td><td>WORM</td><td>FROM_STATUS, TO_STATUS, EVENT_TYPE, ACTOR, CORRELATION_ID</td><td><code>OperationEventRepository</code> insert</td><td>없음(append-only 이벤트로그)</td><td>0(미사용/미배선)</td></tr>
+          <tr class="pattern-upsert"><td><code>AI_OPERATION_LOCK</code></td><td>Upsert(분산락)</td><td>OWNER_ID, FENCING_TOKEN, EXPIRES_AT</td><td>분산락 획득 시 insert</td><td><code>UPDATE AI_OPERATION_LOCK SET … WHERE LOCK_KEY=?</code>(<code>SELECT … FOR UPDATE</code> 동반)</td><td class="unverified">미확인</td></tr>
+          <tr class="pattern-upsert"><td><code>AI_DESIGN_SYSTEM_PROFILE</code></td><td>Upsert</td><td>PROFILE_STATUS, PROFILE_JSON, UPDATED_AT(ON UPDATE 트리거)</td><td>insert</td><td>DB 트리거로 자동 갱신</td><td class="unverified">미확인</td></tr>
+          <tr class="pattern-worm"><td><code>AI_COMPONENT_REGISTRY_RESOLUTION_REPORT</code></td><td>WORM</td><td>IDENTICAL(BOOLEAN), REPORT_JSON</td><td>insert-only 비교 리포트</td><td>없음</td><td class="unverified">미확인</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="subsection-sub" style="margin-top:10px">
+      <span class="unverified" style="font-style:italic">미확인</span> 표기는 Flyway/코드 정적분석으로 존재는 확인했으나
+      실제 row 수를 직접 조회하지 않은 항목입니다(<code>SHOW TABLES</code>만 전수 확인, 일부만 <code>COUNT(*)</code> 실측).
+      Redis 기반 RAG 벡터 스토어·채팅 메모리(<code>EgovRedisChatMemoryRepository</code>, <code>chat:memory:{conversationId}</code>
+      키)는 MySQL이 아니므로 이 표에서 제외했습니다 — 1번 다이어그램의 <b>Redis Stack</b> 박스가 그 경로입니다.
+    </p>
+  </section>
+
+  <section class="diagram-block" id="thymeleaf-migration-workflow">
+    <h2>14. Thymeleaf 마이그레이션 승인 워크플로우 — CRUD 소스 생성과의 승인 단계 비교 <span class="ver-tag">신규 반영</span></h2>
+    <p class="section-sub">
+      13번에서 최다 사용 테이블로 드러난 <code>AI_THYMELEAF_PROJECT_OPERATION</code>을 실제로 쓰는 주체입니다.
+      <b>레거시 JSP 화면을 Thymeleaf로 변환해 덮어쓰는</b>, 위험도가 다른 별도 승인 상태기계이며, 2번 다이어그램의
+      2.2절(CRUD 소스 생성 경로)과는 한 번도 서로의 상위 서비스가 되지 않지만 파일 쓰기 계층(<code>ApprovedProjectWritePort</code>)은
+      설계 시점부터 공유하도록 되어 있습니다.
+    </p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1180 420" role="img" aria-label="ThymeleafProjectWorkflowService의 상태기계가 PREVIEW_READY 1282건에서 APPROVED 838건, APPLIED 703건으로 좁아지고, APPROVED에서 APPLIED로 가는 도중 168건이 CONFLICT로 갈라진다. APPLIED 이후에는 같은 ApprovedProjectWritePort를 2번 다이어그램 2.2절 7번(GenerateCrudProjectUseCase) 내부의 CodeServiceGenerationExecutor(CRUD 소스 생성)도 함께 쓰는데, CRUD 소스 경로에는 명시적 승인 단계가 없다. Thymeleaf 경로는 AI_THYMELEAF_PROJECT_OPERATION 등 4개 테이블에, CRUD 소스 경로는 AI_CRUD_GENERATION_SNAPSHOT과 신규 AI_GENERATION_OPERATION_AUDIT·AI_GENERATION_VALIDATION_EVIDENCE(V16, 14.1절 참고)에 각각 결과를 남긴다.">
+          <defs>
+            <marker id="arrow14" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow14Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+          </defs>
+
+          <text class="group-label" x="590" y="14" text-anchor="middle">실측 상태 분포 (2026-08-03~08-24, AI_THYMELEAF_PROJECT_OPERATION — REJECTED/VALIDATED/FAILED 0건)</text>
+
+          <rect class="node-box good" x="60" y="30" width="280" height="70" rx="8"></rect>
+          <text class="node-title" x="200" y="60" text-anchor="middle">PREVIEW_READY</text>
+          <text class="node-sub" x="200" y="82" text-anchor="middle">1,282건 · previewThymeleafProject</text>
+
+          <rect class="node-box good" x="440" y="30" width="280" height="70" rx="8"></rect>
+          <text class="node-title" x="580" y="60" text-anchor="middle">APPROVED</text>
+          <text class="node-sub" x="580" y="82" text-anchor="middle">838건 · hash 일치 승인</text>
+
+          <rect class="node-box good" x="820" y="30" width="280" height="70" rx="8"></rect>
+          <text class="node-title" x="960" y="60" text-anchor="middle">APPLIED</text>
+          <text class="node-sub" x="960" y="82" text-anchor="middle">703건 · 분산락+원자적 교체</text>
+
+          <path class="edge good" marker-end="url(#arrow14)" d="M340,65 L440,65"></path>
+          <path class="edge good" marker-end="url(#arrow14)" d="M720,65 L820,65"></path>
+
+          <path class="edge dashed rest" marker-end="url(#arrow14Rest)" d="M770,65 Q770,110 680,150"></path>
+          <rect class="node-box rest" x="580" y="150" width="200" height="56" rx="8"></rect>
+          <text class="node-title" x="680" y="172" text-anchor="middle">CONFLICT</text>
+          <text class="node-sub" x="680" y="190" text-anchor="middle">168건 · drift/충돌</text>
+
+          <path class="edge" marker-end="url(#arrow14)" d="M960,100 L960,250"></path>
+
+          <a class="diagram-link" href="#approved-project-write-port-6">
+            <title>6번 다이어그램: Thymeleaf 생성 서비스 상세 — auto 경로가 이 Port를 쓰는 지점(5a CodeServiceGenerationExecutor)으로 이동</title>
+            <rect class="node-box hub" x="780" y="250" width="360" height="74" rx="10"></rect>
+            <text class="node-title" x="960" y="278" text-anchor="middle">ApprovedProjectWritePort(공유)</text>
+            <text class="node-sub" x="960" y="296" text-anchor="middle">staging→backup→atomic replace</text>
+            <text class="node-sub" x="960" y="312" text-anchor="middle">승인·hash 검증은 호출자 책임(Port 자체 javadoc)</text>
+            <g class="jump-badge"><circle cx="1122" cy="264" r="12"></circle><text x="1122" y="268" text-anchor="middle">6</text></g>
+          </a>
+
+          <path class="edge dashed" d="M440,287 L780,287"></path>
+          <text class="edge-label" x="610" y="277" text-anchor="middle" style="font-size:9.5px">같은 Port·ATOMIC_APPROVED 정책 공유</text>
+
+          <a class="diagram-link" href="#generate-crud-project-usecase">
+            <title>2번 다이어그램 2.2절 7번(GenerateCrudProjectUseCase) 내부로 이동</title>
+            <rect class="node-box rest" x="60" y="250" width="380" height="74" rx="10" style="stroke-dasharray:5 4"></rect>
+            <text class="node-title" x="250" y="270" text-anchor="middle">CodeServiceGenerationExecutor</text>
+            <text class="node-sub" x="250" y="284" text-anchor="middle" style="font-size:8.5px">2.2절 7번(GenerateCrudProjectUseCase) 내부</text>
+            <text class="node-sub" x="250" y="298" text-anchor="middle">CRUD 소스 생성 — 3-way(Base·Current·New) 병합</text>
+            <text class="node-sub" x="250" y="313" text-anchor="middle" style="font-size:8.5px;fill:var(--rest)">⚠ 기본은 승인 없음 — 고위험 테이블만 예외(2.2절)</text>
+            <g class="jump-badge"><circle cx="422" cy="264" r="12"></circle><text x="422" y="267" text-anchor="middle" style="font-size:8px">2.2</text></g>
+          </a>
+
+          <path class="edge" marker-end="url(#arrow14)" d="M250,324 L250,350"></path>
+          <path class="edge" marker-end="url(#arrow14)" d="M960,324 L960,350"></path>
+
+          <a class="diagram-link" href="#mysql-ai-tables-detail">
+            <title>13번 다이어그램: MySQL AI_* 테이블 데이터 흐름으로 이동</title>
+            <rect class="node-box" x="60" y="350" width="380" height="56" rx="8"></rect>
+            <text class="node-title" x="250" y="368" text-anchor="middle" style="font-size:12px">AI_CRUD_GENERATION_SNAPSHOT 외 2종</text>
+            <text class="node-sub" text-anchor="middle" style="font-size:8.5px"><tspan x="250" y="381">AI_GENERATION_OPERATION_AUDIT</tspan><tspan x="250" y="392">AI_GENERATION_VALIDATION_EVIDENCE(V16)</tspan></text>
+            <g class="jump-badge"><circle cx="422" cy="364" r="12"></circle><text x="422" y="368" text-anchor="middle">13</text></g>
+          </a>
+
+          <a class="diagram-link" href="#mysql-ai-tables-detail">
+            <title>13번 다이어그램: MySQL AI_* 테이블 데이터 흐름으로 이동</title>
+            <rect class="node-box" x="760" y="350" width="400" height="56" rx="8"></rect>
+            <text class="node-title" x="960" y="372" text-anchor="middle">AI_THYMELEAF_PROJECT_OPERATION 외 3종</text>
+            <text class="node-sub" x="960" y="390" text-anchor="middle">AI_ARTIFACT · AI_OPERATION_EVENT · AI_OPERATION_LOCK</text>
+            <g class="jump-badge"><circle cx="1142" cy="364" r="12"></circle><text x="1142" y="368" text-anchor="middle">13</text></g>
+          </a>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--good)"></i>정상 승인 경로</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>충돌/비대칭 지점</span>
+        <span><i class="swatch" style="background:var(--accent)"></i>공유 인프라</span>
+      </div>
+      <figcaption>
+        <code>ProjectOperationStatus</code> enum은 9개 값(<code>ANALYZED, CONTRACT_READY, PREVIEW_READY, APPROVED,
+        APPLIED, VALIDATED, FAILED, CONFLICT, REJECTED</code>)을 정의하지만, 실측 DB에는 4개 값만 존재합니다.
+        <code>ANALYZED</code>·<code>CONTRACT_READY</code>는 <code>preview()</code> 호출 한 번 안에서 즉시
+        <code>PREVIEW_READY</code>로 전이돼 저장되는 트랜지언트 상태로 보이며(미확인), <code>VALIDATED</code>·
+        <code>FAILED</code>·<code>REJECTED</code>가 0건인 것은 <code>revalidateThymeleafProject(WithBrowserGate)</code>
+        재검증 단계가 실제 운영에서 아직 호출되지 않았거나 항상 <code>APPLIED</code>에 머물러 있다는 뜻으로 읽힙니다(미확인).
+        <code>approve()</code>는 상태가 정확히 <code>PREVIEW_READY</code>이고 <code>previewHash</code>가 일치하며
+        <code>validationErrors</code>가 비어 있을 때만 통과합니다 — 셋 중 하나라도 어긋나면 <code>APPROVAL_REJECTED</code>
+        이벤트만 남기고 예외를 던집니다. <code>apply()</code>는 분산락(<code>AI_OPERATION_LOCK</code>, 키
+        <code>"THYMELEAF:"+projectRoot</code>, 5분 타임아웃)을 먼저 잡은 뒤 DESIGN.md/legacy source drift를
+        재검사하고, 문제 없으면 <code>ApprovedProjectWritePort</code>로 원자적 교체합니다.
+      </figcaption>
+    </figure>
+
+    <div class="target-pipeline" style="border-color:var(--rest);background:linear-gradient(135deg, var(--surface), var(--rest-soft));">
+      <h4>핵심 결론</h4>
+      <p>
+        CRUD 소스 생성과 Thymeleaf 마이그레이션은 동일한 파일 쓰기 Port를 공유하지만, 위험 모델과 승인 방식이 다르므로
+        실행기는 분리한다. CRUD 소스는 반복 재생성을 위해 Region 3-way(Base·Current·New) 비교 기반 자동 병합을 사용하고, Thymeleaf
+        마이그레이션은 레거시 화면 변환의 위험도를 고려해 Preview Hash·Source Revision·명시적 승인·Revalidate를
+        강제한다. 다만 2026-08-26부터 고위험으로 지정한 테이블에 한해 CRUD 소스 생성에도 조건부 승인
+        게이트(<code>CrudGenerationApprovalPolicy</code>, 2.2절)가 예외로 적용될 수 있다(기본값은 비활성).
+      </p>
+      <p>
+        통합 대상은 실행 알고리즘이 아니라 <b>Generation Operation, Validation Evidence, Approval State,
+        Conflict·Rollback Audit</b>과 같은 제어 계층이며, 이 제어 계층은 <b>14.1절에서 실제로 구현·커밋됐다</b>
+        (<code>GenerationControlPlaneService</code>, 커밋 <code>5ae8507</code>). 다만 이는 위 <code>CodeServiceGenerationExecutor</code>의
+        "명시적 승인 단계 없음" 문제 자체를 고친 것이 아니다 — 14.1절의 <code>Approval</code> 값은 CRUD 소스 쪽이
+        여전히 <code>AUTOMATED_OWNERSHIP_CHECK</code>(사람 승인 없음)이므로, <b>승인 공백이 해소된 게 아니라
+        그 공백이 API로 관측 가능해졌을 뿐</b>이다. <code>ATOMIC_APPROVED</code>는 승인 방식이 아니라
+        원자적 파일 쓰기 정책이므로, 사람 승인과 자동 3-way 판정 승인을 별도 계약으로 표현해야 한다.
+      </p>
+      <p>
+        같은 이유로 위 <code>CodeServiceGenerationExecutor</code> 박스는 여전히 주황(<code>rest</code>)+점선으로
+        남아 있다. 이 점선이 표시하는 건 <b>기본 동작</b>이지 예외 경로가 아니기 때문이다.
+        <code>CrudGenerationApprovalPolicy</code>는 기본값이 꺼져 있는(<code>approval-required-tables</code>가
+        빈 목록) 선택적 게이트이므로, 운영자가 특정 테이블을 명시적으로 등록하지 않는 한 지금 이 순간에도
+        CRUD 소스 생성은 승인 없이 그대로 저장된다. 바뀐 건 "예외 경로 하나가 추가됐다"는 것이지 "기본
+        상태에 뚫려 있던 구멍이 막혔다"는 것이 아니다 — 그래서 박스 문구도 실선 전환 없이 "⚠ 기본은
+        승인 없음 — 고위험 테이블만 예외(2.2절)"로만 갱신했다. 만약 반대로 <code>approval-required-for-all</code>이
+        기본값 <code>true</code>였다면, 그때는 "기본적으로 항상 승인이 걸린다"는 뜻이므로 점선을 실선으로
+        바꾸는 게 맞았을 것이다.
+      </p>
+    </div>
+
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>축</th><th>CRUD 소스 생성 경로(2.2절)</th><th>Thymeleaf 마이그레이션(14번)</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>진입점</td><td><code>buildFullCrudPrompt</code> 등 → <code>GenerateCrudProjectUseCase</code></td><td><code>previewThymeleafBindingGeneration</code>(WP6) → <code>ThymeleafProjectWorkflowTool</code></td></tr>
+          <tr><td>대상</td><td>DB 스키마 기반 신규 화면</td><td>운영 중인 레거시 JSP 화면 변환</td></tr>
+          <tr><td>안전장치</td><td>Region 3-way(Base·Current·New) 비교 기반 자동 병합</td><td>Preview Hash 승인 + source drift 재검증 + 분산락</td></tr>
+          <tr><td>승인</td><td><code>llmProvider=auto</code>면 기본적으로 즉시 적용 — <b>고위험 테이블로 지정된 경우만</b> 승인된 화면명세 필요(2.2절 <code>CrudGenerationApprovalPolicy</code>, 기본값 비활성)</td><td><code>PREVIEW_READY</code>에서 hash 일치해야만 <code>approve()</code> 통과</td></tr>
+          <tr><td>공유 지점</td><td colspan="2" style="text-align:center"><code>ApprovedProjectWritePort</code> · <code>ProjectWritePolicy.ATOMIC_APPROVED</code>(둘 다 사용, 승인 여부는 각자 책임)</td></tr>
+          <tr><td>DB 저장</td><td><code>AI_CRUD_GENERATION_SNAPSHOT</code>(51건) + 신규 <code>AI_GENERATION_OPERATION_AUDIT</code>·<code>AI_GENERATION_VALIDATION_EVIDENCE</code>(V16, 14.1절 참고)</td><td><code>AI_THYMELEAF_PROJECT_OPERATION</code>(2,991건) + <code>AI_ARTIFACT</code>·<code>AI_OPERATION_EVENT</code>·<code>AI_OPERATION_LOCK</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="subsection-sub" style="margin-top:10px">
+      관련 파일: <code>tools/ThymeleafProjectWorkflowTool.java</code>·<code>tools/ThymeleafBaselineApprovalTool.java</code>·
+      <code>tools/ThymeleafBindingGenerationTool.java</code>·<code>service/thymeleaf/ThymeleafProjectWorkflowService.java</code>·
+      <code>service/thymeleaf/ThymeleafBindingGenerationService.java</code>·<code>service/write/ApprovedProjectWritePort.java</code>·
+      <code>model/thymeleaf/ProjectOperationStatus.java</code>. <code>previewThymeleafBindingGeneration</code>을 실제로
+      트리거하는 상위 스킬·프롬프트 흐름은 CLAUDE.md·스킬 문서 어디에도 언급이 없어 <b>미확인</b>으로 남깁니다 —
+      MCP Tool로는 노출돼 있고 DB에는 실사용 흔적이 뚜렷하지만, 무엇이 이걸 부르는지는 코드만으로 확정할 수 없었습니다.
+    </p>
+
+    <h3 class="subsection-title">14.1 실행기 ↔ 공통 제어 계층(Control Plane) 관계도 <span class="ver-tag implemented">구현·커밋 완료</span></h3>
+    <p class="subsection-sub">
+      <code>docs/figma/32~34_Dual_Pipeline_Common_Control_Plane_*.md</code>(DPC-602)의 제안이 실제 코드로
+      구현되고, 커밋 <code>5ae8507</code> "feat: add dual pipeline control plane"과 후속 보완 커밋
+      <code>f439db3</code> "security: avoid storing dashboard credentials"로 커밋까지 완료됐습니다(관련
+      테스트 19개 전부 통과). 다만 32번 문서 §8의 종료 조건 — <code>code-reviewer</code>/<code>architect</code>
+      독립 검토 증적, 2026-08-25~2026-09-24 최소 30일 Readiness 관측 — 은 아직 진행 중이므로, 이 절의
+      초록색 배지는 "코드가 커밋된 상태"를 의미할 뿐 "Merge·전환 최종 확정"을 의미하지 않습니다. 두 실행기의
+      실제 Apply·쓰기 경로 자체는 위 14번 다이어그램과 동일하게 <b>변경 없음</b> — 이 관계도는 여전히
+      <b>읽기 전용 투영(Projection)</b> 계층입니다.
+    </p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1180 500" role="img" aria-label="구현·커밋 완료(5ae8507): CRUD 소스 생성과 Thymeleaf 각 실행기의 기존 이력 테이블(AI_CRUD_GENERATION_SNAPSHOT, AI_THYMELEAF_PROJECT_OPERATION 외 3종)을 CrudGenerationSnapshotAdapter와 ThymeleafWorkflowAdapter가 읽기 전용으로 투영해 GenerationControlPlaneService가 Operation·Approval·Evidence·Audit 네 그룹으로 모은다. Evidence는 신규 AI_GENERATION_VALIDATION_EVIDENCE, Audit은 신규 AI_GENERATION_OPERATION_AUDIT 테이블에 실제로 값을 채우며, GenerationOperationsController의 조회 전용 REST API가 이 결과와 AI_GENERATION_READINESS_COMPARISON을 노출한다. 실제 파일 쓰기 경로는 변경되지 않는다.">
+          <defs>
+            <marker id="arrow14b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow14bAccent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+          </defs>
+
+          <text class="group-label" x="590" y="14" text-anchor="middle">기존 이력 (13번 참고 · 변경 없음)</text>
+          <rect class="node-box" x="60" y="20" width="460" height="60" rx="8"></rect>
+          <text class="node-title" x="290" y="38" text-anchor="middle" style="font-size:12.5px">AI_CRUD_GENERATION_SNAPSHOT</text>
+          <text class="node-sub" text-anchor="middle" style="font-size:8.5px"><tspan x="290" y="52">OPERATION_ID·REVISION·SNAPSHOT_JSON·CREATED_AT</tspan><tspan x="290" y="64">PK(OPERATION_ID,REVISION) · 51건 실측</tspan></text>
+
+          <rect class="node-box" x="660" y="20" width="460" height="60" rx="8"></rect>
+          <text class="node-title" x="890" y="38" text-anchor="middle" style="font-size:12.5px">AI_THYMELEAF_PROJECT_OPERATION 외 3종</text>
+          <text class="node-sub" text-anchor="middle" style="font-size:8.5px"><tspan x="890" y="52">OPERATION_ID·REVISION·STATUS·SNAPSHOT_JSON</tspan><tspan x="890" y="64">PK(OPERATION_ID,REVISION) · 2,991건 실측</tspan></text>
+
+          <path class="edge" marker-end="url(#arrow14b)" d="M290,80 L290,110"></path>
+          <text class="edge-label" x="300" y="98" style="font-size:8.5px">읽기(SELECT)</text>
+          <path class="edge" marker-end="url(#arrow14b)" d="M890,80 L890,110"></path>
+          <text class="edge-label" x="900" y="98" style="font-size:8.5px">읽기(SELECT)</text>
+
+          <text class="group-label" x="590" y="103" text-anchor="middle">↓ 구현 완료 · 읽기 전용 Adapter</text>
+          <rect class="node-box good" x="60" y="110" width="460" height="62" rx="8"></rect>
+          <text class="node-title" x="290" y="134" text-anchor="middle" style="font-size:12.5px">CrudGenerationSnapshotAdapter</text>
+          <text class="node-sub" x="290" y="152" text-anchor="middle" style="font-size:9px">3-way Region 병합 + 매 시도별 Audit 결과 투영</text>
+
+          <rect class="node-box good" x="660" y="110" width="460" height="62" rx="8"></rect>
+          <text class="node-title" x="890" y="134" text-anchor="middle" style="font-size:12.5px">ThymeleafWorkflowAdapter</text>
+          <text class="node-sub" x="890" y="152" text-anchor="middle" style="font-size:9px">Preview→Approved→Applied→Validated 흐름 보존</text>
+
+          <path class="edge good" marker-end="url(#arrow14bAccent)" d="M290,172 Q290,190 480,200"></path>
+          <path class="edge good" marker-end="url(#arrow14bAccent)" d="M890,172 Q890,190 700,200"></path>
+
+          <rect class="node-box good" x="140" y="200" width="900" height="150" rx="12"></rect>
+          <text class="node-title" x="590" y="228" text-anchor="middle">GenerationControlPlaneService</text>
+
+          <rect class="node-box good" x="160" y="250" width="200" height="78" rx="6"></rect>
+          <text class="node-title" x="260" y="272" text-anchor="middle" style="font-size:12px">Operation</text>
+          <text class="node-sub" text-anchor="middle" style="font-size:8px"><tspan x="260" y="287">GenerationOperation</tspan><tspan x="260" y="299">operationId·status</tspan></text>
+
+          <rect class="node-box good" x="380" y="250" width="200" height="78" rx="6"></rect>
+          <text class="node-title" x="480" y="272" text-anchor="middle" style="font-size:12px">Approval</text>
+          <text class="node-sub" text-anchor="middle" style="font-size:8px"><tspan x="480" y="287">EXPLICIT_HASH_APPROVAL</tspan><tspan x="480" y="299">AUTOMATED_OWNERSHIP_CHECK</tspan></text>
+
+          <rect class="node-box good" x="600" y="250" width="200" height="78" rx="6"></rect>
+          <text class="node-title" x="700" y="270" text-anchor="middle" style="font-size:12px">Evidence</text>
+          <text class="node-sub" text-anchor="middle" style="font-size:8px"><tspan x="700" y="284">CrudValidationEvidenceRecorder</tspan><tspan x="700" y="295">AI_GENERATION_VALIDATION_EVIDENCE</tspan><tspan x="700" y="306">PK(EVIDENCE_ID) · 실제 기록(해결됨)</tspan></text>
+
+          <rect class="node-box good" x="820" y="250" width="200" height="78" rx="6"></rect>
+          <text class="node-title" x="920" y="270" text-anchor="middle" style="font-size:12px">Audit</text>
+          <text class="node-sub" text-anchor="middle" style="font-size:8px"><tspan x="920" y="284">recordAudit() 매 시도 기록</tspan><tspan x="920" y="295">AI_GENERATION_OPERATION_AUDIT</tspan><tspan x="920" y="306">PK(AUDIT_ID) · conflict·보존(해결됨)</tspan></text>
+
+          <path class="edge good" marker-end="url(#arrow14bAccent)" d="M590,350 L590,390"></path>
+
+          <rect class="node-box good" x="290" y="390" width="600" height="86" rx="8"></rect>
+          <text class="node-title" x="590" y="412" text-anchor="middle" style="font-size:12.5px">GenerationOperationsController</text>
+          <text class="node-sub" x="590" y="428" text-anchor="middle" style="font-size:9.5px">GET /api/generation-operations/{id} · /evidence · /readiness · /metrics</text>
+          <text class="node-sub" x="590" y="443" text-anchor="middle" style="font-size:9px">기존 /api/pipeline/release-readiness는 하위 호환 유지</text>
+          <text class="node-sub" x="590" y="459" text-anchor="middle" style="font-size:9px">/metrics/readiness-comparison → AI_GENERATION_READINESS_COMPARISON · PK(COMPARISON_ID)</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--ink-muted)"></i>기존 · 이미 커밋된 코드</span>
+        <span><i class="swatch" style="background:var(--good)"></i>신규 구현 · 커밋 완료(<code>5ae8507</code>, 테스트 19/19)</span>
+      </div>
+      <figcaption>
+        <code>GenerationControlPlaneService</code>는 실행기 내부 로직을 호출하지 않고, 각 실행기가 이미 쓰고
+        있는 기존 테이블을 읽기 전용으로 투영합니다(<code>33_..._Specification.md</code> §2 그대로 구현).
+        <code>CrudGenerationSnapshotAdapter</code>가 투영하는 대상은 2.2절 7번(<code>GenerateCrudProjectUseCase</code>)
+        내부·14번 다이어그램에 그려진 <code>CodeServiceGenerationExecutor</code>가 실제로 수행하는
+        <b>3-way(Base·Current·New) Region 비교</b>
+        결과이며, 이번 구현에서 두 가지 기존 한계가 실제로 해소됐습니다. <b>① Evidence 문제(해결됨)</b> —
+        기존 <code>AI_CRUD_GENERATION_SNAPSHOT</code>에는 검증/Gate 필드가 없었지만(코드 확인 완료), 새
+        <code>CrudValidationEvidenceRecorder</code>가 <code>GenerationVerifierRunner</code>의 관찰 훅을 통해
+        RENDER·BUILD·BINDING Gate 결과를 <code>AI_GENERATION_VALIDATION_EVIDENCE</code>(V16)에 실제로 기록합니다.
+        <b>② Region Conflict 이력 문제(해결됨)</b> — <code>CodeServiceGenerationExecutor</code>가 CONFLICT·FAILED·
+        APPLIED 세 종료 경로 모두에서 <code>recordAudit()</code>를 호출해 <code>changedRegionIds</code>·
+        <code>preservedRegionIds</code>·<code>conflictRegionIds</code>를 <code>AI_GENERATION_OPERATION_AUDIT</code>
+        (V16)에 매 시도마다 남기므로, 더 이상 성공 Snapshot의 고정된 <code>mergePolicy=REGENERATE</code> 값에만
+        의존하지 않습니다. Thymeleaf의 <code>SECURITY</code> Gate는 여전히 현재 코드에 없어 기존 Operation의
+        필수 조건으로 취급하지 않습니다. 저장 전략은 <code>docs/architecture/ADR_Dual_Pipeline_Legacy_Storage_Adapter_Strategy.md</code>
+        에서 "기존 두 이력 테이블은 원본 그대로 유지하고, 신규 교차 데이터만 Sidecar 테이블에 별도 기록"하는
+        방식으로 확정됐습니다. 커밋 <code>5ae8507</code>/<code>f439db3</code>로 코드는 이미 커밋됐지만,
+        <b>남은 것은 코드가 아니라 절차</b>입니다 — 32번 문서 §8의 종료 조건(①
+        <code>code-reviewer</code>/<code>architect</code> 독립 검토 증적, ② 2026-08-25부터 최소 30일간
+        <code>AI_GENERATION_READINESS_COMPARISON</code> 관측 후 2026-09-24 이후 분석)이 아직 충족되지 않았으므로
+        이 절의 "구현·커밋 완료" 표시는 Merge·전환 최종 확정을 의미하지 않습니다.
+      </figcaption>
+    </figure>
+  </section>
+
   <footer class="notes">
-    핵심 소스: <code>README.md</code>, <code>McpConfig.java</code>(Tool 등록·인가), <code>McpToolDefinitionSnapshotTest</code>(101개 Tool 메서드 / 36개 Tool 객체 기준선), 각 서브 프로젝트 <code>README.md</code>, <code>docs/figma/18_..._Impact_and_Implementation_Specification.md</code>·<code>19_..._Implementation_List.md</code>(Catalog/Registry v1→v2→v3 SSOT 전환), <code>ComponentRegistryDualReadService</code>·<code>KrdsComponentResolutionService</code> 소스(현재 어느 경로가 실제 운영 중인지 import 기준으로 확인), <code>KrdsQnaRuntimeResolverIntegrationTest</code>, <code>docs/figma/05_Overall_Architecture_Diagram.md</code>(WEB_CAPTURE vs Semantic Pipeline 범위 구분), <code>DesignReferenceTool.java</code>·<code>ThymeleafLayoutTool.java</code>(5·6번), <code>jsp-design-extractor/README.md</code>(8번), <code>component-contracts/tokens/**</code>(9번, W3C Design Tokens 형식), <code>krds-design-system-author-plugin/README.md</code>(10번), <code>jsp-to-figma-plugin/src/code.ts</code>(11번), <code>FigmaExportBundle.java</code>·<code>FigmaExportTool.java</code>·<code>FigmaExportController.java</code>(2번 내보내기 경로 및 5번↔2번 연결), <code>ProjectInitializrTool.java</code>·<code>FilePlanFactory.java</code>(gnbLayoutHtml 등)·<code>ThymeleafLayoutTool.java</code>의 Tool 설명 원문(2.2, packageName 일치 요구사항과 overwrite 관계 확인), <code>CrudGenerationDispatchService.java</code>("llmProvider 분기의 유일한 지점" JavaDoc)·<code>CrudScreenSourceTool.java</code>·<code>JoinQueryTool.java</code>(2.2 보조 진입점), <code>EgovOllamaChatController.java</code>·<code>EgovSessionAwareChatServiceImpl.java</code>(2.3, RAG/Chat 흐름).
+    핵심 소스: <code>README.md</code>, <code>McpConfig.java</code>(Tool 등록·인가), <code>McpToolDefinitionSnapshotTest</code>(101개 Tool 메서드 / 36개 Tool 객체 기준선), 각 서브 프로젝트 <code>README.md</code>, <code>docs/figma/18_..._Impact_and_Implementation_Specification.md</code>·<code>19_..._Implementation_List.md</code>(Catalog/Registry v1→v2→v3 SSOT 전환), <code>ComponentRegistryDualReadService</code>·<code>KrdsComponentResolutionService</code> 소스(현재 어느 경로가 실제 운영 중인지 import 기준으로 확인), <code>KrdsQnaRuntimeResolverIntegrationTest</code>, <code>docs/figma/05_Overall_Architecture_Diagram.md</code>(WEB_CAPTURE vs Semantic Pipeline 범위 구분), <code>DesignReferenceTool.java</code>·<code>ThymeleafLayoutTool.java</code>(5·6번), <code>jsp-design-extractor/README.md</code>(8번), <code>component-contracts/tokens/**</code>(9번, W3C Design Tokens 형식), <code>krds-design-system-author-plugin/README.md</code>(10번), <code>jsp-to-figma-plugin/src/code.ts</code>(11번), <code>FigmaExportBundle.java</code>·<code>FigmaExportTool.java</code>·<code>FigmaExportController.java</code>(2번 내보내기 경로 및 5번↔2번 연결), <code>ProjectInitializrTool.java</code>·<code>FilePlanFactory.java</code>(gnbLayoutHtml 등)·<code>ThymeleafLayoutTool.java</code>의 Tool 설명 원문(2.2, packageName 일치 요구사항과 overwrite 관계 확인), <code>CrudGenerationDispatchService.java</code>("llmProvider 분기의 유일한 지점" JavaDoc)·<code>CrudScreenSourceTool.java</code>·<code>JoinQueryTool.java</code>(2.2 보조 진입점), <code>EgovOllamaChatController.java</code>·<code>EgovSessionAwareChatServiceImpl.java</code>(2.3, RAG/Chat 흐름), <code>PipelineEvolutionProperties.java</code>·<code>PipelineReleaseGateController.java</code>·<code>PipelineArtifactController.java</code>·<code>PipelineReleaseReadiness.java</code>·<code>ScreenHandoffProjectionService.java</code>(12번), <code>docs/figma/29_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_Specification.md</code>·<code>30_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_List.md</code>·<code>31_5Axis_Pipeline_Release_Gate_Operations_Runbook.md</code>(12번 근거 문서), <code>src/main/resources/db/migration/V1~V15__*.sql</code>·<code>mapper/*Repository.java</code>(20종)·<code>service/evidence/PreviewEvidenceBundleRepository.java</code>·<code>service/handoff/ScreenHandoffBundleRepository.java</code>·<code>EgovRedisChatMemoryRepository.java</code>(13번, 실제 운영 DB SHOW TABLES 대조로 검증).
     <ul>
       <li>패키지 세부 구조와 각 서브 프로젝트 역할은 <code>README.md</code>의 "디렉터리 구조" 섹션을 참고하십시오.</li>
       <li><code>ComponentRegistry.java</code>의 <code>SCHEMA_VERSION</code> 상수는 리터럴 값이 <code>"component-registry-v1"</code>이지만 코드베이스 어디서도 참조되지 않는 죽은 상수입니다 — 실제 필드 구조는 <code>component-registry-v2.schema.json</code>과 일치하고 <code>ComponentRegistryV2ToV3Converter</code> JavaDoc·fixture 파일명도 이를 "v2"로 부르므로, 3번 다이어그램은 그 실무 관례를 따랐습니다.</li>
+      <li><b>2026-08-23 갱신:</b> <code>d009058</code> 커밋("feat: complete 5-axis pipeline release gates", 299 files/+22394)을 반영해 12번 다이어그램(Pipeline Evolution — Release Gate와 신규 계약)을 추가했습니다. 1~11번 다이어그램은 이번 갱신에서 구조를 바꾸지 않았고, 2.1의 03단계 설명 한 줄만 12번을 가리키도록 보강했습니다.</li>
+      <li><b>2026-08-25 갱신:</b> 13번 다이어그램(MySQL AI_* 테이블 데이터 흐름 — 생성·갱신 계약)을 추가했습니다. Flyway V1~V15가 정의하는 <code>AI_*</code> 테이블 20종을 실제 운영 DB(<code>docker exec egov-mysql mysql -u ebt -pebt01 ebt -e "SHOW TABLES"</code>)와 대조해 코드-DB 드리프트가 없음을 확인했고, WORM/Revision-append/Upsert 3가지 영속 계약으로 분류했습니다. 조사 중 12번 다이어그램의 <code>PreviewEvidenceBundle</code>·<code>ScreenHandoffBundle</code>이 실제로는 MySQL이 아니라 <code>ConcurrentHashMap</code> 인메모리라는 점을 발견해 13번 섹션에 별도 발견 박스로 표시했습니다 — 12번 다이어그램 자체는 이번 갱신에서 구조를 바꾸지 않았습니다.</li>
+      <li><b>2026-08-25 갱신(2):</b> 14번 다이어그램(Thymeleaf 마이그레이션 승인 워크플로우 — CRUD 소스 생성과의 승인 단계 비교)을 추가했습니다. <code>ThymeleafProjectWorkflowService</code>의 상태기계를 실제 운영 DB 실측치(<code>AI_THYMELEAF_PROJECT_OPERATION</code> 상태별 <code>COUNT(*)</code>, PREVIEW_READY 1282·APPROVED 838·APPLIED 703·CONFLICT 168)로 검증했고, <code>ApprovedProjectWritePort</code> javadoc을 근거로 이 워크플로우와 2.2절 CRUD 소스 생성 경로가 파일 쓰기 계층은 설계 시점부터 공유하되 승인 모델은 이원화되어 있다는 점을 핵심 결론으로 정리했습니다.</li>
+      <li><b>2026-08-25 갱신(3):</b> 14.1절(실행기 ↔ 공통 제어 계층 관계도)을 커밋 <code>5ae8507</code>/<code>f439db3</code> 기준으로 검증해 "제안·미구현"에서 "구현·커밋 완료"로 갱신했습니다. Flyway <code>V2</code>·<code>V15</code>·<code>V16</code>·<code>V18</code>이 정의하는 실제 컬럼을 다이어그램 박스 안에 반영하고, 13번 표에 신규 테이블 3종을 추가했으며, "2.2절"이 실제로는 다이어그램에 없는 <code>CodeServiceGenerationExecutor</code>를 가리키던 인용 오류를 "2.2절 7번(<code>GenerateCrudProjectUseCase</code>) 내부"로 정정했습니다. 다만 32번 문서 §8의 독립 검토·30일 Readiness 관측 조건은 아직 충족되지 않아 Merge·전환 최종 확정과는 구분됩니다.</li>
+      <li><b>2026-08-26 갱신:</b> 2.2절 다이어그램에 <code>CrudGenerationApprovalPolicy(신규)</code>
+      박스를 <code>GenerateCrudProjectUseCase</code>(7번)와 <code>JoinQueryTool</code> 사이에 새로
+      추가했습니다(커밋 <code>5b8244a</code>). 기존 V2_APPLY+Thymeleaf 화면명세 필수화 가드와
+      별개로, 설정된 고위험 테이블(또는 전체)은 viewType 무관하게 승인된 화면명세 없이는 생성이
+      차단되며 <code>AI_GENERATION_OPERATION_AUDIT</code>에 기록됩니다. 검토·설계 과정에서
+      Thymeleaf식 3단계 구조(옵션 A)도 검토했으나 기존 Tool 계약을 깨는 변경이라 채택하지
+      않았습니다 — 근거는 <code>docs/architecture/CRUD_명시적_승인_단계_도입_타당성_검토.md</code>
+      참고. (최초 반영 시 이 박스를 서브텍스트로만 표시했다가, "너무 시시하다"는 지적을 받아
+      전용 박스로 승격했습니다 — JoinQueryTool/MenuTool 위치는 아래로 밀려 이동했습니다.)</li>
+      <li><b>2026-08-26 갱신(2):</b> <code>ApprovedProjectWritePort</code>가 6번 다이어그램(Thymeleaf
+      생성 서비스 상세) 1~5번 중 어디에 속하는지 검토하다가, 4·5번 박스(<code>CodeTemplateTool</code>·
+      <code>CodeSaverTool.saveCode()</code>)가 실제로는 <code>llmProvider=auto</code> 경로가 아니라
+      <code>claude</code> 수동 경로의 Tool이라는 사실 오류를 발견해 정정했습니다 — <code>CodeTemplateTool</code>은
+      코드 주석에 "디버깅·확인 용도"로 명시돼 있고, <code>CodeSaverTool.saveCode()</code>는
+      <code>ApprovedProjectWritePort</code>를 전혀 쓰지 않습니다. 3단계(<code>CrudModelFactory.fromSchema()</code>)
+      이후를 <code>CrudGenerationDispatchService.isAuto()</code> 기준 auto/claude 두 갈래로 나눠 다시
+      그렸습니다 — auto 경로는 <code>CrudGenerationRenderer</code>(내부 <code>CrudTemplateRenderer</code>)로
+      서버가 직접 렌더링한 뒤 <code>CodeServiceGenerationExecutor</code>가 <code>ApprovedProjectWritePort</code>로
+      저장합니다(14번 다이어그램의 그 Port와 동일 인스턴스 계약). 결론적으로
+      <code>ApprovedProjectWritePort</code>는 6번 다이어그램의 기존 1~5번 어디에도 속하지 않았고,
+      새로 추가한 auto 경로의 5a번 박스가 그 자리입니다.</li>
+      <li><b>2026-08-26 갱신(3):</b> 12번 다이어그램("Pipeline Evolution")에서 "파이프라인"을 특정
+      대상 없이 써서 이 문서에 여러 파이프라인(2번의 목표 화면 생성 파이프라인, 4번의 6단계 Q&amp;A
+      Resolver 파이프라인 등)이 있는데 어느 것인지 알 수 없다는 지적을 받아, h2 제목과 본문·범례·
+      배지 서브텍스트를 모두 "목표 화면 생성 파이프라인"(2번 다이어그램 2.1절에서 정의한 S1~S7
+      파이프라인 — 이 문서에서 S-번호를 쓰는 유일한 파이프라인)으로 명시했습니다. 그 과정에서
+      S3 박스의 점프 배지는 "2"(2번 다이어그램)를 가리키면서 바로 위 서브텍스트는 "1번 파이프라인"이라고
+      쓴 자기모순도 함께 발견해 정정했습니다.</li>
+      <li><b>2026-08-26 갱신(4):</b> 같은 방식으로 4번 다이어그램("Q&amp;A Runtime Resolver 상세")도
+      검토했습니다. 화면에 보이는 텍스트는 이미 이름이 있었지만 스크린리더용 <code>aria-label</code>이
+      "6단계 파이프라인"이라고만 써서 어느 파이프라인인지 특정하지 않아 "Q&amp;A Runtime Resolver
+      파이프라인"으로 명시했습니다. 4번은 다른 다이어그램으로 가는 점프 링크가 없어 12번에서 발견한
+      것과 같은 배지-텍스트 자기모순은 없었습니다.</li>
+      <li><b>2026-08-26 갱신(5):</b> 4번·12번에서 발견한 두 가지 문제(이름 없는 "파이프라인" 참조,
+      점프 배지-서브텍스트 번호 자기모순)를 나머지 전체 다이어그램(1·2·3·5·8·9·10·11·13번)에 대해서도
+      점검했습니다. jump-badge 숫자와 그 링크가 실제로 가리키는 섹션의 h2 번호를 스크립트로 전수
+      대조한 결과 추가 자기모순은 없었습니다. "파이프라인"이라는 단어는 13번 다이어그램에서 2곳
+      더 이름 없이 쓰이고 있어("실제 파이프라인 호출 경로", "CRUD 소스 생성 파이프라인 호출부") —
+      이건 이 문서의 두 기명 파이프라인(목표 화면 생성 파이프라인 / Q&amp;A Runtime Resolver 파이프라인)
+      중 어느 쪽도 아니어서, 새 이름을 지어내는 대신 "파이프라인"을 "흐름"으로 바꿔 불필요한 세 번째
+      파이프라인처럼 보이지 않게 정정했습니다. 12번 다이어그램 범례(legend)에도 "기존 파이프라인 앵커"로
+      남아 있던 문구 1곳을 12번 본문과 동일하게 "목표 화면 생성 파이프라인 앵커"로 통일했습니다.
+      1·2·3·5·8·9·10·11번 다이어그램 자체는 이름·번호 참조 모두 문제없이 정확했습니다.</li>
       <li>이 다이어그램은 정적 스냅샷입니다 — Tool·서비스 구성이 바뀌면 함께 갱신이 필요합니다.</li>
     </ul>
   </footer>
