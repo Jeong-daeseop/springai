@@ -1324,10 +1324,11 @@
     </p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 340" role="img" aria-label="로컬 이미지나 Figma 프레임을 분석해 DesignAnalysisResult와 UiDesignSpec을 만들고, createScreenSpecification이 단순 케이스면 즉시 승인하고 REVIEW_REQUIRED 케이스면 수정과 승인을 거쳐 APPROVED ScreenSpecification을 만든다.">
+        <svg viewBox="0 0 1180 340" role="img" aria-label="로컬 이미지나 Figma 프레임을 분석해 DesignAnalysisResult와 UiDesignSpec을 만들고, createScreenSpecification이 단순 케이스면 즉시 승인하고 REVIEW_REQUIRED 케이스면 수정과 승인을 거쳐 APPROVED ScreenSpecification을 만든다. FigmaDesignSpecMapper 파싱 단계에서 컴포넌트별 fills/strokes 색상은 애초에 캡처되지 않고 루트 배경색·폰트만 UiDesignSpec.tokens에 담기며, 그마저도 ScreenSpecAssembler.assemble() 매핑 단계에서 옮기는 코드가 없어 ScreenSpecification에는 전달되지 않는다 — layoutDensity 등 구조값만 예외적으로 끝까지 생존한다.">
           <defs>
             <marker id="arrow5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow5Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow5Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
           </defs>
 
           <rect class="node-box" x="40" y="40" width="220" height="90" rx="8"></rect>
@@ -1364,6 +1365,22 @@
           <text class="node-sub" x="740" y="264" text-anchor="middle">→ approveScreenSpecification()</text>
           <text class="node-sub" x="740" y="282" text-anchor="middle">사람이 매핑 수정 후 승인</text>
 
+          <path class="edge rest dashed" marker-end="url(#arrow5Rest)" d="M400,130 Q300,170 165,210"></path>
+          <rect class="node-box rest" x="20" y="210" width="290" height="100" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="165" y="234" text-anchor="middle" style="font-size:11.5px">1단계 · FigmaDesignSpecMapper 파싱</text>
+          <text class="node-sub" x="165" y="252" text-anchor="middle" style="font-size:9px">fills/strokes 읽는 코드 없음</text>
+          <text class="node-sub" x="165" y="266" text-anchor="middle" style="font-size:9px;fill:var(--rest)">→ 컴포넌트별 색상 캡처 불가</text>
+          <text class="node-sub" x="165" y="284" text-anchor="middle" style="font-size:9px">루트 배경색·폰트만</text>
+          <text class="node-sub" x="165" y="298" text-anchor="middle" style="font-size:9px">UiDesignSpec.tokens에 캡처</text>
+
+          <path class="edge rest dashed" marker-end="url(#arrow5Rest)" d="M700,130 Q620,170 465,210"></path>
+          <rect class="node-box rest" x="320" y="210" width="290" height="100" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="465" y="234" text-anchor="middle" style="font-size:11.5px">2단계 · ScreenSpecAssembler.assemble()</text>
+          <text class="node-sub" x="465" y="252" text-anchor="middle" style="font-size:9px">tokens · components 매핑 코드 없음</text>
+          <text class="node-sub" x="465" y="266" text-anchor="middle" style="font-size:9px;fill:var(--rest)">→ 배경색·폰트조차 전달 안 됨</text>
+          <text class="node-sub" x="465" y="284" text-anchor="middle" style="font-size:9px">layoutDensity 등 구조값만</text>
+          <text class="node-sub" x="465" y="298" text-anchor="middle" style="font-size:9px">유일하게 끝까지 생존</text>
+
           <path class="edge accent" marker-end="url(#arrow5Accent)" d="M260,85 L320,85"></path>
           <path class="edge accent" marker-end="url(#arrow5Accent)" d="M560,85 L620,85"></path>
           <path class="edge accent" marker-end="url(#arrow5Accent)" d="M860,85 L920,85"></path>
@@ -1381,6 +1398,10 @@
           <text class="edge-label" x="740" y="320" text-anchor="middle">→ AI_SCREEN_SPECIFICATION(재승인 시 새 revision, 13번 참고)</text>
         </svg>
       </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>정상 진행 경로</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>시각 정보(색상·토큰) 소실 지점 — 2단계에 걸쳐 사실상 전부 사라짐</span>
+      </div>
       <figcaption>
         표준 단일 테이블처럼 JOIN·공통코드·미매핑 필드가 없는 <b>단순 케이스</b>는 <code>buildFullCrudPrompt</code>
         호출 안에서 화면명세가 즉시 <code>APPROVED</code>로 생성돼 그대로 진행됩니다. JOIN·공통코드·파일 처리 등
@@ -1397,6 +1418,35 @@
         기준이며, 두 계약을 결합한 결과가 <code>APPROVED ScreenSpecification</code>입니다. 디자인 입력은 이
         업무 계약을 덮어쓸 수 없습니다.
       </figcaption>
+      <figcaption style="margin-top:10px">
+        <b>2026-08-27 갱신 — "Token·Component 공급"의 실제 폭은 훨씬 좁다.</b> 위 문단의 "시각 구조·Token·
+        Component 선택만 공급"이라는 표현이 마치 색상 팔레트나 컴포넌트 스타일이 어느 정도 전달되는 것처럼
+        읽힐 수 있어, 실제로 어느 단계에서 무엇이 살아남는지 코드로 재확인했다. 색상·컴포넌트 시각 스타일은
+        <b>두 단계</b>를 거치며 사실상 전부 사라진다.
+      </figcaption>
+      <div class="data-table-wrap" style="margin-top:10px">
+        <table class="data-table">
+          <thead>
+            <tr><th>단계</th><th>대상</th><th>결과</th><th>근거</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>1단계 · Figma 파싱<br><code>FigmaDesignSpecMapper</code></td><td>컴포넌트별 <code>fills</code>/<code>strokes</code>(개별 색상)</td><td>애초에 읽는 코드가 없음 — 캡처 자체가 불가능</td><td><code>.path("fills")</code>/<code>.path("strokes")</code> 호출 코드베이스 전체 0건</td></tr>
+            <tr><td>1단계 · Figma 파싱</td><td>루트 프레임 배경색·폰트</td><td><code>UiDesignSpec.tokens</code>(Map&lt;String,String&gt;)에 캡처됨</td><td><code>FigmaDesignSpecMapper.java</code> <code>tokens()</code> L193-201</td></tr>
+            <tr><td>2단계 · 매핑<br><code>ScreenSpecAssembler.assemble()</code></td><td><code>resolvedUi.tokens()</code>, <code>resolvedUi.components()</code></td><td>매핑 코드 자체가 없어 <code>ScreenSpecification</code>으로 전달 안 됨</td><td><code>ScreenSpecAssembler.java</code> L60-97 — 두 getter 호출 0건</td></tr>
+            <tr><td>2단계 · 매핑</td><td><code>resolvedUi.layout().density()</code> 등 구조값</td><td>매핑 라인이 실제로 존재 — 유일하게 끝까지 생존</td><td>같은 파일, 같은 메서드</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="subsection-sub" style="margin-top:10px">
+        즉 컴포넌트 단위 색상은 <b>1단계에서부터 담을 필드 자체가 없어</b> 캡처가 안 되고(<code>UiDesignSpec.
+        ComponentSpec</code>은 <code>type</code>·<code>semanticFields</code> 2개 필드뿐), 화면 전체 배경색·
+        폰트 정도만 1단계에서 캡처되지만 그마저 <b>2단계 매핑에서 옮기는 코드가 없어</b> 버려진다. 최종
+        <code>ScreenSpecification</code>(<code>model/design/ScreenSpecification.java</code> L8-27) 필드에는
+        color/token/style 관련 항목이 정말로 하나도 없다. 반대로 <code>layoutDensity</code>(표 밀도)만
+        예외적으로 끝까지 살아남는데, "밀도는 구조적 정보라 남기고 색상은 순수 시각 정보라 뺐다"는 설계
+        의도를 명시한 주석·Javadoc은 어디에도 없었다 — 밀도만 매핑 라인이 존재한다는 사실 확인일 뿐,
+        의도 문서는 <b>미확인</b>이다.
+      </p>
     </figure>
   </section>
 
@@ -1497,6 +1547,38 @@
         프로젝트 build, Desktop·Tablet·Mobile 렌더 검증을 모두 통과해야 완료됩니다.</span> 즉 렌더링과
         파일 저장은 종점이 아니라 검증 게이트의 입력입니다.
       </figcaption>
+      <figcaption style="margin-top:10px">
+        <b>2026-08-27 갱신 — 3번 박스(<code>CrudModelFactory.fromSchema()</code>)는 사실 auto 전용이다.</b>
+        위 다이어그램은 3번 박스를 <code>isAuto()</code> 분기 <i>이전</i> 공통 단계처럼 그리고 있지만, 실제
+        분기(<code>CrudGenerationDispatchService.isAuto()</code>)는 <code>CrudModelFactory</code>가 호출되기도
+        전, Dispatch 최상단에서 일어난다. <b>auto</b> 경로만 <code>CrudGenerationPlanner</code> →
+        <code>CrudModelFactory.fromSchema()</code>를 타고, <b>claude</b> 경로는 이 클래스를 아예 거치지 않고
+        완전히 별개인 <code>CrudPromptGenerationService</code> → <code>CrudPromptBuilderService
+        .buildFullCrudPrompt()</code>로 간다. 두 경로가 5번의 <code>ScreenSpecification</code>을 소비하는
+        방식도 범위가 다르다 — <code>CrudModelFactory</code>(<code>service/CrudModelFactory.java</code>
+        L107-216)는 <code>selectionSource</code> 기반 필드 선택과 <code>layoutDensity</code>/
+        <code>formColumnLayout</code>/<code>actionPlacement</code>/<code>searchPanelPlacement</code> 4개
+        구조값만 읽어 FreeMarker 변수로 넘기고(<code>archetype</code>·<code>dataSources</code>/조인·필드
+        라벨은 이 클래스에서 아예 안 읽음), <code>CrudPromptBuilderService</code>(L206)는 <code>
+        ScreenSpecificationPromptFormatter</code>(L12-53)를 통해 <code>archetype</code>·전체
+        <code>dataSources</code>(조인 포함)·페이지별 필드 <code>label</code>/<code>dataRole</code>/
+        <code>source</code>/<code>actions</code>까지 통째로 텍스트로 프롬프트에 삽입한다 — auto보다 훨씬
+        넓은 범위를 전달하지만 구조화된 값이 아니라 텍스트 설명이라, 실제로 코드에 반영할지는 그 프롬프트를
+        읽는 Claude의 해석에 달려 있다.
+      </figcaption>
+      <div class="data-table-wrap" style="margin-top:10px">
+        <table class="data-table">
+          <thead>
+            <tr><th>항목</th><th><code>auto</code> — <code>CrudModelFactory</code></th><th><code>claude</code> — <code>CrudPromptBuilderService</code></th></tr>
+          </thead>
+          <tbody>
+            <tr><td>ScreenSpecification 반영 범위</td><td>표 밀도 4종 + <code>selectionSource</code> 기반 필드 선택</td><td>위 전부 + <code>archetype</code> + <code>dataSources</code>/조인 + 필드 라벨·역할·액션</td></tr>
+            <tr><td>전달 형태</td><td>구조화된 값 → FreeMarker 템플릿 변수</td><td>통째로 텍스트 설명 → 프롬프트</td></tr>
+            <tr><td>표 밀도 CSS 반영</td><td><code>CrudTableDensityCssProcessor</code>가 <code>styles.css</code>에 실제 CSS 자동 주입(<code>TableDensityCssContract</code>)</td><td>없음 — "밀도는 X"라고 텍스트로만 전달, CSS는 Claude가 직접 작성해야 함</td></tr>
+            <tr><td>Figma 색상·컴포넌트 시각 스타일</td><td>반영 안 됨</td><td>반영 안 됨(애초에 <code>ScreenSpecification</code>에 없음 — 5번 섹션 참고)</td></tr>
+          </tbody>
+        </table>
+      </div>
     </figure>
   </section>
 
@@ -2535,7 +2617,29 @@
       <code>@McpToolRisk(FILE_WRITE)</code> 있음)이며, 같은 <code>CrudGenerationMcpFacade</code>로
       위임하므로 동작 로직 자체는 이전 서술과 동일합니다. 이번 갱신에서 2.2절 전체의
       <code>CrudPromptBuilderTool</code> 표기를 <code>CrudGenerationTool</code>로 교체했습니다.
-      <code>CrudPromptBuilderTool</code>은 삭제되지 않고 legacy 코드로 남아 있습니다(삭제는 별도 작업).</li>
+      <b>(2026-08-27 후속 갱신)</b> <code>CrudPromptBuilderTool.java</code>와 그 전용 테스트는 이후 실제로
+      삭제됐고, 테스트 커버리지는 실제 등록된 6개 클래스(<code>CrudGenerationTool</code>·
+      <code>MasterDetailGenerationTool</code>·<code>BoardGenerationTool</code>·
+      <code>CrudScreenSourceTool</code>·<code>BoardScreenSourceTool</code>·
+      <code>MasterDetailScreenSourceTool</code>) 테스트로 이관됐습니다.</li>
+      <li><b>2026-08-27 갱신(4):</b> 5번 다이어그램(DesignReferenceTool)의 "UiDesignSpec은 시각 구조·Token·
+      Component 선택만 공급한다"는 서술이 색상/컴포넌트 스타일도 어느 정도 전달되는 것처럼 읽힐 수 있어,
+      <code>FigmaDesignSpecMapper</code>(1단계 파싱) → <code>ScreenSpecAssembler.assemble()</code>(2단계
+      매핑) 두 단계를 코드로 추적해 표로 정리했습니다. 결론: 컴포넌트별 색상은 1단계부터 캡처가 안 되고,
+      화면 전체 배경색·폰트만 1단계에서 캡처되지만 2단계 매핑 코드 부재로 결국 버려집니다 —
+      <code>ScreenSpecification</code>에는 color/token/style 필드가 전혀 없습니다.</li>
+      <li><b>2026-08-27 갱신(5):</b> 6번 다이어그램의 3번 박스(<code>CrudModelFactory.fromSchema()</code>)가
+      <code>isAuto()</code> 분기 이전 공통 단계처럼 그려져 있던 것을 정정했습니다 — 실제로는 auto 경로만
+      이 클래스를 타고, claude 경로는 완전히 별개인 <code>CrudPromptBuilderService</code> +
+      <code>ScreenSpecificationPromptFormatter</code>로 갑니다. 두 경로가 같은 <code>ScreenSpecification</code>을
+      소비하는 범위 차이(auto=밀도+필드선택만 기계적 반영, claude=archetype·조인·필드라벨까지 텍스트로 전달)를
+      비교표로 추가했습니다.</li>
+      <li><b>2026-08-27 갱신(6):</b> 갱신(4)에서 표로만 정리했던 색상·토큰 소실 내용을 5번 다이어그램의
+      플로우 자체에도 반영해달라는 요청을 받아, "1단계 · FigmaDesignSpecMapper 파싱"과
+      "2단계 · ScreenSpecAssembler.assemble()" 두 박스를 실제 흐름 아래에 점선으로 추가했습니다.
+      각 박스는 무엇이 캡처/전달되고 무엇이 버려지는지를 다이어그램에서 바로 보여주며, 범례에
+      "시각 정보 소실 지점"(rest 색상) 항목을 추가했습니다. 표 형태의 상세 근거(파일·라인)는 갱신(4)의
+      비교표에 그대로 유지됩니다.</li>
       <li>이 다이어그램은 정적 스냅샷입니다 — Tool·서비스 구성이 바뀌면 함께 갱신이 필요합니다.</li>
     </ul>
   </footer>
