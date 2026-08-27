@@ -713,7 +713,7 @@
     </p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 1180" role="img" aria-label="ProjectInitializrTool.initializeProject가 프로젝트 골격과 정적 layout을 만들고, ThymeleafLayoutTool.generateThymeleafLayout이 같은 layout 파일을 덮어써 동적 GNB로 업그레이드하며 packageName이 일치해야 한다. 이후 선택적으로 DesignReferenceTool 계열이 화면명세를 만들거나 ScreenSourceTool 계열로 화면 1개만 미리보기할 수 있고, CrudPromptBuilderTool 등 화면 생성 Tool의 결과는 CrudGenerationDispatchService가 llmProvider에 따라 auto면 서버가 직접 파일을 저장하고 claude면 프롬프트 텍스트만 반환해 Claude Desktop이 코드를 작성하도록 갈라진다. auto 경로는 CrudGenerationApprovalPolicy가 고위험 테이블로 설정된 경우 승인된 화면명세 없이는 차단하며, 통과하면 선택적으로 JoinQueryTool로 JOIN을 보강한 뒤 선택적으로 MenuTool이 메뉴를 등록한다.">
+        <svg viewBox="0 0 1180 1200" role="img" aria-label="ProjectInitializrTool.initializeProject가 프로젝트 골격과 정적 layout을 만들고, ThymeleafLayoutTool.generateThymeleafLayout이 같은 layout 파일을 덮어써 동적 GNB로 업그레이드하며 packageName이 일치해야 한다. 이후 선택적으로 DesignReferenceTool 계열이 화면명세를 만들거나 ScreenSourceTool 계열로 화면 1개만 미리보기할 수 있고, 3단계 화면 생성 Tool 셋은 서로 다른 방식으로 갈라진다 — CrudGenerationTool은 CrudGenerationDispatchService로, MasterDetailGenerationTool은 이름은 비슷하지만 완전히 별개인 MasterDetailGenerationDispatchService로 가서 각자 자체 isAuto() 분기를 타고(auto면 Spring MCP 서버가 마스터-디테일 소스 파일 세트를 직접 저장, claude면 프롬프트 텍스트만 반환해 Claude Desktop이 코드를 작성), BoardGenerationTool은 이런 분기 자체가 없이 GenerateBoardProjectUseCase로 직행해 Spring MCP 서버가 게시판(BBS) 소스 파일 세트를 항상 직접 저장한다. CRUD auto 경로는 CrudGenerationApprovalPolicy가 고위험 테이블로 설정된 경우 승인된 화면명세 없이는 차단하며, 통과하면 Spring MCP 서버가 CRUD 소스 파일 세트를 저장하고 선택적으로 JoinQueryTool로 JOIN을 보강한 뒤 선택적으로 MenuTool이 메뉴를 등록한다. 분기 로직은 셋이 서로 다르지만, 세 Tool의 auto 경로가 실제로 파일을 쓰는 실행기는 CodeServiceGenerationExecutor 단 하나로 합류한다 — GenerationExecutor 인터페이스 구현체가 코드베이스에 이것 하나뿐이라 Board·MasterDetail 파이프라인도 같은 Spring 싱글턴을 주입받으며, 각자 다른 Renderer가 만든 렌더링 결과만 이 실행기에 넘긴다.">
           <defs>
             <marker id="arrow2b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow2bAccent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
@@ -745,7 +745,7 @@
           <path class="edge dashed" marker-end="url(#arrow2b)" d="M740,240 Q950,280 890,320"></path>
           <text class="edge-label" x="890" y="285" style="font-size:9px" text-anchor="middle">대안 — 화면 1개만 미리보기</text>
           <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M590,260 L590,470"></path>
-          <text class="edge-label accent" x="600" y="380" style="font-size:9.5px">layoutMode=reuse 기본값</text>
+          <text class="edge-label accent" x="590" y="300" text-anchor="middle" style="font-size:9.5px">layoutMode=reuse 기본값</text>
 
           <a class="diagram-link" href="#mcp-server-detail">
             <title>5번 다이어그램: Spring MCP 서버(DesignReferenceTool) 상세로 이동</title>
@@ -767,7 +767,7 @@
 
           <text class="group-label" x="40" y="456">3단계 · 화면 생성 Tool (셋 중 하나 선택)</text>
           <rect class="node-box accent" x="40" y="470" width="340" height="100" rx="8"></rect>
-          <text class="node-title" x="210" y="504" text-anchor="middle">CrudPromptBuilderTool</text>
+          <text class="node-title" x="210" y="504" text-anchor="middle">CrudGenerationTool</text>
           <text class="node-sub" x="210" y="522" text-anchor="middle">.buildFullCrudPrompt()</text>
           <text class="node-sub" x="210" y="540" text-anchor="middle">단일 테이블 CRUD 소스</text>
 
@@ -781,30 +781,45 @@
           <text class="node-sub" x="970" y="522" text-anchor="middle">.buildMasterDetailPrompt()</text>
           <text class="node-sub" x="970" y="540" text-anchor="middle">1:N 마스터-디테일</text>
 
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M210,570 L210,610"></path>
           <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M590,570 L590,610"></path>
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M970,570 L970,610"></path>
 
           <a class="diagram-link" href="#thymeleaf-gen-detail">
             <title>6번 다이어그램: Thymeleaf 생성 서비스 상세로 이동(auto 경로의 CrudModelFactory 이후)</title>
-            <rect class="node-box" x="440" y="610" width="300" height="90" rx="8"></rect>
-            <text class="node-title" x="590" y="638" text-anchor="middle">CrudGenerationDispatchService</text>
-            <text class="node-sub" x="590" y="656" text-anchor="middle">llmProvider 분기의 유일한 지점</text>
-            <text class="node-sub" x="590" y="674" text-anchor="middle" style="fill:var(--ink-muted)">command.isAuto() 로 아래 두 갈래로 위임</text>
-            <g class="jump-badge"><circle cx="722" cy="624" r="12"></circle><text x="722" y="628" text-anchor="middle">6</text></g>
+            <rect class="node-box" x="40" y="610" width="340" height="90" rx="8"></rect>
+            <text class="node-title" x="210" y="638" text-anchor="middle">CrudGenerationDispatchService</text>
+            <text class="node-sub" x="210" y="656" text-anchor="middle">CRUD 소스 llmProvider 분기 지점</text>
+            <text class="node-sub" x="210" y="674" text-anchor="middle" style="fill:var(--ink-muted)">command.isAuto() 로 아래 두 갈래로 위임</text>
+            <g class="jump-badge"><circle cx="342" cy="624" r="12"></circle><text x="342" y="628" text-anchor="middle">6</text></g>
           </a>
 
-          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M500,700 Q400,730 330,760"></path>
-          <text class="edge-label accent" x="350" y="725" style="font-size:9px">isAuto()==true</text>
-          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M680,700 Q800,730 850,760"></path>
-          <text class="edge-label accent" x="800" y="725" style="font-size:9px">isAuto()==false (claude 등)</text>
+          <rect class="node-box" x="420" y="610" width="340" height="108" rx="8"></rect>
+          <text class="node-title" x="590" y="638" text-anchor="middle">GenerateBoardProjectUseCase</text>
+          <text class="node-sub" x="590" y="656" text-anchor="middle">분기 없음 — llmProvider 파라미터 자체가 없음</text>
+          <text class="node-sub" x="590" y="674" text-anchor="middle" style="font-size:10px">Spring MCP 서버가 게시판(BBS) 소스 파일 세트를 직접 저장</text>
+          <text class="node-sub" x="590" y="692" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">(BoardGenerationMcpFacade 코드 주석 근거)</text>
+
+          <rect class="node-box" x="800" y="610" width="340" height="108" rx="8"></rect>
+          <text class="node-title" x="970" y="638" text-anchor="middle" style="font-size:12px">MasterDetailGenerationDispatchService</text>
+          <text class="node-sub" x="970" y="656" text-anchor="middle">CrudGenerationDispatchService와 별개 — 자체 isAuto() 분기</text>
+          <text class="node-sub" x="970" y="674" text-anchor="middle" style="font-size:9.5px">auto → Spring MCP 서버가 마스터-디테일 소스 파일 세트 직접 저장</text>
+          <text class="node-sub" x="970" y="692" text-anchor="middle" style="font-size:9px;fill:var(--ink-muted)">claude → 프롬프트 텍스트만 반환, 파일 저장 없음</text>
+
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M150,700 Q150,730 210,760"></path>
+          <text class="edge-label accent" x="150" y="725" style="font-size:9px">isAuto()==true</text>
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M300,700 Q550,730 820,760"></path>
+          <text class="edge-label accent" x="560" y="725" style="font-size:9px">isAuto()==false (claude 등)</text>
 
           <a class="diagram-link" href="#local-screen-detail">
             <title>7번 다이어그램: 로컬 화면(실행 중인 JSP/Thymeleaf) 상세로 이동</title>
-            <rect class="node-box good" x="140" y="760" width="380" height="100" rx="8"></rect>
-            <text class="node-title" x="330" y="792" text-anchor="middle">GenerateCrudProjectUseCase</text>
-            <text class="node-sub" x="330" y="810" text-anchor="middle">CrudGenerationPlanner → CrudModelFactory</text>
-            <text class="node-sub" x="330" y="828" text-anchor="middle">서버가 직접 디스크에 파일 저장</text>
-            <text class="node-sub" x="330" y="846" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ AI_GENERATION_HISTORY(자동)·AI_CRUD_SNAPSHOT 기록(13번)</text>
-            <g class="jump-badge"><circle cx="502" cy="774" r="12"></circle><text x="502" y="778" text-anchor="middle">7</text></g>
+            <rect class="node-box good" x="20" y="760" width="380" height="118" rx="8"></rect>
+            <text class="node-title" x="210" y="792" text-anchor="middle">GenerateCrudProjectUseCase</text>
+            <text class="node-sub" x="210" y="810" text-anchor="middle">CrudGenerationPlanner → CrudModelFactory</text>
+            <text class="node-sub" x="210" y="828" text-anchor="middle" style="font-size:10px">승인 통과 시 Spring MCP 서버가</text>
+            <text class="node-sub" x="210" y="844" text-anchor="middle" style="font-size:9px">CRUD 소스 파일 세트를 디스크에 직접 저장</text>
+            <text class="node-sub" x="210" y="862" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ AI_GENERATION_HISTORY(자동)·AI_CRUD_SNAPSHOT 기록(13번)</text>
+            <g class="jump-badge"><circle cx="382" cy="774" r="12"></circle><text x="382" y="778" text-anchor="middle">7</text></g>
           </a>
 
           <rect class="node-box" x="620" y="760" width="400" height="100" rx="8"></rect>
@@ -813,32 +828,49 @@
           <text class="node-sub" x="820" y="824" text-anchor="middle">프롬프트 텍스트만 반환, 파일 저장 없음</text>
           <text class="node-sub" x="820" y="842" text-anchor="middle" style="fill:var(--ink-muted)">→ Claude Desktop이 코드 작성(springai 밖 책임)</text>
 
-          <path class="edge good" marker-end="url(#arrow2bGood)" d="M330,860 L330,875"></path>
+          <path class="edge good" marker-end="url(#arrow2bGood)" d="M210,878 L210,893"></path>
 
-          <rect class="node-box good" x="140" y="875" width="380" height="72" rx="8"></rect>
-          <text class="node-title" x="330" y="898" text-anchor="middle" style="font-size:12.5px">CrudGenerationApprovalPolicy(신규)</text>
-          <text class="node-sub" x="330" y="915" text-anchor="middle" style="font-size:9px">고위험 테이블(설정 시)이면 승인된 화면명세 없이 여기서 차단</text>
-          <text class="node-sub" x="330" y="931" text-anchor="middle" style="font-size:8.5px;fill:var(--ink-muted)">기본값 빈 목록 — 켜기 전엔 기존 동작과 동일 · 2026-08-26 커밋 5b8244a</text>
+          <rect class="node-box good" x="20" y="893" width="380" height="90" rx="8"></rect>
+          <text class="node-title" x="210" y="916" text-anchor="middle" style="font-size:12.5px">CrudGenerationApprovalPolicy(신규)</text>
+          <text class="node-sub" x="210" y="933" text-anchor="middle" style="font-size:9px">고위험 테이블(설정 시)이면 승인된 화면명세 없이 여기서 차단</text>
+          <text class="node-sub" x="210" y="949" text-anchor="middle" style="font-size:8.5px;fill:var(--ink-muted)">기본값 빈 목록 — 켜기 전엔 기존 동작과 동일 · 2026-08-26 커밋 5b8244a</text>
+          <text class="node-sub" x="210" y="965" text-anchor="middle" style="font-size:8.5px;fill:var(--rest)">⚠ 차단 시 executor 미호출 — REJECTED 즉시 반환(renderer도 안 탐)</text>
 
-          <path class="edge dashed" marker-end="url(#arrow2b)" d="M330,947 L330,987"></path>
-          <text class="edge-label" x="340" y="972" style="font-size:9px">선택 — JOIN 필요 시</text>
+          <path class="edge dashed" marker-end="url(#arrow2b)" d="M210,983 L210,1005"></path>
+          <text class="edge-label" x="220" y="998" style="font-size:9px">선택 — JOIN 필요 시</text>
 
-          <rect class="node-box" x="140" y="987" width="380" height="80" rx="8" style="stroke-dasharray:6 5"></rect>
-          <text class="node-title" x="330" y="1017" text-anchor="middle">JoinQueryTool (선택)</text>
-          <text class="node-sub" x="330" y="1035" text-anchor="middle">생성된 소스에 JOIN SELECT·resultMap·VO 필드 추가</text>
-          <text class="node-sub" x="330" y="1053" text-anchor="middle" style="fill:var(--ink-muted)">getTableRelations()가 JOIN 후보를 탐지했을 때</text>
+          <rect class="node-box" x="20" y="1005" width="380" height="80" rx="8" style="stroke-dasharray:6 5"></rect>
+          <text class="node-title" x="210" y="1035" text-anchor="middle">JoinQueryTool (선택)</text>
+          <text class="node-sub" x="210" y="1053" text-anchor="middle">생성된 소스에 JOIN SELECT·resultMap·VO 필드 추가</text>
+          <text class="node-sub" x="210" y="1071" text-anchor="middle" style="fill:var(--ink-muted)">getTableRelations()가 JOIN 후보를 탐지했을 때</text>
 
-          <path class="edge dashed" marker-end="url(#arrow2b)" d="M330,1067 Q330,1087 500,1102"></path>
-          <text class="edge-label" x="360" y="1087" style="font-size:9px">선택</text>
+          <path class="edge dashed" marker-end="url(#arrow2b)" d="M210,1085 Q210,1105 500,1120"></path>
+          <text class="edge-label" x="240" y="1105" style="font-size:9px">선택</text>
 
-          <rect class="node-box" x="440" y="1102" width="300" height="55" rx="8" style="stroke-dasharray:6 5"></rect>
-          <text class="node-title" x="590" y="1125" text-anchor="middle">MenuTool (선택)</text>
-          <text class="node-sub" x="590" y="1142" text-anchor="middle">.generateMenuInsertSql() — GNB/LNB 메뉴 등록</text>
+          <rect class="node-box" x="440" y="1120" width="300" height="55" rx="8" style="stroke-dasharray:6 5"></rect>
+          <text class="node-title" x="590" y="1143" text-anchor="middle">MenuTool (선택)</text>
+          <text class="node-sub" x="590" y="1160" text-anchor="middle">.generateMenuInsertSql() — GNB/LNB 메뉴 등록</text>
+
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M400,948 Q435,950 470,955"></path>
+          <text class="edge-label accent" x="455" y="936" text-anchor="middle" style="font-size:8px">승인 통과 → 이어서 저장 실행</text>
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M590,718 Q590,880 650,955"></path>
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M970,718 Q970,880 830,955"></path>
+          <text class="edge-label accent" x="870" y="880" text-anchor="middle" style="font-size:8.5px">auto만 합류(claude는 저장 없음)</text>
+
+          <a class="diagram-link" href="#thymeleaf-gen-detail">
+            <title>6번 다이어그램: Thymeleaf 생성 서비스 상세 — 5a CodeServiceGenerationExecutor로 이동</title>
+            <rect class="node-box hub" x="420" y="955" width="460" height="112" rx="10"></rect>
+            <text class="node-title" x="650" y="983" text-anchor="middle" style="font-size:12.5px">CodeServiceGenerationExecutor(공통 실행기)</text>
+            <text class="node-sub" x="650" y="1001" text-anchor="middle">→ ApprovedProjectWritePort.apply() — 세 Tool의 auto 경로가 동일 인스턴스 공유</text>
+            <text class="node-sub" x="650" y="1019" text-anchor="middle" style="fill:var(--ink-muted)">Renderer만 도메인별로 다름(Crud/Board/MasterDetail)</text>
+            <text class="node-sub" x="650" y="1035" text-anchor="middle" style="font-size:9px;fill:var(--accent)">CRUD 기준: 레이어 세트(JSP 11개·Thymeleaf 16개)를 ProjectChangeSet 하나로 원자적 저장</text>
+            <g class="jump-badge"><circle cx="862" cy="969" r="12"></circle><text x="862" y="973" text-anchor="middle">6</text></g>
+          </a>
         </svg>
       </div>
       <div class="legend">
         <span><i class="swatch" style="background:var(--ink-muted)"></i>Tool·서비스·선택 단계</span>
-        <span><i class="swatch" style="background:var(--good)"></i>auto 경로 — 실제 파일 저장 + AI_GENERATION_HISTORY·AI_CRUD_GENERATION_SNAPSHOT DB 기록까지 일어나는 유일한 지점</span>
+        <span><i class="swatch" style="background:var(--good)"></i>CRUD auto 경로 — 실제 파일 저장 + AI_GENERATION_HISTORY·AI_CRUD_GENERATION_SNAPSHOT DB 기록이 일어나는 지점(Board·MasterDetail은 각자 별도 경로로 저장 — 아래 참고)</span>
       </div>
       <figcaption>
         1·2단계는 <b>같은 layout 파일 경로</b>(<code>templates/layout/{default,gnb,lnb,breadcrumb,footer}.html</code>)를
@@ -847,12 +879,23 @@
         완전히 덮어씁니다. <code>generateThymeleafLayout()</code>의 Tool 설명 자체가 "<code>packageName</code>은
         <code>initializeProject()</code>에 전달했던 것과 반드시 동일해야 한다"고 명시합니다 — 다르면
         <code>EgovGnbMenuInterceptor</code>가 실제 CRUD 소스 패키지와 어긋난 위치에 생성되어 동작하지 않습니다.
-        3단계 이후가 이번에 새로 밝혀진 진짜 분기 지점입니다 — <code>CrudGenerationDispatchService</code>의
-        JavaDoc이 스스로 "llmProvider(auto vs claude/기타) 분기가 존재하는 <b>유일한 지점</b>"이라고 명시합니다.
-        <code>auto</code>면 서버가 직접 파일을 저장해 7번 다이어그램의 로컬 화면이 되고, <code>claude</code> 등이면
-        서버는 프롬프트 텍스트만 돌려주고 <b>코드를 실제로 쓰는 주체가 springai에서 Claude Desktop으로 바뀝니다</b>.
-        <code>ScreenSourceTool</code> 계열(3단계 위 대안)과 <code>JoinQueryTool</code>(auto 경로 이후 선택)은
-        메인 흐름을 보조하는 별도 진입점입니다.
+        3단계 이후가 이번에 새로 밝혀진 진짜 분기 지점이지만, <b>세 Tool이 하나의 분기점을 공유하지
+        않습니다</b> — <code>CrudGenerationTool</code>은 <code>CrudGenerationDispatchService</code>로,
+        <code>MasterDetailGenerationTool</code>은 이름은 비슷하지만 <b>완전히 별개인</b>
+        <code>MasterDetailGenerationDispatchService</code>로 갑니다(두 클래스의 JavaDoc이 각자
+        "llmProvider(auto vs claude/기타) 분기가 존재하는 <b>유일한 지점</b>"이라는 같은 문구를 씁니다 —
+        "유일한"은 각 클래스 내부 기준이지, 두 Tool이 같은 분기점을 쓴다는 뜻이 아닙니다).
+        <code>BoardGenerationTool</code>은 이런 분기 자체가 없습니다 —
+        <code>BoardGenerationMcpFacade</code> 코드 주석에 "분기 없음"이라고 명시돼 있고
+        <code>llmProvider</code> 파라미터도 받지 않아, 항상 <code>GenerateBoardProjectUseCase</code>로
+        직행해 <b>Spring MCP 서버</b>가 게시판(BBS) 소스 파일 세트를 저장합니다. CRUD·MasterDetail
+        두 경로 모두 <code>auto</code>면 <b>Spring MCP 서버</b>가 각자의 소스 파일 세트(CRUD는
+        VO/Controller/Service/Mapper/View, MasterDetail은 1:N 마스터-디테일 레이어)를 직접 저장해
+        7번 다이어그램의 로컬 화면이 되고, <code>claude</code> 등이면 서버는 프롬프트
+        텍스트만 돌려주고 <b>코드를 실제로 쓰는 주체가 springai에서 Claude Desktop으로 바뀝니다</b>
+        (MasterDetail의 두 UseCase는 전용 다이어그램이 없어 이 박스 안에 요약만 표시했습니다).
+        <code>ScreenSourceTool</code> 계열(3단계 위 대안)과 <code>JoinQueryTool</code>(CRUD auto 경로
+        이후 선택)은 메인 흐름을 보조하는 별도 진입점입니다.
       </figcaption>
       <figcaption style="margin-top:10px">
         <b>(2026-08-26 갱신)</b> 위 다이어그램에 <code>CrudGenerationApprovalPolicy(신규)</code> 박스가
@@ -870,7 +913,132 @@
         옵션 A(Thymeleaf식 3단계 preview/approve/apply)도 함께 검토했으나, 기존 Tool 계약을 깨는
         변경이라 채택하지 않았습니다.
       </figcaption>
+      <figcaption style="margin-top:10px">
+        <b>(2026-08-26 갱신, 2)</b> <code>GenerateCrudProjectUseCase</code> 박스 아래로 내려가는
+        "내부 호출" 화살표는 <code>CrudGenerationApprovalPolicy</code>와 <code>CodeServiceGenerationExecutor
+        (공통 실행기)</code> 두 곳 다 <b>같은 의미</b>입니다 — 순서대로 실행되는 별도 단계가 아니라
+        <code>CrudGenerationApplicationService.execute()</code>(실제 <code>GenerateCrudProjectUseCase</code>
+        구현체) 메서드 하나가 내부에서 <code>planner.plan()</code>(ApprovalPolicy 포함) →
+        <code>renderer.render()</code> → <code>executor.execute()</code>(CodeServiceGenerationExecutor) →
+        <code>historyRecorder.record()</code>(AI_GENERATION_HISTORY) 순서로 호출하는 것을 확대해서
+        보여주는 것입니다. 즉 <code>GenerateCrudProjectUseCase</code> 박스의 "Spring MCP 서버가 CRUD
+        소스 파일 세트를 디스크에 직접 저장 → AI_GENERATION_HISTORY 기록"과 아래 <code>CodeServiceGenerationExecutor</code>
+        박스의 "→ ApprovedProjectWritePort.apply()"는 <b>같은 한 번의 저장 동작</b>을 서로 다른
+        확대 수준에서 설명한 것이지, 두 번 저장한다는 뜻이 아닙니다.
+      </figcaption>
+      <figcaption style="margin-top:10px">
+        <b>(2026-08-26 갱신, 3)</b> <code>CrudGenerationApprovalPolicy</code> → <code>CodeServiceGenerationExecutor</code>
+        관계는 두 갈래로 갈라지는 분기가 아니라 <b>단일 순차 게이트</b>입니다 — <code>CrudGenerationPlanner
+        .plan()</code>의 실제 조건은 <code>approvalPolicy.requiresApproval(tableName) &amp;&amp;
+        isBlank(designReferenceId) &amp;&amp; isBlank(screenSpecificationId)</code>이며, 이 조건이
+        <b>참이면 그 자리에서 <code>CrudGenerationPlan.rejected()</code>를 반환하고 끝</b>납니다 —
+        <code>crudSchemaQueryService.fetchColumns()</code>조차 호출되지 않고,
+        <code>renderer.render()</code>·<code>executor.execute()</code>(<code>CodeServiceGenerationExecutor</code>)는
+        당연히 실행되지 않습니다. 조건이 거짓이면(고위험 테이블이 아니거나, <code>designReferenceId</code>·
+        <code>screenSpecificationId</code> 중 하나라도 값이 있으면) 이 게이트는 그냥 통과하고 그대로
+        직진해 결국 <code>CodeServiceGenerationExecutor</code>에 도달합니다. 단, 이 게이트는 ID가
+        <b>비어있는지만</b> 보며, 그 ID가 실제로 <code>APPROVED</code> 상태인지는 검사하지 않습니다 —
+        실제 승인 상태 검증은 몇 줄 뒤 <code>generationDesignContextService.resolve(...)</code> 호출에서
+        별도로 이루어지는, 이 게이트와는 다른 실패 지점입니다.
+      </figcaption>
+      <figcaption style="margin-top:10px">
+        <b>(2026-08-26 갱신, 4)</b> <code>CodeServiceGenerationExecutor</code>가 실제로 저장하는
+        내용을 <code>CrudLayerDefinition</code> 소스로 확인했습니다 — <code>CrudGenerationRenderer</code>가
+        렌더링에 성공한 레이어들을 <b>파일 하나씩이 아니라 <code>ProjectChangeSet</code> 하나로 묶어
+        한 번에</b> <code>ApprovedProjectWritePort.apply()</code>에 넘깁니다(원자적 저장). CRUD
+        기준 레이어 구성은 다음과 같습니다.
+        <ul style="margin:6px 0 0;padding-left:20px">
+          <li>공통 7개(JSP·Thymeleaf 동일): <code>{Domain}VO.java</code>·<code>{Domain}Mapper.java</code>·
+          <code>{Domain}Mapper.xml</code>·<code>{Domain}Service.java</code>·
+          <code>Egov{Domain}ServiceImpl.java</code>·<code>Egov{Domain}Controller.java</code>·
+          <code>Egov{Domain}ValidationHandler.java</code></li>
+          <li>+ JSP 전용 4개 = <b>총 11개</b>: <code>List.jsp</code>·<code>Detail.jsp</code>·
+          <code>Regist.jsp</code>·<code>Updt.jsp</code></li>
+          <li>+ Thymeleaf 전용 9개 = <b>총 16개</b>: layout 5종(<code>default</code>·<code>gnb</code>·
+          <code>lnb</code>·<code>breadcrumb</code>·<code>footer.html</code>) + <code>List.html</code>·
+          <code>Detail.html</code>·<code>Regist.html</code>·<code>Updt.html</code></li>
+        </ul>
+        "JSP 11개 / Thymeleaf 16개"는 <code>CLAUDE.md</code>에 이미 명시된 수치와 정확히 일치합니다.
+        Board·MasterDetail은 각자의 <code>BoardLayerDefinition</code>·<code>MasterDetailLayerDefinition</code>이
+        정의하는 별도 레이어 세트를 같은 방식(원자적 <code>ProjectChangeSet</code>)으로 저장합니다.
+      </figcaption>
     </figure>
+
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>항목</th><th>CrudGenerationTool</th><th>BoardGenerationTool</th><th>MasterDetailGenerationTool</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>분기(Dispatch)</td><td><code>CrudGenerationDispatchService</code> — <code>isAuto()</code> 분기 있음</td><td>분기 자체 없음 — <code>llmProvider</code> 파라미터도 없음</td><td><code>MasterDetailGenerationDispatchService</code> — CRUD와 별개 클래스지만 동일한 패턴의 <code>isAuto()</code> 분기</td></tr>
+          <tr><td>auto 저장 주체</td><td colspan="3" style="text-align:center"><code>CodeServiceGenerationExecutor</code> — <code>GenerationExecutor</code> 구현체가 코드베이스에 이것 하나뿐이라 세 Tool이 같은 Spring 싱글턴을 공유</td></tr>
+          <tr><td>claude 경로</td><td><code>BuildCrudPromptUseCase</code> — 프롬프트만 반환, 파일 저장 없음</td><td>없음(존재하지 않음)</td><td><code>BuildMasterDetailPromptUseCase</code> — 프롬프트만 반환</td></tr>
+          <tr><td>렌더러(저장 내용 결정)</td><td><code>CrudGenerationRenderer</code>→<code>CrudTemplateRenderer</code></td><td><code>BoardGenerationRenderer</code>→<code>BoardTemplateRenderer</code></td><td><code>MasterDetailGenerationRenderer</code>→<code>MasterDetailTemplateRenderer</code></td></tr>
+          <tr><td>레이어 정의</td><td><code>CrudLayerDefinition</code>(VO/Controller/Service/Mapper/View)</td><td><code>BoardLayerDefinition</code>(BBS 전용 레이어)</td><td><code>MasterDetailLayerDefinition</code>(1:N 마스터-디테일 전용 레이어)</td></tr>
+          <tr><td>실제 파일 쓰기</td><td colspan="3" style="text-align:center"><code>ApprovedProjectWritePort.apply()</code>(공통)</td></tr>
+          <tr><td>이력 기록</td><td colspan="3" style="text-align:center"><code>GenerationHistoryRecorder</code>(공통 클래스)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="subsection-sub" style="margin-top:10px">
+      <b>핵심 발견: "저장 주체"는 사실상 하나입니다.</b> 분기 로직은 세 Tool이 서로 다르지만(위 표
+      1행), 실제로 파일을 쓰는 실행기·Write Port는 <code>CodeServiceGenerationExecutor</code>→
+      <code>ApprovedProjectWritePort</code> 하나로 합류합니다(2·6·7행). 도메인별 차이는 "누가
+      저장하느냐"가 아니라 "무엇을 저장하느냐"에 있습니다 — 서로 다른 Renderer가 서로 다른
+      <code>.ftl</code> 템플릿 세트로 파일 목록만 다르게 만들고, 그 결과물만 같은 실행기에 넘깁니다.
+    </p>
+
+    <div class="data-table-wrap" style="margin-top:24px">
+      <table class="data-table">
+        <thead>
+          <tr><th>항목</th><th>CrudGenerationTool</th><th>MasterDetailGenerationTool</th><th>BoardGenerationTool</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>역할 슬롯 수</td><td>1개(<code>tableName</code>)</td><td>2개(<code>masterTable</code>, <code>detailTable</code>)</td><td>5개(게시글/마스터/사용권한/파일/파일상세)</td></tr>
+          <tr><td>테이블명 자유도</td><td>자유(필수 파라미터)</td><td>자유(둘 다 필수 파라미터, 하드코딩 없음)</td><td>자유(단, <code>@Nullable</code>이라 미지정 시 <code>LETTN*</code> 기본값으로 대체)</td></tr>
+          <tr><td><code>llmProvider</code> 파라미터</td><td>있음</td><td>있음</td><td>없음</td></tr>
+          <tr><td>auto/claude 분기</td><td><code>CrudGenerationDispatchService</code>에서 <code>isAuto()</code></td><td><code>MasterDetailGenerationDispatchService</code>에서 자체 <code>isAuto()</code>(CRUD와 별개 구현체)</td><td>없음 — 항상 결정론적 파이프라인</td></tr>
+          <tr><td>반환값 구조</td><td><code>Orchestrated</code>(저장) / <code>Prompted</code>(텍스트만)</td><td>동일하게 <code>Orchestrated</code>/<code>Prompted</code> 2종</td><td><code>BoardOrchestrationResult</code> 단일 고정</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="subsection-sub" style="margin-top:10px">
+      <b>세 Tool 최종 비교.</b> 위 표(분기·렌더러·저장 주체 비교)가 "누가/무엇을 저장하는가"에 초점을 맞췄다면,
+      이 표는 <b>Tool 호출 계약(파라미터·분기 유무·반환 타입)</b> 관점의 비교다. <code>MasterDetailGenerationTool</code>은
+      역할 슬롯이 1개→2개로 늘어났을 뿐 <code>llmProvider</code> 분기와 <code>Orchestrated</code>/<code>Prompted</code>
+      반환 구조를 그대로 계승한 <b>CrudGenerationTool의 확장판</b>에 가깝고, <code>BoardGenerationTool</code>만
+      유일하게 이 계열에서 벗어나 처음부터 결정론적 파이프라인으로 설계됐다. "테이블명 자유도" 행의 <code>LETTN*</code>은
+      하드코딩된 고정 테이블이 아니라 <code>BoardTableSetResolver</code>가 파라미터 미지정 시에만 적용하는 기본값이며,
+      사용자가 임의 테이블명을 넘기면 그 이름 그대로 <code>INFORMATION_SCHEMA.COLUMNS</code>를 조회해 생성한다 —
+      고정된 것은 테이블 "이름"이 아니라 "역할 슬롯 개수"라는 구조다.
+    </p>
+
+    <div class="data-table-wrap" style="margin-top:24px">
+      <table class="data-table">
+        <thead>
+          <tr><th>항목</th><th><code>auto</code></th><th><code>claude</code></th></tr>
+        </thead>
+        <tbody>
+          <tr><td>누가 코드를 만드나</td><td>Spring MCP 서버(springai) 자신이 내부적으로 FreeMarker 템플릿을 렌더링</td><td>Claude Desktop(호출한 대화 상대)이 직접 코드를 작성</td></tr>
+          <tr><td>서버가 하는 일</td><td>DB 스키마 조회 → 렌더링 → 파일을 디스크에 직접 저장까지 전부 수행</td><td>스키마 정보 + 작성 지시가 담긴 프롬프트 텍스트만 반환하고 끝</td></tr>
+          <tr><td>파일 저장</td><td>서버가 즉시 저장(<code>CodeServiceGenerationExecutor</code> → <code>ApprovedProjectWritePort</code>)</td><td>저장 없음 — 이후 Claude가 별도 Tool(<code>CodeSaverTool.saveCode()</code> 등)로 저장해야 함</td></tr>
+          <tr><td>토큰 소비</td><td>적음(LLM 개입 없이 결정론적으로 생성)</td><td>많음(Claude가 프롬프트를 읽고 코드를 직접 생성)</td></tr>
+          <tr><td>반환 타입</td><td><code>Orchestrated</code></td><td><code>Prompted</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="subsection-sub" style="margin-top:10px">
+      <b>"auto/claude 분기"의 의미.</b> 화면 생성 Tool을 호출할 때 넘기는 <code>llmProvider</code> 파라미터
+      값에 따라 <b>누가 실제로 소스 코드를 만들어서 저장하는지</b>가 완전히 달라지는 갈림길이다. 이
+      분기가 실제로 일어나는 위치는 Tool마다 다른 서비스다 — <code>CrudGenerationTool</code>은
+      <code>CrudGenerationDispatchService</code>가 <code>command.isAuto()</code>로 분기하고,
+      <code>MasterDetailGenerationTool</code>은 이름은 비슷하지만 <b>완전히 별개 클래스</b>인
+      <code>MasterDetailGenerationDispatchService</code>가 자체적으로 같은 패턴의 분기를 수행한다.
+      <code>BoardGenerationTool</code>은 이런 분기 자체가 없다 — <code>llmProvider</code> 파라미터도
+      받지 않고, 항상 서버가 직접 저장하는 쪽(<code>auto</code>에 해당하는 경로)으로만 동작한다.
+      즉 이 스위치는 "이 Tool 호출 결과로 서버가 파일을 즉시 써버릴지, 아니면 Claude에게 작성을
+      넘길지"를 결정하며, 세 Tool 중 CRUD와 마스터-디테일만 이 스위치를 갖고 있다.
+    </p>
 
     <h3 class="subsection-title">2.3 RAG / Chat 흐름</h3>
     <p class="subsection-sub">
@@ -1237,7 +1405,7 @@
     <p class="section-sub">2번 다이어그램의 <b>6번 배지</b>를 펼친 내부 흐름입니다. layout은 프로젝트당 한 번만 만들고 재사용합니다.</p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 440" role="img" aria-label="generateThymeleafLayout으로 공통 layout을 한 번 만든 뒤, buildFullCrudPrompt 등을 반복 호출해 CrudModelFactory가 DB 스키마를 CRUD 모델로 만든다. 이후 CrudGenerationDispatchService.isAuto() 값에 따라 갈라진다 — auto 경로는 CrudGenerationRenderer(내부적으로 CrudTemplateRenderer)가 서버에서 직접 렌더링한 뒤 CodeServiceGenerationExecutor가 ApprovedProjectWritePort로 파일을 저장하고, claude 등 경로는 CodeTemplateTool이 반환한 .ftl 원문을 Claude Desktop이 직접 렌더링해 CodeSaverTool.saveCode()로 저장한다. 두 경로 모두 결과는 7번 다이어그램(로컬 화면)으로 이어진다.">
+        <svg viewBox="0 0 1180 440" role="img" aria-label="generateThymeleafLayout으로 공통 layout을 한 번 만든 뒤, buildFullCrudPrompt 등을 반복 호출해 CrudModelFactory가 DB 스키마를 CRUD 모델로 만든다. 이후 CrudGenerationDispatchService.isAuto() 값에 따라 갈라진다 — auto 경로는 Spring MCP 서버가 CrudGenerationRenderer(내부적으로 CrudTemplateRenderer)로 CRUD 소스 파일(VO/Controller/Service/Mapper/View)을 직접 렌더링한 뒤 CodeServiceGenerationExecutor가 ApprovedProjectWritePort로 파일을 저장하고, claude 등 경로는 CodeTemplateTool이 반환한 .ftl 원문을 Claude Desktop이 직접 렌더링해 CodeSaverTool.saveCode()로 저장한다. 두 경로 모두 결과는 7번 다이어그램(로컬 화면)으로 이어진다.">
           <defs>
             <marker id="arrow6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow6Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
@@ -1266,7 +1434,7 @@
           <path class="edge accent" marker-end="url(#arrow6Accent)" d="M825,130 Q825,168 980,206"></path>
           <text class="edge-label accent" x="940" y="180" text-anchor="middle" style="font-size:9px">isAuto()==false (claude 등)</text>
 
-          <text class="group-label" x="200" y="199" text-anchor="middle">auto 경로 — 서버가 직접 렌더링·저장</text>
+          <text class="group-label" x="200" y="199" text-anchor="middle" style="font-size:10px">auto 경로 — Spring MCP 서버가 직접 렌더링·저장</text>
           <rect class="node-box" x="60" y="210" width="280" height="90" rx="8"></rect>
           <g class="step-badge"><circle cx="82" cy="232" r="13"></circle><text x="82" y="235" text-anchor="middle" style="font-size:10px">4a</text></g>
           <text class="node-title" x="200" y="246" text-anchor="middle">CrudGenerationRenderer</text>
@@ -1317,7 +1485,8 @@
         전용 Tool(<code>CodeTemplateTool</code>·<code>CodeSaverTool</code>)을 "auto 경로 이후"인 것처럼
         표시하는 오류가 있었습니다. <b>auto</b> 경로는 <code>CrudGenerationRenderer</code>(내부
         <code>CrudTemplateRenderer</code>, <code>CodeTemplateTool</code>과 같은 <code>.ftl</code> 템플릿을
-        쓰지만 별개 클래스)가 서버에서 직접 렌더링한 뒤 <code>CodeServiceGenerationExecutor</code>가
+        쓰지만 별개 클래스)가 <b>Spring MCP 서버</b>에서 직접 렌더링해 CRUD 소스 파일(VO/Controller/
+        Service/Mapper/View)을 만든 뒤 <code>CodeServiceGenerationExecutor</code>가
         <code id="approved-project-write-port-6">ApprovedProjectWritePort</code>로 저장합니다(14번 다이어그램의 그 Port와 동일). <b>claude</b>
         경로는 <code>CodeTemplateTool</code>이 <code>.ftl</code> 원문만 반환하고(디버깅·확인 용도라고 코드
         주석에 명시됨), 실제 렌더링은 Claude Desktop이 수행한 뒤 <code>CodeSaverTool.saveCode()</code>가
@@ -2263,6 +2432,110 @@
       파이프라인처럼 보이지 않게 정정했습니다. 12번 다이어그램 범례(legend)에도 "기존 파이프라인 앵커"로
       남아 있던 문구 1곳을 12번 본문과 동일하게 "목표 화면 생성 파이프라인 앵커"로 통일했습니다.
       1·2·3·5·8·9·10·11번 다이어그램 자체는 이름·번호 참조 모두 문제없이 정확했습니다.</li>
+      <li><b>2026-08-26 갱신(6):</b> 2.2절 3단계의 <code>BoardGenerationTool</code> 박스 밑 화살표가
+      <code>BoardGenerationTool</code> 전용인지, 화살표 없는 <code>MasterDetailGenerationTool</code>은
+      거기서 끝나는 것인지 질문을 받아 실제 소스를 확인한 결과 <b>다이어그램 오류</b>였습니다.
+      <code>CrudGenerationTool</code>→<code>CrudGenerationDispatchService</code>,
+      <code>MasterDetailGenerationTool</code>→<code>MasterDetailGenerationDispatchService</code>(이름은
+      비슷하지만 완전히 별개 클래스, 둘 다 자체 <code>isAuto()</code> 분기 보유),
+      <code>BoardGenerationTool</code>→<code>GenerateBoardProjectUseCase</code>(분기 자체 없음,
+      <code>llmProvider</code> 파라미터도 없음) — 이렇게 세 갈래가 서로 다른데, 기존 다이어그램은
+      단일 화살표 하나를 가운데 열(Board 박스 바로 밑)에 그려놔서 세 Tool 중 어느 것도 정확히
+      설명하지 못했습니다. 세 Tool 각각 밑에 실제 대상 박스를 따로 그리도록 재작성했고,
+      CRUD의 <code>isAuto()</code> auto/claude 분기·<code>CrudGenerationApprovalPolicy</code>·
+      <code>JoinQueryTool</code>·<code>MenuTool</code> 체인은 위치만 왼쪽으로 옮겼을 뿐 내용은
+      그대로입니다. 범례의 "auto 경로 ... 유일한 지점"이라는 문구도 CRUD 전용이라는 오해를 줄 수 있어
+      "CRUD auto 경로"로 한정했습니다.</li>
+      <li><b>2026-08-26 갱신(7):</b> 2.2절 다이어그램에서 <code>layoutMode=reuse 기본값</code> 엣지
+      라벨이 "layoutM"까지만 보이고 잘린다는 스크린샷 지적을 받아 확인한 결과, 라벨 텍스트(<code>x=600
+      y=380</code>, 좌측 정렬)가 바로 다음에 그려지는 <code>CrudScreenSourceTool 등 (대안)</code> 박스
+      (<code>x=640~1140</code>)와 겹쳐서 SVG 문서 순서상 뒤에 그려지는 박스가 텍스트 뒷부분을
+      그대로 덮어버리고 있었습니다(사용자 캡처 크롭 문제가 아니라 실제 렌더링 버그). 라벨을 두 대안
+      박스 위쪽 빈 공간(<code>y=300</code>, 세로선 기준 가운데 정렬)으로 옮겨 겹침을 없앴습니다.</li>
+      <li><b>2026-08-26 갱신(8):</b> 세 Tool의 "저장 주체·저장 내용"을 비교 분석하다가,
+      <code>BoardGenerationPipelineService</code>·<code>MasterDetailGenerationPipelineService</code>가
+      둘 다 <code>GenerationExecutor</code> 인터페이스를 주입받는데 그 구현체가 코드베이스 전체에서
+      <code>CodeServiceGenerationExecutor</code> 단 하나뿐이라는 사실을 확인했습니다 — 분기(Dispatch)
+      로직은 세 Tool이 서로 다르지만(2.2절 위 세 박스), 실제로 파일을 쓰는 최종 실행기·Write Port는
+      Spring 싱글턴으로 동일합니다. 세 종점 박스 아래에 <code>CodeServiceGenerationExecutor(공통
+      실행기)</code> 합류 박스를 추가하고, CRUD·Board는 항상·MasterDetail은 auto 경로만 이 박스로
+      모이도록 화살표를 그렸습니다. 도메인별 차이는 저장 주체가 아니라 각자 다른 Renderer
+      (<code>CrudTemplateRenderer</code>/<code>BoardTemplateRenderer</code>/
+      <code>MasterDetailTemplateRenderer</code>)가 만드는 파일 내용에 있습니다.</li>
+      <li><b>2026-08-26 갱신(9):</b> 2.2절 레이아웃을 정리했습니다 — <code>GenerateCrudProjectUseCase</code>·
+      <code>CrudGenerationApprovalPolicy</code>·<code>JoinQueryTool</code>을 <code>CrudGenerationDispatchService</code>
+      (1열)에 맞춰 왼쪽으로 재정렬하고, <code>CodeServiceGenerationExecutor(공통 실행기)</code> 박스는
+      가운데 열 쪽으로 옮겼습니다(자식 박스와의 겹침을 피하려 정확히 중앙은 아님). 세 Tool의
+      "저장 주체·저장 내용" 비교표를 새로 추가해 분기(Dispatch)·auto 저장 주체·claude 경로·렌더러·
+      레이어 정의·실제 파일 쓰기·이력 기록을 한눈에 대조할 수 있게 했습니다 — 실제 파일 쓰기·이력
+      기록 행은 세 Tool이 동일해서 병합 표시했습니다.</li>
+      <li><b>2026-08-26 갱신(10):</b> <code>GenerateCrudProjectUseCase</code> 박스 안 "서버가 직접
+      디스크에 파일 저장 → AI_GENERATION_HISTORY 기록" 문구가 바로 아래 <code>CodeServiceGenerationExecutor
+      (공통 실행기)</code> 박스와 내용이 겹치는 것 아니냐는 지적을 받아 <code>CrudGenerationApplicationService
+      .execute()</code> 소스로 확인했습니다 — 둘 다 정확하고, 이중 저장이 아니라 같은 메서드 호출
+      하나(<code>planner.plan()</code>→<code>renderer.render()</code>→<code>executor.execute()</code>→
+      <code>historyRecorder.record()</code>)를 서로 다른 확대 수준에서 설명한 것입니다.
+      <code>CrudGenerationApprovalPolicy</code>와 동일한 "내부 호출" 관계라, 화살표에 라벨을 추가하고
+      figcaption에도 명시적으로 정리했습니다.</li>
+      <li><b>2026-08-26 갱신(11):</b> <code>CrudGenerationApprovalPolicy</code>와
+      <code>CodeServiceGenerationExecutor</code>의 분기 기준을 물어봐서 <code>CrudGenerationPlanner
+      .plan()</code> 소스로 정확한 조건(<code>requiresApproval(tableName) &amp;&amp; 두 ID 모두
+      비어있음</code> → 그 자리에서 REJECTED, executor 미호출)을 확인하고 다이어그램에 반영했습니다.
+      기존엔 <code>CodeServiceGenerationExecutor</code>로 가는 화살표가 <code>GenerateCrudProjectUseCase</code>
+      에서 곧장 나와 <code>ApprovalPolicy</code>를 건너뛰는 것처럼 보였는데, 이제
+      <code>ApprovalPolicy</code>를 통과한 뒤에 이어지도록 화살표를 다시 그렸고, 박스 안에 "차단 시
+      executor 미호출" 문구와 별도 figcaption을 추가해 이게 두 갈래 분기가 아니라 단일 순차 게이트임을
+      명시했습니다.</li>
+      <li><b>2026-08-26 갱신(12):</b> <code>CrudGenerationApprovalPolicy</code>→
+      <code>CodeServiceGenerationExecutor</code> 화살표 라벨 "내부 호출(같은 저장 동작, 별도
+      저장 아님)"이 무슨 뜻인지 모르겠다는 지적을 받아 "승인 통과 → 이어서 저장 실행"으로 쉬운
+      말로 바꿨습니다 — 자세한 기술적 설명(같은 execute() 메서드 안에서 순서대로 호출된다는 점)은
+      라벨 대신 옆 figcaption에 그대로 남겨뒀습니다.</li>
+      <li><b>2026-08-26 갱신(13):</b> <code>GenerateCrudProjectUseCase</code> 박스의 "서버가 직접
+      디스크에 파일 저장" 문구가 무조건 일어나는 것처럼 보인다는 지적을 받아 "승인 통과 시 서버가
+      직접 디스크에 파일 저장"으로 조건을 박스 텍스트 자체에 명시했습니다 — 승인이 필요한 고위험
+      테이블인데 화면명세가 없으면 이 저장 자체가 일어나지 않는다는 점(아래 <code>CrudGenerationApprovalPolicy</code>
+      박스 참고)을 화살표만 보지 않고도 알 수 있게 했습니다.</li>
+      <li><b>2026-08-26 갱신(14):</b> "서버가"처럼 서버명을 명시하지 않은 표현과, "파일 저장"이라고만
+      쓰고 무슨 내용을 저장하는지 안 밝힌 곳을 2.2절·6번 다이어그램에서 정리했습니다. 모든 "서버"를
+      2.1절 박스 명칭과 통일해 <b>"Spring MCP 서버"</b>로 명시했고, "파일 저장"은 각 도메인의 실제
+      저장 내용으로 구체화했습니다 — CRUD는 "CRUD 소스 파일 세트"(VO/Controller/Service/Mapper/View),
+      Board는 "게시판(BBS) 소스 파일 세트", MasterDetail은 "마스터-디테일 소스 파일 세트"입니다.
+      <code>GenerateBoardProjectUseCase</code>·<code>MasterDetailGenerationDispatchService</code>·
+      <code>GenerateCrudProjectUseCase</code> 박스 높이를 늘려 문구를 담았고, 그 아래
+      <code>CrudGenerationApprovalPolicy</code>·<code>JoinQueryTool</code>·<code>MenuTool</code>
+      박스와 연결선을 전부 같은 폭만큼 아래로 밀어 겹침을 피했습니다(viewBox 높이도 1180→1200으로
+      늘림).</li>
+      <li><b>2026-08-26 갱신(15):</b> "승인 통과 → 이어서 저장 실행" 다음에 <code>CodeServiceGenerationExecutor</code>가
+      정확히 뭘 저장하는지 검토해달라는 요청을 받아 <code>CrudLayerDefinition</code> 소스로 확인했습니다.
+      파일을 하나씩이 아니라 <code>ProjectChangeSet</code> 하나로 묶어 원자적으로 저장하며, CRUD
+      기준 공통 7개(VO·Mapper·Mapper.xml·Service·ServiceImpl·Controller·ValidationHandler) +
+      JSP 전용 4개(총 11개) 또는 Thymeleaf 전용 9개(총 16개)라는 정확한 레이어 목록·개수를
+      확인해 실행기 박스와 별도 figcaption에 반영했습니다 — "JSP 11개/Thymeleaf 16개" 수치는
+      <code>CLAUDE.md</code> 기존 기재와 일치합니다.</li>
+      <li><b>2026-08-27 갱신:</b> 2.2절 기존 표(분기·렌더러·저장 주체 비교)는 "누가/무엇을 저장하는가"만
+      다루고 있어, <b>Tool 호출 계약</b>(역할 슬롯 수·테이블명 자유도·<code>llmProvider</code> 파라미터
+      존재 여부·반환 타입) 관점의 비교표를 그 아래에 추가했습니다. 실제 코드(<code>CrudGenerationTool</code>·
+      <code>MasterDetailGenerationTool</code>·<code>BoardGenerationTool</code>의 파라미터 시그니처,
+      <code>BoardTableSetResolver</code>의 fallback 로직)로 확인한 내용이며, <code>BoardGenerationTool</code>의
+      <code>mainTable</code> 등 테이블명 파라미터가 <code>LETTNBBS</code> 등으로 하드코딩돼 있다는 오해가
+      있을 수 있어 "고정된 것은 테이블 이름이 아니라 역할 슬롯 개수"라는 점을 명시했습니다.</li>
+      <li><b>2026-08-27 갱신(2):</b> "auto/claude 분기"가 정확히 무엇을 뜻하는지 질문을 받아, 위
+      비교표 바로 아래에 <code>auto</code>/<code>claude</code> 각각의 실행 주체·저장 여부·토큰
+      소비·반환 타입을 대조하는 표와 설명을 추가했습니다. 이 분기는 Tool마다 서로 다른 서비스
+      (<code>CrudGenerationDispatchService</code> / <code>MasterDetailGenerationDispatchService</code>)가
+      각자 <code>isAuto()</code>로 수행하며, <code>BoardGenerationTool</code>은 이 스위치 자체가
+      없다는 점을 다시 명확히 했습니다.</li>
+      <li><b>2026-08-27 갱신(3) — 클래스명 정정:</b> 2.2절 전체에서 CRUD 진입점으로 표기하던
+      <code>CrudPromptBuilderTool</code>이 실제로는 <b>MCP에 전혀 등록되지 않는 클래스</b>임을
+      확인했습니다 — <code>@Component</code>/<code>@Service</code> 어노테이션이 없고,
+      <code>McpConfig.allToolCallbacks(...)</code>에도 등장하지 않으며, 무엇보다 <code>@McpToolRisk</code>가
+      없어서(등록 시도 시 기동 자체가 즉시 차단되는 구조) 처음부터 등록될 수 없는 상태입니다. 실제
+      등록된 CRUD 진입점은 <code>tools/generation/CrudGenerationTool.java</code>(<code>@Component</code>,
+      <code>@McpToolRisk(FILE_WRITE)</code> 있음)이며, 같은 <code>CrudGenerationMcpFacade</code>로
+      위임하므로 동작 로직 자체는 이전 서술과 동일합니다. 이번 갱신에서 2.2절 전체의
+      <code>CrudPromptBuilderTool</code> 표기를 <code>CrudGenerationTool</code>로 교체했습니다.
+      <code>CrudPromptBuilderTool</code>은 삭제되지 않고 legacy 코드로 남아 있습니다(삭제는 별도 작업).</li>
       <li>이 다이어그램은 정적 스냅샷입니다 — Tool·서비스 구성이 바뀌면 함께 갱신이 필요합니다.</li>
     </ul>
   </footer>

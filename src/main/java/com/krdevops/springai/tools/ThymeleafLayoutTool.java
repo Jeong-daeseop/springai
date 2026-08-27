@@ -41,7 +41,7 @@ public class ThymeleafLayoutTool {
             또한 Thymeleaf 런타임 의존성과 ViewResolver를 보강해 JSP resolver보다 classpath:/templates/*.html 화면을 우선 렌더링합니다.
             GNB는 menuTableName(기본 LETTNMENUINFO, UPPER_MENU_NO=0)+programTableName(기본 LETTNPROGRMLIST)을 조회해 매 요청마다 동적으로 렌더링됩니다.
             생성되는 layout HTML은 인라인 style을 생성하지 않고 initializeProject()가 만든 /resources/css/styles.css의 egov-* 공통 클래스를 사용합니다.
-            CrudPromptBuilderTool의 Thymeleaf 생성은 layoutMode=reuse가 기본값이므로,
+            CrudGenerationTool의 Thymeleaf 생성은 layoutMode=reuse가 기본값이므로,
             신규 프로젝트에서는 buildFullCrudPrompt/buildBoardFeature/buildMasterDetailPrompt 실행 전에 이 Tool을 먼저 호출하세요.
 
             outputPath      : 프로젝트 루트 절대경로
