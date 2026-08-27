@@ -106,4 +106,73 @@ class FigmaDesignSpecMapperTest {
                     assertThat(exception.statusCode()).isEqualTo(422);
                 });
     }
+
+    @Test
+    void componentsCaptureFirstSolidFillAndStrokeAsRgba() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"type":"COMPONENT","name":"Primary Button",
+                     "absoluteBoundingBox":{"x":100,"y":100,"width":120,"height":40},
+                     "fills":[{"type":"SOLID","visible":true,"color":{"r":1,"g":0.341176,"b":0.2,"a":1}}],
+                     "strokes":[{"type":"SOLID","visible":true,"color":{"r":0,"g":0,"b":0,"a":1}}]}
+                  ]
+                }
+                """));
+
+        var result = mapper.map(document, "crud");
+
+        var actionGroup = result.components().stream()
+                .filter(component -> "ACTION_GROUP".equals(component.type()))
+                .findFirst().orElseThrow();
+        assertThat(actionGroup.backgroundColor()).isEqualTo("rgba(255,87,51,1.00)");
+        assertThat(actionGroup.borderColor()).isEqualTo("rgba(0,0,0,1.00)");
+    }
+
+    @Test
+    void componentsIgnoreNonSolidFillsLikeGradients() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"type":"COMPONENT","name":"Primary Button",
+                     "absoluteBoundingBox":{"x":100,"y":100,"width":120,"height":40},
+                     "fills":[{"type":"GRADIENT_LINEAR","visible":true}]}
+                  ]
+                }
+                """));
+
+        var result = mapper.map(document, "crud");
+
+        var actionGroup = result.components().stream()
+                .filter(component -> "ACTION_GROUP".equals(component.type()))
+                .findFirst().orElseThrow();
+        assertThat(actionGroup.backgroundColor()).isNull();
+        assertThat(actionGroup.borderColor()).isNull();
+    }
+
+    @Test
+    void componentsWithoutFillsOrStrokesHaveNullColors() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"type":"COMPONENT","name":"Primary Button",
+                     "absoluteBoundingBox":{"x":100,"y":100,"width":120,"height":40}}
+                  ]
+                }
+                """));
+
+        var result = mapper.map(document, "crud");
+
+        var actionGroup = result.components().stream()
+                .filter(component -> "ACTION_GROUP".equals(component.type()))
+                .findFirst().orElseThrow();
+        assertThat(actionGroup.backgroundColor()).isNull();
+        assertThat(actionGroup.borderColor()).isNull();
+    }
 }

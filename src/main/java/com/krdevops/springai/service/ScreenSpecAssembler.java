@@ -94,7 +94,8 @@ public class ScreenSpecAssembler {
                 blank(featureType) ? "crud" : featureType,
                 archetype, database, tableName,
                 List.of(DataSourceSpec.primary(database, tableName)), pages, issues,
-                density, formColumnLayout, actionPlacement, searchPanelPlacement, LocalDateTime.now());
+                density, formColumnLayout, actionPlacement, searchPanelPlacement, LocalDateTime.now(),
+                null, null, resolvedUi.components());
         return validator.validate(draft);
     }
 

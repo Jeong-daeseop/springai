@@ -238,6 +238,28 @@ class ScreenSpecAssemblerTest {
                 .hasMessageContaining("search panel placement");
     }
 
+    @Test
+    void componentStylesArePassedThroughFromUiDesignSpec() {
+        UiDesignSpec.ComponentSpec actionGroup = new UiDesignSpec.ComponentSpec(
+                "ACTION_GROUP", List.of("Primary Button"), "rgba(255,87,51,1.00)", "rgba(0,0,0,1.00)");
+        UiDesignSpec uiSpec = new UiDesignSpec(
+                "CRUD_LIST", null, List.of(actionGroup), List.of(), List.of(),
+                Map.of(), List.of(), List.of());
+
+        ScreenSpecification result = assembler.assemble(
+                "com", "LETTNBBS", "공지사항", "crud", columns(), uiSpec);
+
+        assertThat(result.componentStyles()).containsExactly(actionGroup);
+    }
+
+    @Test
+    void componentStylesDefaultToEmptyWhenUiSpecIsNull() {
+        ScreenSpecification result = assembler.assemble(
+                "com", "LETTNBBS", "공지사항", "board", columns(), null);
+
+        assertThat(result.componentStyles()).isEmpty();
+    }
+
     private List<Map<String, Object>> columns() {
         return List.of(
                 column("NTT_ID", "bigint", "NO", "게시물ID", "PRI"),

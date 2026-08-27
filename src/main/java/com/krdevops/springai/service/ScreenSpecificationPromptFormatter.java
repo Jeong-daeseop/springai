@@ -4,6 +4,7 @@ import com.krdevops.springai.model.design.PageSpec;
 import com.krdevops.springai.model.design.DataSourceSpec;
 import com.krdevops.springai.model.design.ScreenFieldBinding;
 import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.model.design.UiDesignSpec;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -33,6 +34,19 @@ public class ScreenSpecificationPromptFormatter {
                         .append(dataSource.joinExpression());
             }
             result.append('\n');
+        }
+        if (!specification.componentStyles().isEmpty()) {
+            result.append("  componentStyles:\n");
+            for (UiDesignSpec.ComponentSpec component : specification.componentStyles()) {
+                result.append("    - ").append(component.type());
+                if (component.backgroundColor() != null) {
+                    result.append(" backgroundColor=").append(component.backgroundColor());
+                }
+                if (component.borderColor() != null) {
+                    result.append(" borderColor=").append(component.borderColor());
+                }
+                result.append('\n');
+            }
         }
         for (PageSpec page : specification.pages()) {
             result.append("  page ").append(page.id()).append(" template=").append(page.template())

@@ -23,7 +23,8 @@ public record ScreenSpecification(
         SearchPanelPlacement searchPanelPlacement,
         LocalDateTime createdAt,
         @Nullable VersionedArtifactReference uiDesignSpecReference,
-        @Nullable VersionedArtifactReference designSystemSnapshotReference
+        @Nullable VersionedArtifactReference designSystemSnapshotReference,
+        List<UiDesignSpec.ComponentSpec> componentStyles
 ) {
     public ScreenSpecification {
         dataSources = dataSources == null ? List.of() : List.copyOf(dataSources);
@@ -34,6 +35,23 @@ public record ScreenSpecification(
         actionPlacement = actionPlacement == null ? ActionPlacement.TOP_RIGHT : actionPlacement;
         searchPanelPlacement = searchPanelPlacement == null ? SearchPanelPlacement.ABOVE_TABLE : searchPanelPlacement;
         createdAt = createdAt == null ? LocalDateTime.now() : createdAt;
+        componentStyles = componentStyles == null ? List.of() : List.copyOf(componentStyles);
+    }
+
+    /** componentStyles 도입 전 호출자 호환. */
+    public ScreenSpecification(
+            String id, int version, ScreenSpecStatus status, String screenName,
+            String featureType, String archetype, String database, String primaryTable,
+            List<DataSourceSpec> dataSources, List<PageSpec> pages, List<SpecIssue> issues,
+            LayoutDensity layoutDensity, FormColumnLayout formColumnLayout,
+            ActionPlacement actionPlacement, SearchPanelPlacement searchPanelPlacement,
+            LocalDateTime createdAt,
+            @Nullable VersionedArtifactReference uiDesignSpecReference,
+            @Nullable VersionedArtifactReference designSystemSnapshotReference) {
+        this(id, version, status, screenName, featureType, archetype, database, primaryTable,
+                dataSources, pages, issues, layoutDensity, formColumnLayout, actionPlacement,
+                searchPanelPlacement, createdAt, uiDesignSpecReference, designSystemSnapshotReference,
+                List.of());
     }
 
     /** v2 Design IR 참조 도입 전 전체 생성자 호출 호환. */
@@ -46,7 +64,7 @@ public record ScreenSpecification(
             LocalDateTime createdAt) {
         this(id, version, status, screenName, featureType, archetype, database, primaryTable,
                 dataSources, pages, issues, layoutDensity, formColumnLayout,
-                actionPlacement, searchPanelPlacement, createdAt, null, null);
+                actionPlacement, searchPanelPlacement, createdAt, null, null, List.of());
     }
 
     /** actionPlacement/searchPanelPlacement 도입 전 호출자 호환. */
@@ -86,7 +104,7 @@ public record ScreenSpecification(
         return new ScreenSpecification(id, version, newStatus, screenName, featureType, archetype,
                 database, primaryTable, dataSources, pages, newIssues, layoutDensity, formColumnLayout,
                 actionPlacement, searchPanelPlacement, createdAt,
-                uiDesignSpecReference, designSystemSnapshotReference);
+                uiDesignSpecReference, designSystemSnapshotReference, componentStyles);
     }
 
     public ScreenSpecification withStatus(ScreenSpecStatus newStatus) {
@@ -102,6 +120,6 @@ public record ScreenSpecification(
         return new ScreenSpecification(id, version, status, screenName, featureType, archetype,
                 database, primaryTable, dataSources, pages, combined, layoutDensity, formColumnLayout,
                 actionPlacement, searchPanelPlacement, createdAt,
-                designReference, designSystemReference);
+                designReference, designSystemReference, componentStyles);
     }
 }

@@ -1,5 +1,7 @@
 package com.krdevops.springai.model.design;
 
+import org.jspecify.annotations.Nullable;
+
 import java.util.List;
 import java.util.Map;
 
@@ -41,7 +43,15 @@ public record UiDesignSpec(
             this(shell, contentWidth, density, null, null, null);
         }
     }
-    public record ComponentSpec(String type, List<String> semanticFields) {}
+    public record ComponentSpec(
+            String type, List<String> semanticFields,
+            @Nullable String backgroundColor, @Nullable String borderColor) {
+
+        /** 색상 필드 도입 전 호출자 호환. */
+        public ComponentSpec(String type, List<String> semanticFields) {
+            this(type, semanticFields, null, null);
+        }
+    }
     public record ActionSpec(String type, String importance) {}
     public record FieldHint(String id, String label, UiFieldRole role, String control, double confidence) {}
     public record InteractionSpec(String trigger, String result) {}

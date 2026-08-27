@@ -2621,6 +2621,31 @@
           "archetype" : {
             "type" : "string"
           },
+          "componentStyles" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "backgroundColor" : {
+                  "type" : "string"
+                },
+                "borderColor" : {
+                  "type" : "string"
+                },
+                "semanticFields" : {
+                  "items" : {
+                    "type" : "string"
+                  },
+                  "type" : "array"
+                },
+                "type" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "semanticFields", "type" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
           "createdAt" : {
             "type" : "string"
           },
@@ -2835,7 +2860,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "actionPlacement", "archetype", "createdAt", "dataSources", "database", "featureType", "formColumnLayout", "id", "issues", "layoutDensity", "pages", "primaryTable", "screenName", "searchPanelPlacement", "status", "version" ],
+        "required" : [ "actionPlacement", "archetype", "componentStyles", "createdAt", "dataSources", "database", "featureType", "formColumnLayout", "id", "issues", "layoutDensity", "pages", "primaryTable", "screenName", "searchPanelPlacement", "status", "version" ],
         "type" : "object"
       }
     },

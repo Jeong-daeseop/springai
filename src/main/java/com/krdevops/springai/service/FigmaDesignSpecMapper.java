@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.krdevops.springai.model.design.FigmaNodeDocument;
 import com.krdevops.springai.model.design.UiDesignSpec;
 import com.krdevops.springai.model.design.UiFieldRole;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -94,6 +95,9 @@ public class FigmaDesignSpecMapper {
     private List<UiDesignSpec.ComponentSpec> components(
             List<NodeInfo> nodes, List<String> uncertainties) {
         Map<String, LinkedHashSet<String>> values = new LinkedHashMap<>();
+        // 타입별로 처음 매치된 노드의 색상만 대표값으로 채택한다(여러 노드가 같은 타입으로 묶이는
+        // 그룹핑 구조이므로, 노드별 개별 색상까지는 반영하지 않는다 — 구현계획서 §6 리스크 참고).
+        Map<String, String[]> colorsByType = new LinkedHashMap<>();
         for (NodeInfo node : nodes) {
             String normalized = text(node);
             String componentType = null;
@@ -105,14 +109,43 @@ public class FigmaDesignSpecMapper {
             if (componentType != null) {
                 values.computeIfAbsent(componentType, ignored -> new LinkedHashSet<>())
                         .add(node.name().isBlank() ? node.type() : node.name());
+                colorsByType.computeIfAbsent(componentType,
+                        ignored -> new String[] {solidFillColor(node), solidStrokeColor(node)});
             } else if (("COMPONENT".equals(node.type()) || "INSTANCE".equals(node.type()))
                     && genericName(node.name())) {
                 uncertainties.add("의미를 알 수 없는 컴포넌트가 있습니다: " + safeLabel(node.name()));
             }
         }
         return values.entrySet().stream()
-                .map(entry -> new UiDesignSpec.ComponentSpec(entry.getKey(), List.copyOf(entry.getValue())))
+                .map(entry -> {
+                    String[] colors = colorsByType.get(entry.getKey());
+                    return new UiDesignSpec.ComponentSpec(
+                            entry.getKey(), List.copyOf(entry.getValue()), colors[0], colors[1]);
+                })
                 .toList();
+    }
+
+    /** {@code fills} 배열에서 첫 번째 SOLID·visible 페인트만 rgba 문자열로 반환한다. 그 외 타입
+     * (GRADIENT_LINEAR/IMAGE 등)은 무시한다 — 구현계획서 §6 리스크 참고. */
+    private @Nullable String solidFillColor(NodeInfo node) {
+        return firstSolidPaint(node.raw().path("fills"));
+    }
+
+    /** {@code strokes} 배열에서 첫 번째 SOLID·visible 페인트만 rgba 문자열로 반환한다. */
+    private @Nullable String solidStrokeColor(NodeInfo node) {
+        return firstSolidPaint(node.raw().path("strokes"));
+    }
+
+    private @Nullable String firstSolidPaint(JsonNode paints) {
+        if (!paints.isArray()) return null;
+        for (JsonNode paint : paints) {
+            if ("SOLID".equals(paint.path("type").asText())
+                    && paint.path("visible").asBoolean(true)
+                    && paint.path("color").isObject()) {
+                return rgba(paint.path("color"));
+            }
+        }
+        return null;
     }
 
     private List<UiDesignSpec.FieldHint> fields(
