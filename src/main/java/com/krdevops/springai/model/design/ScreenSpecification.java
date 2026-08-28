@@ -2,6 +2,7 @@ package com.krdevops.springai.model.design;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import com.krdevops.springai.model.contract.VersionedArtifactReference;
 import org.jspecify.annotations.Nullable;
 
@@ -25,7 +26,8 @@ public record ScreenSpecification(
         @Nullable VersionedArtifactReference uiDesignSpecReference,
         @Nullable VersionedArtifactReference designSystemSnapshotReference,
         List<UiDesignSpec.ComponentSpec> componentStyles,
-        List<UiDesignSpec.NodeGeometry> componentGeometry
+        List<UiDesignSpec.NodeGeometry> componentGeometry,
+        Map<String, String> tokens
 ) {
     public ScreenSpecification {
         dataSources = dataSources == null ? List.of() : List.copyOf(dataSources);
@@ -38,6 +40,25 @@ public record ScreenSpecification(
         createdAt = createdAt == null ? LocalDateTime.now() : createdAt;
         componentStyles = componentStyles == null ? List.of() : List.copyOf(componentStyles);
         componentGeometry = componentGeometry == null ? List.of() : List.copyOf(componentGeometry);
+        tokens = tokens == null ? Map.of() : Map.copyOf(tokens);
+    }
+
+    /** tokens 도입 전 호출자 호환. */
+    public ScreenSpecification(
+            String id, int version, ScreenSpecStatus status, String screenName,
+            String featureType, String archetype, String database, String primaryTable,
+            List<DataSourceSpec> dataSources, List<PageSpec> pages, List<SpecIssue> issues,
+            LayoutDensity layoutDensity, FormColumnLayout formColumnLayout,
+            ActionPlacement actionPlacement, SearchPanelPlacement searchPanelPlacement,
+            LocalDateTime createdAt,
+            @Nullable VersionedArtifactReference uiDesignSpecReference,
+            @Nullable VersionedArtifactReference designSystemSnapshotReference,
+            List<UiDesignSpec.ComponentSpec> componentStyles,
+            List<UiDesignSpec.NodeGeometry> componentGeometry) {
+        this(id, version, status, screenName, featureType, archetype, database, primaryTable,
+                dataSources, pages, issues, layoutDensity, formColumnLayout, actionPlacement,
+                searchPanelPlacement, createdAt, uiDesignSpecReference, designSystemSnapshotReference,
+                componentStyles, componentGeometry, Map.of());
     }
 
     /** componentGeometry 도입 전 호출자 호환. */
@@ -123,7 +144,8 @@ public record ScreenSpecification(
         return new ScreenSpecification(id, version, newStatus, screenName, featureType, archetype,
                 database, primaryTable, dataSources, pages, newIssues, layoutDensity, formColumnLayout,
                 actionPlacement, searchPanelPlacement, createdAt,
-                uiDesignSpecReference, designSystemSnapshotReference, componentStyles, componentGeometry);
+                uiDesignSpecReference, designSystemSnapshotReference, componentStyles, componentGeometry,
+                tokens);
     }
 
     public ScreenSpecification withStatus(ScreenSpecStatus newStatus) {
@@ -139,6 +161,6 @@ public record ScreenSpecification(
         return new ScreenSpecification(id, version, status, screenName, featureType, archetype,
                 database, primaryTable, dataSources, pages, combined, layoutDensity, formColumnLayout,
                 actionPlacement, searchPanelPlacement, createdAt,
-                designReference, designSystemReference, componentStyles, componentGeometry);
+                designReference, designSystemReference, componentStyles, componentGeometry, tokens);
     }
 }

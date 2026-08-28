@@ -2998,6 +2998,9 @@
             "enum" : [ "DRAFT", "REVIEW_REQUIRED", "APPROVED", "SUPERSEDED" ],
             "type" : "string"
           },
+          "tokens" : {
+            "type" : "object"
+          },
           "uiDesignSpecReference" : {
             "$ref" : "#/$defs/VersionedArtifactReference"
           },
@@ -3006,7 +3009,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "actionPlacement", "archetype", "componentGeometry", "componentStyles", "createdAt", "dataSources", "database", "featureType", "formColumnLayout", "id", "issues", "layoutDensity", "pages", "primaryTable", "screenName", "searchPanelPlacement", "status", "version" ],
+        "required" : [ "actionPlacement", "archetype", "componentGeometry", "componentStyles", "createdAt", "dataSources", "database", "featureType", "formColumnLayout", "id", "issues", "layoutDensity", "pages", "primaryTable", "screenName", "searchPanelPlacement", "status", "tokens", "version" ],
         "type" : "object"
       }
     },

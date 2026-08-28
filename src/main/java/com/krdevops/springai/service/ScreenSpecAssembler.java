@@ -95,7 +95,7 @@ public class ScreenSpecAssembler {
                 archetype, database, tableName,
                 List.of(DataSourceSpec.primary(database, tableName)), pages, issues,
                 density, formColumnLayout, actionPlacement, searchPanelPlacement, LocalDateTime.now(),
-                null, null, resolvedUi.components(), resolvedUi.geometryTree());
+                null, null, resolvedUi.components(), resolvedUi.geometryTree(), resolvedUi.tokens());
         return validator.validate(draft);
     }
 

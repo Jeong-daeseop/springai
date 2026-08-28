@@ -713,7 +713,7 @@
     </p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 1200" role="img" aria-label="ProjectInitializrTool.initializeProject가 프로젝트 골격과 정적 layout을 만들고, ThymeleafLayoutTool.generateThymeleafLayout이 같은 layout 파일을 덮어써 동적 GNB로 업그레이드하며 packageName이 일치해야 한다. 이후 선택적으로 DesignReferenceTool 계열이 화면명세를 만들거나 ScreenSourceTool 계열로 화면 1개만 미리보기할 수 있고, 3단계 화면 생성 Tool 셋은 서로 다른 방식으로 갈라진다 — CrudGenerationTool은 CrudGenerationDispatchService로, MasterDetailGenerationTool은 이름은 비슷하지만 완전히 별개인 MasterDetailGenerationDispatchService로 가서 각자 자체 isAuto() 분기를 타고(auto면 Spring MCP 서버가 마스터-디테일 소스 파일 세트를 직접 저장, claude면 프롬프트 텍스트만 반환해 Claude Desktop이 코드를 작성), BoardGenerationTool은 이런 분기 자체가 없이 GenerateBoardProjectUseCase로 직행해 Spring MCP 서버가 게시판(BBS) 소스 파일 세트를 항상 직접 저장한다. CRUD auto 경로는 CrudGenerationApprovalPolicy가 고위험 테이블로 설정된 경우 승인된 화면명세 없이는 차단하며, 통과하면 Spring MCP 서버가 CRUD 소스 파일 세트를 저장하고 선택적으로 JoinQueryTool로 JOIN을 보강한 뒤 선택적으로 MenuTool이 메뉴를 등록한다. 분기 로직은 셋이 서로 다르지만, 세 Tool의 auto 경로가 실제로 파일을 쓰는 실행기는 CodeServiceGenerationExecutor 단 하나로 합류한다 — GenerationExecutor 인터페이스 구현체가 코드베이스에 이것 하나뿐이라 Board·MasterDetail 파이프라인도 같은 Spring 싱글턴을 주입받으며, 각자 다른 Renderer가 만든 렌더링 결과만 이 실행기에 넘긴다.">
+        <svg viewBox="0 0 1180 1200" role="img" aria-label="ProjectInitializrTool.initializeProject가 프로젝트 골격과 정적 layout을 만들고, ThymeleafLayoutTool.generateThymeleafLayout이 같은 layout 파일을 덮어써 동적 GNB로 업그레이드하며 packageName이 일치해야 한다. 이후 선택적으로 DesignReferenceTool 계열이 화면명세를 만들거나 ScreenSourceTool 계열로 화면 1개만 미리보기할 수 있고, 3단계 화면 생성 Tool 셋은 서로 다른 방식으로 갈라진다 — CrudGenerationTool은 CrudGenerationDispatchService로, MasterDetailGenerationTool은 이름은 비슷하지만 완전히 별개인 MasterDetailGenerationDispatchService로 가서 각자 자체 isAuto() 분기를 타고(auto면 Spring MCP 서버가 마스터-디테일 소스 파일 세트를 직접 저장, claude면 프롬프트 텍스트만 반환해 Claude Desktop이 코드를 작성), BoardGenerationTool도 2026-08-28부터 완전히 별개인 BoardGenerationDispatchService로 가서 자체 isAuto() 분기를 타고(auto면 Spring MCP 서버가 게시판(BBS) 소스 파일 세트를 직접 저장, claude면 BoardPromptGenerationService가 프롬프트 텍스트만 반환). CRUD auto 경로는 CrudGenerationApprovalPolicy가 고위험 테이블로 설정된 경우 승인된 화면명세 없이는 차단하며, 통과하면 Spring MCP 서버가 CRUD 소스 파일 세트를 저장하고 선택적으로 JoinQueryTool로 JOIN을 보강한 뒤 선택적으로 MenuTool이 메뉴를 등록한다. 분기 로직은 셋이 서로 다르지만, 세 Tool의 auto 경로가 실제로 파일을 쓰는 실행기는 CodeServiceGenerationExecutor 단 하나로 합류한다 — GenerationExecutor 인터페이스 구현체가 코드베이스에 이것 하나뿐이라 Board·MasterDetail 파이프라인도 같은 Spring 싱글턴을 주입받으며, 각자 다른 Renderer가 만든 렌더링 결과만 이 실행기에 넘긴다.">
           <defs>
             <marker id="arrow2b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow2bAccent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
@@ -795,10 +795,10 @@
           </a>
 
           <rect class="node-box" x="420" y="610" width="340" height="108" rx="8"></rect>
-          <text class="node-title" x="590" y="638" text-anchor="middle">GenerateBoardProjectUseCase</text>
-          <text class="node-sub" x="590" y="656" text-anchor="middle">분기 없음 — llmProvider 파라미터 자체가 없음</text>
-          <text class="node-sub" x="590" y="674" text-anchor="middle" style="font-size:10px">Spring MCP 서버가 게시판(BBS) 소스 파일 세트를 직접 저장</text>
-          <text class="node-sub" x="590" y="692" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">(BoardGenerationMcpFacade 코드 주석 근거)</text>
+          <text class="node-title" x="590" y="638" text-anchor="middle" style="font-size:12px">BoardGenerationDispatchService</text>
+          <text class="node-sub" x="590" y="656" text-anchor="middle">(2026-08-28 추가) 별개 클래스 — 자체 isAuto() 분기</text>
+          <text class="node-sub" x="590" y="674" text-anchor="middle" style="font-size:9.5px">auto → Spring MCP 서버가 게시판(BBS) 소스 파일 세트 직접 저장</text>
+          <text class="node-sub" x="590" y="692" text-anchor="middle" style="font-size:9px;fill:var(--ink-muted)">claude → BoardPromptGenerationService가 프롬프트 텍스트만 반환</text>
 
           <rect class="node-box" x="800" y="610" width="340" height="108" rx="8"></rect>
           <text class="node-title" x="970" y="638" text-anchor="middle" style="font-size:12px">MasterDetailGenerationDispatchService</text>
@@ -879,21 +879,21 @@
         완전히 덮어씁니다. <code>generateThymeleafLayout()</code>의 Tool 설명 자체가 "<code>packageName</code>은
         <code>initializeProject()</code>에 전달했던 것과 반드시 동일해야 한다"고 명시합니다 — 다르면
         <code>EgovGnbMenuInterceptor</code>가 실제 CRUD 소스 패키지와 어긋난 위치에 생성되어 동작하지 않습니다.
-        3단계 이후가 이번에 새로 밝혀진 진짜 분기 지점이지만, <b>세 Tool이 하나의 분기점을 공유하지
-        않습니다</b> — <code>CrudGenerationTool</code>은 <code>CrudGenerationDispatchService</code>로,
+        3단계 이후가 이번에 새로 밝혀진 진짜 분기 지점이며, <b>세 Tool 모두 각자의 분기점을 갖되
+        서로 공유하지 않습니다</b> — <code>CrudGenerationTool</code>은 <code>CrudGenerationDispatchService</code>로,
         <code>MasterDetailGenerationTool</code>은 이름은 비슷하지만 <b>완전히 별개인</b>
-        <code>MasterDetailGenerationDispatchService</code>로 갑니다(두 클래스의 JavaDoc이 각자
+        <code>MasterDetailGenerationDispatchService</code>로,
+        <code>BoardGenerationTool</code>도 <b>(2026-08-28 추가)</b> 마찬가지로 완전히 별개인
+        <code>BoardGenerationDispatchService</code>로 갑니다(세 클래스의 JavaDoc이 각자
         "llmProvider(auto vs claude/기타) 분기가 존재하는 <b>유일한 지점</b>"이라는 같은 문구를 씁니다 —
-        "유일한"은 각 클래스 내부 기준이지, 두 Tool이 같은 분기점을 쓴다는 뜻이 아닙니다).
-        <code>BoardGenerationTool</code>은 이런 분기 자체가 없습니다 —
-        <code>BoardGenerationMcpFacade</code> 코드 주석에 "분기 없음"이라고 명시돼 있고
-        <code>llmProvider</code> 파라미터도 받지 않아, 항상 <code>GenerateBoardProjectUseCase</code>로
-        직행해 <b>Spring MCP 서버</b>가 게시판(BBS) 소스 파일 세트를 저장합니다. CRUD·MasterDetail
-        두 경로 모두 <code>auto</code>면 <b>Spring MCP 서버</b>가 각자의 소스 파일 세트(CRUD는
-        VO/Controller/Service/Mapper/View, MasterDetail은 1:N 마스터-디테일 레이어)를 직접 저장해
-        7번 다이어그램의 로컬 화면이 되고, <code>claude</code> 등이면 서버는 프롬프트
-        텍스트만 돌려주고 <b>코드를 실제로 쓰는 주체가 springai에서 Claude Desktop으로 바뀝니다</b>
-        (MasterDetail의 두 UseCase는 전용 다이어그램이 없어 이 박스 안에 요약만 표시했습니다).
+        "유일한"은 각 클래스 내부 기준이지, 세 Tool이 같은 분기점을 쓴다는 뜻이 아닙니다). 세 경로
+        모두 <code>auto</code>면 <b>Spring MCP 서버</b>가 각자의 소스 파일 세트(CRUD는
+        VO/Controller/Service/Mapper/View, MasterDetail은 1:N 마스터-디테일 레이어, Board는
+        게시판(BBS) 기능 세트)를 직접 저장해 7번 다이어그램의 로컬 화면이 되고, <code>claude</code>
+        등이면 서버는 프롬프트 텍스트만 돌려주고 <b>코드를 실제로 쓰는 주체가 springai에서
+        Claude Desktop으로 바뀝니다</b>(Board의 claude 경로는 <code>BoardPromptGenerationService</code>가
+        테이블 구성·스키마·업무규칙·프로그램 메타데이터를 텍스트로 조립합니다). MasterDetail·Board의
+        UseCase들은 전용 다이어그램이 없어 이 박스 안에 요약만 표시했습니다.
         <code>ScreenSourceTool</code> 계열(3단계 위 대안)과 <code>JoinQueryTool</code>(CRUD auto 경로
         이후 선택)은 메인 흐름을 보조하는 별도 진입점입니다.
       </figcaption>
@@ -970,9 +970,9 @@
           <tr><th>항목</th><th>CrudGenerationTool</th><th>BoardGenerationTool</th><th>MasterDetailGenerationTool</th></tr>
         </thead>
         <tbody>
-          <tr><td>분기(Dispatch)</td><td><code>CrudGenerationDispatchService</code> — <code>isAuto()</code> 분기 있음</td><td>분기 자체 없음 — <code>llmProvider</code> 파라미터도 없음</td><td><code>MasterDetailGenerationDispatchService</code> — CRUD와 별개 클래스지만 동일한 패턴의 <code>isAuto()</code> 분기</td></tr>
+          <tr><td>분기(Dispatch)</td><td><code>CrudGenerationDispatchService</code> — <code>isAuto()</code> 분기 있음</td><td><code>BoardGenerationDispatchService</code>(2026-08-28 추가) — CRUD와 별개 클래스지만 동일한 패턴의 <code>isAuto()</code> 분기</td><td><code>MasterDetailGenerationDispatchService</code> — CRUD와 별개 클래스지만 동일한 패턴의 <code>isAuto()</code> 분기</td></tr>
           <tr><td>auto 저장 주체</td><td colspan="3" style="text-align:center"><code>CodeServiceGenerationExecutor</code> — <code>GenerationExecutor</code> 구현체가 코드베이스에 이것 하나뿐이라 세 Tool이 같은 Spring 싱글턴을 공유</td></tr>
-          <tr><td>claude 경로</td><td><code>BuildCrudPromptUseCase</code> — 프롬프트만 반환, 파일 저장 없음</td><td>없음(존재하지 않음)</td><td><code>BuildMasterDetailPromptUseCase</code> — 프롬프트만 반환</td></tr>
+          <tr><td>claude 경로</td><td><code>BuildCrudPromptUseCase</code> — 프롬프트만 반환, 파일 저장 없음</td><td><code>BuildBoardPromptUseCase</code>(<code>BoardPromptGenerationService</code>, 2026-08-28 추가) — 테이블 구성·스키마·업무규칙 프롬프트만 반환</td><td><code>BuildMasterDetailPromptUseCase</code> — 프롬프트만 반환</td></tr>
           <tr><td>렌더러(저장 내용 결정)</td><td><code>CrudGenerationRenderer</code>→<code>CrudTemplateRenderer</code></td><td><code>BoardGenerationRenderer</code>→<code>BoardTemplateRenderer</code></td><td><code>MasterDetailGenerationRenderer</code>→<code>MasterDetailTemplateRenderer</code></td></tr>
           <tr><td>레이어 정의</td><td><code>CrudLayerDefinition</code>(VO/Controller/Service/Mapper/View)</td><td><code>BoardLayerDefinition</code>(BBS 전용 레이어)</td><td><code>MasterDetailLayerDefinition</code>(1:N 마스터-디테일 전용 레이어)</td></tr>
           <tr><td>실제 파일 쓰기</td><td colspan="3" style="text-align:center"><code>ApprovedProjectWritePort.apply()</code>(공통)</td></tr>
@@ -996,9 +996,9 @@
         <tbody>
           <tr><td>역할 슬롯 수</td><td>1개(<code>tableName</code>)</td><td>2개(<code>masterTable</code>, <code>detailTable</code>)</td><td>5개(게시글/마스터/사용권한/파일/파일상세)</td></tr>
           <tr><td>테이블명 자유도</td><td>자유(필수 파라미터)</td><td>자유(둘 다 필수 파라미터, 하드코딩 없음)</td><td>자유(단, <code>@Nullable</code>이라 미지정 시 <code>LETTN*</code> 기본값으로 대체)</td></tr>
-          <tr><td><code>llmProvider</code> 파라미터</td><td>있음</td><td>있음</td><td>없음</td></tr>
-          <tr><td>auto/claude 분기</td><td><code>CrudGenerationDispatchService</code>에서 <code>isAuto()</code></td><td><code>MasterDetailGenerationDispatchService</code>에서 자체 <code>isAuto()</code>(CRUD와 별개 구현체)</td><td>없음 — 항상 결정론적 파이프라인</td></tr>
-          <tr><td>반환값 구조</td><td><code>Orchestrated</code>(저장) / <code>Prompted</code>(텍스트만)</td><td>동일하게 <code>Orchestrated</code>/<code>Prompted</code> 2종</td><td><code>BoardOrchestrationResult</code> 단일 고정</td></tr>
+          <tr><td><code>llmProvider</code> 파라미터</td><td>있음</td><td>있음</td><td>있음(2026-08-28 추가)</td></tr>
+          <tr><td>auto/claude 분기</td><td><code>CrudGenerationDispatchService</code>에서 <code>isAuto()</code></td><td><code>MasterDetailGenerationDispatchService</code>에서 자체 <code>isAuto()</code>(CRUD와 별개 구현체)</td><td><code>BoardGenerationDispatchService</code>에서 자체 <code>isAuto()</code>(CRUD와 별개 구현체, 2026-08-28 추가)</td></tr>
+          <tr><td>반환값 구조</td><td><code>Orchestrated</code>(저장) / <code>Prompted</code>(텍스트만)</td><td>동일하게 <code>Orchestrated</code>/<code>Prompted</code> 2종</td><td>동일하게 <code>Orchestrated</code>/<code>Prompted</code> 2종(<code>BoardToolResult</code>, 2026-08-28 추가)</td></tr>
         </tbody>
       </table>
     </div>
@@ -1006,8 +1006,12 @@
       <b>세 Tool 최종 비교.</b> 위 표(분기·렌더러·저장 주체 비교)가 "누가/무엇을 저장하는가"에 초점을 맞췄다면,
       이 표는 <b>Tool 호출 계약(파라미터·분기 유무·반환 타입)</b> 관점의 비교다. <code>MasterDetailGenerationTool</code>은
       역할 슬롯이 1개→2개로 늘어났을 뿐 <code>llmProvider</code> 분기와 <code>Orchestrated</code>/<code>Prompted</code>
-      반환 구조를 그대로 계승한 <b>CrudGenerationTool의 확장판</b>에 가깝고, <code>BoardGenerationTool</code>만
-      유일하게 이 계열에서 벗어나 처음부터 결정론적 파이프라인으로 설계됐다. "테이블명 자유도" 행의 <code>LETTN*</code>은
+      반환 구조를 그대로 계승한 <b>CrudGenerationTool의 확장판</b>에 가깝다. <code>BoardGenerationTool</code>은
+      원래 처음부터 결정론적 파이프라인만으로 설계돼 이 계열에서 벗어나 있었으나,
+      <b>(2026-08-28 갱신)</b> 검토 문서(<code>BoardGenerationTool_llmProvider_도입_검토.md</code>) →
+      구현계획(<code>BoardGenerationTool_llmProvider_구현계획.md</code>)을 거쳐 <code>llmProvider</code>
+      분기가 추가되면서, 이제 셋 다 같은 계열(역할 슬롯 개수만 다르고 분기·반환 구조는 동일한 패턴)에
+      속한다. "테이블명 자유도" 행의 <code>LETTN*</code>은
       하드코딩된 고정 테이블이 아니라 <code>BoardTableSetResolver</code>가 파라미터 미지정 시에만 적용하는 기본값이며,
       사용자가 임의 테이블명을 넘기면 그 이름 그대로 <code>INFORMATION_SCHEMA.COLUMNS</code>를 조회해 생성한다 —
       고정된 것은 테이블 "이름"이 아니라 "역할 슬롯 개수"라는 구조다.
@@ -1034,10 +1038,11 @@
       <code>CrudGenerationDispatchService</code>가 <code>command.isAuto()</code>로 분기하고,
       <code>MasterDetailGenerationTool</code>은 이름은 비슷하지만 <b>완전히 별개 클래스</b>인
       <code>MasterDetailGenerationDispatchService</code>가 자체적으로 같은 패턴의 분기를 수행한다.
-      <code>BoardGenerationTool</code>은 이런 분기 자체가 없다 — <code>llmProvider</code> 파라미터도
-      받지 않고, 항상 서버가 직접 저장하는 쪽(<code>auto</code>에 해당하는 경로)으로만 동작한다.
+      <code>BoardGenerationTool</code>도 <b>(2026-08-28 추가)</b> 마찬가지로 완전히 별개 클래스인
+      <code>BoardGenerationDispatchService</code>가 자체적으로 같은 패턴의 분기를 수행한다(도입 전에는
+      이 분기 자체가 없어 항상 서버가 직접 저장하는 경로로만 동작했다).
       즉 이 스위치는 "이 Tool 호출 결과로 서버가 파일을 즉시 써버릴지, 아니면 Claude에게 작성을
-      넘길지"를 결정하며, 세 Tool 중 CRUD와 마스터-디테일만 이 스위치를 갖고 있다.
+      넘길지"를 결정하며, 이제 세 Tool 모두 이 스위치를 갖고 있다.
     </p>
 
     <h3 class="subsection-title">2.3 RAG / Chat 흐름</h3>
@@ -1324,7 +1329,7 @@
     </p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 340" role="img" aria-label="로컬 이미지나 Figma 프레임을 분석해 DesignAnalysisResult와 UiDesignSpec을 만들고, createScreenSpecification이 단순 케이스면 즉시 승인하고 REVIEW_REQUIRED 케이스면 수정과 승인을 거쳐 APPROVED ScreenSpecification을 만든다. FigmaDesignSpecMapper 파싱 단계에서 컴포넌트별 fills/strokes 색상은 애초에 캡처되지 않고 루트 배경색·폰트만 UiDesignSpec.tokens에 담기며, 그마저도 ScreenSpecAssembler.assemble() 매핑 단계에서 옮기는 코드가 없어 ScreenSpecification에는 전달되지 않는다 — layoutDensity 등 구조값만 예외적으로 끝까지 생존한다.">
+        <svg viewBox="0 0 1180 340" role="img" aria-label="로컬 이미지나 Figma 프레임을 분석해 DesignAnalysisResult와 UiDesignSpec을 만들고, createScreenSpecification이 단순 케이스면 즉시 승인하고 REVIEW_REQUIRED 케이스면 수정과 승인을 거쳐 APPROVED ScreenSpecification을 만든다. (2026-08-28 기준) FigmaDesignSpecMapper 파싱 단계에서 컴포넌트별 fills/strokes 첫 SOLID 색상과 노드 트리 좌표·auto-layout·텍스트스타일(geometryTree)은 이제 캡처되어 ScreenSpecAssembler.assemble()이 componentStyles/componentGeometry로 옮기지만, claude 경로(ScreenSpecificationPromptFormatter) 프롬프트에만 반영되고 auto 경로(CrudModelFactory)는 여전히 참조하지 않는다. 루트 프레임 배경색·폰트(tokens)는 지금도 매핑 코드가 없어 전달되지 않는다 — layoutDensity 등 구조값과 함께 componentStyles/componentGeometry만 끝까지 생존한다.">
           <defs>
             <marker id="arrow5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow5Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
@@ -1368,18 +1373,18 @@
           <path class="edge rest dashed" marker-end="url(#arrow5Rest)" d="M400,130 Q300,170 165,210"></path>
           <rect class="node-box rest" x="20" y="210" width="290" height="100" rx="8" style="stroke-dasharray:5 4"></rect>
           <text class="node-title" x="165" y="234" text-anchor="middle" style="font-size:11.5px">1단계 · FigmaDesignSpecMapper 파싱</text>
-          <text class="node-sub" x="165" y="252" text-anchor="middle" style="font-size:9px">fills/strokes 읽는 코드 없음</text>
-          <text class="node-sub" x="165" y="266" text-anchor="middle" style="font-size:9px;fill:var(--rest)">→ 컴포넌트별 색상 캡처 불가</text>
-          <text class="node-sub" x="165" y="284" text-anchor="middle" style="font-size:9px">루트 배경색·폰트만</text>
-          <text class="node-sub" x="165" y="298" text-anchor="middle" style="font-size:9px">UiDesignSpec.tokens에 캡처</text>
+          <text class="node-sub" x="165" y="252" text-anchor="middle" style="font-size:9px">(2026-08-28) fills/strokes 첫 SOLID 색상</text>
+          <text class="node-sub" x="165" y="266" text-anchor="middle" style="font-size:9px">+ geometryTree(좌표·auto-layout·폰트) 캡처</text>
+          <text class="node-sub" x="165" y="284" text-anchor="middle" style="font-size:9px;fill:var(--rest)">루트 배경색·폰트(tokens)는 여전히 미매핑</text>
+          <text class="node-sub" x="165" y="298" text-anchor="middle" style="font-size:8.5px">(2단계에서 옮기는 코드 없음, 아래 참고)</text>
 
           <path class="edge rest dashed" marker-end="url(#arrow5Rest)" d="M700,130 Q620,170 465,210"></path>
           <rect class="node-box rest" x="320" y="210" width="290" height="100" rx="8" style="stroke-dasharray:5 4"></rect>
           <text class="node-title" x="465" y="234" text-anchor="middle" style="font-size:11.5px">2단계 · ScreenSpecAssembler.assemble()</text>
-          <text class="node-sub" x="465" y="252" text-anchor="middle" style="font-size:9px">tokens · components 매핑 코드 없음</text>
-          <text class="node-sub" x="465" y="266" text-anchor="middle" style="font-size:9px;fill:var(--rest)">→ 배경색·폰트조차 전달 안 됨</text>
-          <text class="node-sub" x="465" y="284" text-anchor="middle" style="font-size:9px">layoutDensity 등 구조값만</text>
-          <text class="node-sub" x="465" y="298" text-anchor="middle" style="font-size:9px">유일하게 끝까지 생존</text>
+          <text class="node-sub" x="465" y="252" text-anchor="middle" style="font-size:9px">(2026-08-28) componentStyles/componentGeometry 매핑됨</text>
+          <text class="node-sub" x="465" y="266" text-anchor="middle" style="font-size:9px">→ ScreenSpecification 필드로 전달(claude 경로 전용)</text>
+          <text class="node-sub" x="465" y="284" text-anchor="middle" style="font-size:9px;fill:var(--rest)">tokens(배경색·폰트)만 여전히 매핑 코드 없음</text>
+          <text class="node-sub" x="465" y="298" text-anchor="middle" style="font-size:9px">layoutDensity와 함께 이제 3종이 생존</text>
 
           <path class="edge accent" marker-end="url(#arrow5Accent)" d="M260,85 L320,85"></path>
           <path class="edge accent" marker-end="url(#arrow5Accent)" d="M560,85 L620,85"></path>
@@ -1400,7 +1405,7 @@
       </div>
       <div class="legend">
         <span><i class="swatch" style="background:var(--accent)"></i>정상 진행 경로</span>
-        <span><i class="swatch" style="background:var(--rest)"></i>시각 정보(색상·토큰) 소실 지점 — 2단계에 걸쳐 사실상 전부 사라짐</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>시각 정보 소실 지점 — 루트 배경색·폰트(tokens)만 여전히 소실, 컴포넌트 색상·좌표는 (2026-08-28부터) claude 경로에 한해 생존</span>
       </div>
       <figcaption>
         표준 단일 테이블처럼 JOIN·공통코드·미매핑 필드가 없는 <b>단순 케이스</b>는 <code>buildFullCrudPrompt</code>
@@ -1430,22 +1435,49 @@
             <tr><th>단계</th><th>대상</th><th>결과</th><th>근거</th></tr>
           </thead>
           <tbody>
-            <tr><td>1단계 · Figma 파싱<br><code>FigmaDesignSpecMapper</code></td><td>컴포넌트별 <code>fills</code>/<code>strokes</code>(개별 색상)</td><td>애초에 읽는 코드가 없음 — 캡처 자체가 불가능</td><td><code>.path("fills")</code>/<code>.path("strokes")</code> 호출 코드베이스 전체 0건</td></tr>
-            <tr><td>1단계 · Figma 파싱</td><td>루트 프레임 배경색·폰트</td><td><code>UiDesignSpec.tokens</code>(Map&lt;String,String&gt;)에 캡처됨</td><td><code>FigmaDesignSpecMapper.java</code> <code>tokens()</code> L193-201</td></tr>
-            <tr><td>2단계 · 매핑<br><code>ScreenSpecAssembler.assemble()</code></td><td><code>resolvedUi.tokens()</code>, <code>resolvedUi.components()</code></td><td>매핑 코드 자체가 없어 <code>ScreenSpecification</code>으로 전달 안 됨</td><td><code>ScreenSpecAssembler.java</code> L60-97 — 두 getter 호출 0건</td></tr>
-            <tr><td>2단계 · 매핑</td><td><code>resolvedUi.layout().density()</code> 등 구조값</td><td>매핑 라인이 실제로 존재 — 유일하게 끝까지 생존</td><td>같은 파일, 같은 메서드</td></tr>
+            <tr><td>1단계 · Figma 파싱<br><code>FigmaDesignSpecMapper</code></td><td>컴포넌트별 <code>fills</code>/<code>strokes</code>(개별 색상)</td><td><b>(2026-08-28)</b> 타입별 첫 SOLID 색상을 <code>rgba()</code>로 캡처</td><td><code>solidFillColor()</code>/<code>solidStrokeColor()</code>, 커밋 <code>bbc8079</code></td></tr>
+            <tr><td>1단계 · Figma 파싱</td><td>노드 트리 좌표·auto-layout·텍스트스타일</td><td><b>(2026-08-28)</b> <code>geometryTree</code>(부모-자식 구조 보존)로 캡처</td><td><code>buildGeometryTree()</code>, 커밋 <code>369cbe1</code></td></tr>
+            <tr><td>1단계 · Figma 파싱</td><td>루트 프레임 배경색·폰트</td><td><code>UiDesignSpec.tokens</code>(Map&lt;String,String&gt;)에 캡처됨</td><td><code>FigmaDesignSpecMapper.java</code> <code>tokens()</code></td></tr>
+            <tr><td>2단계 · 매핑<br><code>ScreenSpecAssembler.assemble()</code></td><td><code>resolvedUi.components()</code>, <code>resolvedUi.geometryTree()</code></td><td><b>(2026-08-28)</b> <code>componentStyles</code>/<code>componentGeometry</code>로 매핑됨</td><td>같은 커밋 2건 — 두 getter 호출 존재</td></tr>
+            <tr><td>2단계 · 매핑</td><td><code>resolvedUi.tokens()</code></td><td>여전히 매핑 코드가 없어 <code>ScreenSpecification</code>으로 전달 안 됨</td><td><code>ScreenSpecAssembler.java</code> — 이 getter만 호출 0건</td></tr>
+            <tr><td>2단계 · 매핑</td><td><code>resolvedUi.layout().density()</code> 등 구조값</td><td>매핑 라인이 실제로 존재 — <code>componentStyles</code>/<code>componentGeometry</code>와 함께 생존</td><td>같은 파일, 같은 메서드</td></tr>
+            <tr><td>3단계 · 소비<br><code>CrudModelFactory</code>(auto) vs <code>ScreenSpecificationPromptFormatter</code>(claude)</td><td><code>componentStyles</code>/<code>componentGeometry</code></td><td>claude 경로 프롬프트(JSON 블록 + KRDS/반응형 가드레일)에만 반영 — auto 경로는 여전히 미참조</td><td><code>Figma_픽셀재현_claude경로_구현계획.md</code> §5.4, <code>CrudModelFactory</code> 참조 0건</td></tr>
           </tbody>
         </table>
       </div>
       <p class="subsection-sub" style="margin-top:10px">
-        즉 컴포넌트 단위 색상은 <b>1단계에서부터 담을 필드 자체가 없어</b> 캡처가 안 되고(<code>UiDesignSpec.
-        ComponentSpec</code>은 <code>type</code>·<code>semanticFields</code> 2개 필드뿐), 화면 전체 배경색·
-        폰트 정도만 1단계에서 캡처되지만 그마저 <b>2단계 매핑에서 옮기는 코드가 없어</b> 버려진다. 최종
-        <code>ScreenSpecification</code>(<code>model/design/ScreenSpecification.java</code> L8-27) 필드에는
-        color/token/style 관련 항목이 정말로 하나도 없다. 반대로 <code>layoutDensity</code>(표 밀도)만
-        예외적으로 끝까지 살아남는데, "밀도는 구조적 정보라 남기고 색상은 순수 시각 정보라 뺐다"는 설계
-        의도를 명시한 주석·Javadoc은 어디에도 없었다 — 밀도만 매핑 라인이 존재한다는 사실 확인일 뿐,
-        의도 문서는 <b>미확인</b>이다.
+        <b>(2026-08-28 갱신)</b> 위 분석 이후 <code>Figma_fills_strokes_구현계획.md</code>(커밋
+        <code>bbc8079</code>)와 <code>Figma_픽셀재현_claude경로_구현계획.md</code>(커밋 <code>369cbe1</code>)로
+        이 소실 문제 일부를 해소했다. <code>UiDesignSpec.ComponentSpec</code>에
+        <code>backgroundColor</code>/<code>borderColor</code>가, <code>UiDesignSpec</code>에
+        <code>geometryTree</code>(부모-자식 구조·좌표·auto-layout·텍스트스타일)가 추가됐고, 둘 다
+        <code>ScreenSpecification.componentStyles</code>/<code>componentGeometry</code>로 매핑까지 이어진다.
+        다만 <b>완전히 해소된 것은 아니다</b> — ① 루트 프레임 배경색·폰트(<code>tokens</code>)는 지금도
+        매핑 코드가 없어 여전히 버려지고, ② <code>componentStyles</code>/<code>componentGeometry</code>는
+        <b>claude 경로(<code>ScreenSpecificationPromptFormatter</code>)에만</b> 반영되며 auto 경로
+        (<code>CrudModelFactory</code>)는 이 필드들을 전혀 참조하지 않는다(정부 표준 KRDS 룩앤필을
+        모든 프로젝트에서 동일하게 유지하려는 의도적 설계로 보이며, <code>Figma_색상_CSS자동주입_
+        auto경로_검토.md</code>에서 auto 경로 확장은 기각됐다). ③ <code>fills</code>/<code>strokes</code>는
+        타입(<code>TABLE</code>/<code>SEARCH_PANEL</code>/<code>FORM</code>/<code>PAGINATION</code>/
+        <code>ACTION_GROUP</code>)당 첫 매치 노드의 <code>SOLID</code> 색상 1개만 대표로 채택하고
+        그라데이션·이미지 채우기는 여전히 무시한다.
+      </p>
+      <p class="subsection-sub" style="margin-top:14px">
+        <b>(2026-08-28 신규) 픽셀재현 제외범위 후속 Tool 2종.</b>
+        <code>Figma_픽셀재현_제외범위_구현계획.md</code>의 4개 트랙 중 2개가 신규 MCP Tool로 이어졌다 —
+        <code>compareDesignFidelity(originalAnalysisId, renderedAnalysisId)</code>는 이 5번 섹션이
+        만든 원본 <code>UiDesignSpec</code>과, 생성된 화면을 <code>captureWebPage()</code> +
+        <code>analyzeCapturedDesign()</code>으로 재캡처해 만든 <code>UiDesignSpec</code>을 비교해
+        archetype·컴포넌트 타입·필드 역할·액션 타입 집합의 Jaccard 유사도(구조적 일치도, 픽셀
+        이미지 비교 아님)를 계산한다 — 이 프로젝트에 실제 스크린샷 캡처 기능이 없다는 걸 코드로
+        확인하고 대신 두 경로가 이미 같은 타입을 만들어낸다는 점을 활용한 설계다.
+        <code>downloadFigmaAssets(analysisId, outputPath)</code>는 <code>FigmaDesignSpecMapper</code>가
+        수집한 <code>imageNodeIds</code>(<code>VECTOR</code> 타입 또는 <code>fills</code>에
+        <code>IMAGE</code> 페인트가 있는 노드)를 <code>queryImages()</code>로 내려받아 생성 프로젝트의
+        <code>static/images/figma/</code>에 저장한다. <b>허용 호스트(<code>*.figma.com</code>)는 이
+        Tool을 만든 세션에 <code>FIGMA_ACCESS_TOKEN</code> 연동 환경이 없어 실제 API 응답으로 검증하지
+        못한 추정치</b>이며, 실사용 전 재확인이 필요하다(<code>Figma_픽셀재현_제외범위_구현계획.md</code>
+        §B.5).
       </p>
     </figure>
   </section>
@@ -1575,7 +1607,7 @@
             <tr><td>ScreenSpecification 반영 범위</td><td>표 밀도 4종 + <code>selectionSource</code> 기반 필드 선택</td><td>위 전부 + <code>archetype</code> + <code>dataSources</code>/조인 + 필드 라벨·역할·액션</td></tr>
             <tr><td>전달 형태</td><td>구조화된 값 → FreeMarker 템플릿 변수</td><td>통째로 텍스트 설명 → 프롬프트</td></tr>
             <tr><td>표 밀도 CSS 반영</td><td><code>CrudTableDensityCssProcessor</code>가 <code>styles.css</code>에 실제 CSS 자동 주입(<code>TableDensityCssContract</code>)</td><td>없음 — "밀도는 X"라고 텍스트로만 전달, CSS는 Claude가 직접 작성해야 함</td></tr>
-            <tr><td>Figma 색상·컴포넌트 시각 스타일</td><td>반영 안 됨</td><td>반영 안 됨(애초에 <code>ScreenSpecification</code>에 없음 — 5번 섹션 참고)</td></tr>
+            <tr><td>Figma 색상·좌표(<code>componentStyles</code>/<code>componentGeometry</code>)</td><td>반영 안 됨 — <code>CrudModelFactory</code>가 이 필드를 참조하지 않음(의도된 KRDS 일관성 유지, 5번 섹션 참고)</td><td><b>(2026-08-28)</b> <code>ScreenSpecificationPromptFormatter</code>가 JSON 블록 + KRDS/반응형 가드레일 문구로 프롬프트에 포함</td></tr>
           </tbody>
         </table>
       </div>
@@ -2463,7 +2495,7 @@
   </section>
 
   <footer class="notes">
-    핵심 소스: <code>README.md</code>, <code>McpConfig.java</code>(Tool 등록·인가), <code>McpToolDefinitionSnapshotTest</code>(101개 Tool 메서드 / 36개 Tool 객체 기준선), 각 서브 프로젝트 <code>README.md</code>, <code>docs/figma/18_..._Impact_and_Implementation_Specification.md</code>·<code>19_..._Implementation_List.md</code>(Catalog/Registry v1→v2→v3 SSOT 전환), <code>ComponentRegistryDualReadService</code>·<code>KrdsComponentResolutionService</code> 소스(현재 어느 경로가 실제 운영 중인지 import 기준으로 확인), <code>KrdsQnaRuntimeResolverIntegrationTest</code>, <code>docs/figma/05_Overall_Architecture_Diagram.md</code>(WEB_CAPTURE vs Semantic Pipeline 범위 구분), <code>DesignReferenceTool.java</code>·<code>ThymeleafLayoutTool.java</code>(5·6번), <code>jsp-design-extractor/README.md</code>(8번), <code>component-contracts/tokens/**</code>(9번, W3C Design Tokens 형식), <code>krds-design-system-author-plugin/README.md</code>(10번), <code>jsp-to-figma-plugin/src/code.ts</code>(11번), <code>FigmaExportBundle.java</code>·<code>FigmaExportTool.java</code>·<code>FigmaExportController.java</code>(2번 내보내기 경로 및 5번↔2번 연결), <code>ProjectInitializrTool.java</code>·<code>FilePlanFactory.java</code>(gnbLayoutHtml 등)·<code>ThymeleafLayoutTool.java</code>의 Tool 설명 원문(2.2, packageName 일치 요구사항과 overwrite 관계 확인), <code>CrudGenerationDispatchService.java</code>("llmProvider 분기의 유일한 지점" JavaDoc)·<code>CrudScreenSourceTool.java</code>·<code>JoinQueryTool.java</code>(2.2 보조 진입점), <code>EgovOllamaChatController.java</code>·<code>EgovSessionAwareChatServiceImpl.java</code>(2.3, RAG/Chat 흐름), <code>PipelineEvolutionProperties.java</code>·<code>PipelineReleaseGateController.java</code>·<code>PipelineArtifactController.java</code>·<code>PipelineReleaseReadiness.java</code>·<code>ScreenHandoffProjectionService.java</code>(12번), <code>docs/figma/29_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_Specification.md</code>·<code>30_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_List.md</code>·<code>31_5Axis_Pipeline_Release_Gate_Operations_Runbook.md</code>(12번 근거 문서), <code>src/main/resources/db/migration/V1~V15__*.sql</code>·<code>mapper/*Repository.java</code>(20종)·<code>service/evidence/PreviewEvidenceBundleRepository.java</code>·<code>service/handoff/ScreenHandoffBundleRepository.java</code>·<code>EgovRedisChatMemoryRepository.java</code>(13번, 실제 운영 DB SHOW TABLES 대조로 검증).
+    핵심 소스: <code>README.md</code>, <code>McpConfig.java</code>(Tool 등록·인가), <code>McpToolDefinitionSnapshotTest</code>(104개 Tool 메서드 / 39개 Tool 객체 기준선, 2026-08-28 <code>compareDesignFidelity</code>·<code>downloadFigmaAssets</code> 추가 반영), 각 서브 프로젝트 <code>README.md</code>, <code>docs/figma/18_..._Impact_and_Implementation_Specification.md</code>·<code>19_..._Implementation_List.md</code>(Catalog/Registry v1→v2→v3 SSOT 전환), <code>ComponentRegistryDualReadService</code>·<code>KrdsComponentResolutionService</code> 소스(현재 어느 경로가 실제 운영 중인지 import 기준으로 확인), <code>KrdsQnaRuntimeResolverIntegrationTest</code>, <code>docs/figma/05_Overall_Architecture_Diagram.md</code>(WEB_CAPTURE vs Semantic Pipeline 범위 구분), <code>DesignReferenceTool.java</code>·<code>ThymeleafLayoutTool.java</code>(5·6번), <code>jsp-design-extractor/README.md</code>(8번), <code>component-contracts/tokens/**</code>(9번, W3C Design Tokens 형식), <code>krds-design-system-author-plugin/README.md</code>(10번), <code>jsp-to-figma-plugin/src/code.ts</code>(11번), <code>FigmaExportBundle.java</code>·<code>FigmaExportTool.java</code>·<code>FigmaExportController.java</code>(2번 내보내기 경로 및 5번↔2번 연결), <code>ProjectInitializrTool.java</code>·<code>FilePlanFactory.java</code>(gnbLayoutHtml 등)·<code>ThymeleafLayoutTool.java</code>의 Tool 설명 원문(2.2, packageName 일치 요구사항과 overwrite 관계 확인), <code>CrudGenerationDispatchService.java</code>("llmProvider 분기의 유일한 지점" JavaDoc)·<code>CrudScreenSourceTool.java</code>·<code>JoinQueryTool.java</code>(2.2 보조 진입점), <code>EgovOllamaChatController.java</code>·<code>EgovSessionAwareChatServiceImpl.java</code>(2.3, RAG/Chat 흐름), <code>PipelineEvolutionProperties.java</code>·<code>PipelineReleaseGateController.java</code>·<code>PipelineArtifactController.java</code>·<code>PipelineReleaseReadiness.java</code>·<code>ScreenHandoffProjectionService.java</code>(12번), <code>docs/figma/29_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_Specification.md</code>·<code>30_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_List.md</code>·<code>31_5Axis_Pipeline_Release_Gate_Operations_Runbook.md</code>(12번 근거 문서), <code>src/main/resources/db/migration/V1~V15__*.sql</code>·<code>mapper/*Repository.java</code>(20종)·<code>service/evidence/PreviewEvidenceBundleRepository.java</code>·<code>service/handoff/ScreenHandoffBundleRepository.java</code>·<code>EgovRedisChatMemoryRepository.java</code>(13번, 실제 운영 DB SHOW TABLES 대조로 검증).
     <ul>
       <li>패키지 세부 구조와 각 서브 프로젝트 역할은 <code>README.md</code>의 "디렉터리 구조" 섹션을 참고하십시오.</li>
       <li><code>ComponentRegistry.java</code>의 <code>SCHEMA_VERSION</code> 상수는 리터럴 값이 <code>"component-registry-v1"</code>이지만 코드베이스 어디서도 참조되지 않는 죽은 상수입니다 — 실제 필드 구조는 <code>component-registry-v2.schema.json</code>과 일치하고 <code>ComponentRegistryV2ToV3Converter</code> JavaDoc·fixture 파일명도 이를 "v2"로 부르므로, 3번 다이어그램은 그 실무 관례를 따랐습니다.</li>
@@ -2640,6 +2672,24 @@
       각 박스는 무엇이 캡처/전달되고 무엇이 버려지는지를 다이어그램에서 바로 보여주며, 범례에
       "시각 정보 소실 지점"(rest 색상) 항목을 추가했습니다. 표 형태의 상세 근거(파일·라인)는 갱신(4)의
       비교표에 그대로 유지됩니다.</li>
+      <li><b>2026-08-28 갱신:</b> ① <code>BoardGenerationTool</code>에 <code>llmProvider</code>(auto/claude)
+      분기가 추가됐습니다(<code>BoardGenerationDispatchService</code>/<code>BoardPromptGenerationService</code>/
+      <code>BoardToolResult</code> 신규, <code>BoardGenerationTool_llmProvider_구현계획.md</code>) —
+      2.2절의 "Board는 분기 자체가 없다"는 서술 전부(다이어그램 박스·비교표 2개·본문 3곳)를
+      "세 Tool 모두 각자 별개의 <code>isAuto()</code> 분기를 갖는다"로 정정했습니다(2026-08-26 갱신(6)
+      항목은 <b>그 시점 기준 정확했던 역사적 기록이라 그대로 뒀습니다</b>). ② 갱신(4)·(6)에서 정리한
+      "색상·토큰 2단계 소실"이 <code>Figma_fills_strokes_구현계획.md</code>(커밋 <code>bbc8079</code>)
+      ·<code>Figma_픽셀재현_claude경로_구현계획.md</code>(커밋 <code>369cbe1</code>)로 부분 해소됐습니다
+      — <code>componentStyles</code>(색상)·<code>componentGeometry</code>(좌표·auto-layout·텍스트스타일)가
+      이제 <code>ScreenSpecification</code>까지 매핑되고 claude 경로 프롬프트에 반영되지만, auto 경로는
+      여전히 미참조하고 루트 배경색·폰트(<code>tokens</code>)는 지금도 안 옮겨집니다 — 5·6번 다이어그램의
+      박스·표·범례를 이 최신 상태로 다시 정정했습니다. ③ 신규 MCP Tool 2종
+      (<code>compareDesignFidelity</code> — 구조적 일치도 측정, <code>downloadFigmaAssets</code> — 이미지
+      asset 다운로드, 둘 다 <code>Figma_픽셀재현_제외범위_구현계획.md</code>)을 5번 섹션에 추가했습니다.
+      ④ Tool 총계를 104개 메서드/39개 객체로 갱신했습니다. auto 경로 CSS 색상 자동주입은 "고정 KRDS
+      체계 유지"라는 이 프로젝트 전제와 모순되어 <b>기각</b>됐고(<code>Figma_색상_CSS자동주입_
+      auto경로_검토.md</code>), 게시판 DASHBOARD 화면 생성 지원은 검토 후 <b>보류</b> 상태입니다 — 둘 다
+      이 다이어그램에는 반영할 신규 아키텍처가 없어 별도 박스를 추가하지 않았습니다.</li>
       <li>이 다이어그램은 정적 스냅샷입니다 — Tool·서비스 구성이 바뀌면 함께 갱신이 필요합니다.</li>
     </ul>
   </footer>

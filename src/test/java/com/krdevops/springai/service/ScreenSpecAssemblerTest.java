@@ -284,6 +284,27 @@ class ScreenSpecAssemblerTest {
     }
 
     @Test
+    void tokensArePassedThroughFromUiDesignSpec() {
+        Map<String, String> tokens = Map.of("backgroundColor", "rgba(255,255,255,1.00)", "fontFamily", "Pretendard");
+        UiDesignSpec uiSpec = new UiDesignSpec(
+                "CRUD_LIST", null, List.of(), List.of(), List.of(),
+                tokens, List.of(), List.of());
+
+        ScreenSpecification result = assembler.assemble(
+                "com", "LETTNBBS", "공지사항", "crud", columns(), uiSpec);
+
+        assertThat(result.tokens()).isEqualTo(tokens);
+    }
+
+    @Test
+    void tokensDefaultToEmptyWhenUiSpecIsNull() {
+        ScreenSpecification result = assembler.assemble(
+                "com", "LETTNBBS", "공지사항", "board", columns(), null);
+
+        assertThat(result.tokens()).isEmpty();
+    }
+
+    @Test
     void masterDetailFeatureTypeIsRecognizedWithoutDesignReference() {
         ScreenSpecification result = assembler.assemble(
                 "com", "LETTNMASTER", "마스터상세", "master-detail", columns(), null);
