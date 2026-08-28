@@ -74,7 +74,10 @@ public record DesignAnalysisResult(
     }
 
     private static String inferFeatureType(UiDesignSpec uiSpec) {
-        return uiSpec != null && uiSpec.archetype() != null
-                && uiSpec.archetype().toUpperCase().startsWith("BOARD") ? "board" : "crud";
+        if (uiSpec == null || uiSpec.archetype() == null) return "crud";
+        String archetype = uiSpec.archetype().toUpperCase();
+        if (archetype.startsWith("MASTER_DETAIL")) return "master-detail";
+        if (archetype.startsWith("BOARD")) return "board";
+        return "crud";
     }
 }

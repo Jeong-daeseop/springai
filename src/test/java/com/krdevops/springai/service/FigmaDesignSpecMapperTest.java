@@ -250,6 +250,42 @@ class FigmaDesignSpecMapperTest {
     }
 
     @Test
+    void recognizesNoticeBoardFrameNameWithoutExplicitFeatureType() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {"type":"FRAME", "name":"공지사항 목록",
+                 "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900}}
+                """));
+
+        var result = mapper.map(document, null);
+
+        assertThat(result.archetype()).isEqualTo("BOARD_LIST");
+    }
+
+    @Test
+    void recognizesWritingFrameNameAsFormArchetype() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {"type":"FRAME", "name":"게시글 작성",
+                 "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900}}
+                """));
+
+        var result = mapper.map(document, null);
+
+        assertThat(result.archetype()).isEqualTo("BOARD_FORM");
+    }
+
+    @Test
+    void recognizesViewingFrameNameAsDetailArchetype() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {"type":"FRAME", "name":"직원 보기",
+                 "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900}}
+                """));
+
+        var result = mapper.map(document, null);
+
+        assertThat(result.archetype()).isEqualTo("CRUD_DETAIL");
+    }
+
+    @Test
     void componentsWithoutFillsOrStrokesHaveNullColors() throws Exception {
         var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
                 {

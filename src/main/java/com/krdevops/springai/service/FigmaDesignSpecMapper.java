@@ -324,9 +324,9 @@ public class FigmaDesignSpecMapper {
     private String archetype(String rootName, String featureType) {
         String text = (rootName + " " + (featureType == null ? "" : featureType)).toLowerCase(Locale.ROOT);
         if (containsAny(text, "master", "detail", "마스터")) return "MASTER_DETAIL";
-        String prefix = containsAny(text, "board", "게시판", "게시") ? "BOARD" : "CRUD";
-        if (containsAny(text, "form", "register", "edit", "등록", "수정")) return prefix + "_FORM";
-        if (containsAny(text, "detail", "view", "상세")) return prefix + "_DETAIL";
+        String prefix = containsAny(text, "board", "게시판", "게시", "공지") ? "BOARD" : "CRUD";
+        if (containsAny(text, "form", "register", "edit", "등록", "수정", "작성")) return prefix + "_FORM";
+        if (containsAny(text, "detail", "view", "상세", "보기")) return prefix + "_DETAIL";
         return prefix + "_LIST";
     }
 

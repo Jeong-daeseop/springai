@@ -26,4 +26,36 @@ class DesignAnalysisResultCompatibilityTest {
         assertThat(result.featureType()).isEqualTo("board");
         assertThat(result.figmaSource()).isNull();
     }
+
+    @Test
+    void infersMasterDetailFeatureTypeWhenArchetypeIsMasterDetail() throws Exception {
+        String json = """
+                {
+                  "analysisId":"legacy-2", "sourceHash":"hash", "sourcePath":"/tmp/ref.png",
+                  "provider":"openai", "model":"gpt-4o-mini", "promptVersion":"v1",
+                  "pages":[1], "uiSpec":{"archetype":"MASTER_DETAIL"}, "warnings":[]
+                }
+                """;
+
+        DesignAnalysisResult result = new ObjectMapper().findAndRegisterModules()
+                .readValue(json, DesignAnalysisResult.class);
+
+        assertThat(result.featureType()).isEqualTo("master-detail");
+    }
+
+    @Test
+    void infersCrudFeatureTypeWhenArchetypeIsNeitherBoardNorMasterDetail() throws Exception {
+        String json = """
+                {
+                  "analysisId":"legacy-3", "sourceHash":"hash", "sourcePath":"/tmp/ref.png",
+                  "provider":"openai", "model":"gpt-4o-mini", "promptVersion":"v1",
+                  "pages":[1], "uiSpec":{"archetype":"CRUD_LIST"}, "warnings":[]
+                }
+                """;
+
+        DesignAnalysisResult result = new ObjectMapper().findAndRegisterModules()
+                .readValue(json, DesignAnalysisResult.class);
+
+        assertThat(result.featureType()).isEqualTo("crud");
+    }
 }
