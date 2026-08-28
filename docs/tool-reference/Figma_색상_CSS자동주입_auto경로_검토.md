@@ -1,11 +1,18 @@
 # Figma 색상 → auto 경로 CSS 자동주입 확장 검토
 
-> 2026-08-27, 코드 실측 기준 작성. 구현 여부는 결정되지 않았으며, 이 문서는 **검토 결과만** 담는다.
-> [`Figma_fills_strokes_반영_검토.md`](./Figma_fills_strokes_반영_검토.md) §5 "1차 구현 제외 범위"
-> 및 [`Figma_fills_strokes_구현계획.md`](./Figma_fills_strokes_구현계획.md)에서 명시적으로 미룬
-> "2차" 범위 — `claude` 경로(`ScreenSpecificationPromptFormatter`)에만 색상 텍스트를 반영한
-> 구현(Phase 1~4, 커밋 `bbc8079`)과 별개로, `auto` 경로(FreeMarker 렌더링)에서 색상을 CSS로
+> 2026-08-27, 코드 실측 기준 작성. [`Figma_fills_strokes_반영_검토.md`](./Figma_fills_strokes_반영_검토.md) §5
+> "1차 구현 제외 범위" 및 [`Figma_fills_strokes_구현계획.md`](./Figma_fills_strokes_구현계획.md)에서
+> 명시적으로 미룬 "2차" 범위 — `claude` 경로(`ScreenSpecificationPromptFormatter`)에만 색상 텍스트를
+> 반영한 구현(Phase 1~4, 커밋 `bbc8079`)과 별개로, `auto` 경로(FreeMarker 렌더링)에서 색상을 CSS로
 > 자동 주입하는 것까지 하려면 무엇이 더 필요한지에 대한 후속 검토다.
+>
+> **2026-08-28 결론: 기각(구현하지 않음).** 밀도(`layoutDensity`) CSS 자동주입은 KRDS가 이미
+> 승인한 3가지 옵션(STANDARD/COMPACT/COMFORTABLE) 중 하나를 고르는 것이라 "고정 KRDS 체계"를
+> 벗어나지 않지만, 색상 자동주입은 KRDS가 승인한 적 없는 임의의 Figma 값을 KRDS 컴포넌트
+> 클래스에 덮어씌우는 것이라 성격이 다르다 — §5 "설계적 긴장"에서 이미 지적한 대로, "어떤 Figma
+> 목업을 넣든 항상 같은 KRDS 룩앤필로 나오게 한다"는 이 프로젝트의 전제 자체가 "그 안에 임의
+> 색상을 주입하지 않는다"는 결정을 이미 내포한다. 이 모순이 해소되지 않는 한 auto 경로 색상
+> 자동주입은 진행하지 않는다.
 
 ---
 

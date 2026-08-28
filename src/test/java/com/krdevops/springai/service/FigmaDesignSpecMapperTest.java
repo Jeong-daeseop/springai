@@ -250,6 +250,50 @@ class FigmaDesignSpecMapperTest {
     }
 
     @Test
+    void geometryTreeCollapsesRepeatedSiblingsWithIndexedNamesAndSizeTolerance() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "id": "1:1", "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"id":"1:10","type":"FRAME","name":"Row 1","absoluteBoundingBox":{"x":0,"y":0,"width":100,"height":40}},
+                    {"id":"1:11","type":"FRAME","name":"Row 2","absoluteBoundingBox":{"x":0,"y":40,"width":102,"height":40}},
+                    {"id":"1:12","type":"FRAME","name":"Row 3","absoluteBoundingBox":{"x":0,"y":80,"width":100,"height":43}}
+                  ]
+                }
+                """));
+
+        var result = mapper.map(document, "crud");
+
+        assertThat(result.geometryTree().get(0).children()).hasSize(1);
+        assertThat(result.geometryTree().get(0).children().get(0).nodeId()).isEqualTo("1:10");
+        assertThat(result.uncertainties()).anyMatch(value -> value.contains("반복 패턴 3개") && value.contains("Row"));
+    }
+
+    @Test
+    void geometryTreeCollapsesNonConsecutiveRepeatedSiblings() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "id": "1:1", "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"id":"1:10","type":"FRAME","name":"Row","absoluteBoundingBox":{"x":0,"y":0,"width":100,"height":40}},
+                    {"id":"1:20","type":"FRAME","name":"Divider","absoluteBoundingBox":{"x":0,"y":40,"width":100,"height":4}},
+                    {"id":"1:11","type":"FRAME","name":"Row","absoluteBoundingBox":{"x":0,"y":44,"width":100,"height":40}},
+                    {"id":"1:21","type":"FRAME","name":"Divider","absoluteBoundingBox":{"x":0,"y":84,"width":100,"height":4}},
+                    {"id":"1:12","type":"FRAME","name":"Row","absoluteBoundingBox":{"x":0,"y":88,"width":100,"height":40}}
+                  ]
+                }
+                """));
+
+        var result = mapper.map(document, "crud");
+
+        var children = result.geometryTree().get(0).children();
+        assertThat(children).extracting(child -> child.name()).containsExactly("Row", "Divider", "Divider");
+        assertThat(result.uncertainties()).anyMatch(value -> value.contains("반복 패턴 3개") && value.contains("Row"));
+    }
+
+    @Test
     void recognizesNoticeBoardFrameNameWithoutExplicitFeatureType() throws Exception {
         var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
                 {"type":"FRAME", "name":"공지사항 목록",

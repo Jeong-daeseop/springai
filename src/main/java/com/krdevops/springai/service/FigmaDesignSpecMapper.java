@@ -190,32 +190,62 @@ public class FigmaDesignSpecMapper {
                 style.path("lineHeightPx").isNumber() ? style.path("lineHeightPx").asDouble() : null);
     }
 
-    /** 같은 부모 아래 type+name이 완전히 같은 형제가 3개 이상 연속되면(표의 반복 행 등) 첫 번째만
-     * 대표로 남긴다 — 구현계획서 §5.3 정제 규칙. */
+    /** 같은 부모 아래 type+정규화된 name+크기(허용 오차 내)가 같은 형제가 3개 이상이면(연속이 아니어도,
+     * 표의 반복 행 등) 첫 번째만 대표로 남긴다 — 구현계획서 §5.3 정제 규칙, §D.2 개선(비연속 그룹핑·
+     * 이름 끝 숫자 정규화·크기 허용 오차). */
     private List<UiDesignSpec.NodeGeometry> collapseRepeatedSiblings(
             List<UiDesignSpec.NodeGeometry> siblings, List<String> uncertainties) {
+        List<List<UiDesignSpec.NodeGeometry>> groups = new ArrayList<>();
+        List<Integer> groupIndexBySibling = new ArrayList<>();
+        for (UiDesignSpec.NodeGeometry sibling : siblings) {
+            int groupIndex = -1;
+            for (int g = 0; g < groups.size(); g++) {
+                if (isSameShape(groups.get(g).get(0), sibling)) {
+                    groupIndex = g;
+                    break;
+                }
+            }
+            if (groupIndex == -1) {
+                groupIndex = groups.size();
+                groups.add(new ArrayList<>());
+            }
+            groups.get(groupIndex).add(sibling);
+            groupIndexBySibling.add(groupIndex);
+        }
+
         List<UiDesignSpec.NodeGeometry> result = new ArrayList<>();
-        int i = 0;
-        while (i < siblings.size()) {
-            UiDesignSpec.NodeGeometry current = siblings.get(i);
-            int runLength = 1;
-            while (i + runLength < siblings.size() && isSameShape(current, siblings.get(i + runLength))) {
-                runLength++;
+        Set<Integer> collapsedGroups = new LinkedHashSet<>();
+        for (int i = 0; i < siblings.size(); i++) {
+            int groupIndex = groupIndexBySibling.get(i);
+            List<UiDesignSpec.NodeGeometry> group = groups.get(groupIndex);
+            if (group.size() < 3) {
+                result.add(siblings.get(i));
+            } else if (collapsedGroups.add(groupIndex)) {
+                UiDesignSpec.NodeGeometry representative = group.get(0);
+                result.add(representative);
+                uncertainties.add("반복 패턴 " + group.size() + "개 중 1개만 대표로 반영했습니다: "
+                        + safeLabel(representative.name().isBlank() ? representative.type() : representative.name()));
             }
-            result.add(current);
-            if (runLength >= 3) {
-                uncertainties.add("반복 패턴 " + runLength + "개 중 1개만 대표로 반영했습니다: "
-                        + safeLabel(current.name().isBlank() ? current.type() : current.name()));
-            } else {
-                for (int k = 1; k < runLength; k++) result.add(siblings.get(i + k));
-            }
-            i += runLength;
         }
         return result;
     }
 
+    private static final double REPEATED_SIBLING_SIZE_TOLERANCE_PX = 5.0;
+
     private boolean isSameShape(UiDesignSpec.NodeGeometry left, UiDesignSpec.NodeGeometry right) {
-        return left.type().equals(right.type()) && left.name().equals(right.name());
+        return left.type().equals(right.type())
+                && normalizedSiblingName(left.name()).equals(normalizedSiblingName(right.name()))
+                && withinSizeTolerance(left.width(), right.width())
+                && withinSizeTolerance(left.height(), right.height());
+    }
+
+    /** 이름 끝의 인덱스 숫자(예: "Row 1", "Row2")를 제거해 반복 형제 판정 시 같은 패턴으로 묶는다. */
+    private String normalizedSiblingName(String name) {
+        return name == null ? "" : name.replaceAll("\\s*\\d+$", "");
+    }
+
+    private boolean withinSizeTolerance(double a, double b) {
+        return Math.abs(a - b) <= REPEATED_SIBLING_SIZE_TOLERANCE_PX;
     }
 
     private List<UiDesignSpec.FieldHint> fields(
