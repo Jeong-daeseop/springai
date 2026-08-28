@@ -1,5 +1,7 @@
 package com.krdevops.springai.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.model.design.PageSpec;
 import com.krdevops.springai.model.design.DataSourceSpec;
 import com.krdevops.springai.model.design.ScreenFieldBinding;
@@ -9,6 +11,12 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ScreenSpecificationPromptFormatter {
+
+    private final ObjectMapper objectMapper;
+
+    public ScreenSpecificationPromptFormatter(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     public String format(ScreenSpecification specification) {
         if (specification == null) return "";
@@ -46,6 +54,15 @@ public class ScreenSpecificationPromptFormatter {
                     result.append(" borderColor=").append(component.borderColor());
                 }
                 result.append('\n');
+            }
+        }
+        if (!specification.componentGeometry().isEmpty()) {
+            result.append("  componentGeometry(JSON, 참고용 — 정확한 좌표/간격/색상/폰트는 이 값을 ")
+                    .append("따르되 krds-*/egov-* 클래스 구조와 컴포넌트 트리는 기존 템플릿 규칙을 유지하세요):\n");
+            try {
+                result.append(objectMapper.writeValueAsString(specification.componentGeometry())).append('\n');
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException("componentGeometry 직렬화 실패", e);
             }
         }
         for (PageSpec page : specification.pages()) {

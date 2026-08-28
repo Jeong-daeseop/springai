@@ -50,9 +50,10 @@ public class FigmaDesignSpecMapper {
 
         if (components.isEmpty()) uncertainties.add("표준 UI 컴포넌트를 확정할 수 없습니다.");
         if (fields.isEmpty()) uncertainties.add("시맨틱 필드 역할을 확정할 수 없습니다.");
+        List<UiDesignSpec.NodeGeometry> geometryTree = List.of(buildGeometryTree(root, uncertainties));
         return new UiDesignSpec(archetype(root.path("name").asText(""), featureType), layout,
                 components, actions, fields, tokens, interactions(visibleNodes),
-                List.copyOf(new LinkedHashSet<>(uncertainties)));
+                List.copyOf(new LinkedHashSet<>(uncertainties)), geometryTree);
     }
 
     private void validateRootNode(JsonNode root) {
@@ -146,6 +147,75 @@ public class FigmaDesignSpecMapper {
             }
         }
         return null;
+    }
+
+    /** 노드 트리를 부모-자식 구조 그대로 보존하며 좌표·스타일을 추출한다({@code collect()}는
+     * 평탄화하므로 재사용하지 않는다 — 구현계획서 §3/§5.1 참고). 비가시 노드는 트리에서 제외한다. */
+    private UiDesignSpec.NodeGeometry buildGeometryTree(JsonNode node, List<String> uncertainties) {
+        JsonNode box = node.path("absoluteBoundingBox");
+        List<UiDesignSpec.NodeGeometry> children = new ArrayList<>();
+        for (JsonNode child : node.path("children")) {
+            if (!child.path("visible").asBoolean(true)) continue;
+            children.add(buildGeometryTree(child, uncertainties));
+        }
+        children = collapseRepeatedSiblings(children, uncertainties);
+
+        return new UiDesignSpec.NodeGeometry(
+                node.path("id").asText(""), node.path("type").asText(""), node.path("name").asText(""),
+                box.path("x").asDouble(0), box.path("y").asDouble(0),
+                box.path("width").asDouble(0), box.path("height").asDouble(0),
+                node.path("cornerRadius").isNumber() ? node.path("cornerRadius").asInt() : null,
+                node.path("opacity").isNumber() ? node.path("opacity").asDouble() : null,
+                firstSolidPaint(node.path("fills")), firstSolidPaint(node.path("strokes")),
+                autoLayoutOf(node), textStyleOf(node), children);
+    }
+
+    private UiDesignSpec.NodeGeometry.@Nullable AutoLayout autoLayoutOf(JsonNode node) {
+        String mode = node.path("layoutMode").asText("NONE");
+        if ("NONE".equals(mode)) return null;
+        return new UiDesignSpec.NodeGeometry.AutoLayout(
+                mode, node.path("itemSpacing").asDouble(0),
+                node.path("paddingTop").asDouble(0), node.path("paddingRight").asDouble(0),
+                node.path("paddingBottom").asDouble(0), node.path("paddingLeft").asDouble(0));
+    }
+
+    private UiDesignSpec.NodeGeometry.@Nullable TextStyle textStyleOf(JsonNode node) {
+        if (!"TEXT".equals(node.path("type").asText())) return null;
+        JsonNode style = node.path("style");
+        if (!style.isObject()) return null;
+        return new UiDesignSpec.NodeGeometry.TextStyle(
+                style.path("fontFamily").isTextual() ? style.path("fontFamily").asText() : null,
+                style.path("fontSize").isNumber() ? style.path("fontSize").asDouble() : null,
+                style.path("fontWeight").isNumber() ? style.path("fontWeight").asDouble() : null,
+                style.path("lineHeightPx").isNumber() ? style.path("lineHeightPx").asDouble() : null);
+    }
+
+    /** 같은 부모 아래 type+name이 완전히 같은 형제가 3개 이상 연속되면(표의 반복 행 등) 첫 번째만
+     * 대표로 남긴다 — 구현계획서 §5.3 정제 규칙. */
+    private List<UiDesignSpec.NodeGeometry> collapseRepeatedSiblings(
+            List<UiDesignSpec.NodeGeometry> siblings, List<String> uncertainties) {
+        List<UiDesignSpec.NodeGeometry> result = new ArrayList<>();
+        int i = 0;
+        while (i < siblings.size()) {
+            UiDesignSpec.NodeGeometry current = siblings.get(i);
+            int runLength = 1;
+            while (i + runLength < siblings.size() && isSameShape(current, siblings.get(i + runLength))) {
+                runLength++;
+            }
+            result.add(current);
+            if (runLength >= 3) {
+                uncertainties.add("반복 패턴 " + runLength + "개 중 1개만 대표로 반영했습니다: "
+                        + safeLabel(current.name().isBlank() ? current.type() : current.name()));
+            } else {
+                for (int k = 1; k < runLength; k++) result.add(siblings.get(i + k));
+            }
+            i += runLength;
+        }
+        return result;
+    }
+
+    private boolean isSameShape(UiDesignSpec.NodeGeometry left, UiDesignSpec.NodeGeometry right) {
+        return left.type().equals(right.type()) && left.name().equals(right.name());
     }
 
     private List<UiDesignSpec.FieldHint> fields(

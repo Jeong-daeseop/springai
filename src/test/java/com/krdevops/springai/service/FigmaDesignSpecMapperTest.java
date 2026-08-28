@@ -2,6 +2,7 @@ package com.krdevops.springai.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.model.design.FigmaNodeDocument;
+import com.krdevops.springai.model.design.UiDesignSpec;
 import com.krdevops.springai.model.design.UiFieldRole;
 import org.junit.jupiter.api.Test;
 
@@ -152,6 +153,100 @@ class FigmaDesignSpecMapperTest {
                 .findFirst().orElseThrow();
         assertThat(actionGroup.backgroundColor()).isNull();
         assertThat(actionGroup.borderColor()).isNull();
+    }
+
+    @Test
+    void geometryTreePreservesNestedCoordinatesAndAutoLayout() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "id": "1:1", "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "layoutMode":"HORIZONTAL", "itemSpacing":16,
+                  "paddingTop":8, "paddingRight":12, "paddingBottom":8, "paddingLeft":12,
+                  "children":[
+                    {"id":"1:2","type":"COMPONENT","name":"Primary Button",
+                     "absoluteBoundingBox":{"x":1200,"y":760,"width":120,"height":44},
+                     "cornerRadius":8, "opacity":0.9}
+                  ]
+                }
+                """));
+
+        var result = mapper.map(document, "crud");
+
+        assertThat(result.geometryTree()).hasSize(1);
+        UiDesignSpec.NodeGeometry root = result.geometryTree().get(0);
+        assertThat(root.nodeId()).isEqualTo("1:1");
+        assertThat(root.width()).isEqualTo(1440);
+        assertThat(root.autoLayout()).isNotNull();
+        assertThat(root.autoLayout().direction()).isEqualTo("HORIZONTAL");
+        assertThat(root.autoLayout().itemSpacing()).isEqualTo(16);
+        assertThat(root.children()).hasSize(1);
+        UiDesignSpec.NodeGeometry button = root.children().get(0);
+        assertThat(button.nodeId()).isEqualTo("1:2");
+        assertThat(button.x()).isEqualTo(1200);
+        assertThat(button.cornerRadius()).isEqualTo(8);
+        assertThat(button.opacity()).isEqualTo(0.9);
+    }
+
+    @Test
+    void geometryTreeCapturesTextStyleForTextNodes() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "id": "1:1", "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"id":"1:3","type":"TEXT","name":"title","characters":"제목",
+                     "absoluteBoundingBox":{"x":100,"y":100,"width":100,"height":24},
+                     "style":{"fontFamily":"Pretendard","fontSize":16,"fontWeight":700,"lineHeightPx":24}}
+                  ]
+                }
+                """));
+
+        var result = mapper.map(document, "crud");
+
+        UiDesignSpec.NodeGeometry text = result.geometryTree().get(0).children().get(0);
+        assertThat(text.textStyle()).isNotNull();
+        assertThat(text.textStyle().fontFamily()).isEqualTo("Pretendard");
+        assertThat(text.textStyle().fontSize()).isEqualTo(16);
+        assertThat(text.textStyle().fontWeight()).isEqualTo(700);
+    }
+
+    @Test
+    void geometryTreeExcludesInvisibleChildren() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "id": "1:1", "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"id":"1:4","type":"TEXT","name":"hidden","visible":false,
+                     "absoluteBoundingBox":{"x":0,"y":0,"width":10,"height":10}}
+                  ]
+                }
+                """));
+
+        var result = mapper.map(document, "crud");
+
+        assertThat(result.geometryTree().get(0).children()).isEmpty();
+    }
+
+    @Test
+    void geometryTreeCollapsesThreeOrMoreRepeatedSiblings() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "id": "1:1", "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"id":"1:10","type":"FRAME","name":"Row","absoluteBoundingBox":{"x":0,"y":0,"width":100,"height":40}},
+                    {"id":"1:11","type":"FRAME","name":"Row","absoluteBoundingBox":{"x":0,"y":40,"width":100,"height":40}},
+                    {"id":"1:12","type":"FRAME","name":"Row","absoluteBoundingBox":{"x":0,"y":80,"width":100,"height":40}}
+                  ]
+                }
+                """));
+
+        var result = mapper.map(document, "crud");
+
+        assertThat(result.geometryTree().get(0).children()).hasSize(1);
+        assertThat(result.uncertainties()).anyMatch(value -> value.contains("반복 패턴 3개"));
     }
 
     @Test

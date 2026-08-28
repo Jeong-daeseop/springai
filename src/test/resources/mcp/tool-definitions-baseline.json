@@ -2581,6 +2581,109 @@
   "description" : "REVIEW_REQUIRED 화면명세의 미매핑 필드·JOIN·Action을 수정한 전체 명세를 새 버전으로 저장합니다.\n주 데이터베이스와 주 테이블은 변경할 수 없으며, COLUMN 출처는 실제 스키마에 존재하는지 다시 검증합니다.\n반환 상태가 APPROVED일 때만 코드 생성 Tool의 screenSpecificationId로 전달하세요.\n",
   "inputSchema" : {
     "$defs" : {
+      "NodeGeometry" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "autoLayout" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "direction" : {
+                "type" : "string"
+              },
+              "itemSpacing" : {
+                "format" : "double",
+                "type" : "number"
+              },
+              "paddingBottom" : {
+                "format" : "double",
+                "type" : "number"
+              },
+              "paddingLeft" : {
+                "format" : "double",
+                "type" : "number"
+              },
+              "paddingRight" : {
+                "format" : "double",
+                "type" : "number"
+              },
+              "paddingTop" : {
+                "format" : "double",
+                "type" : "number"
+              }
+            },
+            "required" : [ "direction", "itemSpacing", "paddingBottom", "paddingLeft", "paddingRight", "paddingTop" ],
+            "type" : "object"
+          },
+          "backgroundColor" : {
+            "type" : "string"
+          },
+          "borderColor" : {
+            "type" : "string"
+          },
+          "children" : {
+            "items" : {
+              "$ref" : "#/$defs/NodeGeometry"
+            },
+            "type" : "array"
+          },
+          "cornerRadius" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "height" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "nodeId" : {
+            "type" : "string"
+          },
+          "opacity" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "textStyle" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "fontFamily" : {
+                "type" : "string"
+              },
+              "fontSize" : {
+                "format" : "double",
+                "type" : "number"
+              },
+              "fontWeight" : {
+                "format" : "double",
+                "type" : "number"
+              },
+              "lineHeightPx" : {
+                "format" : "double",
+                "type" : "number"
+              }
+            },
+            "type" : "object"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "width" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "x" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "y" : {
+            "format" : "double",
+            "type" : "number"
+          }
+        },
+        "required" : [ "children", "height", "name", "nodeId", "type", "width", "x", "y" ],
+        "type" : "object"
+      },
       "SemanticRole" : {
         "enum" : [ "PAGE_HEADER", "SEARCH_PANEL", "DATA_TABLE", "DATA_TABLE_CELL", "DATA_PAGINATION", "FORM_CONTAINER", "FORM_SECTION", "FIELD_TEXT", "FIELD_TEXTAREA", "FIELD_SELECT", "FIELD_CHECKBOX", "ACTION_PRIMARY", "ACTION_SECONDARY", "ACTION_DESTRUCTIVE" ],
         "type" : "string"
@@ -2620,6 +2723,12 @@
           },
           "archetype" : {
             "type" : "string"
+          },
+          "componentGeometry" : {
+            "items" : {
+              "$ref" : "#/$defs/NodeGeometry"
+            },
+            "type" : "array"
           },
           "componentStyles" : {
             "items" : {
@@ -2860,7 +2969,7 @@
             "type" : "integer"
           }
         },
-        "required" : [ "actionPlacement", "archetype", "componentStyles", "createdAt", "dataSources", "database", "featureType", "formColumnLayout", "id", "issues", "layoutDensity", "pages", "primaryTable", "screenName", "searchPanelPlacement", "status", "version" ],
+        "required" : [ "actionPlacement", "archetype", "componentGeometry", "componentStyles", "createdAt", "dataSources", "database", "featureType", "formColumnLayout", "id", "issues", "layoutDensity", "pages", "primaryTable", "screenName", "searchPanelPlacement", "status", "version" ],
         "type" : "object"
       }
     },

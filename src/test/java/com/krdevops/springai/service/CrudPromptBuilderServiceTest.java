@@ -1,5 +1,6 @@
 package com.krdevops.springai.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,7 +32,7 @@ class CrudPromptBuilderServiceTest {
 
         service = new CrudPromptBuilderService(
                 jdbcTemplate, commonCodeService, new EgovPromptBuilder(), crudSchemaQueryService,
-                new ScreenSpecificationPromptFormatter());
+                new ScreenSpecificationPromptFormatter(new ObjectMapper()));
 
         when(crudSchemaQueryService.fetchColumns(any(), any())).thenReturn(fakeColumns());
     }

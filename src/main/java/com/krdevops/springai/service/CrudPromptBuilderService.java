@@ -230,6 +230,12 @@ public class CrudPromptBuilderService {
         sb.append("=== eGovFrame 5.x CRUD 전체 소스 생성 지시 ===\n\n");
         if (screenSpecification != null) {
             sb.append(screenSpecificationPromptFormatter.format(screenSpecification)).append('\n');
+            if (!screenSpecification.componentGeometry().isEmpty()) {
+                sb.append("[디자인 기하 정보 사용 규칙]\n")
+                        .append("- componentGeometry는 Figma 원본 좌표·간격·색상·폰트 참고값입니다.\n")
+                        .append("- 화면 구조와 마크업은 반드시 기존 krds-*/egov-* 클래스 체계를 그대로 유지하세요.\n")
+                        .append("- 임의의 커스텀 클래스나 인라인 style로 KRDS 구조를 대체하지 마세요.\n\n");
+            }
             boolean detailSubsetRequested = screenSpecification.pages().stream()
                     .filter(page -> "detail".equalsIgnoreCase(page.id()))
                     .findFirst()

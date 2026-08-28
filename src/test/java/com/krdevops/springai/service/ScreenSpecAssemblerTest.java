@@ -260,6 +260,29 @@ class ScreenSpecAssemblerTest {
         assertThat(result.componentStyles()).isEmpty();
     }
 
+    @Test
+    void componentGeometryIsPassedThroughFromUiDesignSpec() {
+        UiDesignSpec.NodeGeometry root = new UiDesignSpec.NodeGeometry(
+                "1:1", "FRAME", "목록", 0, 0, 1440, 900,
+                null, null, null, null, null, null, List.of());
+        UiDesignSpec uiSpec = new UiDesignSpec(
+                "CRUD_LIST", null, List.of(), List.of(), List.of(),
+                Map.of(), List.of(), List.of(), List.of(root));
+
+        ScreenSpecification result = assembler.assemble(
+                "com", "LETTNBBS", "공지사항", "crud", columns(), uiSpec);
+
+        assertThat(result.componentGeometry()).containsExactly(root);
+    }
+
+    @Test
+    void componentGeometryDefaultsToEmptyWhenUiSpecIsNull() {
+        ScreenSpecification result = assembler.assemble(
+                "com", "LETTNBBS", "공지사항", "board", columns(), null);
+
+        assertThat(result.componentGeometry()).isEmpty();
+    }
+
     private List<Map<String, Object>> columns() {
         return List.of(
                 column("NTT_ID", "bigint", "NO", "게시물ID", "PRI"),
