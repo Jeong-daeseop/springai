@@ -744,16 +744,17 @@
           <text class="edge-label" x="300" y="285" style="font-size:9px">선택 — 디자인 참조 있을 때</text>
           <path class="edge dashed" marker-end="url(#arrow2b)" d="M740,240 Q950,280 890,320"></path>
           <text class="edge-label" x="890" y="285" style="font-size:9px" text-anchor="middle">대안 — 화면 1개만 미리보기</text>
-          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M590,260 L590,470"></path>
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M590,260 L590,446"></path>
           <text class="edge-label accent" x="590" y="300" text-anchor="middle" style="font-size:9.5px">layoutMode=reuse 기본값</text>
 
           <a class="diagram-link" href="#mcp-server-detail">
             <title>5번 다이어그램: Spring MCP 서버(DesignReferenceTool) 상세로 이동</title>
-            <rect class="node-box" x="60" y="320" width="360" height="110" rx="8" style="stroke-dasharray:6 5"></rect>
+            <rect class="node-box" x="60" y="320" width="360" height="120" rx="8" style="stroke-dasharray:6 5"></rect>
             <text class="node-title" x="240" y="350" text-anchor="middle">DesignReferenceTool 계열 (선택)</text>
             <text class="node-sub" x="240" y="368" text-anchor="middle">analyzeFigmaReference → createScreenSpecification</text>
-            <text class="node-sub" x="240" y="386" text-anchor="middle">→ approveScreenSpecification</text>
+            <text class="node-sub" x="240" y="386" text-anchor="middle" style="font-size:8.5px">→ 단순 케이스는 즉시 APPROVED / REVIEW_REQUIRED면 revise→approve(5번 참고)</text>
             <text class="node-sub" x="240" y="404" text-anchor="middle" style="font-size:9.5px;fill:var(--accent)">→ MySQL AI_DESIGN_ANALYSIS · AI_SCREEN_SPECIFICATION 기록(13번 참고)</text>
+            <text class="node-sub" x="240" y="422" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">analyzeFigmaReference의 반환 DesignAnalysisResult(중간 산출물)는 여기 안 그림 — 5번 참고</text>
             <g class="jump-badge"><circle cx="402" cy="334" r="12"></circle><text x="402" y="338" text-anchor="middle">5</text></g>
           </a>
 
@@ -762,10 +763,13 @@
           <text class="node-sub" x="890" y="368" text-anchor="middle">전체 세트 대신 화면 1개(목록/상세/등록 등)만 렌더링해 반환</text>
           <text class="node-sub" x="890" y="386" text-anchor="middle">파일 저장 없음 — 미세 조정·확인용, 3단계 진행과 무관한 종점</text>
 
-          <path class="edge dashed" marker-end="url(#arrow2b)" d="M240,430 L240,470"></path>
-          <text class="edge-label" x="300" y="455" style="font-size:9px">screenSpecificationId 전달</text>
+          <path class="edge dashed" marker-end="url(#arrow2b)" d="M240,440 L240,470"></path>
+          <text class="edge-label" x="300" y="458" style="font-size:9px">screenSpecificationId 전달</text>
 
-          <text class="group-label" x="40" y="456">3단계 · 화면 생성 Tool (셋 중 하나 선택)</text>
+          <rect x="20" y="446" width="1140" height="284" rx="12" fill="none" stroke="var(--ink-muted)" stroke-width="1.2" style="stroke-dasharray:5 4"></rect>
+          <line x1="20" y1="589" x2="1160" y2="589" stroke="var(--ink-muted)" stroke-width="1" style="stroke-dasharray:5 4"></line>
+          <text class="group-label" x="590" y="463" text-anchor="middle">3단계 · 화면 생성 Tool (셋 중 하나 선택)</text>
+          <text class="group-label" x="590" y="602" text-anchor="middle" style="font-size:8.5px">↳ 내부 위임 Dispatch Service — 각자 독립, 추가 분기 없음</text>
           <rect class="node-box accent" x="40" y="470" width="340" height="100" rx="8"></rect>
           <text class="node-title" x="210" y="504" text-anchor="middle">CrudGenerationTool</text>
           <text class="node-sub" x="210" y="522" text-anchor="middle">.buildFullCrudPrompt()</text>
@@ -808,8 +812,8 @@
 
           <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M150,700 Q150,730 210,760"></path>
           <text class="edge-label accent" x="150" y="725" style="font-size:9px">isAuto()==true</text>
-          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M300,700 Q550,730 820,760"></path>
-          <text class="edge-label accent" x="560" y="725" style="font-size:9px">isAuto()==false (claude 등)</text>
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M300,700 Q460,730 620,760"></path>
+          <text class="edge-label accent" x="460" y="725" style="font-size:9px">isAuto()==false (claude 등)</text>
 
           <a class="diagram-link" href="#local-screen-detail">
             <title>7번 다이어그램: 로컬 화면(실행 중인 JSP/Thymeleaf) 상세로 이동</title>
@@ -818,15 +822,21 @@
             <text class="node-sub" x="210" y="810" text-anchor="middle">CrudGenerationPlanner → CrudModelFactory</text>
             <text class="node-sub" x="210" y="828" text-anchor="middle" style="font-size:10px">승인 통과 시 Spring MCP 서버가</text>
             <text class="node-sub" x="210" y="844" text-anchor="middle" style="font-size:9px">CRUD 소스 파일 세트를 디스크에 직접 저장</text>
-            <text class="node-sub" x="210" y="862" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ AI_GENERATION_HISTORY(자동)·AI_CRUD_SNAPSHOT 기록(13번)</text>
+            <text class="node-sub" x="210" y="862" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ AI_GENERATION_HISTORY(자동) 기록(13번, 스냅샷은 6번에서 기록)</text>
             <g class="jump-badge"><circle cx="382" cy="774" r="12"></circle><text x="382" y="778" text-anchor="middle">7</text></g>
           </a>
 
-          <rect class="node-box" x="620" y="760" width="400" height="100" rx="8"></rect>
-          <text class="node-title" x="820" y="788" text-anchor="middle">BuildCrudPromptUseCase</text>
-          <text class="node-sub" x="820" y="806" text-anchor="middle">CrudPromptGenerationService</text>
-          <text class="node-sub" x="820" y="824" text-anchor="middle">프롬프트 텍스트만 반환, 파일 저장 없음</text>
-          <text class="node-sub" x="820" y="842" text-anchor="middle" style="fill:var(--ink-muted)">→ Claude Desktop이 코드 작성(springai 밖 책임)</text>
+          <a class="diagram-link" href="#mcp-server-detail">
+            <title>5번 다이어그램: DesignReferenceTool(componentStyles/componentGeometry/tokens) 상세로 이동</title>
+            <rect class="node-box" x="420" y="760" width="400" height="136" rx="8"></rect>
+            <text class="node-title" x="620" y="788" text-anchor="middle">BuildCrudPromptUseCase</text>
+            <text class="node-sub" x="620" y="806" text-anchor="middle">CrudPromptGenerationService</text>
+            <text class="node-sub" x="620" y="824" text-anchor="middle">프롬프트 텍스트만 반환, 파일 저장 없음</text>
+            <text class="node-sub" x="620" y="842" text-anchor="middle" style="fill:var(--ink-muted)">→ Claude Desktop이 코드 작성(springai 밖 책임)</text>
+            <text class="node-sub" x="620" y="860" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">⚠ designReferenceId 전달 시 AI_SCREEN_SPECIFICATION에 draft 저장(디스크 파일 저장은 없음)</text>
+            <text class="node-sub" x="620" y="878" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ screenSpecification 있으면 componentStyles/componentGeometry/tokens도 여기서 프롬프트 반영(5번 참고)</text>
+            <g class="jump-badge"><circle cx="802" cy="774" r="12"></circle><text x="802" y="778" text-anchor="middle">5</text></g>
+          </a>
 
           <path class="edge good" marker-end="url(#arrow2bGood)" d="M210,878 L210,893"></path>
 
@@ -851,20 +861,22 @@
           <text class="node-title" x="590" y="1143" text-anchor="middle">MenuTool (선택)</text>
           <text class="node-sub" x="590" y="1160" text-anchor="middle">.generateMenuInsertSql() — GNB/LNB 메뉴 등록</text>
 
-          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M400,948 Q435,950 470,955"></path>
-          <text class="edge-label accent" x="455" y="936" text-anchor="middle" style="font-size:8px">승인 통과 → 이어서 저장 실행</text>
-          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M590,718 Q590,880 650,955"></path>
-          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M970,718 Q970,880 830,955"></path>
-          <text class="edge-label accent" x="870" y="880" text-anchor="middle" style="font-size:8.5px">auto만 합류(claude는 저장 없음)</text>
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M400,948 Q480,990 560,1025"></path>
+          <text class="edge-label accent" x="460" y="975" text-anchor="middle" style="font-size:8px">승인 통과 → 이어서 저장 실행</text>
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M590,718 Q590,880 790,955"></path>
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M970,718 Q970,880 970,955"></path>
+          <text class="edge-label accent" x="880" y="880" text-anchor="middle" style="font-size:8.5px">auto만 합류(claude는 저장 없음)</text>
 
           <a class="diagram-link" href="#thymeleaf-gen-detail">
             <title>6번 다이어그램: Thymeleaf 생성 서비스 상세 — 5a CodeServiceGenerationExecutor로 이동</title>
-            <rect class="node-box hub" x="420" y="955" width="460" height="112" rx="10"></rect>
-            <text class="node-title" x="650" y="983" text-anchor="middle" style="font-size:12.5px">CodeServiceGenerationExecutor(공통 실행기)</text>
-            <text class="node-sub" x="650" y="1001" text-anchor="middle">→ ApprovedProjectWritePort.apply() — 세 Tool의 auto 경로가 동일 인스턴스 공유</text>
-            <text class="node-sub" x="650" y="1019" text-anchor="middle" style="fill:var(--ink-muted)">Renderer만 도메인별로 다름(Crud/Board/MasterDetail)</text>
-            <text class="node-sub" x="650" y="1035" text-anchor="middle" style="font-size:9px;fill:var(--accent)">CRUD 기준: 레이어 세트(JSP 11개·Thymeleaf 16개)를 ProjectChangeSet 하나로 원자적 저장</text>
-            <g class="jump-badge"><circle cx="862" cy="969" r="12"></circle><text x="862" y="973" text-anchor="middle">6</text></g>
+            <rect class="node-box hub" x="560" y="955" width="460" height="140" rx="10"></rect>
+            <text class="node-title" x="790" y="983" text-anchor="middle" style="font-size:12.5px">CodeServiceGenerationExecutor(공통 실행기)</text>
+            <text class="node-sub" x="790" y="1001" text-anchor="middle">→ ApprovedProjectWritePort.apply() — 세 Tool의 auto 경로가 동일 인스턴스 공유</text>
+            <text class="node-sub" x="790" y="1019" text-anchor="middle" style="fill:var(--ink-muted)">Renderer만 도메인별로 다름(Crud/Board/MasterDetail)</text>
+            <text class="node-sub" x="790" y="1037" text-anchor="middle" style="font-size:9px;fill:var(--accent)">CRUD 기준: 레이어 세트(JSP 11개·Thymeleaf 16개)를 ProjectChangeSet 하나로 원자적 저장</text>
+            <text class="node-sub" x="790" y="1055" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">⚠ usesV2Preview()==true(현재 기본값)일 때만 — false면 BEST_EFFORT_COMPATIBILITY(파일별 개별 처리)</text>
+            <text class="node-sub" x="790" y="1073" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ apply() 성공 시 snapshotStore.save() → AI_CRUD_GENERATION_SNAPSHOT 기록(13번)</text>
+            <g class="jump-badge"><circle cx="1002" cy="969" r="12"></circle><text x="1002" y="973" text-anchor="middle">6</text></g>
           </a>
         </svg>
       </div>
@@ -1329,7 +1341,7 @@
     </p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 340" role="img" aria-label="로컬 이미지나 Figma 프레임을 분석해 DesignAnalysisResult와 UiDesignSpec을 만들고, createScreenSpecification이 단순 케이스면 즉시 승인하고 REVIEW_REQUIRED 케이스면 수정과 승인을 거쳐 APPROVED ScreenSpecification을 만든다. (2026-08-28 기준) FigmaDesignSpecMapper 파싱 단계에서 컴포넌트별 fills/strokes 첫 SOLID 색상과 노드 트리 좌표·auto-layout·텍스트스타일(geometryTree)은 이제 캡처되어 ScreenSpecAssembler.assemble()이 componentStyles/componentGeometry로 옮기지만, claude 경로(ScreenSpecificationPromptFormatter) 프롬프트에만 반영되고 auto 경로(CrudModelFactory)는 여전히 참조하지 않는다. 루트 프레임 배경색·폰트(tokens)는 지금도 매핑 코드가 없어 전달되지 않는다 — layoutDensity 등 구조값과 함께 componentStyles/componentGeometry만 끝까지 생존한다.">
+        <svg viewBox="0 0 1180 340" role="img" aria-label="로컬 이미지나 Figma 프레임을 분석해 DesignAnalysisResult와 UiDesignSpec을 만들고, createScreenSpecification이 단순 케이스면 즉시 승인하고 REVIEW_REQUIRED 케이스면 수정과 승인을 거쳐 APPROVED ScreenSpecification을 만든다. (2026-08-28 기준) FigmaDesignSpecMapper 파싱 단계에서 컴포넌트별 fills/strokes 첫 SOLID 색상과 노드 트리 좌표·auto-layout·텍스트스타일(geometryTree)은 이제 캡처되어 ScreenSpecAssembler.assemble()이 componentStyles/componentGeometry로 옮기지만, claude 경로(ScreenSpecificationPromptFormatter) 프롬프트에만 반영되고 auto 경로(CrudModelFactory)는 여전히 참조하지 않는다. 루트 프레임 배경색·폰트(tokens)도 (2026-08-28) ScreenSpecAssembler.assemble() 매핑과 프롬프트 반영이 마저 완료돼, layoutDensity 등 구조값과 함께 componentStyles/componentGeometry/tokens까지 전부 claude 경로 끝까지 생존한다. auto 경로만 셋 다 미참조한다.">
           <defs>
             <marker id="arrow5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow5Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
@@ -1346,10 +1358,12 @@
           <text class="node-sub" x="440" y="94" text-anchor="middle">→ UiDesignSpec</text>
           <text class="node-sub" x="440" y="112" text-anchor="middle">Vision LLM (Ollama · OpenAI)</text>
 
-          <rect class="node-box accent" x="620" y="40" width="240" height="90" rx="8"></rect>
+          <rect class="node-box accent" x="620" y="40" width="240" height="126" rx="8"></rect>
           <text class="node-title" x="740" y="76" text-anchor="middle">createScreenSpecification()</text>
           <text class="node-sub" x="740" y="94" text-anchor="middle">DB 매핑 난이도로</text>
           <text class="node-sub" x="740" y="112" text-anchor="middle">단순 / REVIEW_REQUIRED 분기</text>
+          <text class="node-sub" x="740" y="130" text-anchor="middle" style="font-size:8px">├ 단순: 즉시 APPROVED (approve 미호출)</text>
+          <text class="node-sub" x="740" y="148" text-anchor="middle" style="font-size:8px">└ REVIEW_REQUIRED: revise→approve 필요</text>
 
           <rect class="node-box" x="920" y="40" width="220" height="90" rx="8"></rect>
           <text class="node-title" x="1010" y="68" text-anchor="middle">APPROVED</text>
@@ -1375,37 +1389,37 @@
           <text class="node-title" x="165" y="234" text-anchor="middle" style="font-size:11.5px">1단계 · FigmaDesignSpecMapper 파싱</text>
           <text class="node-sub" x="165" y="252" text-anchor="middle" style="font-size:9px">(2026-08-28) fills/strokes 첫 SOLID 색상</text>
           <text class="node-sub" x="165" y="266" text-anchor="middle" style="font-size:9px">+ geometryTree(좌표·auto-layout·폰트) 캡처</text>
-          <text class="node-sub" x="165" y="284" text-anchor="middle" style="font-size:9px;fill:var(--rest)">루트 배경색·폰트(tokens)는 여전히 미매핑</text>
-          <text class="node-sub" x="165" y="298" text-anchor="middle" style="font-size:8.5px">(2단계에서 옮기는 코드 없음, 아래 참고)</text>
+          <text class="node-sub" x="165" y="284" text-anchor="middle" style="font-size:9px">루트 배경색·폰트(tokens)도 함께 캡처</text>
+          <text class="node-sub" x="165" y="298" text-anchor="middle" style="font-size:8.5px">(2단계 매핑은 2026-08-28 완료, 아래 참고)</text>
 
           <path class="edge rest dashed" marker-end="url(#arrow5Rest)" d="M700,130 Q620,170 465,210"></path>
           <rect class="node-box rest" x="320" y="210" width="290" height="100" rx="8" style="stroke-dasharray:5 4"></rect>
           <text class="node-title" x="465" y="234" text-anchor="middle" style="font-size:11.5px">2단계 · ScreenSpecAssembler.assemble()</text>
-          <text class="node-sub" x="465" y="252" text-anchor="middle" style="font-size:9px">(2026-08-28) componentStyles/componentGeometry 매핑됨</text>
+          <text class="node-sub" x="465" y="252" text-anchor="middle" style="font-size:9px">(2026-08-28) componentStyles/componentGeometry/tokens 매핑됨</text>
           <text class="node-sub" x="465" y="266" text-anchor="middle" style="font-size:9px">→ ScreenSpecification 필드로 전달(claude 경로 전용)</text>
-          <text class="node-sub" x="465" y="284" text-anchor="middle" style="font-size:9px;fill:var(--rest)">tokens(배경색·폰트)만 여전히 매핑 코드 없음</text>
-          <text class="node-sub" x="465" y="298" text-anchor="middle" style="font-size:9px">layoutDensity와 함께 이제 3종이 생존</text>
+          <text class="node-sub" x="465" y="284" text-anchor="middle" style="font-size:9px">3필드 모두 매핑 완료(아래 표 참고)</text>
+          <text class="node-sub" x="465" y="298" text-anchor="middle" style="font-size:9px">layoutDensity와 함께 이제 4종이 생존</text>
 
           <path class="edge accent" marker-end="url(#arrow5Accent)" d="M260,85 L320,85"></path>
           <path class="edge accent" marker-end="url(#arrow5Accent)" d="M560,85 L620,85"></path>
           <path class="edge accent" marker-end="url(#arrow5Accent)" d="M860,85 L920,85"></path>
           <text class="edge-label accent" x="890" y="74" text-anchor="middle" style="font-size:9px">단순 케이스: 즉시</text>
 
-          <path class="edge" marker-end="url(#arrow5)" d="M740,130 L740,210"></path>
-          <text class="edge-label" x="750" y="175">REVIEW_REQUIRED: 이슈 목록</text>
+          <path class="edge" marker-end="url(#arrow5)" d="M740,166 L740,210"></path>
+          <text class="edge-label" x="750" y="184">REVIEW_REQUIRED: 이슈 목록</text>
 
           <path class="edge" marker-end="url(#arrow5)" d="M860,240 Q1030,240 1030,130"></path>
           <text class="edge-label" x="900" y="215">승인 후 APPROVED로 전환</text>
 
           <text class="edge-label" x="440" y="150" text-anchor="middle">→ MySQL AI_DESIGN_ANALYSIS(RESULT_JSON, 캐시)</text>
-          <text class="edge-label" x="740" y="150" text-anchor="middle">→ AI_SCREEN_SPECIFICATION(초안 upsert)</text>
+          <text class="edge-label" x="740" y="200" text-anchor="middle">→ AI_SCREEN_SPECIFICATION(초안 upsert)</text>
           <text class="edge-label" x="1010" y="150" text-anchor="middle">→ AI_SCREEN_SPECIFICATION(승인 revision append)</text>
           <text class="edge-label" x="740" y="320" text-anchor="middle">→ AI_SCREEN_SPECIFICATION(재승인 시 새 revision, 13번 참고)</text>
         </svg>
       </div>
       <div class="legend">
         <span><i class="swatch" style="background:var(--accent)"></i>정상 진행 경로</span>
-        <span><i class="swatch" style="background:var(--rest)"></i>시각 정보 소실 지점 — 루트 배경색·폰트(tokens)만 여전히 소실, 컴포넌트 색상·좌표는 (2026-08-28부터) claude 경로에 한해 생존</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>파싱·매핑 상세 단계 — (2026-08-28) componentStyles/componentGeometry/tokens 모두 claude 경로까지 생존, auto 경로(CrudModelFactory)만 셋 다 미참조</span>
       </div>
       <figcaption>
         표준 단일 테이블처럼 JOIN·공통코드·미매핑 필드가 없는 <b>단순 케이스</b>는 <code>buildFullCrudPrompt</code>
@@ -1439,9 +1453,9 @@
             <tr><td>1단계 · Figma 파싱</td><td>노드 트리 좌표·auto-layout·텍스트스타일</td><td><b>(2026-08-28)</b> <code>geometryTree</code>(부모-자식 구조 보존)로 캡처</td><td><code>buildGeometryTree()</code>, 커밋 <code>369cbe1</code></td></tr>
             <tr><td>1단계 · Figma 파싱</td><td>루트 프레임 배경색·폰트</td><td><code>UiDesignSpec.tokens</code>(Map&lt;String,String&gt;)에 캡처됨</td><td><code>FigmaDesignSpecMapper.java</code> <code>tokens()</code></td></tr>
             <tr><td>2단계 · 매핑<br><code>ScreenSpecAssembler.assemble()</code></td><td><code>resolvedUi.components()</code>, <code>resolvedUi.geometryTree()</code></td><td><b>(2026-08-28)</b> <code>componentStyles</code>/<code>componentGeometry</code>로 매핑됨</td><td>같은 커밋 2건 — 두 getter 호출 존재</td></tr>
-            <tr><td>2단계 · 매핑</td><td><code>resolvedUi.tokens()</code></td><td>여전히 매핑 코드가 없어 <code>ScreenSpecification</code>으로 전달 안 됨</td><td><code>ScreenSpecAssembler.java</code> — 이 getter만 호출 0건</td></tr>
+            <tr><td>2단계 · 매핑</td><td><code>resolvedUi.tokens()</code></td><td><b>(2026-08-28)</b> <code>tokens</code>로 매핑됨</td><td><code>ScreenSpecAssembler.assemble()</code> 마지막 인자, 커밋 <code>4a01814</code></td></tr>
             <tr><td>2단계 · 매핑</td><td><code>resolvedUi.layout().density()</code> 등 구조값</td><td>매핑 라인이 실제로 존재 — <code>componentStyles</code>/<code>componentGeometry</code>와 함께 생존</td><td>같은 파일, 같은 메서드</td></tr>
-            <tr><td>3단계 · 소비<br><code>CrudModelFactory</code>(auto) vs <code>ScreenSpecificationPromptFormatter</code>(claude)</td><td><code>componentStyles</code>/<code>componentGeometry</code></td><td>claude 경로 프롬프트(JSON 블록 + KRDS/반응형 가드레일)에만 반영 — auto 경로는 여전히 미참조</td><td><code>Figma_픽셀재현_claude경로_구현계획.md</code> §5.4, <code>CrudModelFactory</code> 참조 0건</td></tr>
+            <tr><td>3단계 · 소비<br><code>CrudModelFactory</code>(auto) vs <code>ScreenSpecificationPromptFormatter</code>(claude)</td><td><code>componentStyles</code>/<code>componentGeometry</code>/<code>tokens</code></td><td>claude 경로 프롬프트(JSON 블록 + KRDS/반응형 가드레일 + tokens 블록)에만 반영 — auto 경로는 여전히 미참조</td><td><code>Figma_픽셀재현_claude경로_구현계획.md</code> §5.4, <code>ScreenSpecificationPromptFormatter.format()</code> tokens 블록(커밋 <code>a1c1e30</code>), <code>CrudModelFactory</code> 참조 0건</td></tr>
           </tbody>
         </table>
       </div>
@@ -1452,19 +1466,22 @@
         <code>backgroundColor</code>/<code>borderColor</code>가, <code>UiDesignSpec</code>에
         <code>geometryTree</code>(부모-자식 구조·좌표·auto-layout·텍스트스타일)가 추가됐고, 둘 다
         <code>ScreenSpecification.componentStyles</code>/<code>componentGeometry</code>로 매핑까지 이어진다.
-        다만 <b>완전히 해소된 것은 아니다</b> — ① 루트 프레임 배경색·폰트(<code>tokens</code>)는 지금도
-        매핑 코드가 없어 여전히 버려지고, ② <code>componentStyles</code>/<code>componentGeometry</code>는
+        루트 프레임 배경색·폰트(<code>tokens</code>)도 (2026-08-28) <code>ScreenSpecAssembler.assemble()</code>
+        매핑(커밋 <code>4a01814</code>)과 <code>ScreenSpecificationPromptFormatter</code> 프롬프트 반영(커밋
+        <code>a1c1e30</code>)이 마저 완료돼, 이제 <code>componentStyles</code>/<code>componentGeometry</code>와
+        동일하게 3단계까지 전부 생존한다. 다만 <b>완전히 해소된 것은 아니다</b> — ①
+        <code>componentStyles</code>/<code>componentGeometry</code>/<code>tokens</code> 셋 다
         <b>claude 경로(<code>ScreenSpecificationPromptFormatter</code>)에만</b> 반영되며 auto 경로
         (<code>CrudModelFactory</code>)는 이 필드들을 전혀 참조하지 않는다(정부 표준 KRDS 룩앤필을
         모든 프로젝트에서 동일하게 유지하려는 의도적 설계로 보이며, <code>Figma_색상_CSS자동주입_
-        auto경로_검토.md</code>에서 auto 경로 확장은 기각됐다). ③ <code>fills</code>/<code>strokes</code>는
+        auto경로_검토.md</code>에서 auto 경로 확장은 기각됐다). ② <code>fills</code>/<code>strokes</code>는
         타입(<code>TABLE</code>/<code>SEARCH_PANEL</code>/<code>FORM</code>/<code>PAGINATION</code>/
         <code>ACTION_GROUP</code>)당 첫 매치 노드의 <code>SOLID</code> 색상 1개만 대표로 채택하고
         그라데이션·이미지 채우기는 여전히 무시한다.
       </p>
       <p class="subsection-sub" style="margin-top:14px">
-        <b>(2026-08-28 신규) 픽셀재현 제외범위 후속 Tool 2종.</b>
-        <code>Figma_픽셀재현_제외범위_구현계획.md</code>의 4개 트랙 중 2개가 신규 MCP Tool로 이어졌다 —
+        <b>(2026-08-28 신규) 픽셀재현 제외범위 후속 Tool 3종.</b>
+        <code>Figma_픽셀재현_제외범위_구현계획.md</code>의 4개 트랙 중 3개가 신규 MCP Tool로 이어졌다 —
         <code>compareDesignFidelity(originalAnalysisId, renderedAnalysisId)</code>는 이 5번 섹션이
         만든 원본 <code>UiDesignSpec</code>과, 생성된 화면을 <code>captureWebPage()</code> +
         <code>analyzeCapturedDesign()</code>으로 재캡처해 만든 <code>UiDesignSpec</code>을 비교해
@@ -1477,7 +1494,14 @@
         <code>static/images/figma/</code>에 저장한다. <b>허용 호스트(<code>*.figma.com</code>)는 이
         Tool을 만든 세션에 <code>FIGMA_ACCESS_TOKEN</code> 연동 환경이 없어 실제 API 응답으로 검증하지
         못한 추정치</b>이며, 실사용 전 재확인이 필요하다(<code>Figma_픽셀재현_제외범위_구현계획.md</code>
-        §B.5).
+        §B.5). <code>checkResponsiveRegression(CaptureWebPageRequest)</code>(<code>Figma_픽셀재현_2차구현_
+        반응형검증_구현계획.md</code>, 커밋 <code>7d543e9</code>)는 트랙 C의 잔여 리스크 —
+        claude 경로 프롬프트에 넣은 반응형 가드레일 문구를 실제로 지켰는지 확인할 자동화 수단이
+        없던 문제 — 를 해소한다. 신규 캡처·매칭 로직 없이 <code>captureWebPageMultiViewport()</code>가
+        이미 계산해두는 <code>breakpointObservations</code>(Desktop/Tablet/Mobile 사이
+        <code>MOVED</code>/<code>HIDDEN</code>/<code>SHOWN</code>)를 <code>ResponsiveRegressionAnalyzer</code>가
+        재분류만 해 <code>MOVED</code> 발생 건을 "가드레일 위반 의심" 신호로 요약한다. <code>MOVED</code>가
+        실제 위반인지 의도된 반응형 재배치인지는 구분하지 못하므로 최종 판단은 여전히 사람 몫이다.
       </p>
     </figure>
   </section>
@@ -1607,7 +1631,7 @@
             <tr><td>ScreenSpecification 반영 범위</td><td>표 밀도 4종 + <code>selectionSource</code> 기반 필드 선택</td><td>위 전부 + <code>archetype</code> + <code>dataSources</code>/조인 + 필드 라벨·역할·액션</td></tr>
             <tr><td>전달 형태</td><td>구조화된 값 → FreeMarker 템플릿 변수</td><td>통째로 텍스트 설명 → 프롬프트</td></tr>
             <tr><td>표 밀도 CSS 반영</td><td><code>CrudTableDensityCssProcessor</code>가 <code>styles.css</code>에 실제 CSS 자동 주입(<code>TableDensityCssContract</code>)</td><td>없음 — "밀도는 X"라고 텍스트로만 전달, CSS는 Claude가 직접 작성해야 함</td></tr>
-            <tr><td>Figma 색상·좌표(<code>componentStyles</code>/<code>componentGeometry</code>)</td><td>반영 안 됨 — <code>CrudModelFactory</code>가 이 필드를 참조하지 않음(의도된 KRDS 일관성 유지, 5번 섹션 참고)</td><td><b>(2026-08-28)</b> <code>ScreenSpecificationPromptFormatter</code>가 JSON 블록 + KRDS/반응형 가드레일 문구로 프롬프트에 포함</td></tr>
+            <tr><td>Figma 색상·좌표·토큰(<code>componentStyles</code>/<code>componentGeometry</code>/<code>tokens</code>)</td><td>반영 안 됨 — <code>CrudModelFactory</code>가 이 필드들을 참조하지 않음(의도된 KRDS 일관성 유지, 5번 섹션 참고)</td><td><b>(2026-08-28)</b> <code>ScreenSpecificationPromptFormatter</code>가 JSON 블록(색상·좌표) + tokens 블록 + KRDS/반응형 가드레일 문구로 프롬프트에 포함</td></tr>
           </tbody>
         </table>
       </div>
@@ -2495,7 +2519,7 @@
   </section>
 
   <footer class="notes">
-    핵심 소스: <code>README.md</code>, <code>McpConfig.java</code>(Tool 등록·인가), <code>McpToolDefinitionSnapshotTest</code>(104개 Tool 메서드 / 39개 Tool 객체 기준선, 2026-08-28 <code>compareDesignFidelity</code>·<code>downloadFigmaAssets</code> 추가 반영), 각 서브 프로젝트 <code>README.md</code>, <code>docs/figma/18_..._Impact_and_Implementation_Specification.md</code>·<code>19_..._Implementation_List.md</code>(Catalog/Registry v1→v2→v3 SSOT 전환), <code>ComponentRegistryDualReadService</code>·<code>KrdsComponentResolutionService</code> 소스(현재 어느 경로가 실제 운영 중인지 import 기준으로 확인), <code>KrdsQnaRuntimeResolverIntegrationTest</code>, <code>docs/figma/05_Overall_Architecture_Diagram.md</code>(WEB_CAPTURE vs Semantic Pipeline 범위 구분), <code>DesignReferenceTool.java</code>·<code>ThymeleafLayoutTool.java</code>(5·6번), <code>jsp-design-extractor/README.md</code>(8번), <code>component-contracts/tokens/**</code>(9번, W3C Design Tokens 형식), <code>krds-design-system-author-plugin/README.md</code>(10번), <code>jsp-to-figma-plugin/src/code.ts</code>(11번), <code>FigmaExportBundle.java</code>·<code>FigmaExportTool.java</code>·<code>FigmaExportController.java</code>(2번 내보내기 경로 및 5번↔2번 연결), <code>ProjectInitializrTool.java</code>·<code>FilePlanFactory.java</code>(gnbLayoutHtml 등)·<code>ThymeleafLayoutTool.java</code>의 Tool 설명 원문(2.2, packageName 일치 요구사항과 overwrite 관계 확인), <code>CrudGenerationDispatchService.java</code>("llmProvider 분기의 유일한 지점" JavaDoc)·<code>CrudScreenSourceTool.java</code>·<code>JoinQueryTool.java</code>(2.2 보조 진입점), <code>EgovOllamaChatController.java</code>·<code>EgovSessionAwareChatServiceImpl.java</code>(2.3, RAG/Chat 흐름), <code>PipelineEvolutionProperties.java</code>·<code>PipelineReleaseGateController.java</code>·<code>PipelineArtifactController.java</code>·<code>PipelineReleaseReadiness.java</code>·<code>ScreenHandoffProjectionService.java</code>(12번), <code>docs/figma/29_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_Specification.md</code>·<code>30_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_List.md</code>·<code>31_5Axis_Pipeline_Release_Gate_Operations_Runbook.md</code>(12번 근거 문서), <code>src/main/resources/db/migration/V1~V15__*.sql</code>·<code>mapper/*Repository.java</code>(20종)·<code>service/evidence/PreviewEvidenceBundleRepository.java</code>·<code>service/handoff/ScreenHandoffBundleRepository.java</code>·<code>EgovRedisChatMemoryRepository.java</code>(13번, 실제 운영 DB SHOW TABLES 대조로 검증).
+    핵심 소스: <code>README.md</code>, <code>McpConfig.java</code>(Tool 등록·인가), <code>McpToolDefinitionSnapshotTest</code>(105개 Tool 메서드 / 40개 Tool 객체 기준선, 2026-08-28 <code>compareDesignFidelity</code>·<code>downloadFigmaAssets</code>·<code>checkResponsiveRegression</code> 추가 반영), 각 서브 프로젝트 <code>README.md</code>, <code>docs/figma/18_..._Impact_and_Implementation_Specification.md</code>·<code>19_..._Implementation_List.md</code>(Catalog/Registry v1→v2→v3 SSOT 전환), <code>ComponentRegistryDualReadService</code>·<code>KrdsComponentResolutionService</code> 소스(현재 어느 경로가 실제 운영 중인지 import 기준으로 확인), <code>KrdsQnaRuntimeResolverIntegrationTest</code>, <code>docs/figma/05_Overall_Architecture_Diagram.md</code>(WEB_CAPTURE vs Semantic Pipeline 범위 구분), <code>DesignReferenceTool.java</code>·<code>ThymeleafLayoutTool.java</code>(5·6번), <code>jsp-design-extractor/README.md</code>(8번), <code>component-contracts/tokens/**</code>(9번, W3C Design Tokens 형식), <code>krds-design-system-author-plugin/README.md</code>(10번), <code>jsp-to-figma-plugin/src/code.ts</code>(11번), <code>FigmaExportBundle.java</code>·<code>FigmaExportTool.java</code>·<code>FigmaExportController.java</code>(2번 내보내기 경로 및 5번↔2번 연결), <code>ProjectInitializrTool.java</code>·<code>FilePlanFactory.java</code>(gnbLayoutHtml 등)·<code>ThymeleafLayoutTool.java</code>의 Tool 설명 원문(2.2, packageName 일치 요구사항과 overwrite 관계 확인), <code>CrudGenerationDispatchService.java</code>("llmProvider 분기의 유일한 지점" JavaDoc)·<code>CrudScreenSourceTool.java</code>·<code>JoinQueryTool.java</code>(2.2 보조 진입점), <code>EgovOllamaChatController.java</code>·<code>EgovSessionAwareChatServiceImpl.java</code>(2.3, RAG/Chat 흐름), <code>PipelineEvolutionProperties.java</code>·<code>PipelineReleaseGateController.java</code>·<code>PipelineArtifactController.java</code>·<code>PipelineReleaseReadiness.java</code>·<code>ScreenHandoffProjectionService.java</code>(12번), <code>docs/figma/29_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_Specification.md</code>·<code>30_5Axis_Benchmark_Based_Pipeline_Evolution_Implementation_List.md</code>·<code>31_5Axis_Pipeline_Release_Gate_Operations_Runbook.md</code>(12번 근거 문서), <code>src/main/resources/db/migration/V1~V15__*.sql</code>·<code>mapper/*Repository.java</code>(20종)·<code>service/evidence/PreviewEvidenceBundleRepository.java</code>·<code>service/handoff/ScreenHandoffBundleRepository.java</code>·<code>EgovRedisChatMemoryRepository.java</code>(13번, 실제 운영 DB SHOW TABLES 대조로 검증).
     <ul>
       <li>패키지 세부 구조와 각 서브 프로젝트 역할은 <code>README.md</code>의 "디렉터리 구조" 섹션을 참고하십시오.</li>
       <li><code>ComponentRegistry.java</code>의 <code>SCHEMA_VERSION</code> 상수는 리터럴 값이 <code>"component-registry-v1"</code>이지만 코드베이스 어디서도 참조되지 않는 죽은 상수입니다 — 실제 필드 구조는 <code>component-registry-v2.schema.json</code>과 일치하고 <code>ComponentRegistryV2ToV3Converter</code> JavaDoc·fixture 파일명도 이를 "v2"로 부르므로, 3번 다이어그램은 그 실무 관례를 따랐습니다.</li>
@@ -2690,6 +2714,18 @@
       체계 유지"라는 이 프로젝트 전제와 모순되어 <b>기각</b>됐고(<code>Figma_색상_CSS자동주입_
       auto경로_검토.md</code>), 게시판 DASHBOARD 화면 생성 지원은 검토 후 <b>보류</b> 상태입니다 — 둘 다
       이 다이어그램에는 반영할 신규 아키텍처가 없어 별도 박스를 추가하지 않았습니다.</li>
+      <li><b>2026-08-28 갱신(2):</b> ① 갱신(1) ②에서 "지금도 안 옮겨진다"고 적었던 루트 배경색·폰트
+      (<code>tokens</code>)가 <code>ScreenSpecAssembler.assemble()</code> 매핑(커밋 <code>4a01814</code>)과
+      <code>ScreenSpecificationPromptFormatter</code> 프롬프트 반영(커밋 <code>a1c1e30</code>)까지 마저
+      완료돼, 이제 <code>componentStyles</code>/<code>componentGeometry</code>와 동일하게 claude 경로
+      끝까지 생존합니다(auto 경로 미참조는 그대로) — 5번 다이어그램의 박스·표·범례·문단을 이 최신
+      상태로 다시 정정했습니다. ② <code>Figma_픽셀재현_제외범위_구현계획.md</code> 트랙 C의 잔여
+      리스크(반응형 가드레일 문구를 실제로 지켰는지 확인할 자동화 수단 없음)를 해소하는
+      <code>checkResponsiveRegression</code> Tool을 추가했습니다(<code>Figma_픽셀재현_2차구현_
+      반응형검증_구현계획.md</code>, 커밋 <code>7d543e9</code>) — 신규 캡처 로직 없이
+      <code>captureWebPageMultiViewport()</code>가 이미 만드는 <code>breakpointObservations</code>를
+      재분류해 <code>MOVED</code>를 가드레일 위반 의심 신호로 요약합니다. ③ Tool 총계를 105개
+      메서드/40개 객체로 갱신했습니다.</li>
       <li>이 다이어그램은 정적 스냅샷입니다 — Tool·서비스 구성이 바뀌면 함께 갱신이 필요합니다.</li>
     </ul>
   </footer>
