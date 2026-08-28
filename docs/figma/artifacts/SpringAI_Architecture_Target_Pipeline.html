@@ -813,8 +813,8 @@
 
           <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M150,700 Q150,730 210,760"></path>
           <text class="edge-label accent" x="150" y="725" style="font-size:9px">isAuto()==true</text>
-          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M300,700 Q460,730 620,760"></path>
-          <text class="edge-label accent" x="460" y="725" style="font-size:9px">isAuto()==false (claude 등)</text>
+          <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M300,700 Q448,766 570,832"></path>
+          <text class="edge-label accent" x="410" y="750" style="font-size:9px">isAuto()==false (claude 등)</text>
 
           <a class="diagram-link" href="#local-screen-detail">
             <title>7번 다이어그램: 로컬 화면(실행 중인 JSP/Thymeleaf) 상세로 이동</title>
@@ -829,14 +829,14 @@
 
           <a class="diagram-link" href="#mcp-server-detail">
             <title>5번 다이어그램: DesignReferenceTool(componentStyles/componentGeometry/tokens) 상세로 이동</title>
-            <rect class="node-box" x="420" y="760" width="400" height="136" rx="8"></rect>
-            <text class="node-title" x="620" y="788" text-anchor="middle">BuildCrudPromptUseCase</text>
-            <text class="node-sub" x="620" y="806" text-anchor="middle">CrudPromptGenerationService</text>
-            <text class="node-sub" x="620" y="824" text-anchor="middle">프롬프트 텍스트만 반환, 파일 저장 없음</text>
-            <text class="node-sub" x="620" y="842" text-anchor="middle" style="fill:var(--ink-muted)">→ Claude Desktop이 코드 작성(springai 밖 책임)</text>
-            <text class="node-sub" x="620" y="860" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">⚠ designReferenceId 전달 시 AI_SCREEN_SPECIFICATION에 draft 저장(디스크 파일 저장은 없음)</text>
-            <text class="node-sub" x="620" y="878" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ screenSpecification 있으면 componentStyles/componentGeometry/tokens도 여기서 프롬프트 반영(5번 참고)</text>
-            <g class="jump-badge"><circle cx="802" cy="774" r="12"></circle><text x="802" y="778" text-anchor="middle">5</text></g>
+            <rect class="node-box" x="570" y="760" width="400" height="144" rx="8"></rect>
+            <text class="node-title" x="770" y="788" text-anchor="middle">BuildCrudPromptUseCase</text>
+            <text class="node-sub" x="770" y="806" text-anchor="middle">CrudPromptGenerationService</text>
+            <text class="node-sub" x="770" y="824" text-anchor="middle">프롬프트 텍스트만 반환, 파일 저장 없음</text>
+            <text class="node-sub" x="770" y="842" text-anchor="middle" style="fill:var(--ink-muted)">→ Claude Desktop이 코드 작성(springai 밖 책임)</text>
+            <text class="node-sub" x="770" y="860" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">⚠ designReferenceId 전달 시 AI_SCREEN_SPECIFICATION에 draft 저장(파일 저장 없음)</text>
+            <text class="node-sub" x="770" y="886" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ componentStyles/componentGeometry/tokens는 screenSpecification 있으면 반영(5번 참고)</text>
+            <g class="jump-badge"><circle cx="952" cy="774" r="12"></circle><text x="952" y="778" text-anchor="middle">5</text></g>
           </a>
 
           <path class="edge good" marker-end="url(#arrow2bGood)" d="M210,878 L210,893"></path>
@@ -855,8 +855,8 @@
           <text class="node-sub" x="210" y="1053" text-anchor="middle">생성된 소스에 JOIN SELECT·resultMap·VO 필드 추가</text>
           <text class="node-sub" x="210" y="1071" text-anchor="middle" style="fill:var(--ink-muted)">getTableRelations()가 JOIN 후보를 탐지했을 때</text>
 
-          <path class="edge dashed" marker-end="url(#arrow2b)" d="M210,1085 Q210,1105 500,1120"></path>
-          <text class="edge-label" x="240" y="1105" style="font-size:9px">선택</text>
+          <path class="edge dashed" marker-end="url(#arrow2b)" d="M210,1085 Q210,1148 440,1148"></path>
+          <text class="edge-label" x="220" y="1120" style="font-size:9px">선택</text>
 
           <rect class="node-box" x="440" y="1120" width="300" height="55" rx="8" style="stroke-dasharray:6 5"></rect>
           <text class="node-title" x="590" y="1143" text-anchor="middle">MenuTool (선택)</text>
@@ -866,7 +866,7 @@
           <text class="edge-label accent" x="460" y="975" text-anchor="middle" style="font-size:8px">승인 통과 → 이어서 저장 실행</text>
           <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M590,718 Q590,880 790,955"></path>
           <path class="edge accent" marker-end="url(#arrow2bAccent)" d="M970,718 Q970,880 970,955"></path>
-          <text class="edge-label accent" x="880" y="880" text-anchor="middle" style="font-size:8.5px">auto만 합류(claude는 저장 없음)</text>
+          <text class="edge-label accent" x="880" y="745" text-anchor="middle" style="font-size:8.5px">auto만 합류(claude는 저장 없음)</text>
 
           <a class="diagram-link" href="#thymeleaf-gen-detail">
             <title>6번 다이어그램: Thymeleaf 생성 서비스 상세 — 5a CodeServiceGenerationExecutor로 이동</title>
