@@ -175,6 +175,42 @@ class DesignReferenceAnalysisServiceTest {
     }
 
     @Test
+    void figmaAnalysisInfersMasterDetailFeatureTypeWhenOmitted() throws Exception {
+        DesignAnalysisRepository repository = mock(DesignAnalysisRepository.class);
+        VisionAnalysisClient vision = mock(VisionAnalysisClient.class);
+        FigmaReferenceValidator validator = mock(FigmaReferenceValidator.class);
+        FigmaApiClient apiClient = mock(FigmaApiClient.class);
+        FigmaDesignSpecMapper mapper = mock(FigmaDesignSpecMapper.class);
+        FigmaCacheKeyFactory cacheKeys = mock(FigmaCacheKeyFactory.class);
+        FigmaReference reference = new FigmaReference("abcdef", "1:2");
+        FigmaNodeDocument document = new FigmaNodeDocument("version-1",
+                new ObjectMapper().readTree("{\"type\":\"FRAME\",\"name\":\"마스터 상세\"}"));
+        UiDesignSpec mapped = UiDesignSpec.empty("MASTER_DETAIL");
+        DesignVisionProperties properties = new DesignVisionProperties();
+        properties.getFigma().setEnabled(true);
+        properties.getFigma().setAccessToken("secret-token");
+        when(validator.validate("https://www.figma.com/design/abcdef/x?node-id=1-2", null))
+                .thenReturn(reference);
+        when(apiClient.fetchNode(reference)).thenReturn(document);
+        when(cacheKeys.create(reference, "version-1", "crud")).thenReturn("figma-hash");
+        when(repository.findExact("figma-hash", "figma", "deterministic-mapper", "figma-mapper-v2"))
+                .thenReturn(Optional.empty());
+        when(mapper.map(document, "crud")).thenReturn(mapped);
+        when(repository.saveOrGet(any())).thenAnswer(invocation -> {
+            DesignAnalysisResult proposed = invocation.getArgument(0);
+            return new DesignAnalysisSaveOutcome(proposed, true);
+        });
+        DesignReferenceAnalysisService service = service(mock(ReferencePathValidator.class),
+                mock(ImagePreprocessor.class), vision, repository, mock(RagService.class), properties,
+                validator, apiClient, mapper, cacheKeys);
+
+        DesignAnalysisResult result = service.analyzeFigma(
+                "https://www.figma.com/design/abcdef/x?node-id=1-2", null, null);
+
+        assertThat(result.featureType()).isEqualTo("master-detail");
+    }
+
+    @Test
     void semanticCandidateIsReusableOnlyWhenExecutionContractMatches() {
         DesignAnalysisRepository repository = mock(DesignAnalysisRepository.class);
         RagService rag = mock(RagService.class);

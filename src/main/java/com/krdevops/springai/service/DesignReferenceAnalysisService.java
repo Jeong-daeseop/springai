@@ -76,7 +76,8 @@ public class DesignReferenceAnalysisService {
         String sourceHash = sourceHash(path, pageRange, normalizedFeatureType);
         return repository.findExact(sourceHash, visionAnalysisClient.providerId(),
                         visionAnalysisClient.modelId(), properties.getPromptVersion())
-                .orElseGet(() -> analyzeAndSave(path, pageRange, normalizedFeatureType, sourceHash));
+                .orElseGet(() -> analyzeAndSave(
+                        path, pageRange, storageFeatureType(featureType), normalizedFeatureType, sourceHash));
     }
 
     public DesignAnalysisResult analyzeFigma(
@@ -88,8 +89,8 @@ public class DesignReferenceAnalysisService {
         String sourceHash = figmaCacheKeyFactory.create(
                 reference, document.fileVersion(), normalizedFeatureType);
         return repository.findExact(sourceHash, "figma", "deterministic-mapper", mapperVersion)
-                .orElseGet(() -> analyzeFigmaAndSave(reference, document, normalizedFeatureType,
-                        sourceHash, mapperVersion));
+                .orElseGet(() -> analyzeFigmaAndSave(reference, document,
+                        storageFeatureType(featureType), normalizedFeatureType, sourceHash, mapperVersion));
     }
 
     public DesignAnalysisResult get(String analysisId) {
@@ -152,11 +153,11 @@ public class DesignReferenceAnalysisService {
     }
 
     private DesignAnalysisResult analyzeAndSave(
-            Path path, String pageRange, String featureType, String sourceHash) {
+            Path path, String pageRange, String featureType, String normalizedFeatureType, String sourceHash) {
         List<VisionAnalysisRequest.VisionImage> sourceImages = loadImages(path, pageRange);
         List<VisionAnalysisRequest.VisionImage> images = imagePreprocessor.preprocess(sourceImages);
         UiDesignSpec uiSpec = analyzeWithTimeout(
-                new VisionAnalysisRequest(featureType, images, properties.getPromptVersion()));
+                new VisionAnalysisRequest(normalizedFeatureType, images, properties.getPromptVersion()));
         DesignAnalysisResult result = new DesignAnalysisResult(
                 UUID.randomUUID().toString(), sourceHash, path.toString(), pageRange,
                 DesignSourceType.FILE, null, properties.getPromptVersion(),
@@ -171,9 +172,10 @@ public class DesignReferenceAnalysisService {
     }
 
     private DesignAnalysisResult analyzeFigmaAndSave(
-            FigmaReference reference, FigmaNodeDocument document, String featureType,
+            FigmaReference reference, FigmaNodeDocument document,
+            String featureType, String normalizedFeatureType,
             String sourceHash, String mapperVersion) {
-        UiDesignSpec uiSpec = figmaDesignSpecMapper.map(document, featureType);
+        UiDesignSpec uiSpec = figmaDesignSpecMapper.map(document, normalizedFeatureType);
         FigmaUiDesignSpecQualityEvaluator.Evaluation quality =
                 new FigmaUiDesignSpecQualityEvaluator().evaluate(uiSpec);
         List<String> qualityWarnings = quality.issues().stream()
@@ -251,6 +253,16 @@ public class DesignReferenceAnalysisService {
     private String normalizeFeatureType(String featureType) {
         return featureType == null || featureType.isBlank()
                 ? "crud" : featureType.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * 최종 저장되는 {@link DesignAnalysisResult#featureType()} 값을 만든다. {@link #normalizeFeatureType}과
+     * 달리 비어있으면 "crud"로 강제하지 않고 {@code null}을 반환한다 — archetype 기반 추론
+     * ({@code DesignAnalysisResult.inferFeatureType()})이 실행될 수 있게 하기 위함이다.
+     */
+    private String storageFeatureType(String featureType) {
+        return featureType == null || featureType.isBlank()
+                ? null : featureType.trim().toLowerCase(Locale.ROOT);
     }
 
     private String featureTypeFromArchetype(String archetype) {
