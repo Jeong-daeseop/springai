@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Path;
 
 /**
- * {@code CrudPromptBuilderTool#buildBoardFeature}가 위임하는 Facade. Tool 파라미터 조합을
+ * {@code BoardGenerationTool#buildBoardFeature}가 위임하는 Facade. Tool 파라미터 조합을
  * {@link BoardGenerationCommand}로 변환 → {@link GenerateBoardProjectUseCase} 호출(분기 없음) →
  * {@link BoardGenerationResultFormatter}로 응답 문자열을 만든다.
  */

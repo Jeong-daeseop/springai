@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Path;
 
 /**
- * {@code CrudPromptBuilderTool#buildFullCrudPrompt}가 위임하는 Facade. Tool 파라미터 조합을
+ * {@code CrudGenerationTool#buildFullCrudPrompt}가 위임하는 Facade. Tool 파라미터 조합을
  * {@link CrudGenerationCommand}로 변환 → {@link DispatchCrudGenerationUseCase} 호출 →
  * {@link CrudGenerationResultFormatter}로 응답 문자열을 만든다.
  */

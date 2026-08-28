@@ -2,14 +2,20 @@
 
 > 2026-08-27, 코드 실측 기준 작성. 구현 여부는 결정되지 않았으며, 이 문서는 **검토 결과만** 담는다.
 > 조사 과정에서 별도로 확인된 `CrudPromptBuilderTool` 미등록 문제도 함께 기록한다.
+>
+> **2026-08-28 재확인**: 원본 검토(§1~5)의 결론은 코드 재확인 결과 그대로 유효하다. §6에서 지적한
+> `CrudPromptBuilderTool` 미등록 문제는 이후 세션에서 클래스 자체가 삭제되며 해소됐고, 그 정리
+> 과정에서 놓친 파일 1건과 이번 세션에 새로 생긴 배경 사실을 §7에 추가했다.
 
 ---
 
 ## 1. 배경
 
-`CrudPromptBuilderTool.buildFullCrudPrompt()`와 `MasterDetailGenerationTool.buildMasterDetailPrompt()`는
-`llmProvider`(`auto`/`claude`) 파라미터로 "서버가 직접 파일을 저장할지" vs "Claude에게 프롬프트만 넘길지"를
-분기한다. 반면 `BoardGenerationTool.buildBoardFeature()`는 이 파라미터 자체가 없고 항상 결정론적
+`CrudGenerationTool.buildFullCrudPrompt()`(§6 참고 — 검토 당시엔 `CrudPromptBuilderTool`이 이 메서드를
+가진 것으로 보였으나, 실제로는 MCP에 등록되지 않은 클래스였고 이후 삭제됐다)와
+`MasterDetailGenerationTool.buildMasterDetailPrompt()`는 `llmProvider`(`auto`/`claude`) 파라미터로
+"서버가 직접 파일을 저장할지" vs "Claude에게 프롬프트만 넘길지"를 분기한다. 반면
+`BoardGenerationTool.buildBoardFeature()`는 이 파라미터 자체가 없고 항상 결정론적
 파이프라인(`BoardGenerationPipelineService`)만 실행한다. "BoardGenerationTool도 같은 스위치를 받게 하면
 어떻게 될지" 검토를 요청받아 코드를 확인했다.
 
@@ -59,7 +65,7 @@ CRUD/MasterDetail의 `claude` 경로가 존재할 수 있었던 이유는 애초
 
 ---
 
-## 6. ⚠ 별도 발견 — `CrudPromptBuilderTool`은 실제로 MCP에 등록되지 않는다
+## 6. ⚠ 별도 발견 — `CrudPromptBuilderTool`은 실제로 MCP에 등록되지 않는다 (해결됨, §7 참고)
 
 이번 조사 중에 `CrudPromptBuilderTool`(`tools/CrudPromptBuilderTool.java`)이 **실제로는 MCP에 등록되지
 않은 클래스**라는 걸 확인했다.
@@ -87,3 +93,56 @@ CRUD/MasterDetail의 `claude` 경로가 존재할 수 있었던 이유는 애초
 - 아키텍처 다이어그램 아티팩트(`docs/figma/artifacts/SpringAI_Architecture_Target_Pipeline.html`) 2.2절
 
 정정이 필요하면 `CrudPromptBuilderTool`을 `CrudGenerationTool` 기준으로 바꿔 다시 작성해야 한다.
+
+---
+
+## 7. 2026-08-28 재확인 결과
+
+### 7.1 §2~5 결론 — 코드 재확인, 변경 없음
+
+| 항목 | 재확인 결과 |
+|---|---|
+| `BoardGenerationCommand.java` L13 | 여전히 "llmProvider 분기가 없다" 명시, 필드 없음 |
+| `BoardGenerationTool.buildBoardFeature()` | 여전히 `llmProvider` 파라미터 없음(21개 파라미터, 변경 없음) |
+| `BoardGenerationMcpFacade.buildBoardFeature()` | 여전히 `GenerateBoardProjectUseCase`로 무조건 직행 |
+| Board용 프롬프트 빌더 서비스 | 여전히 존재하지 않음 |
+| `CrudToolResult`/`MasterDetailToolResult` sealed 패턴 | `Orchestrated`/`Prompted` record 2종으로 실존 확인(`CrudToolResult.java`) — Board가 이 패턴을 따라야 한다는 §2 제안은 정확 |
+
+§2(변경 범위)·§3(최대 리스크)·§4(설계 의도)·§5(결론)는 지금도 그대로 유효하다.
+
+### 7.2 §6 해결 확인 + 새로 발견된 잔여 파일
+
+`CrudPromptBuilderTool`은 이후 세션에서 실제로 삭제됐고(628줄, 테스트는 실제 등록된 클래스
+6종 테스트로 이관), `화면생성Tool_3종_비교분석.md`/`CrudPromptBuilderTool_기능및역할_상세설명.md`/
+아키텍처 다이어그램은 `CrudGenerationTool` 기준으로 정정 완료됐다.
+
+다만 그 정리 작업에서 **`BoardGenerationMcpFacade.java` L16 Javadoc 1건이 빠졌다** — 지금도
+이렇게 돼 있다:
+
+> `{@code CrudPromptBuilderTool#buildBoardFeature}가 위임하는 Facade.`
+
+`CrudPromptBuilderTool`은 이미 삭제된 클래스이고, 실제 호출자는 `BoardGenerationTool`이다
+(`BoardGenerationTool.java` L6, L16에서 `BoardGenerationMcpFacade`를 주입받아 호출하는 것으로
+확인). 이 문서가 "정정이 필요한 산출물" 목록(§6)을 작성할 당시엔 이 파일까지는 포함하지
+않았던 것으로, 이번 재확인에서 새로 드러난 지점이다. 코드 동작에는 영향이 없는 주석 오류다.
+
+### 7.3 원본 검토 이후 달라진 배경 사실 — 리스크 판단에는 영향 없음
+
+이번 세션에서 `ScreenSpecificationPromptFormatter`가 `componentStyles`(색상)와
+`componentGeometry`(좌표·auto-layout·텍스트스타일, 픽셀재현용)까지 지원하도록 확장됐다
+(`Figma_fills_strokes_구현계획.md`, `Figma_픽셀재현_claude경로_구현계획.md`). 이 포매터는
+특정 도메인에 종속되지 않은 공용 서비스라서, 나중에 Board용 프롬프트 빌더를 만든다면
+"스펙 텍스트/JSON 블록 조립" 부분은 그대로 재사용할 수 있다 — 원본 검토 시점보다 이 부분만은
+백지 상태가 아니다.
+
+다만 이 사실은 **§3(가장 큰 리스크)을 줄이지 않는다.** 그 리스크는 포매터 부재가 아니라
+"5개 테이블 역할 슬롯 조인, `BBS_ID+NTT_ID` 복합 PK 방어, 논리삭제, 조회수 증가, 마스터명
+조회 같은 게시판 특유 업무 로직을 Claude가 프롬프트만 보고 직접 작성해야 한다"는 지점이었고,
+포매터 재사용 여부와 무관하게 그대로 남아 있다. 오히려 `componentGeometry`까지 프롬프트에
+얹으면 Claude가 챙겨야 할 정보(업무로직 + 기하 정보 + KRDS 가드레일)가 늘어나 실수 여지는
+검토 당시보다 더 커진다고 보는 게 맞다.
+
+### 7.4 재확인 결론
+
+원본 §5 결론(중간~큰 규모 작업, 설계 의도 확인 없이 진행 시 설계 이탈 우려)은 변경 없이
+유지한다.

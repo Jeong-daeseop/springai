@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Path;
 
 /**
- * {@code CrudPromptBuilderTool#buildMasterDetailPrompt}가 위임하는 Facade. Tool 파라미터 조합을
+ * {@code MasterDetailGenerationTool#buildMasterDetailPrompt}가 위임하는 Facade. Tool 파라미터 조합을
  * {@link MasterDetailGenerationCommand}로 변환 → {@link DispatchMasterDetailGenerationUseCase} 호출 →
  * {@link MasterDetailGenerationResultFormatter}로 응답 문자열을 만든다.
  */

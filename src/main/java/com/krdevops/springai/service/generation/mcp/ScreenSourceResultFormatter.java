@@ -3,7 +3,7 @@ package com.krdevops.springai.service.generation.mcp;
 import com.krdevops.springai.service.generation.model.GeneratedSource;
 import org.springframework.stereotype.Component;
 
-/** {@link GeneratedSource}를 기존 {@code CrudPromptBuilderTool.formatGeneratedScreen()}과 동일한 문자열로 변환한다. */
+/** {@link GeneratedSource}를 사람이 읽기 좋은 응답 문자열로 변환한다. */
 @Component
 public class ScreenSourceResultFormatter {
 

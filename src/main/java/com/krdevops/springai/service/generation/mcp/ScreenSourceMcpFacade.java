@@ -15,7 +15,8 @@ import org.springframework.stereotype.Component;
 import java.nio.file.Path;
 
 /**
- * {@code CrudPromptBuilderTool}의 12개 단일 화면 미리보기 {@code @Tool} 메서드가 위임하는 Facade.
+ * {@code CrudScreenSourceTool}/{@code BoardScreenSourceTool}/{@code MasterDetailScreenSourceTool}의
+ * 총 12개 단일 화면 미리보기 {@code @Tool} 메서드가 위임하는 Facade.
  * Tool 파라미터 조합을 {@link GenerateScreenSourceCommand}로 변환 → Use Case 호출 →
  * {@link ScreenSourceResultFormatter}로 응답 문자열을 만든다. 테이블 미존재 등으로 파일을 생성하지
  * 못하는 경우 {@link ScreenSourceNotFoundException}의 메시지를 그대로 반환한다.
