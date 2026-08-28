@@ -238,7 +238,7 @@
   }
 }, {
   "name" : "buildBoardFeature",
-  "description" : "eGovFrame 게시판(BBS) 소스를 업무 단위로 생성합니다.\n이 Tool은 프로젝트 초기화용이 아닙니다. initializeProject()와는 별도 단계입니다.\n사용자가 게시판(BBS) 생성을 명시했을 때만 호출하세요.\nLETTNBBS(게시글), LETTNBBSMASTER(게시판마스터), LETTNBBSUSE(사용권한) 연동 포함.\n목록/상세/등록/수정/논리삭제 + 조회수 증가 + 마스터 이름 조회를 한 번에 생성합니다.\ndatabase        : 데이터베이스명 (예: com)\ndomain          : 도메인명 PascalCase (예: Bbs)\npackageName     : 패키지명 (예: egovframework.let.bbs)\noutputPath      : 소스 저장 절대경로\nmainTable       : 게시글 테이블 (기본값: LETTNBBS)\nmasterTable     : 게시판 마스터 테이블 (기본값: LETTNBBSMASTER)\nuseTable        : 게시판 사용/권한 테이블 (기본값: LETTNBBSUSE, 생략 가능)\nfileTable       : 첨부파일 묶음 테이블 (기본값: LETTNFILE, 생략 가능)\nfileDetailTable : 첨부파일 상세 테이블 (기본값: LETTNFILEDETAIL, 생략 가능)\negovVersion     : eGovFrame 버전 (기본값: \"5.0\")\nviewType        : 화면 종류 (기본값: \"jsp\", \"thymeleaf\" 선택 가능)\n  - \"jsp\"       : JSP 화면 4개 포함 12개 파일 생성\n  - \"thymeleaf\" : HTML 화면 4개 포함 12개 파일 생성(layoutMode=create 시 17개)\nlayoutMode      : Thymeleaf layout 처리 방식 (선택, 기본값 \"reuse\")\n  - \"reuse\" : 기존 layout 재사용. layout이 없으면 generateThymeleafLayout() 실행 안내와 함께 실패\n  - \"create\": layout 레이어까지 함께 생성\nlayoutView      : 화면이 참조할 layout 경로 (선택, 기본값 \"layout/default\")\nbreadcrumbView  : 화면이 참조할 breadcrumb 경로 (선택, 기본값 \"layout/breadcrumb\")\nprogramFileName : 프로그램 파일명. 명시값이 DB 자동조회보다 우선합니다.\nprogramUrl      : LETTNPROGRMLIST URL. query는 bbsId로, path는 Controller alias로 사용합니다.\nprogramKoreanName: 화면 title/H1/caption에 사용할 프로그램 한글명입니다.\nprogramStorePath: 프로그램 저장 경로 메타데이터입니다.\ndefaultBbsId    : 요청 bbsId가 없을 때만 사용할 게시판 ID이며 마스터 테이블에서 검증합니다.\ndesignReferenceId: analyzeDesignReference()가 반환한 분석 ID입니다.\nscreenSpecificationId: 게시글 주 테이블 기준 APPROVED 화면명세 ID입니다.\n우선순위는 명시 파라미터 > DB 자동조회 > 기존 규칙 fallback 입니다.\nlayout 파일은 generateThymeleafLayout()로 먼저 생성하는 것을 권장합니다.\n정적 리소스    : 생성 화면은 initializeProject()가 만든 /resources/css/styles.css와 /resources/js/krds.min.js를 사용합니다.\n  - WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되며 URL은 /resources/** 로 동일하게 유지합니다.\n  - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.\n",
+  "description" : "eGovFrame 게시판(BBS) 소스를 업무 단위로 생성합니다.\n이 Tool은 프로젝트 초기화용이 아닙니다. initializeProject()와는 별도 단계입니다.\n사용자가 게시판(BBS) 생성을 명시했을 때만 호출하세요.\nLETTNBBS(게시글), LETTNBBSMASTER(게시판마스터), LETTNBBSUSE(사용권한) 연동 포함.\n목록/상세/등록/수정/논리삭제 + 조회수 증가 + 마스터 이름 조회를 한 번에 생성합니다.\ndatabase        : 데이터베이스명 (예: com)\ndomain          : 도메인명 PascalCase (예: Bbs)\npackageName     : 패키지명 (예: egovframework.let.bbs)\noutputPath      : 소스 저장 절대경로\nllmProvider     : 소스 생성 주체 선택 (생략 시 \"auto\" 기본값)\n  - \"auto\"  : 서버 내부 오케스트레이션 — 결정론적으로 파일을 생성·저장\n  - \"claude\": 테이블 구성·스키마·업무 규칙·프로그램 메타데이터를 담은 지시를 반환하고 Claude가 소스를 직접 작성·저장\nmainTable       : 게시글 테이블 (기본값: LETTNBBS)\nmasterTable     : 게시판 마스터 테이블 (기본값: LETTNBBSMASTER)\nuseTable        : 게시판 사용/권한 테이블 (기본값: LETTNBBSUSE, 생략 가능)\nfileTable       : 첨부파일 묶음 테이블 (기본값: LETTNFILE, 생략 가능)\nfileDetailTable : 첨부파일 상세 테이블 (기본값: LETTNFILEDETAIL, 생략 가능)\negovVersion     : eGovFrame 버전 (기본값: \"5.0\")\nviewType        : 화면 종류 (기본값: \"jsp\", \"thymeleaf\" 선택 가능)\n  - \"jsp\"       : JSP 화면 4개 포함 12개 파일 생성\n  - \"thymeleaf\" : HTML 화면 4개 포함 12개 파일 생성(layoutMode=create 시 17개)\nlayoutMode      : Thymeleaf layout 처리 방식 (선택, 기본값 \"reuse\")\n  - \"reuse\" : 기존 layout 재사용. layout이 없으면 generateThymeleafLayout() 실행 안내와 함께 실패\n  - \"create\": layout 레이어까지 함께 생성\nlayoutView      : 화면이 참조할 layout 경로 (선택, 기본값 \"layout/default\")\nbreadcrumbView  : 화면이 참조할 breadcrumb 경로 (선택, 기본값 \"layout/breadcrumb\")\nprogramFileName : 프로그램 파일명. 명시값이 DB 자동조회보다 우선합니다.\nprogramUrl      : LETTNPROGRMLIST URL. query는 bbsId로, path는 Controller alias로 사용합니다.\nprogramKoreanName: 화면 title/H1/caption에 사용할 프로그램 한글명입니다.\nprogramStorePath: 프로그램 저장 경로 메타데이터입니다.\ndefaultBbsId    : 요청 bbsId가 없을 때만 사용할 게시판 ID이며 마스터 테이블에서 검증합니다.\ndesignReferenceId: analyzeDesignReference()가 반환한 분석 ID입니다.\nscreenSpecificationId: 게시글 주 테이블 기준 APPROVED 화면명세 ID입니다.\n우선순위는 명시 파라미터 > DB 자동조회 > 기존 규칙 fallback 입니다.\nlayout 파일은 generateThymeleafLayout()로 먼저 생성하는 것을 권장합니다.\n정적 리소스    : 생성 화면은 initializeProject()가 만든 /resources/css/styles.css와 /resources/js/krds.min.js를 사용합니다.\n  - WAR는 webapp/resources/**, BOOT는 static/resources/** 에 파일이 생성되며 URL은 /resources/** 로 동일하게 유지합니다.\n  - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.\n",
   "inputSchema" : {
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
@@ -271,6 +271,9 @@
         "type" : "string"
       },
       "layoutView" : {
+        "type" : "string"
+      },
+      "llmProvider" : {
         "type" : "string"
       },
       "mainTable" : {
@@ -307,7 +310,7 @@
         "type" : "string"
       }
     },
-    "required" : [ "database", "domain", "packageName", "outputPath" ],
+    "required" : [ "database", "domain", "packageName", "outputPath", "llmProvider" ],
     "type" : "object"
   }
 }, {

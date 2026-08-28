@@ -1,8 +1,8 @@
 package com.krdevops.springai.service.generation.mcp;
 
-import com.krdevops.springai.service.BoardOrchestrationResult;
-import com.krdevops.springai.service.generation.api.GenerateBoardProjectUseCase;
+import com.krdevops.springai.service.generation.api.DispatchBoardGenerationUseCase;
 import com.krdevops.springai.service.generation.board.BoardGenerationCommand;
+import com.krdevops.springai.service.generation.board.BoardToolResult;
 import com.krdevops.springai.service.generation.model.DesignContextReference;
 import com.krdevops.springai.service.generation.model.LayoutOptions;
 import com.krdevops.springai.service.generation.model.ProgramMetadataOverrides;
@@ -14,14 +14,14 @@ import java.nio.file.Path;
 
 /**
  * {@code BoardGenerationTool#buildBoardFeature}가 위임하는 Facade. Tool 파라미터 조합을
- * {@link BoardGenerationCommand}로 변환 → {@link GenerateBoardProjectUseCase} 호출(분기 없음) →
+ * {@link BoardGenerationCommand}로 변환 → {@link DispatchBoardGenerationUseCase} 호출 →
  * {@link BoardGenerationResultFormatter}로 응답 문자열을 만든다.
  */
 @Component
 @RequiredArgsConstructor
 public class BoardGenerationMcpFacade {
 
-    private final GenerateBoardProjectUseCase generateBoardProjectUseCase;
+    private final DispatchBoardGenerationUseCase dispatchBoardGenerationUseCase;
     private final BoardGenerationResultFormatter formatter;
 
     public String buildBoardFeature(
@@ -29,6 +29,7 @@ public class BoardGenerationMcpFacade {
             String domain,
             String packageName,
             String outputPath,
+            String llmProvider,
             @Nullable String mainTable,
             @Nullable String masterTable,
             @Nullable String useTable,
@@ -54,9 +55,10 @@ public class BoardGenerationMcpFacade {
                 new LayoutOptions(layoutMode, layoutView, breadcrumbView),
                 new ProgramMetadataOverrides(programFileName, programUrl, programKoreanName, programStorePath),
                 defaultBbsId,
-                new DesignContextReference(designReferenceId, screenSpecificationId));
+                new DesignContextReference(designReferenceId, screenSpecificationId),
+                llmProvider);
 
-        BoardOrchestrationResult result = generateBoardProjectUseCase.execute(command);
+        BoardToolResult result = dispatchBoardGenerationUseCase.execute(command);
         return formatter.format(result);
     }
 }

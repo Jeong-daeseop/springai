@@ -1,13 +1,24 @@
 package com.krdevops.springai.service.generation.mcp;
 
 import com.krdevops.springai.service.BoardOrchestrationResult;
+import com.krdevops.springai.service.generation.board.BoardToolResult;
 import org.springframework.stereotype.Component;
 
-/** {@link BoardOrchestrationResult}를 MCP 응답 문자열로 조립한다. 리팩터링 전과 동일한 형식을 유지한다. */
+/**
+ * {@link BoardToolResult}를 MCP 응답 문자열로 조립한다. auto 경로(리팩터링 전과 동일한 형식)와
+ * claude 경로(Prompt 문자열 그대로 반환) 모두 지원한다.
+ */
 @Component
 public class BoardGenerationResultFormatter {
 
-    public String format(BoardOrchestrationResult r) {
+    public String format(BoardToolResult result) {
+        if (result instanceof BoardToolResult.Orchestrated orchestrated) {
+            return formatOrchestrated(orchestrated.result());
+        }
+        return ((BoardToolResult.Prompted) result).result().prompt();
+    }
+
+    private String formatOrchestrated(BoardOrchestrationResult r) {
         if (r.tableNotFound()) {
             return "게시판 테이블을 찾을 수 없습니다: " + r.database() + "." + r.mainTable();
         }

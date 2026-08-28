@@ -26,6 +26,9 @@ public class BoardGenerationTool {
             domain          : 도메인명 PascalCase (예: Bbs)
             packageName     : 패키지명 (예: egovframework.let.bbs)
             outputPath      : 소스 저장 절대경로
+            llmProvider     : 소스 생성 주체 선택 (생략 시 "auto" 기본값)
+              - "auto"  : 서버 내부 오케스트레이션 — 결정론적으로 파일을 생성·저장
+              - "claude": 테이블 구성·스키마·업무 규칙·프로그램 메타데이터를 담은 지시를 반환하고 Claude가 소스를 직접 작성·저장
             mainTable       : 게시글 테이블 (기본값: LETTNBBS)
             masterTable     : 게시판 마스터 테이블 (기본값: LETTNBBSMASTER)
             useTable        : 게시판 사용/권한 테이블 (기본값: LETTNBBSUSE, 생략 가능)
@@ -54,6 +57,7 @@ public class BoardGenerationTool {
               - _ds_bundle.css는 styles.css 내부 @import 대상이므로 화면에서 별도 링크하지 않습니다.
             """)
     public String buildBoardFeature(String database, String domain, String packageName, String outputPath,
+                                    String llmProvider,
                                     @Nullable String mainTable, @Nullable String masterTable,
                                     @Nullable String useTable, @Nullable String fileTable,
                                     @Nullable String fileDetailTable, @Nullable String egovVersion,
@@ -63,8 +67,8 @@ public class BoardGenerationTool {
                                     @Nullable String programKoreanName, @Nullable String programStorePath,
                                     @Nullable String defaultBbsId, @Nullable String designReferenceId,
                                     @Nullable String screenSpecificationId) {
-        return facade.buildBoardFeature(database, domain, packageName, outputPath, mainTable, masterTable,
-                useTable, fileTable, fileDetailTable, egovVersion, viewType, layoutMode, layoutView,
+        return facade.buildBoardFeature(database, domain, packageName, outputPath, llmProvider, mainTable,
+                masterTable, useTable, fileTable, fileDetailTable, egovVersion, viewType, layoutMode, layoutView,
                 breadcrumbView, programFileName, programUrl, programKoreanName, programStorePath,
                 defaultBbsId, designReferenceId, screenSpecificationId);
     }

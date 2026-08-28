@@ -2,7 +2,9 @@ package com.krdevops.springai.tools.generation;
 
 import com.krdevops.springai.model.board.BoardGenerationOptions;
 import com.krdevops.springai.service.BoardOrchestrationResult;
+import com.krdevops.springai.service.generation.api.BuildBoardPromptUseCase;
 import com.krdevops.springai.service.generation.api.GenerateBoardProjectUseCase;
+import com.krdevops.springai.service.generation.board.BoardGenerationDispatchService;
 import com.krdevops.springai.service.generation.board.BoardGenerationPipelineService;
 import com.krdevops.springai.service.generation.board.BoardGenerationResultAssembler;
 import com.krdevops.springai.service.generation.board.BoardPipelineResult;
@@ -42,8 +44,10 @@ class BoardGenerationToolTest {
     void setUp() {
         GenerateBoardProjectUseCase generateBoardProjectUseCase =
                 new BoardProjectGenerationService(boardGenerationPipelineService, boardGenerationResultAssembler);
+        BoardGenerationDispatchService dispatchService = new BoardGenerationDispatchService(
+                generateBoardProjectUseCase, mock(BuildBoardPromptUseCase.class));
         BoardGenerationMcpFacade facade =
-                new BoardGenerationMcpFacade(generateBoardProjectUseCase, new BoardGenerationResultFormatter());
+                new BoardGenerationMcpFacade(dispatchService, new BoardGenerationResultFormatter());
         tool = new BoardGenerationTool(facade);
     }
 
@@ -55,7 +59,7 @@ class BoardGenerationToolTest {
                 .thenReturn(new BoardOrchestrationResult(false, "let", "LETTNBBS", "InfoNotice", "/tmp/out",
                         List.of(), List.of(), "OK", "OK"));
 
-        tool.buildBoardFeature("let", "InfoNotice", "egovframework.let.cop.bbs", "/tmp/out",
+        tool.buildBoardFeature("let", "InfoNotice", "egovframework.let.cop.bbs", "/tmp/out", null,
                 null, null, null, null, null, "5.0", "thymeleaf", "reuse", "layout/bbs", "layout/bbs-breadcrumb",
                 "EgovInfoNotice", "/cop/bbs/list.do?bbsId=BBS_NOTICE", "공지사항",
                 "/cop/bbs/", "BBS_NOTICE", null, null);
@@ -73,7 +77,7 @@ class BoardGenerationToolTest {
                 .thenReturn(new BoardOrchestrationResult(false, "let", "LETTNBBS", "InfoNotice", "/tmp/out",
                         List.of(), List.of(), "OK", "OK"));
 
-        tool.buildBoardFeature("let", "InfoNotice", "egovframework.let.cop.bbs", "/tmp/out",
+        tool.buildBoardFeature("let", "InfoNotice", "egovframework.let.cop.bbs", "/tmp/out", null,
                 null, null, null, null, null, "5.0", "thymeleaf", "reuse", null, null,
                 null, null, null, null, null, "analysis-1", "spec-1");
 
