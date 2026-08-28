@@ -234,7 +234,11 @@ public class CrudPromptBuilderService {
                 sb.append("[디자인 기하 정보 사용 규칙]\n")
                         .append("- componentGeometry는 Figma 원본 좌표·간격·색상·폰트 참고값입니다.\n")
                         .append("- 화면 구조와 마크업은 반드시 기존 krds-*/egov-* 클래스 체계를 그대로 유지하세요.\n")
-                        .append("- 임의의 커스텀 클래스나 인라인 style로 KRDS 구조를 대체하지 마세요.\n\n");
+                        .append("- 임의의 커스텀 클래스나 인라인 style로 KRDS 구조를 대체하지 마세요.\n")
+                        .append("- 좌표를 인라인 style이나 고정 px width/height로 옮기면 반응형이 깨집니다. ")
+                        .append("표·검색패널 등 기존 KRDS 클래스에는 이미 반응형 @media 규칙이 내장되어 ")
+                        .append("있으니(예: krds-table-wrap의 767px 이하 모바일 대응) 클래스만 정확히 ")
+                        .append("유지하세요.\n\n");
             }
             boolean detailSubsetRequested = screenSpecification.pages().stream()
                     .filter(page -> "detail".equalsIgnoreCase(page.id()))

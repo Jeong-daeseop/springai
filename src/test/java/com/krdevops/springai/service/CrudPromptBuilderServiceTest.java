@@ -1,10 +1,19 @@
 package com.krdevops.springai.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.model.design.ActionPlacement;
+import com.krdevops.springai.model.design.DataSourceSpec;
+import com.krdevops.springai.model.design.FormColumnLayout;
+import com.krdevops.springai.model.design.LayoutDensity;
+import com.krdevops.springai.model.design.ScreenSpecStatus;
+import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.model.design.SearchPanelPlacement;
+import com.krdevops.springai.model.design.UiDesignSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -160,6 +169,29 @@ class CrudPromptBuilderServiceTest {
         assertThat(detailSection).doesNotContain("passwordHash");
         assertThat(result).contains("private String passwordHash;")
                 .contains("상세 화면에는 다음 필드를 표시하지 마세요: PASSWORD_HASH");
+    }
+
+    @Test
+    void buildFullCrudPrompt_withComponentGeometry_includesResponsiveGuardrail() {
+        UiDesignSpec.NodeGeometry geometry = new UiDesignSpec.NodeGeometry(
+                "1:1", "FRAME", "목록", 0, 0, 1440, 900,
+                null, null, null, null, null, null, List.of());
+        ScreenSpecification screenSpecification = new ScreenSpecification(
+                "spec-1", 1, ScreenSpecStatus.APPROVED, "직원목록", "crud", "CRUD_LIST",
+                "com", "LETTNEMPLYRINFO", List.of(DataSourceSpec.primary("com", "LETTNEMPLYRINFO")),
+                List.of(), List.of(), LayoutDensity.STANDARD, FormColumnLayout.SINGLE_COLUMN,
+                ActionPlacement.TOP_RIGHT, SearchPanelPlacement.ABOVE_TABLE, LocalDateTime.now(),
+                null, null, List.of(), List.of(geometry));
+
+        String result = service.buildFullCrudPrompt(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp",
+                "/tmp/egov-web", "5.0", "thymeleaf", "reuse", null, null, null, screenSpecification);
+
+        assertThat(result)
+                .contains("componentGeometry")
+                .contains("krds-*/egov-* 클래스 체계")
+                .contains("고정 px width/height로 옮기면 반응형이 깨집니다")
+                .contains("krds-table-wrap의 767px 이하 모바일 대응");
     }
 
     private static List<Map<String, Object>> fakeColumns() {

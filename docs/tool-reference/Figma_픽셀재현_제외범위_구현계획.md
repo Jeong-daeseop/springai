@@ -145,23 +145,39 @@ auto 경로(CSS 자동주입)는 이미 기각됐으므로, 이 트랙은 **clau
 아니라, 지금 프롬프트에 넘기는 `componentGeometry`(절대 좌표)를 Claude가 그대로 하드코딩된
 `position:absolute`로 옮기지 않도록 **가드레일 문구를 보강**하는 작업이다.
 
-### C.2 설계
+### C.2 설계 — 착수 전 확인 결과, 애초 가정이 틀렸다
 
-`CrudPromptBuilderService`/`MasterDetailService`의 기존 가드레일 문구(§`Figma_픽셀재현_claude경로_구현계획.md`
-§5.4)에 한 줄 추가:
+`src/main/resources/templates/egov/_ds_bundle.css.tpl`(KRDS CSS 번들 원본)을 실제로 grep해본
+결과, **`krds-grid`/`krds-flex`/`krds-col`/`krds-row` 같은 범용 반응형 유틸리티 클래스는 이
+KRDS 배포판에 아예 없다**(0건). 대신 확인된 사실은 이렇다:
+
+```css
+@media(max-width:767px){.krds-table-wrap .tbl.data thead th{font-size:...}}
+@media(max-width:767px){.krds-table-wrap{overflow-x:auto; width:calc(100vw - ...)}}
+```
+
+`.krds-table-wrap` 같은 **기존 컴포넌트 클래스 자체에 반응형 `@media` 규칙이 이미 내장**되어
+있다. 즉 "Bootstrap처럼 그리드 유틸리티를 조합해서 반응형을 만드는" 방식이 아니라, "정해진
+KRDS 클래스를 그대로 쓰기만 하면 반응형은 KRDS CSS가 알아서 처리하는" 방식이다. 그래서
+가드레일 문구도 "그리드 유틸리티를 써라"가 아니라 **"좌표를 인라인/고정폭으로 옮기지 말고
+기존 KRDS 클래스를 그대로 유지하라"**로 수정했다:
 
 ```java
-sb.append("- componentGeometry의 x/y/width/height를 고정 픽셀 값으로 그대로 옮기지 마세요. ")
-  .append("KRDS 그리드/flex 유틸리티 클래스로 상대적 배치를 구성하고, 좌표는 비율·정렬 관계를 ")
-  .append("파악하는 참고용으로만 쓰세요.\n");
+sb.append("- 좌표를 인라인 style이나 고정 px width/height로 옮기면 반응형이 깨집니다. ")
+  .append("표·검색패널 등 기존 KRDS 클래스에는 이미 반응형 @media 규칙이 내장되어 ")
+  .append("있으니(예: krds-table-wrap의 767px 이하 모바일 대응) 클래스만 정확히 유지하세요.\n");
 ```
+
+`CrudPromptBuilderService`/`MasterDetailService`/`BoardPromptGenerationService` 3곳의
+기존 `componentGeometry` 가드레일 블록에 동일하게 추가한다(3곳 모두 같은 블록을 갖고 있음,
+§Figma_픽셀재현_claude경로_구현계획.md §5.4 및 Board llmProvider 구현 시 재사용).
 
 ### C.3 리스크
 
 | 리스크 | 대응 |
 |---|---|
 | 문구만으로는 Claude가 100% 따르지 않을 수 있음 | LLM 지시의 근본적 한계 — 완전 보장 불가, 문서화만 |
-| KRDS 자체의 반응형 그리드 유틸리티 클래스명을 정확히 모름 | `styles.css`/기존 KRDS 문서에서 실제 클래스명 확인 후 프롬프트에 구체적으로 명시(예: `krds-grid-*`) — 구현 착수 전 실제 클래스명 확인 필요 |
+| ~~KRDS 그리드 유틸리티 클래스명을 모름~~ | 착수 전 확인 결과 해당 클래스 자체가 없음을 확인 — 위 설계로 대체, 리스크 해소 |
 
 ### C.4 1차 구현 제외
 
@@ -223,12 +239,12 @@ sb.append("- componentGeometry의 x/y/width/height를 고정 픽셀 값으로 �
 | 3 | 크기 허용 오차(5px) 비교 추가 | 완료 |
 | 4 | 테스트 추가(인덱스 포함 이름+크기 오차 케이스, 비연속 그룹핑 케이스) | 완료(2건, 기존 14건 회귀 없음 확인) |
 
-### Phase 2 — 트랙 C (작음, 독립적)
-| 순서 | 작업 |
-|---|---|
-| 5 | 실제 KRDS 반응형 유틸리티 클래스명 확인(착수 전 필수) |
-| 6 | `CrudPromptBuilderService`/`MasterDetailService` 가드레일 문구 보강 |
-| 7 | 테스트 추가(프롬프트에 새 문구 포함 확인) |
+### Phase 2 — 트랙 C (완료)
+| 순서 | 작업 | 상태 |
+|---|---|---|
+| 5 | 실제 KRDS 반응형 유틸리티 클래스명 확인(착수 전 필수) | 완료 — grid/flex 유틸리티 클래스 자체가 없고, `.krds-table-wrap` 등 컴포넌트 클래스에 `@media` 규칙이 내장돼 있음을 확인(§C.2) |
+| 6 | `CrudPromptBuilderService`/`MasterDetailService`/`BoardPromptGenerationService` 가드레일 문구 보강 | 완료(3곳 모두) |
+| 7 | 테스트 추가(프롬프트에 새 문구 포함 확인) | 완료(Crud/MasterDetail 각 1건 신규, Board는 기존 테스트가 이미 검증) |
 
 ### Phase 3 — 트랙 A (중간 규모)
 | 순서 | 작업 |

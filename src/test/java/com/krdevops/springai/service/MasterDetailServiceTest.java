@@ -1,10 +1,19 @@
 package com.krdevops.springai.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.krdevops.springai.model.design.ActionPlacement;
+import com.krdevops.springai.model.design.DataSourceSpec;
+import com.krdevops.springai.model.design.FormColumnLayout;
+import com.krdevops.springai.model.design.LayoutDensity;
+import com.krdevops.springai.model.design.ScreenSpecStatus;
+import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.model.design.SearchPanelPlacement;
+import com.krdevops.springai.model.design.UiDesignSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -98,6 +107,30 @@ class MasterDetailServiceTest {
                 .contains("Step 19: EgovBbsMasterUpdt.html")
                 .contains("✅ 19개 파일 생성 완료")
                 .doesNotContain("generateThymeleafLayout");
+    }
+
+    @Test
+    void buildMasterDetailPrompt_withComponentGeometry_includesResponsiveGuardrail() {
+        UiDesignSpec.NodeGeometry geometry = new UiDesignSpec.NodeGeometry(
+                "1:1", "FRAME", "목록", 0, 0, 1440, 900,
+                null, null, null, null, null, null, List.of());
+        ScreenSpecification screenSpecification = new ScreenSpecification(
+                "spec-1", 1, ScreenSpecStatus.APPROVED, "게시판마스터", "master-detail", "MASTER_DETAIL",
+                "com", "LETTNBBSMASTER", List.of(DataSourceSpec.primary("com", "LETTNBBSMASTER")),
+                List.of(), List.of(), LayoutDensity.STANDARD, FormColumnLayout.SINGLE_COLUMN,
+                ActionPlacement.TOP_RIGHT, SearchPanelPlacement.ABOVE_TABLE, LocalDateTime.now(),
+                null, null, List.of(), List.of(geometry));
+
+        String result = service.buildMasterDetailPrompt(
+                "com", "LETTNBBSMASTER", "LETTNBBSUSE",
+                "BbsMaster", "egovframework.let.bbs", "/tmp/egov-web",
+                "thymeleaf", "reuse", null, null, screenSpecification);
+
+        assertThat(result)
+                .contains("componentGeometry")
+                .contains("krds-*/egov-* 클래스 체계")
+                .contains("고정 px width/height로 옮기면 반응형이 깨집니다")
+                .contains("krds-table-wrap의 767px 이하 모바일 대응");
     }
 
     private Map<String, Object> column(String name, String type, Integer maxLength,
