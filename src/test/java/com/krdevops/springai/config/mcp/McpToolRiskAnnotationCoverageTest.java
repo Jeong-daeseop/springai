@@ -52,6 +52,7 @@ class McpToolRiskAnnotationCoverageTest {
         // R8(04번 문서 §11, 2026-08-20): captureWebPageMultiViewport 추가로 99 → 100.
         // R8 Part B(04번 문서 §11, 2026-08-20): prepareFigmaBundleImport 추가로 100 → 101.
         // Region Ownership Task 8: adoptCurrentAsBaseline 추가로 101 → 102.
-        assertThat(scannedMethods).isEqualTo(102);
+        // 픽셀재현 제외범위 구현계획 트랙 A: compareDesignFidelity 추가로 102 → 103.
+        assertThat(scannedMethods).isEqualTo(103);
     }
 }

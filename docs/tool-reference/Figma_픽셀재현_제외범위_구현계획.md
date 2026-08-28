@@ -246,14 +246,14 @@ sb.append("- 좌표를 인라인 style이나 고정 px width/height로 옮기면
 | 6 | `CrudPromptBuilderService`/`MasterDetailService`/`BoardPromptGenerationService` 가드레일 문구 보강 | 완료(3곳 모두) |
 | 7 | 테스트 추가(프롬프트에 새 문구 포함 확인) | 완료(Crud/MasterDetail 각 1건 신규, Board는 기존 테스트가 이미 검증) |
 
-### Phase 3 — 트랙 A (중간 규모)
-| 순서 | 작업 |
-|---|---|
-| 8 | `DesignFidelityReport` 모델 신설 |
-| 9 | `DesignFidelityComparator` 구현(Jaccard 유사도 4종) |
-| 10 | `DesignFidelityTool` 신규 + `McpConfig` 등록 |
-| 11 | MCP baseline 재생성 |
-| 12 | 테스트 추가(완전 일치/부분 일치/완전 불일치 케이스) |
+### Phase 3 — 트랙 A (완료)
+| 순서 | 작업 | 상태 |
+|---|---|---|
+| 8 | `DesignFidelityReport` 모델 신설 | 완료 |
+| 9 | `DesignFidelityComparator` 구현(Jaccard 유사도 4종) | 완료 |
+| 10 | `DesignFidelityTool` 신규 + `McpConfig` 등록 | 완료 |
+| 11 | MCP baseline 재생성 | 완료(`McpToolDefinitionSnapshotTest`/`McpToolRiskAnnotationCoverageTest`의 하드코딩된 개수 상수 37→38, 102→103 갱신 포함) |
+| 12 | 테스트 추가(완전 일치/부분 일치/완전 불일치 케이스) | 완료(`DesignFidelityComparatorTest` 3건 + `DesignFidelityToolTest` 1건) |
 
 ### Phase 4 — 트랙 B (가장 큼, 보안 검토 필요)
 | 순서 | 작업 |

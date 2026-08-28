@@ -669,6 +669,23 @@
     "type" : "object"
   }
 }, {
+  "name" : "compareDesignFidelity",
+  "description" : "Figma 원본 디자인 분석 결과와, 생성된 화면을 captureWebPage() + analyzeCapturedDesign()으로\n재캡처해 분석한 결과를 비교해 구조적 일치도를 계산합니다.\n픽셀 이미지 비교가 아니라 archetype/컴포넌트 타입/필드 역할/액션 타입 집합의 Jaccard\n유사도(0.0~1.0)이며, 시각적(색상·정확한 좌표) 일치를 보장하지 않습니다.\noriginalAnalysisId: analyzeFigmaReference()가 반환한 analysisId입니다.\nrenderedAnalysisId: 생성된 화면을 captureWebPage()로 캡처한 뒤 analyzeCapturedDesign()으로\n  만든 analysisId입니다.\n두 analysisId 모두 존재하지 않으면 실패합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "originalAnalysisId" : {
+        "type" : "string"
+      },
+      "renderedAnalysisId" : {
+        "type" : "string"
+      }
+    },
+    "required" : [ "originalAnalysisId", "renderedAnalysisId" ],
+    "type" : "object"
+  }
+}, {
   "name" : "convertPlatform",
   "description" : "기존 화면을 다른 플랫폼으로 변환합니다 (Desktop ↔ Tablet ↔ Mobile).\nComponent 선택(Swap)을 자동 적용합니다.\n\n입력:\n- prompt: 변환 지시사항 (참고용 텍스트일 뿐, 실제 변환 결과에는 영향 없음)\n- fileKey: Figma 파일 Key\n- sourceNodeIds: 원본 화면을 가리키는 참고용 노드 ID(실제 변환에는 사용하지 않음 — 계약\n  호환을 위해 유지)\n- targetPlatform: 목표 플랫폼 (DESKTOP / TABLET / MOBILE)\n- screenSpecificationId: 변환할 기존 화면명세 ID(필수 — nodeId→화면명세 자동 매핑이 없어\n  직접 지정해야 합니다). 생략하면 ANALYZED에서 멈춥니다.\n\n출력: FigmaDesignOperation\n\n주의:\n- targetPlatform 필수 (대소문자 구분)\n- generateFigmaBundleForOperation 단계에서 screenSpecificationId가 APPROVED 상태여야\n  변환됩니다.\n- Grid 폭·열 수 재계산은 지원하지 않습니다(FigmaScreenSpec에 그런 필드가 없음) —\n  Component Swap과 viewport 표시만 실제로 반영되며, 결과에 경고 Issue가 남습니다.\n",
   "inputSchema" : {
