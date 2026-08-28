@@ -255,16 +255,26 @@ sb.append("- 좌표를 인라인 style이나 고정 px width/height로 옮기면
 | 11 | MCP baseline 재생성 | 완료(`McpToolDefinitionSnapshotTest`/`McpToolRiskAnnotationCoverageTest`의 하드코딩된 개수 상수 37→38, 102→103 갱신 포함) |
 | 12 | 테스트 추가(완전 일치/부분 일치/완전 불일치 케이스) | 완료(`DesignFidelityComparatorTest` 3건 + `DesignFidelityToolTest` 1건) |
 
-### Phase 4 — 트랙 B (가장 큼, 보안 검토 필요)
-| 순서 | 작업 |
-|---|---|
-| 13 | Figma CDN 도메인 화이트리스트 확정(실제 API 응답으로 확인) |
-| 14 | `UiDesignSpec`에 이미지 노드 id 목록 필드 추가(compat 생성자) |
-| 15 | `FigmaDesignSpecMapper`에서 이미지/벡터 노드 수집 로직 추가 |
-| 16 | `FigmaAssetDownloadService` 구현(다운로드 + Path Traversal 방어 + `ApprovedProjectWritePort` 연동) |
-| 17 | `FigmaAssetDownloadTool` 신규 + `McpConfig` 등록 |
-| 18 | MCP baseline 재생성 |
-| 19 | 보안 테스트 추가(악의적 URL/nodeId 차단 확인) + 정상 케이스 테스트 |
+### Phase 4 — 트랙 B (완료, 단 §B.5 잔여 위험 있음)
+| 순서 | 작업 | 상태 |
+|---|---|---|
+| 13 | Figma CDN 도메인 화이트리스트 확정(실제 API 응답으로 확인) | **미검증** — `FIGMA_ACCESS_TOKEN`이 설정된 실 연동 환경이 이 세션에 없어 라이브 확인 불가. 사용자 승인 하에 `*.figma.com`을 추정치로 진행(§B.5) |
+| 14 | `UiDesignSpec`에 이미지 노드 id 목록 필드(`imageNodeIds`) 추가(compat 생성자) | 완료 |
+| 15 | `FigmaDesignSpecMapper`에서 이미지/벡터 노드 수집 로직 추가 | 완료(`VECTOR` 타입 또는 `fills[].type=="IMAGE"`) |
+| 16 | `FigmaAssetDownloadService` 구현(다운로드 + Path Traversal/SSRF 방어 + `ApprovedProjectWritePort` 연동) | 완료 |
+| 17 | `FigmaAssetDownloadTool` 신규 + `McpConfig` 등록 | 완료 |
+| 18 | MCP baseline 재생성 | 완료(개수 상수 38→39, 103→104(McpToolDefinitionSnapshotTest) / 104(McpToolRiskAnnotationCoverageTest)) |
+| 19 | 보안 테스트 추가(악의적 URL/nodeId 차단 확인) + 정상 케이스 테스트 | 완료(5건) — 단 **실제 네트워크로 `*.figma.com`에서 다운로드하는 경로 자체는 테스트되지 않음**(§B.5) |
+
+### B.5 잔여 위험 — 실사용 전 반드시 재확인 필요
+
+- **도메인 화이트리스트 미검증**: `FigmaAssetDownloadService.ALLOWED_HOST_SUFFIX = ".figma.com"`은
+  라이브 응답으로 확인하지 못한 추정치다. 실제 `queryImages()` 응답 도메인이 다르면 정상적인
+  다운로드도 전부 `SecurityException`으로 차단된다. `FIGMA_ACCESS_TOKEN`이 있는 환경에서
+  `analyzeFigmaReference()` → `downloadFigmaAssets()`를 실제로 한 번 실행해 검증 필요.
+- **실제 다운로드 경로 미검증**: 테스트는 `download()`를 오버라이드해 네트워크 호출 자체를
+  건너뛴다(`FigmaAssetDownloadServiceTest`). 실제 HTTP 다운로드·타임아웃·10MB 상한 로직은
+  라이브 환경에서 별도 확인이 필요하다.
 
 ---
 

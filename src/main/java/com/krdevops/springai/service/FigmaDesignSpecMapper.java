@@ -51,9 +51,31 @@ public class FigmaDesignSpecMapper {
         if (components.isEmpty()) uncertainties.add("표준 UI 컴포넌트를 확정할 수 없습니다.");
         if (fields.isEmpty()) uncertainties.add("시맨틱 필드 역할을 확정할 수 없습니다.");
         List<UiDesignSpec.NodeGeometry> geometryTree = List.of(buildGeometryTree(root, uncertainties));
+        List<String> imageNodeIds = imageNodeIds(visibleNodes);
         return new UiDesignSpec(archetype(root.path("name").asText(""), featureType), layout,
                 components, actions, fields, tokens, interactions(visibleNodes),
-                List.copyOf(new LinkedHashSet<>(uncertainties)), geometryTree);
+                List.copyOf(new LinkedHashSet<>(uncertainties)), geometryTree, imageNodeIds);
+    }
+
+    /** 이미지 asset 다운로드 대상(트랙 B) 후보 노드 id를 수집한다 — VECTOR 타입이거나
+     * fills 배열에 IMAGE 페인트가 있는 노드. */
+    private List<String> imageNodeIds(List<NodeInfo> nodes) {
+        List<String> result = new ArrayList<>();
+        for (NodeInfo node : nodes) {
+            boolean isImage = "VECTOR".equals(node.type()) || hasImageFill(node.raw().path("fills"));
+            if (!isImage) continue;
+            String id = node.raw().path("id").asText("");
+            if (!id.isBlank()) result.add(id);
+        }
+        return result;
+    }
+
+    private boolean hasImageFill(JsonNode fills) {
+        if (!fills.isArray()) return false;
+        for (JsonNode fill : fills) {
+            if ("IMAGE".equals(fill.path("type").asText())) return true;
+        }
+        return false;
     }
 
     private void validateRootNode(JsonNode root) {

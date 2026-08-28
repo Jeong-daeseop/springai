@@ -330,6 +330,30 @@ class FigmaDesignSpecMapperTest {
     }
 
     @Test
+    void collectsImageNodeIdsFromVectorAndImageFillNodes() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "id": "1:1", "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"id":"1:2","type":"VECTOR","name":"아이콘",
+                     "absoluteBoundingBox":{"x":0,"y":0,"width":24,"height":24}},
+                    {"id":"1:3","type":"RECTANGLE","name":"배경사진",
+                     "absoluteBoundingBox":{"x":0,"y":0,"width":100,"height":100},
+                     "fills":[{"type":"IMAGE","visible":true}]},
+                    {"id":"1:4","type":"COMPONENT","name":"버튼",
+                     "absoluteBoundingBox":{"x":0,"y":0,"width":100,"height":40},
+                     "fills":[{"type":"SOLID","visible":true,"color":{"r":1,"g":0,"b":0,"a":1}}]}
+                  ]
+                }
+                """));
+
+        var result = mapper.map(document, "crud");
+
+        assertThat(result.imageNodeIds()).containsExactlyInAnyOrder("1:2", "1:3");
+    }
+
+    @Test
     void componentsWithoutFillsOrStrokesHaveNullColors() throws Exception {
         var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
                 {

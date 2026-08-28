@@ -14,7 +14,8 @@ public record UiDesignSpec(
         Map<String, String> tokens,
         List<InteractionSpec> interactions,
         List<String> uncertainties,
-        List<NodeGeometry> geometryTree
+        List<NodeGeometry> geometryTree,
+        List<String> imageNodeIds
 ) {
     public static final String SCHEMA_VERSION = "ui-design-spec-v1";
 
@@ -26,6 +27,17 @@ public record UiDesignSpec(
         interactions = interactions == null ? List.of() : List.copyOf(interactions);
         uncertainties = uncertainties == null ? List.of() : List.copyOf(uncertainties);
         geometryTree = geometryTree == null ? List.of() : List.copyOf(geometryTree);
+        imageNodeIds = imageNodeIds == null ? List.of() : List.copyOf(imageNodeIds);
+    }
+
+    /** imageNodeIds 도입 전 호출자 호환. */
+    public UiDesignSpec(
+            String archetype, LayoutSpec layout, List<ComponentSpec> components,
+            List<ActionSpec> actions, List<FieldHint> fieldHints, Map<String, String> tokens,
+            List<InteractionSpec> interactions, List<String> uncertainties,
+            List<NodeGeometry> geometryTree) {
+        this(archetype, layout, components, actions, fieldHints, tokens, interactions,
+                uncertainties, geometryTree, List.of());
     }
 
     /** geometryTree 도입 전 호출자 호환. */
@@ -34,7 +46,7 @@ public record UiDesignSpec(
             List<ActionSpec> actions, List<FieldHint> fieldHints, Map<String, String> tokens,
             List<InteractionSpec> interactions, List<String> uncertainties) {
         this(archetype, layout, components, actions, fieldHints, tokens, interactions,
-                uncertainties, List.of());
+                uncertainties, List.of(), List.of());
     }
 
     public static UiDesignSpec empty(String archetype) {
