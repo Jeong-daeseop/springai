@@ -321,7 +321,9 @@ public class ScreenSpecAssembler {
     }
 
     private String defaultArchetype(String featureType) {
-        return "board".equalsIgnoreCase(featureType) ? "BOARD" : "CRUD";
+        if ("board".equalsIgnoreCase(featureType)) return "BOARD";
+        if ("master-detail".equalsIgnoreCase(featureType)) return "MASTER_DETAIL";
+        return "CRUD";
     }
 
     private String label(Map<String, Object> column, String fallback) {

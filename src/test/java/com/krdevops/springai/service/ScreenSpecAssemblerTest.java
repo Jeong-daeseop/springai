@@ -283,6 +283,14 @@ class ScreenSpecAssemblerTest {
         assertThat(result.componentGeometry()).isEmpty();
     }
 
+    @Test
+    void masterDetailFeatureTypeIsRecognizedWithoutDesignReference() {
+        ScreenSpecification result = assembler.assemble(
+                "com", "LETTNMASTER", "마스터상세", "master-detail", columns(), null);
+
+        assertThat(result.archetype()).isEqualTo("MASTER_DETAIL");
+    }
+
     private List<Map<String, Object>> columns() {
         return List.of(
                 column("NTT_ID", "bigint", "NO", "게시물ID", "PRI"),
