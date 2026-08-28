@@ -70,7 +70,9 @@ class McpToolDefinitionSnapshotTest {
     // R8(04번 문서 §11, 2026-08-20): captureWebPageMultiViewport 추가로 99 → 100.
     // R8 Part B(04번 문서 §11, 2026-08-20): prepareFigmaBundleImport 추가로 100 → 101.
     // Region Ownership Task 8: adoptCurrentAsBaseline 추가로 101 → 102.
-    private static final int EXPECTED_TOOL_METHOD_COUNT = 104;
+    // 픽셀재현 제외범위 구현계획 트랙 A/B: compareDesignFidelity/downloadFigmaAssets 추가로 102 → 104.
+    // 픽셀재현 2차구현 반응형검증 구현계획: checkResponsiveRegression 추가로 104 → 105.
+    private static final int EXPECTED_TOOL_METHOD_COUNT = 105;
 
     /**
      * McpConfig.allToolCallbacks(...)의 toolObjects(...) 인자 개수(등록된 *Tool 컴포넌트 클래스 수).
@@ -82,8 +84,10 @@ class McpToolDefinitionSnapshotTest {
      * WP8 3차 pass 업데이트: 34 → 35 (ThymeleafBaselineApprovalTool 추가)
      * WP6 생성 진입점 결선: 35 → 36 (ThymeleafBindingGenerationTool 추가)
      * Region Ownership Task 8: 36 → 37 (CrudGenerationSnapshotTool 추가)
+     * 픽셀재현 제외범위 구현계획 트랙 A/B: 37 → 39 (DesignFidelityTool, FigmaAssetDownloadTool 추가)
+     * 픽셀재현 2차구현 반응형검증 구현계획: 39 → 40 (ResponsiveRegressionTool 추가)
      */
-    private static final int EXPECTED_TOOL_OBJECT_COUNT = 39;
+    private static final int EXPECTED_TOOL_OBJECT_COUNT = 40;
 
     @Autowired
     private ToolCallbackProvider allToolCallbacks;

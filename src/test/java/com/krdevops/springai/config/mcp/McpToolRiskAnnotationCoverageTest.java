@@ -54,6 +54,7 @@ class McpToolRiskAnnotationCoverageTest {
         // Region Ownership Task 8: adoptCurrentAsBaseline 추가로 101 → 102.
         // 픽셀재현 제외범위 구현계획 트랙 A: compareDesignFidelity 추가로 102 → 103.
         // 픽셀재현 제외범위 구현계획 트랙 B: downloadFigmaAssets 추가로 103 → 104.
-        assertThat(scannedMethods).isEqualTo(104);
+        // 픽셀재현 2차구현 반응형검증 구현계획: checkResponsiveRegression 추가로 104 → 105.
+        assertThat(scannedMethods).isEqualTo(105);
     }
 }

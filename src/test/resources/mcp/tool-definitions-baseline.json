@@ -669,6 +669,95 @@
     "type" : "object"
   }
 }, {
+  "name" : "checkResponsiveRegression",
+  "description" : "claude 경로로 생성된 화면이 componentGeometry 반응형 가드레일 지시를 실제로\n지켰는지 확인합니다. captureWebPageMultiViewport와 동일하게 Desktop/Tablet/Mobile\n3개 viewport를 캡처하고, 컴포넌트가 브레이크포인트 사이에서 재배치(MOVED)됐는지\n집계해 반환합니다. MOVED는 가드레일 위반(좌표를 인라인/고정폭으로 옮김) 의심\n신호일 뿐이며, 의도된 반응형 재배치일 수도 있으므로 최종 판단은 사람이 해야\n합니다. 서버는 미리 실행되어 있어야 합니다.\n",
+  "inputSchema" : {
+    "$schema" : "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties" : false,
+    "properties" : {
+      "request" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "featureType" : {
+            "type" : "string"
+          },
+          "interactions" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "selector" : {
+                  "type" : "string"
+                },
+                "type" : {
+                  "type" : "string"
+                },
+                "value" : {
+                  "type" : "string"
+                }
+              },
+              "required" : [ "type" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "profile" : {
+            "const" : "LOCAL_WEB",
+            "type" : "string"
+          },
+          "readiness" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "hiddenSelector" : {
+                "type" : "string"
+              },
+              "readySelector" : {
+                "type" : "string"
+              },
+              "timeoutMillis" : {
+                "format" : "int32",
+                "type" : "integer"
+              }
+            },
+            "required" : [ "hiddenSelector", "readySelector", "timeoutMillis" ],
+            "type" : "object"
+          },
+          "storageStateRef" : {
+            "type" : "string"
+          },
+          "url" : {
+            "type" : "string"
+          },
+          "viewport" : {
+            "additionalProperties" : false,
+            "properties" : {
+              "deviceScaleFactor" : {
+                "format" : "double",
+                "type" : "number"
+              },
+              "height" : {
+                "format" : "int32",
+                "type" : "integer"
+              },
+              "name" : {
+                "type" : "string"
+              },
+              "width" : {
+                "format" : "int32",
+                "type" : "integer"
+              }
+            },
+            "required" : [ "deviceScaleFactor", "height", "name", "width" ],
+            "type" : "object"
+          }
+        },
+        "required" : [ "featureType", "profile", "readiness", "url", "viewport" ],
+        "type" : "object"
+      }
+    },
+    "required" : [ "request" ],
+    "type" : "object"
+  }
+}, {
   "name" : "compareDesignFidelity",
   "description" : "Figma 원본 디자인 분석 결과와, 생성된 화면을 captureWebPage() + analyzeCapturedDesign()으로\n재캡처해 분석한 결과를 비교해 구조적 일치도를 계산합니다.\n픽셀 이미지 비교가 아니라 archetype/컴포넌트 타입/필드 역할/액션 타입 집합의 Jaccard\n유사도(0.0~1.0)이며, 시각적(색상·정확한 좌표) 일치를 보장하지 않습니다.\noriginalAnalysisId: analyzeFigmaReference()가 반환한 analysisId입니다.\nrenderedAnalysisId: 생성된 화면을 captureWebPage()로 캡처한 뒤 analyzeCapturedDesign()으로\n  만든 analysisId입니다.\n두 analysisId 모두 존재하지 않으면 실패합니다.\n",
   "inputSchema" : {
