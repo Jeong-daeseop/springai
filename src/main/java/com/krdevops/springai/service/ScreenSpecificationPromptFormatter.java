@@ -56,6 +56,11 @@ public class ScreenSpecificationPromptFormatter {
                 result.append('\n');
             }
         }
+        if (!specification.tokens().isEmpty()) {
+            result.append("  tokens(화면 전체 배경색·폰트 참고값):\n");
+            specification.tokens().forEach((key, value) ->
+                    result.append("    - ").append(key).append(" = ").append(value).append('\n'));
+        }
         if (!specification.componentGeometry().isEmpty()) {
             result.append("  componentGeometry(JSON, 참고용 — 정확한 좌표/간격/색상/폰트는 이 값을 ")
                     .append("따르되 krds-*/egov-* 클래스 구조와 컴포넌트 트리는 기존 템플릿 규칙을 유지하세요):\n");

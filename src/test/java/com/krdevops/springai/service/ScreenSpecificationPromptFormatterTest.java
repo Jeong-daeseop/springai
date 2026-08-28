@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -80,5 +81,33 @@ class ScreenSpecificationPromptFormatterTest {
         String prompt = formatter.format(specification);
 
         assertThat(prompt).doesNotContain("componentGeometry(JSON");
+    }
+
+    @Test
+    void includesTokensBlockWhenPresent() {
+        ScreenSpecification specification = new ScreenSpecification(
+                "spec-5", 1, ScreenSpecStatus.APPROVED, "직원목록", "crud", "CRUD_LIST",
+                "com", "LETTNEMPLYRINFO", List.of(DataSourceSpec.primary("com", "LETTNEMPLYRINFO")),
+                List.of(), List.of(), LayoutDensity.STANDARD, FormColumnLayout.SINGLE_COLUMN,
+                ActionPlacement.TOP_RIGHT, SearchPanelPlacement.ABOVE_TABLE, LocalDateTime.now(),
+                null, null, List.of(), List.of(),
+                Map.of("backgroundColor", "rgba(255,255,255,1.00)"));
+
+        String prompt = formatter.format(specification);
+
+        assertThat(prompt).contains("tokens(화면 전체 배경색·폰트 참고값):");
+        assertThat(prompt).contains("- backgroundColor = rgba(255,255,255,1.00)");
+    }
+
+    @Test
+    void omitsTokensBlockWhenEmpty() {
+        ScreenSpecification specification = new ScreenSpecification(
+                "spec-6", 1, ScreenSpecStatus.APPROVED, "직원목록", "crud", "CRUD_LIST",
+                "com", "LETTNEMPLYRINFO", List.of(DataSourceSpec.primary("com", "LETTNEMPLYRINFO")),
+                List.of(), List.of(), LocalDateTime.now());
+
+        String prompt = formatter.format(specification);
+
+        assertThat(prompt).doesNotContain("tokens(");
     }
 }
