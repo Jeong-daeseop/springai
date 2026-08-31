@@ -1,0 +1,1037 @@
+<meta charset="utf-8">
+<title>SpringAI 아키텍처 심층분석</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --surface: #ffffff;
+    --surface-2: #eef1f7;
+    --ink: #1b2330;
+    --ink-muted: #5b6472;
+    --border: #d8dce3;
+    --accent: #083891;
+    --accent-soft: #e3e9f7;
+    --rest: #8a6a3a;
+    --rest-soft: #f1e8d9;
+    --good: #2f7d4f;
+    --good-soft: #e1f0e6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12161d;
+      --surface: #1a2029;
+      --surface-2: #212938;
+      --ink: #e7eaf1;
+      --ink-muted: #9aa4b5;
+      --border: #333d4d;
+      --accent: #7a9ce8;
+      --accent-soft: #223050;
+      --rest: #d3ac6f;
+      --rest-soft: #3a3220;
+      --good: #5cb583;
+      --good-soft: #1f3327;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161d;
+    --surface: #1a2029;
+    --surface-2: #212938;
+    --ink: #e7eaf1;
+    --ink-muted: #9aa4b5;
+    --border: #333d4d;
+    --accent: #7a9ce8;
+    --accent-soft: #223050;
+    --rest: #d3ac6f;
+    --rest-soft: #3a3220;
+    --good: #5cb583;
+    --good-soft: #1f3327;
+  }
+
+  * { box-sizing: border-box; }
+  html { overflow-x: hidden; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", -apple-system, sans-serif;
+    padding: 48px 24px 80px;
+    overflow-x: hidden;
+  }
+  main { max-width: 1180px; width: 100%; margin: 0 auto; }
+  header.page { max-width: 760px; margin-bottom: 40px; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12.5px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--accent); margin: 0 0 10px;
+  }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.2; margin: 0 0 14px; text-wrap: balance; letter-spacing: -0.01em; }
+  p.lede { font-size: 16px; line-height: 1.65; color: var(--ink-muted); margin: 0; }
+  p.lede code, .body code, figcaption code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.92em;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 0.05em 0.35em;
+  }
+  section.diagram-block { margin-bottom: 56px; }
+  h2 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.005em; }
+  .section-sub { font-size: 14px; color: var(--ink-muted); margin: 0 0 20px; }
+  h3.subsection-title { font-size: 16px; margin: 44px 0 6px; padding-top: 24px; border-top: 1px solid var(--border); letter-spacing: -0.005em; }
+  h3.subsection-title:first-of-type { margin-top: 8px; padding-top: 0; border-top: none; }
+  .subsection-sub { font-size: 13.5px; color: var(--ink-muted); margin: 0 0 16px; line-height: 1.6; }
+
+  figure { margin: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 22px 18px; }
+  .svg-scroll { overflow-x: auto; max-width: 100%; border-radius: 8px; }
+  svg { display: block; min-width: 720px; }
+
+  .node-box { fill: var(--surface-2); stroke: var(--border); stroke-width: 1.4; }
+  .node-box.accent { fill: var(--accent-soft); stroke: var(--accent); }
+  .node-box.rest { fill: var(--rest-soft); stroke: var(--rest); }
+  .node-box.good { fill: var(--good-soft); stroke: var(--good); }
+  .node-box.hub { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.8; }
+
+  text { fill: var(--ink); font-family: "IBM Plex Sans KR", sans-serif; }
+  .node-title { font-size: 13.5px; font-weight: 600; }
+  .node-sub { font-size: 11px; fill: var(--ink-muted); }
+  .edge-label { font-size: 10.5px; fill: var(--ink-muted); font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .edge-label.accent { fill: var(--accent); }
+  .edge-label.rest { fill: var(--rest); }
+  .edge-label.good { fill: var(--good); }
+  .group-label { font-size: 11px; fill: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  .edge { fill: none; stroke: var(--ink-muted); stroke-width: 1.3; }
+  .edge.accent { stroke: var(--accent); stroke-width: 1.6; }
+  .edge.rest { stroke: var(--rest); stroke-width: 1.4; }
+  .edge.good { stroke: var(--good); stroke-width: 1.6; }
+  .edge.dashed { stroke-dasharray: 4 4; }
+
+  figcaption { margin-top: 16px; font-size: 13.5px; line-height: 1.65; color: var(--ink-muted); max-width: 920px; }
+  figcaption b { color: var(--ink); font-weight: 600; }
+
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--ink-muted); font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 14px; height: 3px; display: inline-block; border-radius: 2px; }
+
+  .ver-tag { display: inline-block; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 500; padding: 1px 7px; border-radius: 999px; background: var(--accent); color: var(--surface); letter-spacing: 0.02em; }
+
+  .data-table-wrap { overflow-x: auto; max-width: 100%; margin-top: 16px; border: 1px solid var(--border); border-radius: 10px; }
+  .data-table-wrap td, .data-table-wrap th { overflow-wrap: anywhere; }
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 820px; }
+  table.data-table th, table.data-table td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.55; }
+  table.data-table thead th { background: var(--surface-2); font-weight: 600; font-size: 11px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.03em; }
+  table.data-table tbody tr:last-child td { border-bottom: none; }
+  table.data-table td code, table.data-table th code {
+    font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; padding: 0.05em 0.35em;
+  }
+  table.data-table td.mono { font-family: "IBM Plex Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  table.data-table td.pro { border-left: 3px solid var(--good); background: var(--good-soft); }
+  table.data-table td.con { border-left: 3px solid var(--rest); background: var(--rest-soft); }
+
+  @media (max-width: 680px) { body { padding: 28px 14px 56px; } }
+
+  footer.notes { border-top: 1px solid var(--border); padding-top: 24px; font-size: 13px; color: var(--ink-muted); line-height: 1.7; }
+  footer.notes ul { margin: 8px 0 0; padding-left: 20px; }
+</style>
+
+<main>
+  <header class="page">
+    <p class="eyebrow">SpringAI · eGovFrame MCP 서버</p>
+    <h1>아키텍처 심층 분석</h1>
+    <p class="lede">
+      Spring Boot 4.1.0-RC1 + Spring AI 2.0.0-RC1 기반 eGovFrame 5.x CRUD/Board/MasterDetail 소스 자동 생성 +
+      Figma 디자인 파이프라인 AI 플랫폼입니다. 분석일 <code>2026-08-31</code> — 전면 재작성이며,
+      <code>build.gradle</code>/<code>application.yaml</code>/Flyway 마이그레이션을 직접 확인한 기준입니다.
+      이전 버전(<code>2026-06-07</code>)은 RAG/웹채팅 중심이었고, 그 이후 CRUD/Board/MasterDetail 생성
+      오케스트레이션과 Figma 픽셀재현 파이프라인이 대폭 추가돼 이번에 다시 썼습니다.
+    </p>
+  </header>
+
+  <!-- ============ 1. 전체 시스템 아키텍처 ============ -->
+  <section class="diagram-block" id="sec-system-architecture">
+    <h2>1. 전체 시스템 아키텍처</h2>
+    <p class="section-sub">Client → Transport → MCP Tool → Dispatch → Executor 7계층이 한 Spring Boot 서버 안에서 합류하고, MySQL·Redis·Ollama/OpenAI·파일시스템·Figma REST로 갈라집니다.</p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1220 800" role="img" aria-label="Claude Desktop·Web Browser·Figma Plugin 세 클라이언트가 각각 mcp, 웹챗, figma 엔드포인트로 들어가 MCP Tool Layer와 Web Chat Subsystem으로 합류한다. MCP Tool Layer의 생성 Tool들은 Generation Dispatch 3종으로, Dispatch는 다시 isAuto 값에 따라 CodeServiceGenerationExecutor 또는 프롬프트 반환으로 갈라진다. Executor는 ApprovedProjectWritePort를 거쳐 파일시스템에 쓰고 MySQL에도 기록한다. Web Chat Subsystem은 OpenAI·Ollama·Redis로 연결된다.">
+          <defs>
+            <marker id="arrow1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow1Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow1Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+          </defs>
+
+          <text class="group-label" x="180" y="16">Client Layer</text>
+          <rect class="node-box accent" x="180" y="24" width="260" height="60" rx="8"></rect>
+          <text class="node-title" x="310" y="49" text-anchor="middle">Claude Desktop / Web</text>
+          <text class="node-sub" x="310" y="67" text-anchor="middle">MCP Client</text>
+
+          <rect class="node-box rest" x="480" y="24" width="260" height="60" rx="8"></rect>
+          <text class="node-title" x="610" y="49" text-anchor="middle">Web Browser</text>
+          <text class="node-sub" x="610" y="67" text-anchor="middle">Thymeleaf chat.html</text>
+
+          <rect class="node-box rest" x="780" y="24" width="260" height="60" rx="8"></rect>
+          <text class="node-title" x="910" y="49" text-anchor="middle">Figma Plugin</text>
+          <text class="node-sub" x="910" y="67" text-anchor="middle">figma-screen-spec-plugin 등</text>
+
+          <text class="group-label" x="180" y="120">Transport Layer</text>
+          <rect class="node-box accent" x="180" y="128" width="260" height="60" rx="8"></rect>
+          <text class="node-title" x="310" y="152" text-anchor="middle">/mcp/**</text>
+          <text class="node-sub" x="310" y="170" text-anchor="middle">Streamable HTTP (JSON-RPC)</text>
+
+          <rect class="node-box rest" x="480" y="128" width="260" height="60" rx="8"></rect>
+          <text class="node-title" x="610" y="149" text-anchor="middle" style="font-size:11.5px">/ai/rag/stream · /ai/simple/stream</text>
+          <text class="node-sub" x="610" y="167" text-anchor="middle">SSE Streaming + / (chat.html)</text>
+
+          <rect class="node-box rest" x="780" y="128" width="260" height="60" rx="8"></rect>
+          <text class="node-title" x="910" y="149" text-anchor="middle" style="font-size:11.5px">/api/figma/**, /screens/**</text>
+          <text class="node-sub" x="910" y="167" text-anchor="middle">Figma REST · X-API-Key</text>
+
+          <rect class="node-box hub" x="180" y="232" width="560" height="84" rx="10"></rect>
+          <text class="node-title" x="460" y="262" text-anchor="middle">MCP Tool Layer</text>
+          <text class="node-sub" x="460" y="280" text-anchor="middle" style="font-size:10px">105 메서드 / 40 Tool 객체</text>
+          <text class="node-sub" x="460" y="296" text-anchor="middle" style="font-size:10px">CRUD·Board·MasterDetail · Design/Figma · Project · Security · Ops · RAG</text>
+
+          <rect class="node-box rest" x="780" y="232" width="260" height="84" rx="10"></rect>
+          <text class="node-title" x="910" y="264" text-anchor="middle" style="font-size:12px">Web Chat Subsystem</text>
+          <text class="node-sub" x="910" y="282" text-anchor="middle" style="font-size:9.5px">EgovOllamaChatController →</text>
+          <text class="node-sub" x="910" y="296" text-anchor="middle" style="font-size:9.5px">EgovSessionAwareChatServiceImpl</text>
+
+          <text class="group-label" x="180" y="352">Generation Dispatch (auto / claude 분기)</text>
+          <rect class="node-box accent" x="180" y="360" width="185" height="64" rx="8"></rect>
+          <text class="node-title" x="272.5" y="386" text-anchor="middle" style="font-size:10.5px">CrudGenerationDispatchService</text>
+
+          <rect class="node-box accent" x="377" y="360" width="185" height="64" rx="8"></rect>
+          <text class="node-title" x="469.5" y="382" text-anchor="middle" style="font-size:10.5px">BoardGenerationDispatchService</text>
+          <text class="node-sub" x="469.5" y="398" text-anchor="middle" style="font-size:9px">(2026-08-28 추가)</text>
+
+          <rect class="node-box accent" x="574" y="360" width="185" height="64" rx="8"></rect>
+          <text class="node-title" x="666.5" y="382" text-anchor="middle" style="font-size:9.5px">MasterDetailGenerationDispatchService</text>
+
+          <rect class="node-box hub" x="180" y="484" width="380" height="76" rx="10"></rect>
+          <text class="node-title" x="370" y="510" text-anchor="middle" style="font-size:12px">CodeServiceGenerationExecutor</text>
+          <text class="node-sub" x="370" y="528" text-anchor="middle" style="font-size:9.5px">공통 실행기 — GenerationExecutor 유일 구현체</text>
+          <text class="node-sub" x="370" y="544" text-anchor="middle" style="font-size:9px">isAuto()==true</text>
+
+          <rect class="node-box rest" x="600" y="484" width="340" height="76" rx="10" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="770" y="510" text-anchor="middle" style="font-size:12px">프롬프트 텍스트만 반환</text>
+          <text class="node-sub" x="770" y="528" text-anchor="middle" style="font-size:9.5px">isAuto()==false · 파일 저장 없음</text>
+          <text class="node-sub" x="770" y="544" text-anchor="middle" style="font-size:9px">Claude Desktop이 코드 작성 (springai 밖 책임)</text>
+
+          <rect class="node-box accent" x="180" y="596" width="380" height="56" rx="8"></rect>
+          <text class="node-title" x="370" y="628" text-anchor="middle" style="font-size:12px">ApprovedProjectWritePort</text>
+
+          <text class="group-label" x="20" y="692">External Systems</text>
+          <rect class="node-box" x="20" y="700" width="180" height="72" rx="8"></rect>
+          <text class="node-title" x="110" y="726" text-anchor="middle" style="font-size:11.5px">MySQL 8.0</text>
+          <text class="node-sub" x="110" y="744" text-anchor="middle" style="font-size:9px">Docker egov-mysql · DB ebt</text>
+
+          <rect class="node-box" x="220" y="700" width="180" height="72" rx="8"></rect>
+          <text class="node-title" x="310" y="726" text-anchor="middle" style="font-size:11.5px">Redis Stack</text>
+          <text class="node-sub" x="310" y="744" text-anchor="middle" style="font-size:9px">:6379 · index=egov-rag</text>
+
+          <rect class="node-box" x="420" y="700" width="180" height="72" rx="8"></rect>
+          <text class="node-title" x="510" y="726" text-anchor="middle" style="font-size:11px">OpenAI · Ollama</text>
+          <text class="node-sub" x="510" y="744" text-anchor="middle" style="font-size:8.5px">gpt-4o-mini · qwen3:8b/1.7b</text>
+
+          <rect class="node-box" x="620" y="700" width="180" height="72" rx="8"></rect>
+          <text class="node-title" x="710" y="726" text-anchor="middle" style="font-size:10.5px">ko-sroberta ONNX</text>
+          <text class="node-sub" x="710" y="744" text-anchor="middle" style="font-size:9px">로컬 임베딩</text>
+
+          <rect class="node-box" x="820" y="700" width="180" height="72" rx="8"></rect>
+          <text class="node-title" x="910" y="726" text-anchor="middle" style="font-size:11.5px">File System</text>
+          <text class="node-sub" x="910" y="744" text-anchor="middle" style="font-size:8.5px">egov.output.base-path</text>
+
+          <rect class="node-box rest" x="1020" y="700" width="180" height="72" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="1110" y="722" text-anchor="middle" style="font-size:10px">Figma REST API</text>
+          <text class="node-sub" x="1110" y="738" text-anchor="middle" style="font-size:8px">선택, DESIGN_VISION_</text>
+          <text class="node-sub" x="1110" y="750" text-anchor="middle" style="font-size:8px">FIGMA_ENABLED</text>
+
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M310,84 L310,128"></path>
+          <path class="edge rest" marker-end="url(#arrow1Rest)" d="M610,84 L610,128"></path>
+          <path class="edge rest" marker-end="url(#arrow1Rest)" d="M910,84 L910,128"></path>
+
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M310,188 L310,232"></path>
+          <path class="edge rest" marker-end="url(#arrow1Rest)" d="M910,188 L910,232"></path>
+
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M330,316 L272.5,360"></path>
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M460,316 L469.5,360"></path>
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M600,316 L666.5,360"></path>
+          <text class="edge-label accent" x="470" y="342" text-anchor="middle" style="font-size:9px">CRUD_T 등 3종</text>
+
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M272.5,424 Q272.5,460 370,484"></path>
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M469.5,424 L400,484"></path>
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M666.5,424 Q666.5,460 500,484"></path>
+          <text class="edge-label accent" x="330" y="452">isAuto()==true</text>
+
+          <path class="edge rest dashed" marker-end="url(#arrow1Rest)" d="M666.5,424 Q700,460 770,484"></path>
+          <text class="edge-label rest" x="700" y="452">isAuto()==false</text>
+
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M370,560 L370,596"></path>
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M300,652 Q200,680 110,700"></path>
+          <text class="edge-label accent" x="150" y="672" style="font-size:9px">스냅샷/이력 기록</text>
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M370,652 Q650,690 910,700"></path>
+          <text class="edge-label accent" x="640" y="672" style="font-size:9px">Write</text>
+
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M300,316 Q150,500 110,700"></path>
+          <text class="edge-label accent" x="120" y="500" style="font-size:9px">Schema/Sql Tool 등</text>
+
+          <path class="edge rest dashed" marker-end="url(#arrow1Rest)" d="M900,316 Q1050,500 1110,700"></path>
+          <text class="edge-label rest" x="1000" y="500" style="font-size:9px">DesignReferenceTool: analyzeFigmaReference</text>
+
+          <path class="edge rest" marker-end="url(#arrow1Rest)" d="M850,316 L510,700"></path>
+          <text class="edge-label rest" x="700" y="560" style="font-size:9px">gpt-4o-mini / 쿼리압축 qwen3:1.7b</text>
+
+          <path class="edge rest" marker-end="url(#arrow1Rest)" d="M820,316 L310,700"></path>
+          <text class="edge-label rest" x="560" y="600" style="font-size:9px">VectorStore + ChatMemory</text>
+
+          <path class="edge accent" marker-end="url(#arrow1Accent)" d="M620,736 L800,736"></path>
+          <text class="edge-label accent" x="640" y="726" style="font-size:8.5px">사전 인덱싱</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>MCP / auto 경로</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>Web Chat · claude 경로 · 선택 연동</span>
+      </div>
+      <figcaption>
+        MCP 경로와 REST/브라우저 경로는 각각 다른 진입점(<code>/mcp/**</code>, <code>/ai/rag/stream</code>,
+        <code>/api/figma/**</code>)으로 들어오지만 모두 <b>같은 Spring Boot 단일 서버</b> 안에서 처리됩니다.
+        생성 Tool(<code>CrudGenerationTool</code> 등)이 만든 요청은 3종의 <code>*GenerationDispatchService</code>를
+        거쳐 <code>isAuto()</code> 값에 따라 <b>파일을 실제로 쓰는 <code>CodeServiceGenerationExecutor</code></b>
+        또는 <b>프롬프트 텍스트만 반환하는 claude 경로</b>로 갈라집니다 — claude 경로의 실제 코드 작성은
+        springai 밖(Claude Desktop)의 책임입니다. Web Chat Subsystem은 이 생성 파이프라인과는 완전히
+        별개로 OpenAI·Ollama·Redis에 연결됩니다.
+        2026-06-07 버전 대비: 전송 프로토콜이 <code>/sse</code> MCP SSE에서 <b>Streamable HTTP</b>로 바뀌었고,
+        DB가 <code>com</code>에서 <b><code>ebt</code></b>로, Tool 개수가 19개에서 <b>105개 메서드 / 40개 객체</b>로
+        늘었습니다.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 2. MCP Tool 카탈로그 ============ -->
+  <section class="diagram-block" id="sec-tool-catalog">
+    <h2>2. MCP Tool 카탈로그 (105 메서드 / 40 객체)</h2>
+    <p class="section-sub">전체 목록·<code>@Tool</code> 설명 원문은 <code>src/main/java/com/krdevops/springai/tools/**</code> 및 프로젝트 루트 <code>CLAUDE.md</code>를 참고하십시오.</p>
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead><tr><th>카테고리</th><th>대표 Tool 클래스</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>CRUD/Board/MasterDetail 생성</td><td><code>CrudGenerationTool</code>, <code>BoardGenerationTool</code>, <code>MasterDetailGenerationTool</code>, <code>CrudScreenSourceTool</code> 등</td><td><code>llmProvider=auto|claude</code> 분기</td></tr>
+          <tr><td>디자인 참조·Figma</td><td><code>DesignReferenceTool</code>, <code>FigmaExportTool</code>, <code>FigmaDesignOrchestrationTool</code>, <code>DesignFidelityTool</code>, <code>FigmaAssetDownloadTool</code>, <code>ResponsiveRegressionTool</code></td><td>최근 3종은 2026-08-28 픽셀재현 제외범위 트랙 산출물</td></tr>
+          <tr><td>프로젝트 초기화·레이아웃</td><td><code>ProjectInitializrTool</code>, <code>ThymeleafLayoutTool</code>, <code>SchemaReaderTool</code>, <code>ProjectScannerTool</code>, <code>ProjectHealthTool</code></td><td>—</td></tr>
+          <tr><td>보안</td><td><code>SecurityTemplateTool</code>, <code>AuthTool</code></td><td>—</td></tr>
+          <tr><td>eGovFrame 운영</td><td><code>EmployeeTool</code>, <code>MenuTool</code>, <code>CommonCodeTool</code>, <code>SqlTool</code></td><td>—</td></tr>
+          <tr><td>프로젝트 관리·가이드</td><td><code>WorkflowGuideTool</code>, <code>OutputPathResolverTool</code>, <code>GenerationHistoryTool</code>, <code>CrudGenerationSnapshotTool</code></td><td>—</td></tr>
+          <tr><td>RAG·유틸</td><td><code>RagTool</code>, <code>DateTimeTool</code></td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 3. 생성 오케스트레이션 ============ -->
+  <section class="diagram-block" id="sec-generation-orchestration">
+    <h2>3. CRUD/Board/MasterDetail 생성 오케스트레이션 — auto vs claude</h2>
+    <p class="section-sub">세 Tool은 각자 독립된 Dispatch/UseCase 분기점을 가지며 서로 공유하지 않고, auto 경로만 공통 Executor 하나로 합류합니다.</p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1200 700" role="img" aria-label="CrudGenerationTool, BoardGenerationTool, MasterDetailGenerationTool 세 Tool이 각자 별개의 Dispatch 서비스를 거쳐 auto면 Generate*ProjectUseCase, claude면 Build*PromptUseCase로 갈라진다. 세 UseCase의 auto 결과는 CodeServiceGenerationExecutor로 합류해 원자적 저장 또는 최선노력 저장 후 스냅샷을 기록하고, claude 결과는 프롬프트 텍스트 반환으로 합류한다.">
+          <defs>
+            <marker id="arrow3a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow3aAccent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow3aRest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+            <marker id="arrow3aGood" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--good)"></path></marker>
+          </defs>
+
+          <rect class="node-box accent" x="180" y="24" width="260" height="56" rx="8"></rect>
+          <text class="node-title" x="310" y="47" text-anchor="middle" style="font-size:12px">CrudGenerationTool</text>
+          <text class="node-sub" x="310" y="65" text-anchor="middle" style="font-size:9px">.buildFullCrudPrompt()</text>
+
+          <rect class="node-box accent" x="480" y="24" width="260" height="56" rx="8"></rect>
+          <text class="node-title" x="610" y="47" text-anchor="middle" style="font-size:12px">BoardGenerationTool</text>
+          <text class="node-sub" x="610" y="65" text-anchor="middle" style="font-size:9px">.buildBoardFeature()</text>
+
+          <rect class="node-box accent" x="780" y="24" width="260" height="56" rx="8"></rect>
+          <text class="node-title" x="910" y="47" text-anchor="middle" style="font-size:12px">MasterDetailGenerationTool</text>
+          <text class="node-sub" x="910" y="65" text-anchor="middle" style="font-size:9px">.buildMasterDetailPrompt()</text>
+
+          <rect class="node-box accent" x="180" y="128" width="260" height="56" rx="8"></rect>
+          <text class="node-title" x="310" y="151" text-anchor="middle" style="font-size:10.5px">CrudGenerationDispatchService</text>
+
+          <rect class="node-box accent" x="480" y="128" width="260" height="56" rx="8"></rect>
+          <text class="node-title" x="610" y="147" text-anchor="middle" style="font-size:10.5px">BoardGenerationDispatchService</text>
+          <text class="node-sub" x="610" y="163" text-anchor="middle" style="font-size:8.5px">(2026-08-28 신규, 별개 클래스)</text>
+
+          <rect class="node-box accent" x="780" y="128" width="260" height="56" rx="8"></rect>
+          <text class="node-title" x="910" y="147" text-anchor="middle" style="font-size:9.5px">MasterDetailGenerationDispatchService</text>
+          <text class="node-sub" x="910" y="163" text-anchor="middle" style="font-size:8.5px">이름 비슷, 완전 별개 클래스</text>
+
+          <rect class="node-box good" x="180" y="232" width="260" height="52" rx="8"></rect>
+          <text class="node-title" x="310" y="252" text-anchor="middle" style="font-size:10px">GenerateCrudProjectUseCase</text>
+          <text class="node-sub" x="310" y="268" text-anchor="middle" style="font-size:8.5px">isAuto()==true</text>
+
+          <rect class="node-box good" x="480" y="232" width="260" height="52" rx="8"></rect>
+          <text class="node-title" x="610" y="252" text-anchor="middle" style="font-size:10px">GenerateBoardProjectUseCase</text>
+
+          <rect class="node-box good" x="780" y="232" width="260" height="52" rx="8"></rect>
+          <text class="node-title" x="910" y="252" text-anchor="middle" style="font-size:9.5px">GenerateMasterDetailProjectUseCase</text>
+
+          <rect class="node-box rest" x="180" y="304" width="260" height="52" rx="8"></rect>
+          <text class="node-title" x="310" y="324" text-anchor="middle" style="font-size:10px">BuildCrudPromptUseCase</text>
+          <text class="node-sub" x="310" y="340" text-anchor="middle" style="font-size:8.5px">CrudPromptGenerationService</text>
+
+          <rect class="node-box rest" x="480" y="304" width="260" height="52" rx="8"></rect>
+          <text class="node-title" x="610" y="324" text-anchor="middle" style="font-size:10px">BuildBoardPromptUseCase</text>
+          <text class="node-sub" x="610" y="340" text-anchor="middle" style="font-size:8.5px">BoardPromptGenerationService</text>
+
+          <rect class="node-box rest" x="780" y="304" width="260" height="52" rx="8"></rect>
+          <text class="node-title" x="910" y="324" text-anchor="middle" style="font-size:9.5px">BuildMasterDetailPromptUseCase</text>
+
+          <rect class="node-box hub" x="210" y="404" width="480" height="76" rx="10"></rect>
+          <text class="node-title" x="450" y="430" text-anchor="middle" style="font-size:12.5px">CodeServiceGenerationExecutor</text>
+          <text class="node-sub" x="450" y="448" text-anchor="middle" style="font-size:9.5px">공통 실행기 — GenerationExecutor 유일 구현체</text>
+          <text class="node-sub" x="450" y="464" text-anchor="middle" style="font-size:9px">usesV2Preview()==true(기본값)</text>
+
+          <rect class="node-box rest" x="780" y="404" width="260" height="76" rx="10" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="910" y="430" text-anchor="middle" style="font-size:11.5px">프롬프트 텍스트 반환</text>
+          <text class="node-sub" x="910" y="448" text-anchor="middle" style="font-size:9px">파일 저장 없음</text>
+          <text class="node-sub" x="910" y="464" text-anchor="middle" style="font-size:8.5px">→ Claude Desktop이 코드 작성(springai 밖)</text>
+
+          <rect class="node-box accent" x="60" y="524" width="230" height="60" rx="8"></rect>
+          <text class="node-title" x="175" y="548" text-anchor="middle" style="font-size:10.5px">ProjectChangeSet 원자적 저장</text>
+          <text class="node-sub" x="175" y="566" text-anchor="middle" style="font-size:8.5px">ATOMIC_APPROVED</text>
+
+          <rect class="node-box rest" x="310" y="524" width="230" height="60" rx="8"></rect>
+          <text class="node-title" x="425" y="548" text-anchor="middle" style="font-size:10.5px">BEST_EFFORT_COMPATIBILITY</text>
+          <text class="node-sub" x="425" y="566" text-anchor="middle" style="font-size:8.5px">파일별 개별 처리 · usesV2Preview()==false</text>
+
+          <rect class="node-box good" x="560" y="524" width="230" height="60" rx="8"></rect>
+          <text class="node-title" x="675" y="548" text-anchor="middle" style="font-size:10px">AI_CRUD_GENERATION_SNAPSHOT 기록</text>
+
+          <rect class="node-box good" x="60" y="616" width="230" height="52" rx="8"></rect>
+          <text class="node-title" x="175" y="638" text-anchor="middle" style="font-size:10px">AI_GENERATION_HISTORY 기록</text>
+          <text class="node-sub" x="175" y="654" text-anchor="middle" style="font-size:8.5px">CRUD(G1) 경로에서만</text>
+
+          <path class="edge accent" marker-end="url(#arrow3aAccent)" d="M310,80 L310,128"></path>
+          <path class="edge accent" marker-end="url(#arrow3aAccent)" d="M610,80 L610,128"></path>
+          <path class="edge accent" marker-end="url(#arrow3aAccent)" d="M910,80 L910,128"></path>
+
+          <path class="edge good" marker-end="url(#arrow3aGood)" d="M280,184 Q280,208 300,232"></path>
+          <path class="edge good" marker-end="url(#arrow3aGood)" d="M580,184 Q580,208 600,232"></path>
+          <path class="edge good" marker-end="url(#arrow3aGood)" d="M880,184 Q880,208 900,232"></path>
+          <text class="edge-label good" x="300" y="205" style="font-size:9px">isAuto()==true</text>
+
+          <path class="edge rest dashed" marker-end="url(#arrow3aRest)" d="M340,184 Q340,240 320,304"></path>
+          <path class="edge rest dashed" marker-end="url(#arrow3aRest)" d="M640,184 Q640,240 620,304"></path>
+          <path class="edge rest dashed" marker-end="url(#arrow3aRest)" d="M940,184 Q940,240 920,304"></path>
+          <text class="edge-label rest" x="330" y="270" style="font-size:9px">isAuto()==false</text>
+
+          <path class="edge good" marker-end="url(#arrow3aGood)" d="M310,284 Q350,340 400,404"></path>
+          <path class="edge good" marker-end="url(#arrow3aGood)" d="M610,284 L500,404"></path>
+          <path class="edge good" marker-end="url(#arrow3aGood)" d="M910,284 Q750,340 600,404"></path>
+
+          <path class="edge rest" marker-end="url(#arrow3aRest)" d="M310,356 Q500,390 780,430"></path>
+          <path class="edge rest" marker-end="url(#arrow3aRest)" d="M610,356 L800,404"></path>
+          <path class="edge rest" marker-end="url(#arrow3aRest)" d="M910,356 L910,404"></path>
+
+          <path class="edge accent" marker-end="url(#arrow3aAccent)" d="M300,480 Q250,504 175,524"></path>
+          <text class="edge-label accent" x="180" y="500" style="font-size:9px">usesV2Preview()==true</text>
+          <path class="edge rest" marker-end="url(#arrow3aRest)" d="M400,480 Q410,504 425,524"></path>
+          <text class="edge-label rest" x="400" y="500" style="font-size:9px">false</text>
+          <path class="edge good" marker-end="url(#arrow3aGood)" d="M500,480 Q580,504 675,524"></path>
+
+          <path class="edge good dashed" marker-end="url(#arrow3aGood)" d="M175,584 L175,616"></path>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>Tool → Dispatch</span>
+        <span><i class="swatch" style="background:var(--good)"></i>auto 경로 (UseCase → Executor)</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>claude 경로 (Prompt UseCase → 텍스트 반환)</span>
+      </div>
+      <figcaption>
+        세 Tool은 <b>각자 독립된 분기점</b>을 가지며 서로 공유하지 않습니다 — <code>CrudGenerationDispatchService</code>/
+        <code>BoardGenerationDispatchService</code>/<code>MasterDetailGenerationDispatchService</code>는 이름은
+        비슷해도 완전히 별개 클래스입니다. auto 경로가 실제로 파일을 쓰는 지점은
+        <b><code>CodeServiceGenerationExecutor</code> 하나로 합류</b>합니다(<code>GenerationExecutor</code> 인터페이스
+        구현체가 코드베이스에 이것 하나뿐). claude 경로는 프롬프트 텍스트만 반환하고 파일 저장을 하지
+        않습니다 — 실제 코드 작성은 springai 밖(Claude Desktop)의 책임입니다.
+        <code>CrudGenerationApprovalPolicy</code>(신규)는 <code>approval-required-tables</code>에 등록된
+        테이블(기본값 빈 목록)이면 승인된 화면명세 없이는 auto 생성을 차단합니다.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 4. Figma ↔ Thymeleaf 파이프라인 ============ -->
+  <section class="diagram-block" id="sec-figma-thymeleaf-pipeline">
+    <h2>4. Figma ↔ Thymeleaf 디자인 파이프라인</h2>
+    <p class="section-sub">Figma 파일을 허브로, 읽기(디자인→코드)·캡처(코드→디자인 재현)·내보내기·토큰 동기화 네 갈래가 서로 독립된 시작점을 갖고 서로 다른 Node.js 서브 프로젝트를 오갑니다.</p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1180 700" role="img" aria-label="Figma 파일을 중심으로 네 흐름이 있다. 읽기: Spring MCP 서버가 디자인을 읽어 Thymeleaf 생성 서비스로 로컬 화면을 만든다. 캡처: 로컬 화면을 Playwright로 캡처해 jsp-design-extractor가 figpack-v1으로 jsp-to-figma-plugin에 넘기면 재현 Frame이 생긴다. 내보내기: 승인된 ScreenSpecification을 FigmaExportTool이 번들로 만들어 figma-screen-spec-plugin이 신규 화면을 만든다. 토큰 동기화: component-contracts의 디자인 토큰을 krds-design-system-author-plugin이 Figma Variable로 동기화한다.">
+          <defs>
+            <marker id="arrow4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow4Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow4Good" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--good)"></path></marker>
+          </defs>
+
+          <rect class="node-box hub" x="420" y="20" width="340" height="66" rx="10"></rect>
+          <text class="node-title" x="590" y="47" text-anchor="middle">Figma 파일</text>
+          <text class="node-sub" x="590" y="65" text-anchor="middle">원본 + 재현 Frame</text>
+
+          <text class="group-label" x="40" y="150">읽기 (디자인 → 코드)</text>
+          <rect class="node-box accent" x="40" y="164" width="300" height="66" rx="8"></rect>
+          <text class="node-title" x="190" y="191" text-anchor="middle">Spring MCP 서버</text>
+          <text class="node-sub" x="190" y="209" text-anchor="middle" style="font-size:9.5px">DesignReferenceTool.get_design_context</text>
+
+          <rect class="node-box accent" x="40" y="270" width="300" height="66" rx="8"></rect>
+          <text class="node-title" x="190" y="297" text-anchor="middle">Thymeleaf 생성 서비스</text>
+          <text class="node-sub" x="190" y="315" text-anchor="middle" style="font-size:9.5px">buildFullCrudPrompt 등</text>
+
+          <rect class="node-box accent" x="40" y="376" width="300" height="66" rx="8"></rect>
+          <text class="node-title" x="190" y="403" text-anchor="middle">로컬 화면</text>
+          <text class="node-sub" x="190" y="421" text-anchor="middle" style="font-size:9.5px">실행 중인 JSP / Thymeleaf</text>
+
+          <text class="group-label" x="460" y="480" text-anchor="middle">캡처 (코드 → 재현, parity 검증)</text>
+          <rect class="node-box" x="420" y="494" width="340" height="66" rx="8"></rect>
+          <text class="node-title" x="590" y="521" text-anchor="middle">jsp-design-extractor</text>
+          <text class="node-sub" x="590" y="539" text-anchor="middle" style="font-size:9.5px">Playwright 캡처 → figpack-v1</text>
+
+          <text class="group-label" x="1140" y="150" text-anchor="end">내보내기 · 재현</text>
+          <rect class="node-box" x="840" y="164" width="300" height="80" rx="8"></rect>
+          <text class="node-title" x="990" y="188" text-anchor="middle">figma-screen-spec-plugin</text>
+          <text class="node-sub" x="990" y="206" text-anchor="middle" style="font-size:9.5px">.figma-export-bundle.json → 신규 화면</text>
+          <text class="node-sub" x="990" y="224" text-anchor="middle" style="font-size:8.5px">↳ 07절(Registry v1→v2→v3) 참고</text>
+
+          <rect class="node-box" x="840" y="270" width="300" height="66" rx="8"></rect>
+          <text class="node-title" x="990" y="291" text-anchor="middle">jsp-to-figma-plugin</text>
+          <text class="node-sub" x="990" y="309" text-anchor="middle" style="font-size:9.5px">figpack-v1 → 재현 Frame 생성</text>
+
+          <text class="group-label" x="40" y="612">토큰 동기화</text>
+          <rect class="node-box" x="40" y="626" width="300" height="60" rx="8"></rect>
+          <text class="node-title" x="190" y="651" text-anchor="middle" style="font-size:11.5px">component-contracts</text>
+          <text class="node-sub" x="190" y="669" text-anchor="middle" style="font-size:9px">Primitive / Semantic 토큰 정의</text>
+
+          <rect class="node-box" x="420" y="626" width="340" height="60" rx="8"></rect>
+          <text class="node-title" x="590" y="651" text-anchor="middle" style="font-size:10.5px">krds-design-system-author-plugin</text>
+          <text class="node-sub" x="590" y="669" text-anchor="middle" style="font-size:8.5px">design-system-spec-v1 → Variable 갱신</text>
+
+          <path class="edge accent" marker-end="url(#arrow4Accent)" d="M420,60 Q260,80 190,164"></path>
+          <text class="edge-label accent" x="255" y="120" style="font-size:9px">analyzeFigmaReference</text>
+
+          <path class="edge accent" marker-end="url(#arrow4Accent)" d="M190,230 L190,270"></path>
+          <path class="edge accent" marker-end="url(#arrow4Accent)" d="M190,336 L190,376"></path>
+          <text class="edge-label accent" x="200" y="360" style="font-size:9px">승인된 Screen Spec</text>
+
+          <path class="edge" marker-end="url(#arrow4)" d="M340,415 Q430,460 420,505"></path>
+          <text class="edge-label" x="345" y="465" style="font-size:9px">Playwright 캡처</text>
+
+          <path class="edge good" marker-end="url(#arrow4Good)" d="M760,520 Q820,470 840,336"></path>
+          <text class="edge-label good" x="770" y="440" style="font-size:9px">figpack-v1 (계약)</text>
+
+          <path class="edge good" marker-end="url(#arrow4Good)" d="M990,270 Q990,140 760,60"></path>
+          <text class="edge-label good" x="880" y="150" style="font-size:9px">재현 Frame 생성</text>
+
+          <path class="edge" marker-end="url(#arrow4)" d="M340,196 L840,196"></path>
+          <text class="edge-label" x="500" y="168" text-anchor="middle" style="font-size:9px">FigmaExportTool.generateFigmaScreenSpec()</text>
+          <text class="edge-label" x="500" y="182" text-anchor="middle" style="font-size:9px">→ .figma-export-bundle.json (계약)</text>
+          <text class="edge-label" x="500" y="212" text-anchor="middle" style="font-size:8px">같은 승인된 ScreenSpecification 소비 — 06절과 독립적·선택적, 05절 참고</text>
+
+          <path class="edge" marker-end="url(#arrow4)" d="M990,164 Q900,100 760,45"></path>
+
+          <path class="edge" marker-end="url(#arrow4)" d="M340,656 L420,656"></path>
+          <text class="edge-label" x="345" y="646" style="font-size:9px">design-system-spec-v1</text>
+
+          <path class="edge" marker-end="url(#arrow4)" d="M700,626 Q760,400 620,86"></path>
+          <text class="edge-label" x="700" y="400" style="font-size:9px">Variable Collection 갱신</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>읽기: 디자인 → 코드 생성</span>
+        <span><i class="swatch" style="background:var(--good)"></i>캡처: 코드 → 재현 (parity 검증용)</span>
+        <span><i class="swatch" style="background:var(--ink-muted)"></i>내보내기 · 토큰 동기화</span>
+      </div>
+      <figcaption>
+        4개 흐름은 <b>서로 독립된 시작점</b>을 갖습니다 — 읽기는 <code>Spring MCP 서버</code>, 캡처는
+        <code>로컬 화면</code>, 토큰 동기화는 <code>component-contracts</code>(정적 소스 파일)가 각자 시작점입니다.
+        Export 경로는 05절(화면명세 승인)에서 나온 <b>같은 <code>ScreenSpecification</code></b>을 소비하며,
+        06절(코드 생성 프롬프트)과는 완전히 독립적·선택적인 별도 소비 경로입니다.
+        <code>figma-screen-spec-plugin</code>은 만들어진 <code>.figma-export-bundle.json</code>이 어떤 계약
+        버전(Catalog v1→v2, Registry v2→v3)을 거쳐 조립됐는지에 대해 07절(Registry 계약 진화)을 참조점으로
+        갖습니다 — 이 문서 안에서 07절을 직접 가리키는 곳은 이 지점 하나뿐입니다.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 5. 화면명세 승인 흐름 ============ -->
+  <section class="diagram-block" id="sec-screen-spec-approval">
+    <h2>5. 화면명세(ScreenSpecification) 승인 흐름</h2>
+    <p class="section-sub">DB 매핑 난이도에 따라 "즉시 승인" 또는 "사람 확인 필요"로 갈라집니다.</p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1180 320" role="img" aria-label="로컬 이미지/PDF 또는 Figma 프레임을 분석해 DesignAnalysisResult와 UiDesignSpec을 만들고, createScreenSpecification이 단순 케이스면 즉시 APPROVED로, REVIEW_REQUIRED 케이스면 사람이 수정·승인한 뒤 APPROVED로 전환한다. APPROVED는 CrudModelFactory가 받으면 코드 생성으로, FigmaExportTool이 받으면 Figma Export 경로로 이어진다.">
+          <defs>
+            <marker id="arrow5b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow5bAccent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow5bRest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+          </defs>
+
+          <rect class="node-box" x="40" y="40" width="220" height="90" rx="8"></rect>
+          <text class="node-title" x="150" y="76" text-anchor="middle">입력</text>
+          <text class="node-sub" x="150" y="94" text-anchor="middle">로컬 이미지/PDF</text>
+          <text class="node-sub" x="150" y="112" text-anchor="middle">또는 Figma 프레임</text>
+
+          <rect class="node-box accent" x="320" y="40" width="240" height="90" rx="8"></rect>
+          <text class="node-title" x="440" y="76" text-anchor="middle" style="font-size:11.5px">DesignAnalysisResult</text>
+          <text class="node-sub" x="440" y="94" text-anchor="middle">→ UiDesignSpec</text>
+          <text class="node-sub" x="440" y="112" text-anchor="middle" style="font-size:9.5px">Vision LLM (Ollama · OpenAI)</text>
+
+          <rect class="node-box accent" x="620" y="40" width="240" height="126" rx="8"></rect>
+          <text class="node-title" x="740" y="76" text-anchor="middle" style="font-size:11.5px">createScreenSpecification()</text>
+          <text class="node-sub" x="740" y="94" text-anchor="middle" style="font-size:9.5px">DB 매핑 난이도로</text>
+          <text class="node-sub" x="740" y="112" text-anchor="middle" style="font-size:9.5px">단순 / REVIEW_REQUIRED 분기</text>
+          <text class="node-sub" x="740" y="130" text-anchor="middle" style="font-size:8px">├ 단순: 즉시 APPROVED (approve 미호출)</text>
+          <text class="node-sub" x="740" y="148" text-anchor="middle" style="font-size:8px">└ REVIEW_REQUIRED: revise→approve 필요</text>
+
+          <rect class="node-box" x="920" y="40" width="220" height="90" rx="8"></rect>
+          <text class="node-title" x="1030" y="68" text-anchor="middle">APPROVED</text>
+          <text class="node-sub" x="1030" y="86" text-anchor="middle">ScreenSpecification</text>
+          <text class="node-sub" x="1030" y="104" text-anchor="middle" style="font-size:8.5px">↳ 06절(코드 생성) · 04절(Figma Export)</text>
+
+          <rect class="node-box" x="620" y="210" width="240" height="90" rx="8"></rect>
+          <text class="node-title" x="740" y="240" text-anchor="middle" style="font-size:11px">reviseScreenSpecification()</text>
+          <text class="node-sub" x="740" y="258" text-anchor="middle" style="font-size:9.5px">→ approveScreenSpecification()</text>
+          <text class="node-sub" x="740" y="276" text-anchor="middle" style="font-size:9.5px">사람이 매핑 수정 후 승인</text>
+
+          <path class="edge accent" marker-end="url(#arrow5bAccent)" d="M260,85 L320,85"></path>
+          <path class="edge accent" marker-end="url(#arrow5bAccent)" d="M560,85 L620,85"></path>
+          <path class="edge accent" marker-end="url(#arrow5bAccent)" d="M860,85 L920,85"></path>
+          <text class="edge-label accent" x="890" y="74" text-anchor="middle" style="font-size:9px">단순 케이스: 즉시</text>
+
+          <path class="edge" marker-end="url(#arrow5b)" d="M740,166 L740,210"></path>
+          <text class="edge-label" x="750" y="188" style="font-size:9.5px">REVIEW_REQUIRED: 이슈 목록</text>
+
+          <path class="edge" marker-end="url(#arrow5b)" d="M860,240 Q1030,240 1030,130"></path>
+          <text class="edge-label" x="900" y="215" style="font-size:9.5px">승인 후 APPROVED로 전환</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>정상 진행 경로</span>
+        <span><i class="swatch" style="background:var(--ink-muted)"></i>사람 개입 경로 (REVIEW_REQUIRED)</span>
+      </div>
+      <figcaption>
+        <code>createScreenSpecification()</code>은 자체 분기점입니다: <b>단순 케이스는
+        <code>approveScreenSpecification()</code> 호출 없이 즉시 APPROVED</b>로 나오고, REVIEW_REQUIRED만
+        <code>reviseScreenSpecification()</code> → <code>approveScreenSpecification()</code> 단계를 거칩니다.
+        같은 <code>APPROVED ScreenSpecification</code>을 소비하는 Tool에 따라 두 갈래로 갈립니다 — 코드
+        생성(06절)과 Figma Export(04절)는 서로 독립적이며 하나가 다른 하나를 전제하지 않습니다.
+        (2026-08-28) <code>FigmaDesignSpecMapper</code> 파싱 단계에서 컴포넌트별 <code>fills</code>/<code>strokes</code>
+        (SOLID 색상), 노드 트리 좌표·auto-layout·텍스트스타일(<code>geometryTree</code>), 루트 배경색·폰트
+        (<code>tokens</code>)가 모두 캡처되어 <code>ScreenSpecAssembler.assemble()</code>이
+        <code>componentStyles</code>/<code>componentGeometry</code>/<code>tokens</code>로 매핑합니다 — 3필드 모두
+        claude 경로(<code>ScreenSpecificationPromptFormatter</code>) 프롬프트까지 생존하며, auto 경로
+        (<code>CrudModelFactory</code>)는 KRDS 일관성 유지를 위해 의도적으로 이 필드들을 참조하지 않습니다.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 6. 픽셀재현 데이터 흐름 ============ -->
+  <section class="diagram-block" id="sec-pixel-reproduction-flow">
+    <h2>6. 픽셀재현 데이터 흐름 및 후속 검증 Tool</h2>
+    <p class="section-sub">Figma 노드 트리가 파싱·매핑을 거쳐 프롬프트에 실리고, Claude Desktop이 코드를 작성한 뒤 선택적으로 반응형 가드레일을 검증합니다.</p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1320 300" role="img" aria-label="Figma 프레임의 노드 트리를 FigmaDesignSpecMapper가 componentStyles·geometryTree·tokens로 추출하고, ScreenSpecAssembler가 UiDesignSpec으로 매핑한 뒤 ScreenSpecificationPromptFormatter가 JSON 블록과 가드레일 문구를 담은 프롬프트로 Claude Desktop에 전달한다. Claude Desktop이 화면 코드를 작성하면 선택적으로 checkResponsiveRegression이 기존 캡처 신호를 재분류해 가드레일 위반 의심을 표시한다.">
+          <defs>
+            <marker id="arrow6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow6Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow6Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+            <marker id="arrow6Good" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--good)"></path></marker>
+          </defs>
+
+          <rect class="node-box" x="20" y="40" width="190" height="80" rx="8"></rect>
+          <text class="node-title" x="115" y="70" text-anchor="middle" style="font-size:11.5px">Figma 프레임</text>
+          <text class="node-sub" x="115" y="88" text-anchor="middle" style="font-size:8.5px">노드 트리(색상·좌표·</text>
+          <text class="node-sub" x="115" y="100" text-anchor="middle" style="font-size:8.5px">auto-layout·텍스트)</text>
+
+          <rect class="node-box accent" x="230" y="40" width="210" height="80" rx="8"></rect>
+          <text class="node-title" x="335" y="66" text-anchor="middle" style="font-size:10.5px">FigmaDesignSpecMapper</text>
+          <text class="node-sub" x="335" y="84" text-anchor="middle" style="font-size:8px">componentStyles · geometryTree</text>
+          <text class="node-sub" x="335" y="98" text-anchor="middle" style="font-size:8px">· tokens 추출</text>
+
+          <rect class="node-box accent" x="460" y="40" width="210" height="80" rx="8"></rect>
+          <text class="node-title" x="565" y="66" text-anchor="middle" style="font-size:10.5px">ScreenSpecAssembler</text>
+          <text class="node-sub" x="565" y="84" text-anchor="middle" style="font-size:8px">3필드 매핑</text>
+          <text class="node-sub" x="565" y="98" text-anchor="middle" style="font-size:8px">→ UiDesignSpec</text>
+
+          <rect class="node-box accent" x="690" y="40" width="230" height="80" rx="8"></rect>
+          <text class="node-title" x="805" y="63" text-anchor="middle" style="font-size:9px">ScreenSpecificationPromptFormatter</text>
+          <text class="node-sub" x="805" y="82" text-anchor="middle" style="font-size:8px">JSON 블록 + KRDS/반응형</text>
+          <text class="node-sub" x="805" y="96" text-anchor="middle" style="font-size:8px">가드레일 문구</text>
+
+          <rect class="node-box rest" x="940" y="40" width="180" height="80" rx="8"></rect>
+          <text class="node-title" x="1030" y="70" text-anchor="middle" style="font-size:11.5px">Claude Desktop</text>
+          <text class="node-sub" x="1030" y="88" text-anchor="middle" style="font-size:8px">화면 코드 작성</text>
+          <text class="node-sub" x="1030" y="100" text-anchor="middle" style="font-size:8px">(springai 밖 책임)</text>
+
+          <rect class="node-box good" x="1140" y="40" width="160" height="80" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="1220" y="63" text-anchor="middle" style="font-size:9px">checkResponsiveRegression()</text>
+          <text class="node-sub" x="1220" y="82" text-anchor="middle" style="font-size:8px">생성 후 검증</text>
+          <text class="node-sub" x="1220" y="94" text-anchor="middle" style="font-size:8px">(선택)</text>
+
+          <rect class="node-box good" x="940" y="180" width="360" height="70" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="1120" y="204" text-anchor="middle" style="font-size:10px">breakpointObservations 재분류</text>
+          <text class="node-sub" x="1120" y="222" text-anchor="middle" style="font-size:8.5px">MOVED = 가드레일 위반 의심 신호</text>
+          <text class="node-sub" x="1120" y="238" text-anchor="middle" style="font-size:8px">captureWebPageMultiViewport() 신호 재사용</text>
+
+          <path class="edge accent" marker-end="url(#arrow6Accent)" d="M210,80 L230,80"></path>
+          <path class="edge accent" marker-end="url(#arrow6Accent)" d="M440,80 L460,80"></path>
+          <path class="edge accent" marker-end="url(#arrow6Accent)" d="M670,80 L690,80"></path>
+          <path class="edge rest" marker-end="url(#arrow6Rest)" d="M920,80 L940,80"></path>
+          <text class="edge-label rest" x="925" y="70" style="font-size:8px">프롬프트 전달</text>
+          <path class="edge good dashed" marker-end="url(#arrow6Good)" d="M1120,80 L1140,80"></path>
+
+          <path class="edge good" marker-end="url(#arrow6Good)" d="M1220,120 L1220,180"></path>
+          <text class="edge-label good" x="1130" y="150" style="font-size:8px">기존 로직 재사용, 신규 캡처 없음</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>파싱 · 매핑 · 프롬프트 조립</span>
+        <span><i class="swatch" style="background:var(--good)"></i>생성 후 선택적 검증</span>
+      </div>
+      <figcaption>
+        신규 캡처·매칭 로직 없이 기존 <code>captureWebPageMultiViewport()</code>/<code>MultiViewportComponentMatcher</code>가
+        이미 계산해두는 신호를 재분류하는 방식으로 설계되었습니다(<code>ResponsiveRegressionAnalyzer</code>).
+        <code>compareDesignFidelity()</code>는 픽셀 이미지 비교가 아니라 archetype·컴포넌트 타입·필드 역할·
+        액션 타입 집합의 <b>Jaccard 구조적 유사도</b>입니다 — 이 프로젝트에 실제 스크린샷 캡처 기능이 없다는
+        걸 코드로 확인하고 설계된 대안입니다. <code>downloadFigmaAssets()</code>의 허용 호스트
+        (<code>*.figma.com</code>)는 실제 API 응답으로 검증되지 않은 추정치이며, 실사용 전 재확인이 필요합니다.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 7. Registry 계약 진화 ============ -->
+  <section class="diagram-block" id="sec-registry-evolution">
+    <h2>7. Component Catalog / Registry 계약 진화 — v1 → v2 → v3</h2>
+    <p class="section-sub">Catalog와 Registry가 각자 다른 축으로 SSOT(단일 진실 공급원)를 향해 진화하고, 두 결과가 ResolvedComponentRegistry로 수렴합니다.</p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1160 460" role="img" aria-label="레거시 v1 Catalog가 v2 Catalog(SSOT)로, v2 Registry(Legacy)가 v3 Registry Snapshot으로 각각 진화한다. v2 Catalog와 v3 Registry는 ResolvedComponentRegistry로 결합되고, v2 Registry는 이 Resolved 결과와 Dual-Read 병렬 비교된다. 신규 Preview/Apply REST는 Resolved Registry를 쓰고, 기존 Q&amp;A Runtime Resolver는 여전히 Legacy v2 Registry를 쓴다.">
+          <defs>
+            <marker id="arrow7" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow7Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow7Good" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--good)"></path></marker>
+          </defs>
+
+          <text class="group-label" x="40" y="26">Catalog (논리 계약)</text>
+          <rect class="node-box" x="40" y="36" width="280" height="80" rx="8"></rect>
+          <text x="60" y="56"><tspan class="ver-tag">v1</tspan></text>
+          <text class="node-title" x="180" y="76" text-anchor="middle">Catalog</text>
+          <text class="node-sub" x="180" y="94" text-anchor="middle" style="font-size:9px">component-catalog-v1.json</text>
+          <text class="node-sub" x="180" y="108" text-anchor="middle" style="font-size:9px">배열 기반, 중복 가능(레거시)</text>
+
+          <rect class="node-box" x="460" y="36" width="300" height="80" rx="8"></rect>
+          <text x="480" y="56"><tspan class="ver-tag">v2</tspan></text>
+          <text class="node-title" x="610" y="76" text-anchor="middle">Catalog (SSOT)</text>
+          <text class="node-sub" x="610" y="94" text-anchor="middle" style="font-size:9px">component-catalog-v2.json</text>
+          <text class="node-sub" x="610" y="108" text-anchor="middle" style="font-size:9px">logicalType 단일 소유</text>
+
+          <text class="group-label" x="40" y="156">Registry (Figma Binding)</text>
+          <rect class="node-box accent" x="40" y="166" width="280" height="80" rx="8"></rect>
+          <text x="60" y="186"><tspan class="ver-tag">v2</tspan></text>
+          <text class="node-title" x="180" y="206" text-anchor="middle">Registry (Legacy)</text>
+          <text class="node-sub" x="180" y="224" text-anchor="middle" style="font-size:9px">ComponentRegistry / Entry</text>
+          <text class="node-sub" x="180" y="238" text-anchor="middle" style="font-size:9px">현재 운영 중</text>
+
+          <rect class="node-box good" x="760" y="166" width="300" height="80" rx="8"></rect>
+          <text x="780" y="186"><tspan class="ver-tag">v3</tspan></text>
+          <text class="node-title" x="910" y="206" text-anchor="middle">Registry Snapshot</text>
+          <text class="node-sub" x="910" y="224" text-anchor="middle" style="font-size:9px">ComponentRegistrySnapshotV3</text>
+
+          <rect class="node-box good" x="400" y="280" width="360" height="80" rx="8"></rect>
+          <text class="node-title" x="580" y="310" text-anchor="middle">ResolvedComponentRegistry</text>
+          <text class="node-sub" x="580" y="328" text-anchor="middle" style="font-size:9px">읽기 전용 · Catalog v2 + Registry v3 결합</text>
+
+          <text class="group-label" x="40" y="396">소비 경로</text>
+          <rect class="node-box good" x="400" y="384" width="360" height="60" rx="8"></rect>
+          <text class="node-title" x="580" y="410" text-anchor="middle" style="font-size:11px">신규 Preview/Apply REST</text>
+          <text class="node-sub" x="580" y="428" text-anchor="middle" style="font-size:8.5px">Resolved Registry 사용</text>
+
+          <rect class="node-box accent" x="40" y="384" width="300" height="60" rx="8"></rect>
+          <text class="node-title" x="190" y="410" text-anchor="middle" style="font-size:11px">Q&amp;A Runtime Resolver</text>
+          <text class="node-sub" x="190" y="428" text-anchor="middle" style="font-size:8.5px">여전히 Legacy v2 Registry 사용</text>
+
+          <path class="edge accent" marker-end="url(#arrow7Accent)" d="M320,76 L460,76"></path>
+          <path class="edge accent" marker-end="url(#arrow7Accent)" d="M320,206 L760,206"></path>
+
+          <path class="edge good" marker-end="url(#arrow7Good)" d="M610,116 L580,280"></path>
+          <path class="edge good" marker-end="url(#arrow7Good)" d="M910,246 L640,290"></path>
+
+          <path class="edge dashed" marker-end="url(#arrow7)" d="M180,246 Q180,300 400,320"></path>
+          <text class="edge-label" x="220" y="284" style="font-size:9px">Dual-Read 병렬 비교</text>
+
+          <path class="edge good" marker-end="url(#arrow7Good)" d="M580,360 L580,384"></path>
+          <path class="edge accent" marker-end="url(#arrow7Accent)" d="M180,246 L180,384"></path>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>현재 실제 운영 경로 (Legacy v2)</span>
+        <span><i class="swatch" style="background:var(--good)"></i>신규 SSOT 경로 (v3)</span>
+      </div>
+      <figcaption>
+        07절은 여러 흐름(Figma Export, KRDS 토큰 동기화)이 참조하는 <b>종착점</b>입니다 — 이 절 자체에서
+        다른 절로 나가는 링크는 없습니다. component-contracts(디자인 <b>토큰</b> 값)와는 완전히 다른
+        축입니다 — 이쪽은 컴포넌트의 <b>논리 계약</b>(무엇이 존재하는지)을 다룹니다.
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 8. RAG 파이프라인 ============ -->
+  <section class="diagram-block" id="sec-rag-pipeline">
+    <h2>8. RAG 파이프라인</h2>
+    <p class="section-sub">쿼리 압축(항상 로컬) → 컨텍스트 조립 → 유사도 검색 → 스트리밍 응답 순서로 진행됩니다.</p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1160 500" role="img" aria-label="User/Browser가 GET /ai/rag/stream을 호출하면 EgovOllamaChatController가 EgovSessionAwareChatServiceImpl로 위임한다. ChatService는 EgovCompressionQueryTransformer로 쿼리를 압축(Ollama qwen3:1.7b, 항상 로컬)하고, ContextAssembler로 MySQL 컨텍스트를 조립하고, Redis VectorStore에서 유사도 검색을 수행한다. ko-sroberta ONNX가 미리 Redis에 임베딩을 색인해 둔다. 이후 OpenAI 또는 Ollama로 스트리밍하며 ChatMemory Advisor를 적용하고 결과를 SSE로 User에게 돌려준다.">
+          <defs>
+            <marker id="arrow8" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow8Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow8Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+          </defs>
+
+          <rect class="node-box" x="340" y="24" width="220" height="60" rx="8"></rect>
+          <text class="node-title" x="450" y="49" text-anchor="middle" style="font-size:11.5px">User / Browser</text>
+          <text class="node-sub" x="450" y="67" text-anchor="middle" style="font-size:8.5px">GET /ai/rag/stream?message&amp;sessionId</text>
+
+          <rect class="node-box accent" x="600" y="24" width="220" height="60" rx="8"></rect>
+          <text class="node-title" x="710" y="58" text-anchor="middle" style="font-size:10px">EgovOllamaChatController</text>
+
+          <rect class="node-box hub" x="340" y="130" width="480" height="70" rx="10"></rect>
+          <text class="node-title" x="580" y="158" text-anchor="middle" style="font-size:11.5px">EgovSessionAwareChatServiceImpl</text>
+          <text class="node-sub" x="580" y="176" text-anchor="middle" style="font-size:9px">streamRagResponse(query, model, sessionId)</text>
+
+          <rect class="node-box rest" x="160" y="234" width="260" height="64" rx="8"></rect>
+          <text class="node-title" x="290" y="258" text-anchor="middle" style="font-size:10px">EgovCompressionQueryTransformer</text>
+          <text class="node-sub" x="290" y="276" text-anchor="middle" style="font-size:8.5px">compress(query, sessionId)</text>
+
+          <rect class="node-box rest" x="450" y="234" width="260" height="64" rx="8"></rect>
+          <text class="node-title" x="580" y="258" text-anchor="middle" style="font-size:11px">ContextAssembler</text>
+          <text class="node-sub" x="580" y="276" text-anchor="middle" style="font-size:8.5px">build(searchQuery) → MySQL 컨텍스트</text>
+
+          <rect class="node-box rest" x="740" y="234" width="260" height="64" rx="8"></rect>
+          <text class="node-title" x="870" y="256" text-anchor="middle" style="font-size:10px">Redis VectorStore(egov-rag)</text>
+          <text class="node-sub" x="870" y="274" text-anchor="middle" style="font-size:8.5px">similaritySearch(topK=10, threshold=0.30)</text>
+
+          <rect class="node-box" x="160" y="332" width="260" height="52" rx="8"></rect>
+          <text class="node-title" x="290" y="352" text-anchor="middle" style="font-size:10.5px">Ollama qwen3:1.7b</text>
+          <text class="node-sub" x="290" y="368" text-anchor="middle" style="font-size:8.5px">쿼리 압축 (항상 로컬)</text>
+
+          <rect class="node-box" x="450" y="332" width="260" height="52" rx="8"></rect>
+          <text class="node-title" x="580" y="352" text-anchor="middle" style="font-size:11px">MySQL</text>
+          <text class="node-sub" x="580" y="368" text-anchor="middle" style="font-size:8.5px">스키마+이력+관계 컨텍스트</text>
+
+          <rect class="node-box" x="740" y="332" width="260" height="52" rx="8"></rect>
+          <text class="node-title" x="870" y="352" text-anchor="middle" style="font-size:10.5px">ko-sroberta ONNX</text>
+          <text class="node-sub" x="870" y="368" text-anchor="middle" style="font-size:8.5px">로컬 임베딩 (사전 인덱싱)</text>
+
+          <rect class="node-box accent" x="160" y="420" width="600" height="60" rx="10"></rect>
+          <text class="node-title" x="460" y="446" text-anchor="middle" style="font-size:11px">OpenAI(gpt-4o-mini) / Ollama(qwen3:8b)</text>
+          <text class="node-sub" x="460" y="464" text-anchor="middle" style="font-size:9px">stream() + ChatMemory Advisor(max 8 messages)</text>
+
+          <path class="edge accent" marker-end="url(#arrow8Accent)" d="M450,84 L450,110 Q450,130 460,130"></path>
+          <path class="edge accent" marker-end="url(#arrow8Accent)" d="M710,84 L710,110 Q710,130 700,130"></path>
+
+          <path class="edge rest" marker-end="url(#arrow8Rest)" d="M480,200 Q400,215 290,234"></path>
+          <path class="edge rest" marker-end="url(#arrow8Rest)" d="M560,200 L580,234"></path>
+          <path class="edge rest" marker-end="url(#arrow8Rest)" d="M680,200 Q760,215 870,234"></path>
+
+          <path class="edge rest dashed" marker-end="url(#arrow8Rest)" d="M290,298 L290,332"></path>
+          <path class="edge rest dashed" marker-end="url(#arrow8Rest)" d="M580,298 L580,332"></path>
+          <path class="edge accent" marker-end="url(#arrow8Accent)" d="M870,332 Q870,310 870,298"></path>
+          <text class="edge-label accent" x="880" y="316" style="font-size:8px">사전 인덱싱</text>
+
+          <path class="edge accent" marker-end="url(#arrow8Accent)" d="M580,200 L460,420"></path>
+          <text class="edge-label accent" x="500" y="300" style="font-size:8.5px">stream() 호출</text>
+
+          <path class="edge accent" marker-end="url(#arrow8Accent)" d="M760,450 Q900,300 560,84"></path>
+          <text class="edge-label accent" x="770" y="200" style="font-size:9px">SSE 스트리밍</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>요청 · 응답 경로</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>컨텍스트 조립 3갈래(압축·MySQL·유사도검색)</span>
+      </div>
+      <figcaption>
+        RAG 자체의 임베딩/청킹/유사도 임계값·쿼리 압축 로직은 2026-06-07 버전에서 구조가 크게 바뀌지
+        않았습니다(<code>rag.similarity.threshold=0.30</code>, <code>rag.top-k=10</code>,
+        <code>chat.memory.max-messages=8</code>로 <code>application.yaml</code> 재확인).
+      </figcaption>
+    </figure>
+  </section>
+
+  <!-- ============ 9. MySQL AI_* 테이블 ============ -->
+  <section class="diagram-block" id="sec-mysql-tables">
+    <h2>9. MySQL AI_* 테이블 개요 (Flyway V1~V18)</h2>
+    <p class="section-sub"><code>app.db.legacy-repository-ddl-enabled=true</code>(기본값)로 기존 <code>@PostConstruct</code> DDL과 Flyway가 이중 안전망으로 공존 중입니다(추후 검증 후 DDL 코드 제거 예정).</p>
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead><tr><th>그룹</th><th>대표 테이블</th><th>도입 시점</th></tr></thead>
+        <tbody>
+          <tr><td>기존 AI 결과 (baseline)</td><td>(V1 baseline 처리)</td><td class="mono">V1</td></tr>
+          <tr><td>Thymeleaf 마이그레이션 워크플로우</td><td><code>AI_THYMELEAF_PROJECT_OPERATION</code></td><td class="mono">V2</td></tr>
+          <tr><td>Artifact/이벤트/락</td><td><code>AI_ARTIFACT</code>, Operation Event/Lock</td><td class="mono">V3~V4</td></tr>
+          <tr><td>프로젝트 루트 레지스트리</td><td>Project Root Registry</td><td class="mono">V5</td></tr>
+          <tr><td>Thymeleaf 화면 인덱스</td><td>Screen Operation Index</td><td class="mono">V6</td></tr>
+          <tr><td>KRDS Role/Variant 계약</td><td>Role Variant Contract</td><td class="mono">V7</td></tr>
+          <tr><td>Figma 라이브러리/승인 워크플로우</td><td>Library Inventory, Contract Approval</td><td class="mono">V8~V9</td></tr>
+          <tr><td>Legacy Screen Pattern</td><td>Publish Legacy Screen Pattern JSON</td><td class="mono">V10</td></tr>
+          <tr><td>Figma 수동 정제</td><td>Manual Refinement</td><td class="mono">V11</td></tr>
+          <tr><td><b>Component Registry v3 SSOT</b></td><td><code>AI_COMPONENT_REGISTRY_V3</code> 계열</td><td class="mono">V12~V13</td></tr>
+          <tr><td>디자인-코드 컴포넌트 매핑</td><td>Design Code Component Mapping</td><td class="mono">V14</td></tr>
+          <tr><td><b>CRUD 생성 스냅샷</b></td><td><code>AI_CRUD_GENERATION_SNAPSHOT</code></td><td class="mono">V15</td></tr>
+          <tr><td><b>Generation Control Plane</b></td><td>Operation/Approval/Evidence/Audit</td><td class="mono">V16</td></tr>
+          <tr><td>Operation Event 관측 컨텍스트</td><td>Observation Context</td><td class="mono">V17</td></tr>
+          <tr><td>Readiness 비교 관측</td><td>Readiness Comparison</td><td class="mono">V18</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 10. 배포 구조 ============ -->
+  <section class="diagram-block" id="sec-deployment">
+    <h2>10. 배포 구조</h2>
+    <p class="section-sub"><code>server.address=127.0.0.1</code>(로컬 바인딩 기본값), <code>MCP_AUTH_MODE=REQUIRED</code>(deny-by-default 공유 토큰 인증)로 운영됩니다.</p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1160 500" role="img" aria-label="단일 호스트에서 Java 17 JVM이 springai jar와 ONNX 런타임을 인프로세스로 돌리고, Claude Desktop/Figma Plugin과 Streamable HTTP로 통신한다. 이 JVM이 Docker의 MySQL, 로컬 Redis, 로컬 Ollama, 파일시스템(output/log)에 쓰고, 클라우드의 OpenAI API와 선택적으로 Figma REST API에 접속한다.">
+          <defs>
+            <marker id="arrow10" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow10Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow10Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+          </defs>
+
+          <text class="group-label" x="60" y="28">Java 17 JVM</text>
+          <rect class="node-box hub" x="60" y="36" width="440" height="80" rx="10"></rect>
+          <text class="node-title" x="280" y="66" text-anchor="middle" style="font-size:11.5px">springai-0.0.1-SNAPSHOT.jar</text>
+          <text class="node-sub" x="280" y="84" text-anchor="middle" style="font-size:9px">Spring Boot 4.1.0-RC1 · Tomcat :8080(127.0.0.1)</text>
+
+          <rect class="node-box" x="520" y="36" width="220" height="80" rx="8"></rect>
+          <text class="node-title" x="630" y="70" text-anchor="middle" style="font-size:10px">ko-sroberta ONNX</text>
+          <text class="node-sub" x="630" y="88" text-anchor="middle" style="font-size:8.5px">In-Process</text>
+
+          <rect class="node-box rest" x="860" y="36" width="260" height="80" rx="8"></rect>
+          <text class="node-title" x="990" y="68" text-anchor="middle" style="font-size:11px">Claude Desktop</text>
+          <text class="node-sub" x="990" y="86" text-anchor="middle" style="font-size:9px">/ Figma Plugin</text>
+
+          <text class="group-label" x="60" y="176">Docker</text>
+          <rect class="node-box" x="60" y="186" width="280" height="64" rx="8"></rect>
+          <text class="node-title" x="200" y="210" text-anchor="middle" style="font-size:10.5px">egov-mysql (mysql:8.0 :3306)</text>
+          <text class="node-sub" x="200" y="228" text-anchor="middle" style="font-size:8.5px">DB: ebt / User: ebt</text>
+
+          <text class="group-label" x="380" y="176">Local Services</text>
+          <rect class="node-box" x="380" y="186" width="260" height="64" rx="8"></rect>
+          <text class="node-title" x="510" y="210" text-anchor="middle" style="font-size:11px">Redis Stack :6379</text>
+          <text class="node-sub" x="510" y="228" text-anchor="middle" style="font-size:8.5px">index=egov-rag</text>
+
+          <rect class="node-box" x="680" y="186" width="260" height="64" rx="8"></rect>
+          <text class="node-title" x="810" y="210" text-anchor="middle" style="font-size:11px">Ollama :11434</text>
+          <text class="node-sub" x="810" y="228" text-anchor="middle" style="font-size:8.5px">qwen3:8b / qwen3:1.7b</text>
+
+          <text class="group-label" x="60" y="290">File System</text>
+          <rect class="node-box" x="60" y="300" width="280" height="64" rx="8"></rect>
+          <text class="node-title" x="200" y="326" text-anchor="middle" style="font-size:10px">egov.output.base-path</text>
+          <text class="node-sub" x="200" y="344" text-anchor="middle" style="font-size:8px">기본 ~/workspace-egov/egov-generated</text>
+
+          <rect class="node-box" x="380" y="300" width="260" height="64" rx="8"></rect>
+          <text class="node-title" x="510" y="332" text-anchor="middle" style="font-size:10.5px">/tmp/springai-mcp.log</text>
+
+          <text class="group-label" x="860" y="176">Cloud</text>
+          <rect class="node-box" x="860" y="186" width="260" height="64" rx="8"></rect>
+          <text class="node-title" x="990" y="218" text-anchor="middle" style="font-size:11px">OpenAI API</text>
+          <text class="node-sub" x="990" y="236" text-anchor="middle" style="font-size:8.5px">gpt-4o-mini</text>
+
+          <rect class="node-box rest" x="860" y="300" width="260" height="64" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="990" y="326" text-anchor="middle" style="font-size:10px">Figma REST API</text>
+          <text class="node-sub" x="990" y="344" text-anchor="middle" style="font-size:8px">선택, 기본 비활성</text>
+
+          <path class="edge accent" marker-start="url(#arrow10Accent)" marker-end="url(#arrow10Accent)" d="M500,70 L500,16 L860,16 L860,70"></path>
+          <text class="edge-label accent" x="680" y="12" text-anchor="middle" style="font-size:8.5px">Streamable HTTP JSON-RPC</text>
+
+          <path class="edge" d="M500,76 L520,76"></path>
+
+          <path class="edge accent" marker-end="url(#arrow10Accent)" d="M180,116 L200,186"></path>
+          <text class="edge-label accent" x="120" y="150" style="font-size:8.5px">JDBC :3306</text>
+
+          <path class="edge accent" marker-end="url(#arrow10Accent)" d="M300,116 L510,186"></path>
+          <text class="edge-label accent" x="380" y="150" style="font-size:8.5px">Jedis :6379</text>
+
+          <path class="edge accent" marker-end="url(#arrow10Accent)" d="M420,116 L810,186"></path>
+          <text class="edge-label accent" x="620" y="140" style="font-size:8.5px">HTTP :11434</text>
+
+          <path class="edge accent" marker-end="url(#arrow10Accent)" d="M200,116 L200,300"></path>
+          <text class="edge-label accent" x="210" y="270" style="font-size:8.5px">Write</text>
+
+          <path class="edge accent" marker-end="url(#arrow10Accent)" d="M280,116 L510,300"></path>
+          <text class="edge-label accent" x="380" y="270" style="font-size:8.5px">Write</text>
+
+          <path class="edge accent" marker-end="url(#arrow10Accent)" d="M460,116 L990,186"></path>
+          <text class="edge-label accent" x="720" y="150" style="font-size:8.5px">HTTPS</text>
+
+          <path class="edge rest dashed" marker-end="url(#arrow10Rest)" d="M480,116 L990,300"></path>
+          <text class="edge-label rest" x="700" y="220" style="font-size:8.5px">선택, 기본 비활성</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>항상 연결</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>선택 · 기본 비활성</span>
+      </div>
+    </figure>
+  </section>
+
+  <!-- ============ 11. 설계 핵심 결정 사항 ============ -->
+  <section class="diagram-block" id="sec-design-decisions">
+    <h2>11. 설계 핵심 결정 사항</h2>
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead><tr><th>항목</th><th>설계 결정</th><th>근거</th></tr></thead>
+        <tbody>
+          <tr><td><b>전송 프로토콜</b></td><td>SSE → <b>Streamable HTTP</b>로 전환</td><td><code>application.yaml: mcp.server.protocol=STREAMABLE</code></td></tr>
+          <tr><td><b>3개 생성 Tool의 분기 구조</b></td><td>CRUD/Board/MasterDetail이 <b>각자 별개의</b> Dispatch/PromptGeneration Service를 가짐(공유 안 함)</td><td><code>*GenerationDispatchService</code> 3종</td></tr>
+          <tr><td><b>auto 경로 저장 방식</b></td><td><code>CodeServiceGenerationExecutor</code> 단일 실행기로 합류, <code>usesV2Preview()</code>에 따라 원자적/최선노력 분기</td><td><code>ProjectWritePolicy.ATOMIC_APPROVED</code> vs <code>BEST_EFFORT_COMPATIBILITY</code></td></tr>
+          <tr><td><b>claude 경로 픽셀재현</b></td><td><code>componentStyles</code>/<code>componentGeometry</code>/<code>tokens</code>를 claude 경로 프롬프트에만 반영, auto 경로는 의도적 미참조</td><td>KRDS 정부 표준 룩앤필 일관성 유지</td></tr>
+          <tr><td><b>화면명세 승인 게이트</b></td><td>기본 비활성(<code>approval-required-tables: []</code>), 특정 테이블만 옵트인</td><td><code>CrudGenerationApprovalPolicy</code></td></tr>
+          <tr><td><b>반응형 가드레일 검증</b></td><td>신규 캡처 로직 없이 기존 <code>captureWebPageMultiViewport()</code> 신호 재활용</td><td><code>ResponsiveRegressionAnalyzer</code></td></tr>
+          <tr><td><b>DB 스키마 관리</b></td><td>Flyway(V1~V18) + 기존 DDL 이중 안전망</td><td><code>app.db.legacy-repository-ddl-enabled</code></td></tr>
+          <tr><td><b>RAG 임베딩</b></td><td>로컬 ko-sroberta ONNX(외부 API 불필요)</td><td><code>application.yaml: model.embedding=transformers</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 12. Trade-offs 요약 ============ -->
+  <section class="diagram-block" id="sec-tradeoffs">
+    <h2>12. Trade-offs 요약</h2>
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead><tr><th>설계 선택</th><th>장점</th><th>단점</th></tr></thead>
+        <tbody>
+          <tr><td><b>CRUD/Board/MasterDetail 각자 독립 분기</b></td><td class="pro">도메인별 관심사 분리, 서로 영향 없이 진화 가능</td><td class="con">3개 클래스가 구조적으로 유사해 "유일한 분기 지점"이라는 JavaDoc 문구가 오해를 살 수 있음(각 클래스 내부 기준일 뿐)</td></tr>
+          <tr><td><b>claude 경로 픽셀재현 정보 확장</b></td><td class="pro">화면 재현 정확도 향상 가능성</td><td class="con">프롬프트 컨텍스트 크기 증가, LLM이 가드레일 문구를 완전히 지킨다는 보장 없음(반응형 회귀는 사후 검증 신호일 뿐)</td></tr>
+          <tr><td><b>구조적 유사도(Jaccard) 기반 픽셀 검증</b></td><td class="pro">스크린샷 인프라 없이도 빠르게 도입 가능</td><td class="con">진짜 시각적(색상·정확 좌표) 일치는 보장 안 함</td></tr>
+          <tr><td><b>Streamable HTTP 전환</b></td><td class="pro">최신 MCP 표준 정합</td><td class="con">기존 <code>/sse/**</code> 경로도 Security 설정에 남아있어 혼선 가능성(정리 필요)</td></tr>
+          <tr><td><b>Flyway + 레거시 DDL 이중 안전망</b></td><td class="pro">마이그레이션 실패 리스크 완충</td><td class="con">두 메커니즘이 공존하는 동안 스키마 드리프트 추적 복잡도 증가</td></tr>
+          <tr><td><b>로컬 ONNX 임베딩 유지</b></td><td class="pro">비용 0, 한국어 특화</td><td class="con">GPU 없을 경우 대량 임베딩 시 여전히 느림</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <footer class="notes">
+    <b>이 문서에 대하여</b>
+    <ul>
+      <li>이전 버전(2026-06-07)은 RAG/웹채팅 중심 구조를 다뤘습니다. 그 이후 CRUD/Board/MasterDetail 생성
+      오케스트레이션, Figma 픽셀재현 파이프라인, 화면명세 승인 흐름 등이 대폭 추가되어 전면 다시
+      작성했습니다.</li>
+      <li>04·05·07절 다이어그램은 <code>docs/figma/artifacts/SpringAI_Architecture_Target_Pipeline.html</code>
+      (2번·5번·3번 다이어그램)과 같은 하위 시스템을 다루며, 서술은 <code>아키텍처_심층분석_다이어그램.md</code>
+      기준으로 다시 정리했습니다. 더 깊은 파일·커밋 단위 근거가 필요하면 위 아티팩트를 참고하십시오.</li>
+      <li>이 다이어그램은 정적 스냅샷입니다 — Tool·서비스 구성이 바뀌면 함께 갱신이 필요합니다.</li>
+    </ul>
+  </footer>
+</main>
