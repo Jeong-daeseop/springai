@@ -118,6 +118,14 @@ public class RagService {
     }
 
     /**
+     * docId에 해당하는 문서 임베딩을 삭제한다.
+     * 원본 파일이 사라진 문서를 정리(cleanup)할 때 사용한다.
+     */
+    public void deleteDocument(String docId) {
+        deleteOldChunks(docId);
+    }
+
+    /**
      * docId에 해당하는 기존 청크를 VectorStore에서 삭제한다.
      * ingestText() 호출 전 실행되어 구 청크 누적을 방지한다.
      */
