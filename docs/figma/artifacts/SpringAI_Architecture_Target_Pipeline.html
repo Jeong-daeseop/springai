@@ -801,7 +801,7 @@
 
           <rect class="node-box" x="420" y="610" width="340" height="108" rx="8"></rect>
           <text class="node-title" x="590" y="638" text-anchor="middle" style="font-size:12px">BoardGenerationDispatchService</text>
-          <text class="node-sub" x="590" y="656" text-anchor="middle">(2026-08-28 추가) 별개 클래스 — 자체 isAuto() 분기</text>
+          <text class="node-sub" x="590" y="656" text-anchor="middle">별개 클래스 — 자체 isAuto() 분기</text>
           <text class="node-sub" x="590" y="674" text-anchor="middle" style="font-size:9.5px">auto → Spring MCP 서버가 게시판(BBS) 소스 파일 세트 직접 저장</text>
           <text class="node-sub" x="590" y="692" text-anchor="middle" style="font-size:9px;fill:var(--ink-muted)">claude → BoardPromptGenerationService가 프롬프트 텍스트만 반환</text>
 
@@ -896,7 +896,7 @@
         서로 공유하지 않습니다</b> — <code>CrudGenerationTool</code>은 <code>CrudGenerationDispatchService</code>로,
         <code>MasterDetailGenerationTool</code>은 이름은 비슷하지만 <b>완전히 별개인</b>
         <code>MasterDetailGenerationDispatchService</code>로,
-        <code>BoardGenerationTool</code>도 <b>(2026-08-28 추가)</b> 마찬가지로 완전히 별개인
+        <code>BoardGenerationTool</code>도 마찬가지로 완전히 별개인
         <code>BoardGenerationDispatchService</code>로 갑니다(세 클래스의 JavaDoc이 각자
         "llmProvider(auto vs claude/기타) 분기가 존재하는 <b>유일한 지점</b>"이라는 같은 문구를 씁니다 —
         "유일한"은 각 클래스 내부 기준이지, 세 Tool이 같은 분기점을 쓴다는 뜻이 아닙니다). 세 경로
@@ -911,9 +911,9 @@
         이후 선택)은 메인 흐름을 보조하는 별도 진입점입니다.
       </figcaption>
       <figcaption style="margin-top:10px">
-        <b>(2026-08-26 갱신)</b> 위 다이어그램에 <code>CrudGenerationApprovalPolicy(신규)</code> 박스가
-        추가된 대로, <code>CrudGenerationPlanner</code>(7번 <code>GenerateCrudProjectUseCase</code> 내부) 안에
-        조건부 승인 게이트가 추가됐습니다(커밋 <code>5b8244a</code>) — <code>CrudGenerationApprovalPolicy</code>가
+        <b>승인 게이트.</b> 위 다이어그램의 <code>CrudGenerationApprovalPolicy</code> 박스대로,
+        <code>CrudGenerationPlanner</code>(7번 <code>GenerateCrudProjectUseCase</code> 내부) 안에
+        조건부 승인 게이트가 있습니다(커밋 <code>5b8244a</code>) — <code>CrudGenerationApprovalPolicy</code>가
         <code>app.crud-generation.approval-required-tables</code>(테이블 목록) 또는
         <code>approval-required-for-all</code>(전체 강제) 설정을 확인해, 지정된 테이블은 viewType과
         무관하게 승인된 화면명세(<code>designReferenceId</code>/<code>screenSpecificationId</code>) 없이는
@@ -927,7 +927,7 @@
         변경이라 채택하지 않았습니다.
       </figcaption>
       <figcaption style="margin-top:10px">
-        <b>(2026-08-26 갱신, 2)</b> <code>GenerateCrudProjectUseCase</code> 박스 아래로 내려가는
+        <b>내부 호출 화살표의 의미.</b> <code>GenerateCrudProjectUseCase</code> 박스 아래로 내려가는
         "내부 호출" 화살표는 <code>CrudGenerationApprovalPolicy</code>와 <code>CodeServiceGenerationExecutor
         (공통 실행기)</code> 두 곳 다 <b>같은 의미</b>입니다 — 순서대로 실행되는 별도 단계가 아니라
         <code>CrudGenerationApplicationService.execute()</code>(실제 <code>GenerateCrudProjectUseCase</code>
@@ -940,7 +940,7 @@
         확대 수준에서 설명한 것이지, 두 번 저장한다는 뜻이 아닙니다.
       </figcaption>
       <figcaption style="margin-top:10px">
-        <b>(2026-08-26 갱신, 3)</b> <code>CrudGenerationApprovalPolicy</code> → <code>CodeServiceGenerationExecutor</code>
+        <b>단일 순차 게이트.</b> <code>CrudGenerationApprovalPolicy</code> → <code>CodeServiceGenerationExecutor</code>
         관계는 두 갈래로 갈라지는 분기가 아니라 <b>단일 순차 게이트</b>입니다 — <code>CrudGenerationPlanner
         .plan()</code>의 실제 조건은 <code>approvalPolicy.requiresApproval(tableName) &amp;&amp;
         isBlank(designReferenceId) &amp;&amp; isBlank(screenSpecificationId)</code>이며, 이 조건이
@@ -955,8 +955,8 @@
         별도로 이루어지는, 이 게이트와는 다른 실패 지점입니다.
       </figcaption>
       <figcaption style="margin-top:10px">
-        <b>(2026-08-26 갱신, 4)</b> <code>CodeServiceGenerationExecutor</code>가 실제로 저장하는
-        내용을 <code>CrudLayerDefinition</code> 소스로 확인했습니다 — <code>CrudGenerationRenderer</code>가
+        <b>원자적 저장.</b> <code>CodeServiceGenerationExecutor</code>가 실제로 저장하는
+        내용은 <code>CrudLayerDefinition</code> 소스 기준입니다 — <code>CrudGenerationRenderer</code>가
         렌더링에 성공한 레이어들을 <b>파일 하나씩이 아니라 <code>ProjectChangeSet</code> 하나로 묶어
         한 번에</b> <code>ApprovedProjectWritePort.apply()</code>에 넘깁니다(원자적 저장). CRUD
         기준 레이어 구성은 다음과 같습니다.
@@ -983,9 +983,9 @@
           <tr><th>항목</th><th>CrudGenerationTool</th><th>BoardGenerationTool</th><th>MasterDetailGenerationTool</th></tr>
         </thead>
         <tbody>
-          <tr><td>분기(Dispatch)</td><td><code>CrudGenerationDispatchService</code> — <code>isAuto()</code> 분기 있음</td><td><code>BoardGenerationDispatchService</code>(2026-08-28 추가) — CRUD와 별개 클래스지만 동일한 패턴의 <code>isAuto()</code> 분기</td><td><code>MasterDetailGenerationDispatchService</code> — CRUD와 별개 클래스지만 동일한 패턴의 <code>isAuto()</code> 분기</td></tr>
+          <tr><td>분기(Dispatch)</td><td><code>CrudGenerationDispatchService</code> — <code>isAuto()</code> 분기 있음</td><td><code>BoardGenerationDispatchService</code> — CRUD와 별개 클래스지만 동일한 패턴의 <code>isAuto()</code> 분기</td><td><code>MasterDetailGenerationDispatchService</code> — CRUD와 별개 클래스지만 동일한 패턴의 <code>isAuto()</code> 분기</td></tr>
           <tr><td>auto 저장 주체</td><td colspan="3" style="text-align:center"><code>CodeServiceGenerationExecutor</code> — <code>GenerationExecutor</code> 구현체가 코드베이스에 이것 하나뿐이라 세 Tool이 같은 Spring 싱글턴을 공유</td></tr>
-          <tr><td>claude 경로</td><td><code>BuildCrudPromptUseCase</code> — 프롬프트만 반환, 파일 저장 없음</td><td><code>BuildBoardPromptUseCase</code>(<code>BoardPromptGenerationService</code>, 2026-08-28 추가) — 테이블 구성·스키마·업무규칙 프롬프트만 반환</td><td><code>BuildMasterDetailPromptUseCase</code> — 프롬프트만 반환</td></tr>
+          <tr><td>claude 경로</td><td><code>BuildCrudPromptUseCase</code> — 프롬프트만 반환, 파일 저장 없음</td><td><code>BuildBoardPromptUseCase</code>(<code>BoardPromptGenerationService</code>) — 테이블 구성·스키마·업무규칙 프롬프트만 반환</td><td><code>BuildMasterDetailPromptUseCase</code> — 프롬프트만 반환</td></tr>
           <tr><td>모델 변환(Model Factory)</td><td><code>CrudModelFactory.fromSchema()</code></td><td><code>BoardModelFactory</code> — 자매 클래스, 컬럼→<code>FieldModel</code> 매핑은 <code>CrudMappingUtils.toFieldModel()</code>로 <code>CrudModelFactory</code>와 공유</td><td style="color:var(--rest)"><b>없음</b> — 전용 Factory 없이 <code>CrudModelFactory.fromSchema()</code>를 마스터·디테일에 각각 재사용(2회 호출)</td></tr>
           <tr><td>렌더러(저장 내용 결정)</td><td><code>CrudGenerationRenderer</code>→<code>CrudTemplateRenderer</code></td><td><code>BoardGenerationRenderer</code>→<code>BoardTemplateRenderer</code></td><td><code>MasterDetailGenerationRenderer</code>→<code>MasterDetailTemplateRenderer</code></td></tr>
           <tr><td>레이어 정의</td><td><code>CrudLayerDefinition</code>(VO/Controller/Service/Mapper/View)</td><td><code>BoardLayerDefinition</code>(BBS 전용 레이어)</td><td><code>MasterDetailLayerDefinition</code>(1:N 마스터-디테일 전용 레이어)</td></tr>
@@ -1002,7 +1002,7 @@
       <code>.ftl</code> 템플릿 세트로 파일 목록만 다르게 만들고, 그 결과물만 같은 실행기에 넘깁니다.
     </p>
     <p class="subsection-sub" style="margin-top:10px">
-      <b>(2026-09-01 갱신) 두 번째 발견: "모델 변환기"는 사실 둘뿐입니다.</b> 위 표의 신규 행대로,
+      <b>두 번째 발견: "모델 변환기"는 사실 둘뿐입니다.</b> 위 표 행대로,
       Board는 <code>CrudModelFactory</code>의 자매 클래스 <code>BoardModelFactory</code>를 따로 두지만
       <b>MasterDetail은 전용 Factory가 없습니다</b> — <code>MasterDetailGenerationPlanner</code>·
       <code>MasterDetailScreenSourceGenerator</code> 둘 다 <code>CrudModelFactory.fromSchema()</code>를
@@ -1029,9 +1029,9 @@
         <tbody>
           <tr><td>역할 슬롯 수</td><td>1개(<code>tableName</code>)</td><td>2개(<code>masterTable</code>, <code>detailTable</code>)</td><td>5개(게시글/마스터/사용권한/파일/파일상세)</td></tr>
           <tr><td>테이블명 자유도</td><td>자유(필수 파라미터)</td><td>자유(둘 다 필수 파라미터, 하드코딩 없음)</td><td>자유(단, <code>@Nullable</code>이라 미지정 시 <code>LETTN*</code> 기본값으로 대체)</td></tr>
-          <tr><td><code>llmProvider</code> 파라미터</td><td>있음</td><td>있음</td><td>있음(2026-08-28 추가)</td></tr>
-          <tr><td>auto/claude 분기</td><td><code>CrudGenerationDispatchService</code>에서 <code>isAuto()</code></td><td><code>MasterDetailGenerationDispatchService</code>에서 자체 <code>isAuto()</code>(CRUD와 별개 구현체)</td><td><code>BoardGenerationDispatchService</code>에서 자체 <code>isAuto()</code>(CRUD와 별개 구현체, 2026-08-28 추가)</td></tr>
-          <tr><td>반환값 구조</td><td><code>Orchestrated</code>(저장) / <code>Prompted</code>(텍스트만)</td><td>동일하게 <code>Orchestrated</code>/<code>Prompted</code> 2종</td><td>동일하게 <code>Orchestrated</code>/<code>Prompted</code> 2종(<code>BoardToolResult</code>, 2026-08-28 추가)</td></tr>
+          <tr><td><code>llmProvider</code> 파라미터</td><td>있음</td><td>있음</td><td>있음</td></tr>
+          <tr><td>auto/claude 분기</td><td><code>CrudGenerationDispatchService</code>에서 <code>isAuto()</code></td><td><code>MasterDetailGenerationDispatchService</code>에서 자체 <code>isAuto()</code>(CRUD와 별개 구현체)</td><td><code>BoardGenerationDispatchService</code>에서 자체 <code>isAuto()</code>(CRUD와 별개 구현체)</td></tr>
+          <tr><td>반환값 구조</td><td><code>Orchestrated</code>(저장) / <code>Prompted</code>(텍스트만)</td><td>동일하게 <code>Orchestrated</code>/<code>Prompted</code> 2종</td><td>동일하게 <code>Orchestrated</code>/<code>Prompted</code> 2종(<code>BoardToolResult</code>)</td></tr>
         </tbody>
       </table>
     </div>
@@ -1040,11 +1040,10 @@
       이 표는 <b>Tool 호출 계약(파라미터·분기 유무·반환 타입)</b> 관점의 비교다. <code>MasterDetailGenerationTool</code>은
       역할 슬롯이 1개→2개로 늘어났을 뿐 <code>llmProvider</code> 분기와 <code>Orchestrated</code>/<code>Prompted</code>
       반환 구조를 그대로 계승한 <b>CrudGenerationTool의 확장판</b>에 가깝다. <code>BoardGenerationTool</code>은
-      원래 처음부터 결정론적 파이프라인만으로 설계돼 이 계열에서 벗어나 있었으나,
-      <b>(2026-08-28 갱신)</b> 검토 문서(<code>BoardGenerationTool_llmProvider_도입_검토.md</code>) →
-      구현계획(<code>BoardGenerationTool_llmProvider_구현계획.md</code>)을 거쳐 <code>llmProvider</code>
-      분기가 추가되면서, 이제 셋 다 같은 계열(역할 슬롯 개수만 다르고 분기·반환 구조는 동일한 패턴)에
-      속한다. "테이블명 자유도" 행의 <code>LETTN*</code>은
+      결정론적 파이프라인만으로 설계됐던 것과 별개로, 검토 문서
+      (<code>BoardGenerationTool_llmProvider_도입_검토.md</code>) → 구현계획
+      (<code>BoardGenerationTool_llmProvider_구현계획.md</code>)을 거쳐 <code>llmProvider</code> 분기가
+      추가되어, 이제 셋 다 같은 계열(역할 슬롯 개수만 다르고 분기·반환 구조는 동일한 패턴)에 속한다. "테이블명 자유도" 행의 <code>LETTN*</code>은
       하드코딩된 고정 테이블이 아니라 <code>BoardTableSetResolver</code>가 파라미터 미지정 시에만 적용하는 기본값이며,
       사용자가 임의 테이블명을 넘기면 그 이름 그대로 <code>INFORMATION_SCHEMA.COLUMNS</code>를 조회해 생성한다 —
       고정된 것은 테이블 "이름"이 아니라 "역할 슬롯 개수"라는 구조다.
@@ -1071,9 +1070,8 @@
       <code>CrudGenerationDispatchService</code>가 <code>command.isAuto()</code>로 분기하고,
       <code>MasterDetailGenerationTool</code>은 이름은 비슷하지만 <b>완전히 별개 클래스</b>인
       <code>MasterDetailGenerationDispatchService</code>가 자체적으로 같은 패턴의 분기를 수행한다.
-      <code>BoardGenerationTool</code>도 <b>(2026-08-28 추가)</b> 마찬가지로 완전히 별개 클래스인
-      <code>BoardGenerationDispatchService</code>가 자체적으로 같은 패턴의 분기를 수행한다(도입 전에는
-      이 분기 자체가 없어 항상 서버가 직접 저장하는 경로로만 동작했다).
+      <code>BoardGenerationTool</code>도 마찬가지로 완전히 별개 클래스인
+      <code>BoardGenerationDispatchService</code>가 자체적으로 같은 패턴의 분기를 수행한다.
       즉 이 스위치는 "이 Tool 호출 결과로 서버가 파일을 즉시 써버릴지, 아니면 Claude에게 작성을
       넘길지"를 결정하며, 이제 세 Tool 모두 이 스위치를 갖고 있다.
     </p>
@@ -1261,6 +1259,17 @@
         MySQL 저장은 두 박스가 다릅니다 — <b>Registry (Legacy)</b>는 <code>AI_COMPONENT_REGISTRY</code>(v1/v2,
         초안 upsert + 승인 revision-append 이중모드, 10번↔13번 다이어그램 참고)에, <b>Registry Snapshot</b>은
         <code>AI_COMPONENT_REGISTRY_V3</code>(REST 전용, 현재 MCP Tool 경로 없음, 13번 참고)에 저장됩니다.
+      </figcaption>
+      <figcaption style="margin-top:10px">
+        <b>9번(Design Token)과는 연결이 없습니다 — 9번 자체가 어디에도 안 쓰이는 고아 자산이기
+        때문입니다.</b> <code>grep -rln "component-contracts" src/main/java</code>가 <b>0건</b>을
+        반환합니다. <code>component-contracts/tokens/*.json</code>은
+        <code>krds-design-system-author-plugin</code>도 읽지 않습니다(그 Plugin의 실제 입력은
+        <code>website-figma-contract/design-system-spec-v1.schema.json</code> 계약을 따르는 별개
+        JSON — 9번 참고). 즉 9번은 3번과 방향이 반대인 별도 파이프라인이 아니라, <b>저장소 어디에도
+        배선되지 않은 정적 파일 디렉터리</b>입니다. 3번(Figma → DB, <code>ComponentRegistrySyncService</code>가
+        <code>AI_COMPONENT_REGISTRY</code>에 저장)은 실제로 동작하는 파이프라인이라는 점에서 9번과
+        근본적으로 다릅니다.
       </figcaption>
     </figure>
   </section>
@@ -1462,9 +1471,9 @@
         <span><i class="swatch" style="background:var(--rest)"></i>파싱·매핑·소비 상세 단계(입력 B · Figma 전용, 입력 A·C엔 대응 단계 없음) — (2026-08-28) componentStyles/componentGeometry/tokens 모두 claude 경로까지 생존, auto 경로(CrudModelFactory)만 셋 다 미참조</span>
       </div>
       <figcaption>
-        <b>(2026-09-01 갱신) "입력" 박스는 실제로는 완전히 다른 세 파이프라인이다.</b> 로컬 이미지/PDF(입력 A)와
-        Figma 프레임(입력 B)이 하나의 박스로 뭉뚱그려져 있었으나, <code>DesignReferenceAnalysisService</code>
-        코드를 보면 둘은 <code>UiDesignSpec</code>을 만드는 방식 자체가 다르다 — A는
+        <b>"입력" A·B·C는 완전히 다른 세 파이프라인이다.</b> 로컬 이미지/PDF(입력 A)와
+        Figma 프레임(입력 B)은 <code>DesignReferenceAnalysisService</code>
+        코드 기준으로 <code>UiDesignSpec</code>을 만드는 방식 자체가 다르다 — A는
         <code>VisionAnalysisClient.analyze()</code>가 LLM(OpenAI·Ollama)으로 이미지를 <b>추론</b>하고,
         B는 <code>FigmaDesignSpecMapper.map()</code>이 노드 트리를 그대로 읽는 <b>결정론적 파싱</b>이라
         LLM 호출 자체가 없다. 외부 호출 안전장치도 다르다 — A는 생성형 POST라 <code>CompletableFuture
@@ -1477,7 +1486,7 @@
         공통 레코드로 수렴한 뒤부터만 세 경로가 같은 코드(<code>createScreenSpecification</code> 이하)를 탄다.
       </figcaption>
       <figcaption>
-        <b>(2026-09-01 추가) "입력 A = 스크린샷"은 아니다 — A는 사전 목업, C는 사후 캡처다.</b>
+        <b>"입력 A = 스크린샷"은 아니다 — A는 사전 목업, C는 사후 캡처다.</b>
         <code>ReferencePathValidator</code>는 확장자(<code>png</code>/<code>jpg</code>/<code>jpeg</code>/
         <code>pdf</code>)와 매직바이트만 검사할 뿐, 그 이미지가 스크린샷인지 디자이너가 내보낸 목업인지
         손으로 그린 와이어프레임을 찍은 사진인지 구분하지 않는다 — 코드에 그런 판별 로직 자체가 없다.
@@ -1488,7 +1497,7 @@
         기준이 아니다.
       </figcaption>
       <figcaption>
-        <b>(2026-09-01 추가) 입력 C · 캡처 화면 — "화면 소스를 직접 읽는" 게 아니라 렌더링된 DOM을 읽는다.</b>
+        <b>입력 C · 캡처 화면 — "화면 소스를 직접 읽는" 게 아니라 렌더링된 DOM을 읽는다.</b>
         <code>captureWebPage()</code>가 실행 중인 URL을 Chromium(<code>jsp-design-extractor</code>)으로
         렌더링해 저장한 뒤, <code>analyzeCapturedDesign()</code>이 <code>WebCaptureProjectionPolicy</code>로
         안전 필터링하고 <code>RenderedDesignSpecMapper.map()</code>이 <b>결정론적으로</b>
@@ -1524,10 +1533,9 @@
         업무 계약을 덮어쓸 수 없습니다.
       </figcaption>
       <figcaption style="margin-top:10px">
-        <b>2026-08-27 갱신 — "Token·Component 공급"의 실제 폭은 훨씬 좁다.</b> 위 문단의 "시각 구조·Token·
-        Component 선택만 공급"이라는 표현이 마치 색상 팔레트나 컴포넌트 스타일이 어느 정도 전달되는 것처럼
-        읽힐 수 있어, 실제로 어느 단계에서 무엇이 살아남는지 코드로 재확인했다. 색상·컴포넌트 시각 스타일은
-        <b>두 단계</b>를 거치며 사실상 전부 사라진다.
+        <b>"Token·Component 공급"의 실제 폭은 좁다.</b> 위 문단의 "시각 구조·Token·Component 선택만
+        공급"이라는 표현과 달리, 색상 팔레트나 컴포넌트 시각 스타일이 온전히 전달되는 건 아니다 —
+        색상·컴포넌트 시각 스타일은 <b>두 단계</b>를 거치며 사실상 전부 사라진다.
       </figcaption>
       <div class="data-table-wrap" style="margin-top:10px">
         <table class="data-table">
@@ -1546,9 +1554,9 @@
         </table>
       </div>
       <p class="subsection-sub" style="margin-top:10px">
-        <b>(2026-08-28 갱신)</b> 위 분석 이후 <code>Figma_fills_strokes_구현계획.md</code>(커밋
+        <code>Figma_fills_strokes_구현계획.md</code>(커밋
         <code>bbc8079</code>)와 <code>Figma_픽셀재현_claude경로_구현계획.md</code>(커밋 <code>369cbe1</code>)로
-        이 소실 문제 일부를 해소했다. <code>UiDesignSpec.ComponentSpec</code>에
+        이 소실 문제 일부가 해소되어 있다. <code>UiDesignSpec.ComponentSpec</code>에
         <code>backgroundColor</code>/<code>borderColor</code>가, <code>UiDesignSpec</code>에
         <code>geometryTree</code>(부모-자식 구조·좌표·auto-layout·텍스트스타일)가 추가됐고, 둘 다
         <code>ScreenSpecification.componentStyles</code>/<code>componentGeometry</code>로 매핑까지 이어진다.
@@ -1566,7 +1574,7 @@
         그라데이션·이미지 채우기는 여전히 무시한다.
       </p>
       <p class="subsection-sub" style="margin-top:14px">
-        <b>(2026-08-28 신규) 픽셀재현 제외범위 후속 Tool 3종.</b>
+        <b>픽셀재현 제외범위 후속 Tool 3종.</b>
         <code>Figma_픽셀재현_제외범위_구현계획.md</code>의 4개 트랙 중 3개가 신규 MCP Tool로 이어졌다 —
         <code>compareDesignFidelity(originalAnalysisId, renderedAnalysisId)</code>는 이 5번 섹션이
         만든 원본 <code>UiDesignSpec</code>과, 생성된 화면을 <code>captureWebPage()</code> +
@@ -1588,6 +1596,27 @@
         <code>MOVED</code>/<code>HIDDEN</code>/<code>SHOWN</code>)를 <code>ResponsiveRegressionAnalyzer</code>가
         재분류만 해 <code>MOVED</code> 발생 건을 "가드레일 위반 의심" 신호로 요약한다. <code>MOVED</code>가
         실제 위반인지 의도된 반응형 재배치인지는 구분하지 못하므로 최종 판단은 여전히 사람 몫이다.
+      </p>
+      <p class="subsection-sub" style="margin-top:14px">
+        <b><code>ScreenSpecificationPromptFormatter</code>가 실어 보내는 정보는 업무 계약과 시각
+        스타일 두 종류로 나뉜다.</b>
+        <code>format()</code>(<code>ScreenSpecificationPromptFormatter.java</code>, 89줄)이 만드는
+        프롬프트에는 <code>specificationId</code>/<code>archetype</code>/<code>layoutDensity</code>
+        등 구조값, <code>primaryDataSource</code>·<code>dataSources</code>(JOIN 관계 포함), 그리고
+        페이지별 <code>page.fields()</code> 전체(필드 라벨·<code>dataRole</code>·
+        <code>source.column</code>/<code>expression</code>/<code>codeGroup</code>)와
+        <code>actions</code>까지 통째로 들어간다. 이건 애초에 Figma가 아니라 DB 스키마·Controller·VO
+        기반 업무 계약이라(문서 앞부분의 "UiDesignSpec은 시각 구조만 공급, 업무 계약은 DB/Controller/VO가
+        기준" 원칙) 이름·역할이 그대로 <b>완전하게</b> 전달된다. <code>componentStyles</code>/
+        <code>tokens</code>는 필드별 값 나열이고, <code>componentGeometry</code>는 JSON 트리 전체를
+        <code>objectMapper.writeValueAsString()</code>으로 직렬화해 그대로 삽입한다 — 즉 좌표·간격·색상·
+        폰트 정보량 자체는 상당히 풍부하다. 다만 <b>의미 정보는 이 시각 스타일 부분에만 없다</b> —
+        1단계에서 Variable/Style 참조 없이 해석된 RGBA·숫자값만 뽑기 때문에, 프롬프트에도
+        "이 색이 primary 브랜드 토큰이었다" 같은 이름은 없고 <code>backgroundColor=rgba(...)</code>
+        같은 숫자만 남는다. 업무 계약 부분과 시각 스타일 부분을 구분해서 읽어야 한다.
+        <code>CrudPromptBuilderService</code>·<code>MasterDetailService</code>·
+        <code>BoardPromptGenerationService</code> 세 곳(CRUD·MasterDetail·Board claude 경로 전부) 모두
+        이 <code>format()</code>을 프롬프트 끝에 붙여 호출한다.
       </p>
     </figure>
   </section>
@@ -1690,8 +1719,8 @@
         파일 저장은 종점이 아니라 검증 게이트의 입력입니다.
       </figcaption>
       <figcaption style="margin-top:10px">
-        <b>2026-08-27 갱신 — 3번 박스(<code>CrudModelFactory.fromSchema()</code>)는 사실 auto 전용이다.</b>
-        위 다이어그램은 3번 박스를 <code>isAuto()</code> 분기 <i>이전</i> 공통 단계처럼 그리고 있지만, 실제
+        <b>3번 박스(<code>CrudModelFactory.fromSchema()</code>)는 auto 전용이다.</b>
+        위 다이어그램에서 3번 박스는 <code>isAuto()</code> 분기 <i>이전</i> 공통 단계처럼 그려져 있지만, 실제
         분기(<code>CrudGenerationDispatchService.isAuto()</code>)는 <code>CrudModelFactory</code>가 호출되기도
         전, Dispatch 최상단에서 일어난다. <b>auto</b> 경로만 <code>CrudGenerationPlanner</code> →
         <code>CrudModelFactory.fromSchema()</code>를 타고, <b>claude</b> 경로는 이 클래스를 아예 거치지 않고
@@ -1841,7 +1870,7 @@
         <code>jsp-to-figma-plugin</code>이 그대로 소비할 수 있습니다.
       </figcaption>
       <figcaption>
-        <b>(2026-09-01 추가) 이 다이어그램은 extractor 프로세스 내부만 보여준다 — springai가 어떻게
+        <b>이 다이어그램은 extractor 프로세스 내부만 보여준다 — springai가 어떻게
         여기까지 도달하는지는 별도다.</b> 위 1~5단계는 <code>jsp-design-extractor</code> Node 서버
         안에서 일어나는 일이며, 이 서버는 springai의 <code>captureWebPage()</code>/
         <code>captureWebPageMultiViewport()</code> MCP Tool이 <code>POST /v1/captures</code>로
@@ -1859,14 +1888,17 @@
     <h2>9. component-contracts 상세 — 디자인 토큰 구조</h2>
     <p class="section-sub">
       2번 다이어그램의 <b>9번 배지</b>를 펼친 내부 구조입니다. W3C Design Tokens 형식(<code>$value</code>/<code>$type</code>)을
-      따르며, Primitive를 Semantic이 참조합니다.
+      따르며, Primitive를 Semantic이 참조합니다. <b>(2026-09-01 확인) 이 <code>component-contracts/</code>
+      디렉터리는 현재 어떤 빌드·코드·Plugin과도 연결되어 있지 않은 미사용(고아) 자산입니다</b> — 아래
+      참고.
     </p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1040 420" role="img" aria-label="5개의 Primitive 토큰 파일(color, motion, shape, space, typography)을 semantic.tokens.json이 참조 문법으로 참조하고, 이 Semantic 토큰을 krds-design-system-author-plugin이 소비한다.">
+        <svg viewBox="0 0 1040 420" role="img" aria-label="5개의 Primitive 토큰 파일(color, motion, shape, space, typography)을 semantic.tokens.json이 참조 문법으로 참조한다. 이 semantic.tokens.json을 실제로 읽는 코드는 Java 백엔드에도 krds-design-system-author-plugin에도 없다 — 그 Plugin이 실제로 읽는 건 website-figma-contract/design-system-spec-v1.schema.json 계약을 따르는 별개의 JSON이다.">
           <defs>
             <marker id="arrow9" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow9Good" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--good)"></path></marker>
+            <marker id="arrow9Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
           </defs>
 
           <text class="group-label" x="40" y="26">tokens/primitive/</text>
@@ -1884,11 +1916,11 @@
           <text class="node-sub" x="630" y="231" text-anchor="middle">→ CSS 변수(--color-bg-brand 등)</text>
 
           <a class="diagram-link" href="#krds-author-detail">
-            <title>10번 다이어그램: krds-design-system-author-plugin 상세로 이동</title>
-            <rect class="node-box good" x="820" y="300" width="180" height="90" rx="8"></rect>
-            <text class="node-title" x="910" y="330" text-anchor="middle">krds-design-</text>
-            <text class="node-title" x="910" y="348" text-anchor="middle">system-author</text>
-            <text class="jump-hint" x="910" y="366" text-anchor="middle" style="font-size:9px">↳ 10번 참고</text>
+            <title>10번 다이어그램: krds-design-system-author-plugin 상세로 이동(참고 — 실제로 이 토큰을 읽지는 않음)</title>
+            <rect class="node-box rest" x="820" y="300" width="180" height="90" rx="8" style="stroke-dasharray:5 4"></rect>
+            <text class="node-title" x="910" y="326" text-anchor="middle" style="font-size:11px">krds-design-</text>
+            <text class="node-title" x="910" y="342" text-anchor="middle" style="font-size:11px">system-author</text>
+            <text class="jump-hint" x="910" y="358" text-anchor="middle" style="font-size:8px;fill:var(--rest)">↳ 10번(별개 입력 사용, 아래 참고)</text>
             <g class="jump-badge"><circle cx="982" cy="314" r="12"></circle><text x="982" y="318" text-anchor="middle">10</text></g>
           </a>
 
@@ -1897,14 +1929,54 @@
           <path class="edge" marker-end="url(#arrow9)" d="M300,181 L480,185"></path>
           <path class="edge" marker-end="url(#arrow9)" d="M300,241 Q400,241 480,205"></path>
           <path class="edge" marker-end="url(#arrow9)" d="M300,301 Q400,301 480,220"></path>
-          <path class="edge good" marker-end="url(#arrow9Good)" d="M780,220 Q850,260 880,300"></path>
+          <path class="edge rest dashed" marker-end="url(#arrow9Rest)" d="M780,220 Q850,260 880,300"></path>
+          <text class="edge-label" x="800" y="260" style="font-size:8px;fill:var(--rest)">⚠ 실제 연결 없음(고아 파일)</text>
         </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--ink-muted)"></i>Primitive → Semantic 참조(실제 파일 구조)</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>다이어그램에 예전부터 그려져 있었지만 근거를 찾지 못한 연결</span>
       </div>
       <figcaption>
         Primitive는 <code>{"$type": "color"}</code>처럼 원시값만 갖고, Semantic이 <code>{color.blue.500}</code>
         참조 문법으로 이를 가져와 <code>brand</code>·<code>text</code>·<code>border</code> 같은 역할 이름에 매핑합니다.
         3번 다이어그램의 Component Catalog/Registry(컴포넌트 <b>논리 계약</b>)와는 완전히 다른 축 — 이쪽은
         색상·간격 같은 <b>토큰 값</b> 자체를 다룹니다.
+      </figcaption>
+      <figcaption style="margin-top:10px">
+        <b>이 디렉터리는 어디에도 연결되어 있지 않은 고아(orphan) 자산입니다.</b>
+        <code>component-contracts/</code>를 참조하는 코드는 저장소 전체에서 문서·아티팩트
+        HTML 몇 개와 <code>.gitignore</code>/<code>.component-contracts.example</code>뿐이고, 실행되는
+        코드는 <b>단 하나도 없습니다</b>:
+        <ul style="margin:6px 0 0;padding-left:20px">
+          <li>Java 백엔드: <code>grep -rln "component-contracts" src/main/java</code> → 0건</li>
+          <li><code>krds-design-system-author-plugin</code>: README·<code>code.ts</code> 모두
+            <code>design-system-spec-v1</code> 계약(<code>website-figma-contract/design-system-spec-v1
+            .schema.json</code>과 동기화)만 언급 — <code>component-contracts</code>는 전혀 등장하지
+            않음</li>
+          <li>빌드 검증: <code>build.gradle</code>의 <code>figmaContractTest</code> task는
+            <code>component-contracts</code>가 아니라 <b>이름이 비슷한 별개 프로젝트</b>
+            <code>website-figma-contract</code>를 대상으로 함(<code>workingDir file('website-figma-contract')</code>)</li>
+          <li><code>.component-contracts.example</code>이 가리키는
+            <code>CONTRACTS_DIR=component-contracts/contracts</code> 디렉터리는 실제로 <b>존재하지도
+            않음</b></li>
+        </ul>
+        즉 위 그림의 "semantic.tokens.json → <code>krds-design-system-author-plugin</code>" 화살표는
+        점선·경고로 표시된 대로 근거가 없습니다. 실제 Plugin이 읽는 계약은 10번을
+        참고하세요 — 이름은 비슷하지만(<code>component-contracts</code> vs
+        <code>website-figma-contract</code>) 서로 다른 프로젝트입니다.
+      </figcaption>
+      <figcaption style="margin-top:10px">
+        <b>"토큰"이라는 이름이 같아도 5번 다이어그램의 <code>tokens</code>와는
+        완전히 다른 개념입니다.</b> 5번에서 확인한 "claude 경로만
+        <code>componentStyles</code>/<code>componentGeometry</code>/<code>tokens</code> 반영"의 그
+        <code>tokens</code>는 <code>UiDesignSpec.tokens</code>이며, <code>FigmaDesignSpecMapper
+        .tokens()</code>가 <b>그때그때 분석 중인 Figma 프레임 하나의 배경색·폰트</b>를 그 자리에서
+        추출한 값입니다(<code>root.path("backgroundColor")</code>/<code>root.path("style")</code>) —
+        화면마다 값이 다른 "그 화면 고유의 토큰"입니다. 반면 이 9번의 토큰은 KRDS 표준으로 미리
+        정의된 재사용 팔레트(<code>color.tokens.json</code> 등)입니다. 이름만 같을 뿐 서로 다른
+        데이터이고, 9번은(위에서 확인했듯) 어느 경로에도 쓰이지 않으니 "claude 모드에서만 적용된다"는
+        것도 성립하지 않습니다 — auto·claude 어느 쪽과도 무관합니다.
       </figcaption>
     </figure>
   </section>
@@ -1979,6 +2051,14 @@
         <code>CURRENT</code>일 때만 사람 확인 후 불변 Registry Snapshot을 저장하고 Profile을 <code>PUBLISHED</code>로
         전환합니다 — 이게 바로 3번 다이어그램 "Registry (Legacy)" 박스의 실제 입력 출처입니다.
       </figcaption>
+      <figcaption style="margin-top:10px">
+        <b>1단계 입력은 9번의 토큰 파일과 무관합니다.</b> 이 Plugin이 실제로 읽는 건
+        <code>website-figma-contract/design-system-spec-v1.schema.json</code> 계약을 따르는 JSON이지,
+        9번 다이어그램의 <code>component-contracts/tokens/*.json</code>이 아닙니다 — 이름이 비슷한
+        <code>component-contracts</code>와 <code>website-figma-contract</code>는 서로 다른 프로젝트이며,
+        전자를 참조하는 코드는 이 Plugin에도(<code>README.md</code>·<code>src/code.ts</code> 어디에도
+        <code>component-contracts</code> 언급 없음), Java 백엔드에도 없습니다. 자세한 근거는 9번 참고.
+      </figcaption>
     </figure>
   </section>
 
@@ -2040,7 +2120,7 @@
         임시 최상위 Frame(<code>"IMPORTING {title}"</code>)만 제거해 Figma 파일의 다른 내용을 건드리지 않습니다.
       </figcaption>
       <figcaption>
-        <b>(2026-09-01 추가) 1단계 "figpack-v1 ZIP"은 어디서 오는가.</b> 8번 다이어그램의 extractor가
+        <b>1단계 "figpack-v1 ZIP"은 어디서 오는가.</b> 8번 다이어그램의 extractor가
         직접 이 Plugin에 파일을 넘기지 않습니다 — springai의 <code>prepareFigmaImport(artifactId)</code>
         (단일 viewport) 또는 <code>prepareFigmaBundleImport(bundle)</code>(Desktop/Tablet/Mobile
         멀티뷰포트, <code>bundle.json</code> + viewport별 <code>.figpack</code> 3개를 zip 하나로 묶음)
@@ -2632,9 +2712,9 @@
       5번 다이어그램의 <b>입력 C</b>·8번 다이어그램(<code>jsp-design-extractor</code> 내부 흐름)을 실제로
       돌리는 <b>운영 절차</b>입니다. 8번은 extractor 내부에서 무슨 일이 일어나는지를 보여주고, 이 절은
       "무엇을 설정하고 어떤 순서로 Tool을 호출해야 캡처 하나가 만들어지는지"를 보여줍니다. ⑤ 이후는
-      두 갈래로 갈립니다 — <code>UiDesignSpec</code>으로 변환하는 경로(⑥, 이미 있던 흐름)와,
+      두 갈래로 갈립니다 — <code>UiDesignSpec</code>으로 변환하는 경로(⑥)와,
       <b>실행 중인 JSP/Thymeleaf 화면을 그대로 Figma 프레임으로 재현하는 경로</b>(⑥ 없이 곧바로
-      <code>prepareFigmaImport</code>→11번 <code>jsp-to-figma-plugin</code>, 이번에 추가)입니다.
+      <code>prepareFigmaImport</code>→11번 <code>jsp-to-figma-plugin</code>)입니다.
     </p>
     <figure>
       <div class="svg-scroll">
@@ -2750,7 +2830,7 @@
         자동으로 정리합니다.
       </figcaption>
       <figcaption>
-        <b>(2026-09-01 추가) "JSP/Thymeleaf 화면을 읽어서 Figma 화면을 만드는" 경로는 여기서 ⑥을 거치지
+        <b>"JSP/Thymeleaf 화면을 읽어서 Figma 화면을 만드는" 경로는 여기서 ⑥을 거치지
         않습니다.</b> <code>prepareFigmaImport(artifactId)</code>/<code>prepareFigmaBundleImport(bundle)</code>은
         <code>analyzeCapturedDesign()</code>이 만드는 <code>UiDesignSpec</code>을 전혀 쓰지 않고,
         ⑤ <code>captureWebPage()</code>가 만든 원본 <code>RenderedDesignDocument</code>를 그대로
@@ -2879,7 +2959,7 @@
         재귀 호출). 기능상 문제는 아니고 갱신되지 않은 주석입니다.
       </figcaption>
       <figcaption style="margin-top:10px">
-        <b>(2026-09-01 추가) 단계별 역할·기능 상세</b> — 위 다이어그램 배지 번호와 그대로 대응합니다.
+        <b>단계별 역할·기능 상세</b> — 위 다이어그램 배지 번호와 그대로 대응합니다.
         <p style="margin:10px 0 4px"><b>Schema-first</b></p>
         <ul style="margin:0;padding-left:20px">
           <li style="margin-bottom:8px"><b>1. createDesignFromXXX()</b> — 진입점 Tool
@@ -3029,21 +3109,24 @@
 
           <path class="edge accent" marker-end="url(#arrow17Accent)" d="M830,132 L830,260"></path>
 
-          <rect class="node-box rest" x="40" y="260" width="280" height="92" rx="8" style="stroke-dasharray:5 4"></rect>
-          <text class="node-title" x="180" y="284" text-anchor="middle" style="font-size:10.5px">④(선택) 명세·토큰 결합</text>
-          <text class="node-sub" x="180" y="302" text-anchor="middle" style="font-size:8px">screenSpecificationId(APPROVED 필수)</text>
-          <text class="node-sub" x="180" y="318" text-anchor="middle" style="font-size:8px">designSystemProfileId(DESIGN.md override 병합)</text>
-          <text class="node-sub" x="180" y="334" text-anchor="middle" style="font-size:7.5px;fill:var(--ink-muted)">실패해도 FATAL 아님(토큰 없이 계속)</text>
+          <rect class="node-box rest" x="40" y="260" width="280" height="108" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="180" y="280" text-anchor="middle" style="font-size:10.5px">④(선택) 명세·토큰 결합</text>
+          <text class="node-sub" x="180" y="296" text-anchor="middle" style="font-size:8px">screenSpecificationId(APPROVED 필수)</text>
+          <text class="node-sub" x="180" y="310" text-anchor="middle" style="font-size:8px">designSystemProfileId(DESIGN.md override 병합)</text>
+          <text class="node-sub" x="180" y="326" text-anchor="middle" style="font-size:7.5px;fill:var(--rest)">→ 색상·간격 값 없음, CSS 변수명만 주석(provenance) 기록</text>
+          <text class="node-sub" x="180" y="340" text-anchor="middle" style="font-size:7.5px;fill:var(--ink-muted)">실패해도 FATAL 아님(토큰 없이 계속)</text>
 
-          <path class="edge accent" marker-end="url(#arrow17Accent)" d="M320,306 L360,306"></path>
+          <path class="edge accent" marker-end="url(#arrow17Accent)" d="M320,314 L360,314"></path>
 
-          <rect class="node-box accent" x="360" y="260" width="280" height="92" rx="8"></rect>
+          <rect class="node-box accent" x="360" y="260" width="280" height="108" rx="8"></rect>
           <g class="step-badge"><circle cx="382" cy="282" r="13"></circle><text x="382" y="286" text-anchor="middle">5</text></g>
-          <text class="node-title" x="510" y="282" text-anchor="middle" style="font-size:10.5px">BindingComposer.compose()</text>
-          <text class="node-sub" x="510" y="300" text-anchor="middle" style="font-size:8px">COMPOSE_STAGE — FreeMarker</text>
-          <text class="node-sub" x="510" y="316" text-anchor="middle" style="font-size:8px">LIST/FORM/DETAIL 템플릿별 th:field·th:text</text>
+          <text class="node-title" x="510" y="280" text-anchor="middle" style="font-size:10.5px">BindingComposer.compose()</text>
+          <text class="node-sub" x="510" y="296" text-anchor="middle" style="font-size:8px">COMPOSE_STAGE — FreeMarker</text>
+          <text class="node-sub" x="510" y="310" text-anchor="middle" style="font-size:8px">LIST/FORM/DETAIL 템플릿별 th:field·th:text</text>
+          <text class="node-sub" x="510" y="326" text-anchor="middle" style="font-size:7.5px;fill:var(--accent)">krds-table-wrap/krds-input/krds-btn 하드코딩</text>
+          <text class="node-sub" x="510" y="340" text-anchor="middle" style="font-size:7.5px;fill:var(--ink-muted)">(템플릿 고정 — ④단계 여부와 무관하게 항상 적용)</text>
 
-          <path class="edge accent" marker-end="url(#arrow17Accent)" d="M640,306 L680,306"></path>
+          <path class="edge accent" marker-end="url(#arrow17Accent)" d="M640,314 L680,306"></path>
 
           <rect class="node-box accent" x="680" y="260" width="300" height="92" rx="8"></rect>
           <g class="step-badge"><circle cx="702" cy="282" r="13"></circle><text x="702" y="286" text-anchor="middle">6</text></g>
@@ -3079,7 +3162,7 @@
         파일 수·크기 상한으로 리소스 소진을 방어합니다.
       </figcaption>
       <figcaption style="margin-top:10px">
-        <b>(2026-09-01 추가) 단계별 역할·기능 상세</b> — 위 다이어그램 배지 번호와 그대로 대응합니다.
+        <b>단계별 역할·기능 상세</b> — 위 다이어그램 배지 번호와 그대로 대응합니다.
         <ul style="margin:10px 0 0;padding-left:20px">
           <li style="margin-bottom:8px"><b>1. 소스 읽기</b> — <b>역할</b>: JSP+Controller+VO 세 파일을
             프로젝트 루트 안에서 안전하게 읽어들이는 진입 단계.
@@ -3107,12 +3190,21 @@
             계속 나온 그 <code>ScreenSpecification</code>이 여기서도 등장.
             <b>기능</b>: <code>screenSpecificationId</code>를 주면 반드시 <code>APPROVED</code>
             상태여야 함(아니면 예외), <code>designSystemProfileId</code>를 주면 <code>DESIGN.md</code>
-            override + 회사 Design Token을 병합(실패해도 FATAL 아님 — 토큰 없이 계속 진행).</li>
+            override + 회사 Design Token을 병합(실패해도 FATAL 아님 — 토큰 없이 계속 진행).
+            <b>주의</b>: <code>BindingComposer.java</code> JavaDoc에 명시된 대로 이 토큰은 실제
+            색상·간격 값을 CSS에 주입하지 않습니다 — 논리 토큰이 <b>어떤 CSS 변수를 참조하는지
+            이름만</b> <code>egov-authority-provenance</code>와 같은 방식으로 HTML 주석에 남기는
+            추적(provenance) 정보일 뿐입니다.</li>
           <li style="margin-bottom:8px"><b>5. BindingComposer.compose()</b> — <b>역할</b>: 조립된
-            계약을 실제 Thymeleaf HTML 문자열로 바꾸는 단계.
+            계약을 실제 Thymeleaf HTML 문자열로 바꾸는 단계 — <b>실제 KRDS 반영이 일어나는 지점이
+            바로 여기입니다.</b>
             <b>기능</b>: <code>screenRole</code>(LIST/FORM/DETAIL)에 맞는 FreeMarker 템플릿
             (<code>templates/legacy-thymeleaf/*.html.ftl</code>)에 계약을 결합해 <code>th:field</code>/
-            <code>th:text</code> 등을 채운 HTML을 생성. <code>COMPOSE_STAGE</code>에서 실패하면 차단.</li>
+            <code>th:text</code> 등을 채운 HTML을 생성. <code>COMPOSE_STAGE</code>에서 실패하면 차단.
+            이 템플릿들에는 <code>krds-table-wrap</code>/<code>krds-input</code>/<code>krds-btn</code>
+            같은 KRDS CSS 클래스가 <b>하드코딩</b>되어 있어, 4단계의 <code>designSystemProfileId</code>
+            지정 여부와 무관하게 <b>항상</b> 적용됩니다 — 4단계는 색상·간격의 출처만 주석으로 남길 뿐,
+            KRDS 클래스 자체를 켜고 끄는 스위치가 아닙니다.</li>
           <li style="margin-bottom:8px"><b>6. RegenerationDiffService.diff()</b> — <b>역할</b>: 화면을
             "다시" 생성했을 때 이전과 보안 특성이 달라지지 않았는지 검증하는 회귀 방지 게이트 — 이
             파이프라인에만 있는 안전장치.
