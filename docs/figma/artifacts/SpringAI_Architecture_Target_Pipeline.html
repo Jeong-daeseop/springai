@@ -1618,6 +1618,24 @@
         <code>BoardPromptGenerationService</code> 세 곳(CRUD·MasterDetail·Board claude 경로 전부) 모두
         이 <code>format()</code>을 프롬프트 끝에 붙여 호출한다.
       </p>
+      <div class="data-table-wrap" style="margin-top:10px">
+        <table class="data-table">
+          <thead>
+            <tr><th>카테고리</th><th>예시</th><th>의미 정보 보존?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>업무 계약(필드·라우트·데이터소스·액션·PK)</td><td><code>사번 [PK] -> COLUMN emp.EMPLYR_NO</code>, <code>dataSources: emp(PRIMARY)</code>, <code>actions: [CREATE, SEARCH]</code></td><td>✅ 완전히 보존 — 라벨·역할·출처가 이름 그대로 전달됨. Figma가 아니라 DB 스키마·Controller·VO에서 온 정보라 원래부터 시맨틱함(<code>UiDesignSpec</code>은 시각 구조만 공급, 업무 계약은 DB/Controller/VO가 기준이라는 원칙 그대로)</td></tr>
+            <tr><td>시각 스타일(색상·좌표·폰트)</td><td><code>backgroundColor=rgba(59,130,246,1)</code>, <code>componentGeometry</code> JSON의 좌표값들</td><td>⚠️ raw 값만 — "이게 primary 브랜드 색이었다"는 이름·의미는 1단계(<code>FigmaDesignSpecMapper</code>)에서 이미 사라짐(Variable/Style 참조 미확인), 프롬프트에도 숫자로만 남음</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="subsection-sub" style="margin-top:10px">
+        "claude 경로엔 정보가 다 넘어간다"는 건 <b>업무 계약</b> 쪽에 정확히 해당한다 — 필드·라우트·
+        데이터소스·액션 같은 화면의 업무 구조 정보는 실제로 완전하게 넘어가고, Claude Desktop이 그걸
+        보고 정확한 코드를 작성할 수 있다. 위 표의 <b>시각 스타일</b> 행만 예외다 — raw 숫자값이라
+        "정확히 이 색을 써라"는 지시는 가능해도 "이게 브랜드 primary 색이니 다른 곳에도 일관되게
+        써라" 같은 시맨틱한 지시는 안 된다.
+      </p>
     </figure>
   </section>
 
