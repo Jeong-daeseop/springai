@@ -9,12 +9,17 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 @Slf4j
 @Service
 public class CodeValidatorService {
+
+    /** generateThymeleafLayout()이 만드는 공통 layout 파일명 — 화면 파일과 다른 검사 규칙을 적용한다. */
+    private static final Set<String> THYMELEAF_LAYOUT_FILES =
+            Set.of("default.html", "gnb.html", "lnb.html", "breadcrumb.html", "footer.html");
 
     /**
      * 단일 파일 검증
@@ -42,7 +47,7 @@ public class CodeValidatorService {
     }
 
     /**
-     * 디렉터리 내 .java / .xml / .jsp 파일 일괄 검증
+     * 디렉터리 내 .java / .xml / .jsp / .html(Thymeleaf) 파일 일괄 검증
      */
     public String validateDirectory(String directoryPath) {
         Path dir = Paths.get(directoryPath);
@@ -57,7 +62,8 @@ public class CodeValidatorService {
             List<Path> targets = paths
                 .filter(p -> {
                     String name = p.getFileName().toString();
-                    return name.endsWith(".java") || name.endsWith(".xml") || name.endsWith(".jsp");
+                    return name.endsWith(".java") || name.endsWith(".xml") || name.endsWith(".jsp")
+                            || name.endsWith(".html");
                 })
                 .toList();
 
@@ -113,6 +119,11 @@ public class CodeValidatorService {
         } else if (fileName.endsWith(".jsp")) {
             checkJsp(content, passed, failed);
             if (fileName.endsWith("List.jsp")) {
+                check(content, "pageIndex", "페이지 인덱스 처리", passed, failed);
+            }
+        } else if (fileName.endsWith(".html")) {
+            checkThymeleaf(fileName, content, passed, failed);
+            if (fileName.endsWith("List.html")) {
                 check(content, "pageIndex", "페이지 인덱스 처리", passed, failed);
             }
         } else {
@@ -203,6 +214,23 @@ public class CodeValidatorService {
         check(content, "contentType=\"text/html; charset=UTF-8\"", "UTF-8 인코딩 선언", passed, failed);
         check(content, "taglib prefix=\"c\"",       "JSTL core 태그 선언",             passed, failed);
         check(content, "<c:url",                    "<c:url> URL 처리",                passed, failed);
+        checkNoUnresolved(content, passed, failed);
+    }
+
+    /**
+     * layout 파일({@link #THYMELEAF_LAYOUT_FILES})과 화면 파일(List/Detail/Regist/Updt.html)은
+     * 구조가 달라 layout 조각 정의 방식만 다르게 검사한다 — layout 파일은 {@code th:fragment}/
+     * {@code layout:fragment}로 조각을 "정의"하고, 화면 파일은 {@code layout:decorate}로 그 layout을 "적용"한다.
+     */
+    private void checkThymeleaf(String fileName, String content, List<String> passed, List<String> failed) {
+        check(content, "xmlns:th=\"http://www.thymeleaf.org\"", "Thymeleaf 네임스페이스 선언", passed, failed);
+        checkPattern(content, "\\bth:[a-zA-Z-]+\\s*=",          "th:* 속성 사용",             passed, failed);
+        if (THYMELEAF_LAYOUT_FILES.contains(fileName)) {
+            checkPattern(content, "th:fragment=|layout:fragment=",
+                    "layout 조각 정의(th:fragment/layout:fragment)", passed, failed);
+        } else {
+            check(content, "layout:decorate=", "공통 layout 적용(layout:decorate)", passed, failed);
+        }
         checkNoUnresolved(content, passed, failed);
     }
 

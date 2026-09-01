@@ -33,6 +33,11 @@ public class CodeValidatorTool {
               *Mapper.xml       → namespace, resultMap, 페이징 LIMIT, searchCondition 등
               *List.jsp         → UTF-8, JSTL, <c:url>, pageIndex 등
               *Detail/Regist/Updt.jsp → UTF-8, JSTL, <c:url> 등 (pageIndex 검사 없음)
+              *List.html(Thymeleaf) → th 네임스페이스, th:* 속성, layout:decorate, pageIndex 등
+              *Detail/Regist/Updt.html → th 네임스페이스, th:* 속성, layout:decorate 등(pageIndex 검사 없음)
+              default/gnb/lnb/breadcrumb/footer.html(공통 layout) → th 네임스페이스, th:* 속성,
+                th:fragment/layout:fragment 정의 여부(layout:decorate 검사 없음 — 이 파일들은 layout을
+                적용받는 쪽이 아니라 정의하는 쪽입니다)
             미준수 항목은 ❌, 통과 항목은 ✅ 로 표시합니다.
             """)
     public String validateGeneratedCode(String filePath) {
@@ -43,7 +48,7 @@ public class CodeValidatorTool {
     @Tool(description = """
             디렉터리 내 eGovFrame 5.x 소스 파일 전체를 일괄 검증합니다.
             directoryPath: 검증할 디렉터리 절대경로 (하위 디렉터리 포함)
-            .java / .xml / .jsp 파일을 자동으로 탐색하여 레이어별 표준 준수 여부를 검사합니다.
+            .java / .xml / .jsp / .html(Thymeleaf) 파일을 자동으로 탐색하여 레이어별 표준 준수 여부를 검사합니다.
             미준수 항목이 있는 파일만 상세 내용을 출력합니다.
             """)
     public String validateGeneratedCodeDirectory(String directoryPath) {
