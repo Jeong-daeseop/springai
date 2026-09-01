@@ -236,7 +236,9 @@ fromSchema(..., rawColumns, metadata, viewType, subsetMode, screenSpecification)
 - `subsetMode`가 `null`이면: Thymeleaf → `LIST_AND_DETAIL`, JSP → `LIST_ONLY`로 자동 결정
 
 #### (2) 스키마 변환
-`rawColumns`(Map 목록) → `toColumnMeta()` → `ColumnMeta` → `toFieldModel()` → `FieldModel`. 타입 변환(`javaType`/`jdbcType`)은 전부 `CrudMappingUtils`에 위임.
+`rawColumns`(Map 목록) → `CrudMappingUtils.toFieldModel(row)` → `FieldModel`. 타입 변환(`javaType`/`jdbcType`)까지 이 한 메서드 안에서 처리된다.
+
+> **갱신**: 원래는 `CrudModelFactory` 내부 `toColumnMeta()`(Map → `ColumnMeta` 중간 레코드) → `toFieldModel(ColumnMeta)` 2단계였고, `BoardModelFactory`도 똑같은 로직을 별도로 복제해 갖고 있었다(6번 섹션 참고). 이 매핑을 `CrudMappingUtils.toFieldModel(Map)`로 추출해 두 Factory가 공유하도록 리팩터링했고, 더는 쓰이지 않는 `ColumnMeta` record는 삭제했다.
 
 #### (3) PK 식별
 `FieldModel::pk`로 필터링해서 **복합키(예: `NTT_ID`+`BBS_ID`)를 전부** 인식. PK가 하나도 없으면 첫 번째 컬럼을 PK로 간주(`CrudPromptBuilderService`와 동일 규칙이라고 주석에 명시).
@@ -292,7 +294,7 @@ urlPrefix + "Detail.do", metadata.registeredPath(ROLE_DETAIL)
 ### 요약 그림
 
 ```
-rawColumns ──→ ColumnMeta ──→ FieldModel(전체)
+rawColumns ──→ CrudMappingUtils.toFieldModel() ──→ FieldModel(전체)
                                   ├─ PK 분리 ─→ pk, effectivePkFields
                                   ├─ buildFormFields(screenSpec) ──────→ formFields
                                   ├─ buildListFields(screenSpec) ──────→ listFields  ←─ queryContract.displayFields 병합
@@ -307,17 +309,121 @@ screenSpecification ──→ layoutDensity / formColumnLayout / actionPlacement
 
 ---
 
-## 5. ScreenSpecification에서 분기될 수 있는 화면 템플릿 모델 변환
+## 5. 예외 처리 테스트
+
+### 비전 분석 실패 시 — 두 가지 서로 다른 차단 지점
+
+**주의**: "UiDesignSpec 생성 실패 시 `ScreenSpecValidator`가 DRAFT 저장을 차단한다"는 한 문장으로 뭉뚱그리기 쉽지만, 실제 코드에는 **서로 다른 두 지점**이 있고 `ScreenSpecValidator`는 그중 하나에만 관여한다.
+
+**(1) 비전 분석 자체가 실패하는 경우 — `UiDesignSpec`이 아예 생성되지 않는다**
+
+`DesignReferenceAnalysisService.analyzeWithTimeout()`이 API 호출 전에 모델의 Vision 지원 여부부터 확인한다:
+
+```java
+// DesignReferenceAnalysisService.java:288-298
+private UiDesignSpec analyzeWithTimeout(VisionAnalysisRequest request) {
+    if (!visionAnalysisClient.supportsVision()) {
+        throw new IllegalStateException("VISION_MODEL_NOT_SUPPORTED: " + ...);
+    }
+    try {
+        return CompletableFuture.supplyAsync(() -> analyzeVisionOnce(request), visionExecutor)
+                .orTimeout(Math.max(1, properties.getTimeoutSeconds()), TimeUnit.SECONDS)
+                .join();
+    } catch (CompletionException e) {
+        throw new IllegalStateException("비전 분석 호출에 실패했습니다.", e.getCause());
+    }
+}
+```
+
+이 예외는 `UiDesignSpec`도, `ScreenSpecification`도 만들어지기 전에 던져진다 — `ScreenSpecAssembler`나 `ScreenSpecValidator`는 이 실패에 전혀 관여하지 않는다. 실제 테스트(`DesignReferenceAnalysisServiceTest.rejectsUnsupportedVisionModelBeforeCallingClient()`)는 이 지점을 이렇게 고정한다:
+
+```java
+when(client.supportsVision()).thenReturn(false);
+...
+assertThatThrownBy(() -> service.analyze(image.toString(), null, "crud"))
+        .isInstanceOfSatisfying(IllegalStateException.class,
+                error -> assertThat(error.getMessage()).contains("VISION_MODEL_NOT_SUPPORTED"));
+verify(client, never()).analyze(any());       // 실제 API 호출(과금) 자체가 안 일어남
+verify(repository, never()).saveOrGet(any()); // 저장도 안 일어남
+```
+
+**(2) `UiDesignSpec`은 만들어졌지만 화면명세에 미해결 이슈가 있는 경우 — 이때 비로소 `ScreenSpecValidator`가 등장**
+
+`ScreenSpecValidator.validate()`는 ERROR/WARNING 이슈가 하나라도 있으면 상태를 `REVIEW_REQUIRED`로 매기지만, **이 상태의 명세도 `ScreenSpecificationService.create()`를 통해 정상적으로 저장된다**(3번 섹션의 오케스트레이션 참고) — "저장 차단"이 아니다. 실제로 차단되는 것은 **`approve()` 호출**이다:
+
+```java
+// ScreenSpecValidator.java:113-119
+public ScreenSpecification approve(ScreenSpecification specification) {
+    ScreenSpecification validated = validate(specification);
+    if (validated.status() == ScreenSpecStatus.REVIEW_REQUIRED) {
+        throw new IllegalStateException("미해결 화면명세 이슈가 있어 승인할 수 없습니다: " + validated.issues());
+    }
+    return validated.withStatus(ScreenSpecStatus.APPROVED);
+}
+```
+
+`ScreenSpecValidatorTest.missingPrimarySourceBlocksApproval()`이 이 계약을 그대로 검증한다: DB/테이블이 없는 DRAFT를 `validate()`하면 `REVIEW_REQUIRED` + `PRIMARY_DATA_SOURCE_REQUIRED`/`PAGE_REQUIRED` 이슈가 붙고, 같은 명세를 `approve()`하면 `IllegalStateException`이 던져진다.
+
+### 플랫폼 변환 테스트 — `convertPlatform` (Desktop ↔ Tablet ↔ Mobile)
+
+실제 구현은 `FigmaPlatformConversionService`(`service/figma/FigmaPlatformConversionService.java`)이고, MCP Tool로는 `FigmaDesignOrchestrationTool`이 감싸서 노출한다.
+
+```java
+public PlatformConversionResult convert(String targetPlatform, List<String> logicalTypes, PlatformLayoutPolicy policy) {
+    if (!isSupportedPlatform(targetPlatform)) {           // DESKTOP/TABLET/MOBILE 외에는 즉시 거부
+        throw new IllegalArgumentException("PLATFORM_NOT_SUPPORTED: ...");
+    }
+    ...
+    List<ComponentSwapDecision> swaps = logicalTypes.stream()
+        .map(logicalType -> swapPolicyResolver.resolve(policy, targetPlatform, logicalType))
+        ...
+}
+```
+
+- **뷰포트 정책**: Desktop 1440px/12열, Tablet 768px/8열, Mobile 390px/4열(`defaultPolicy()`) — Thymeleaf 흐름과 같은 `ResponsiveBreakpointPolicy` 상수를 공유
+- **⚠️ 컴포넌트 자동 교체는 기본적으로 일어나지 않는다**: `defaultPolicy()`/`approvedPolicy()` 둘 다 `componentSwaps`가 **빈 리스트**다(주석: "카탈로그에 플랫폼별로 바꿔치기할 실제 후보 쌍이 없어 비어 있다"). 스왑은 `PlatformLayoutPolicy.ComponentSwapRule`을 담은 정책을 **명시적으로 넘겼을 때만** 발생한다.
+- **지원하지 않는 플랫폼**(`WATCH` 등)은 `IllegalArgumentException("PLATFORM_NOT_SUPPORTED")`으로 즉시 거부되고, 정책에 해당 플랫폼의 viewport가 없으면 `PLATFORM_VIEWPORT_NOT_FOUND`로 거부된다.
+
+실제 테스트(`FigmaPlatformConversionServiceTest`)가 검증하는 시나리오:
+
+```java
+// 규칙이 없으면 원래 컴포넌트 타입 그대로 유지(swapped=false)
+service.convert("MOBILE", List.of("krds.table", "krds.button"));
+// → 두 컴포넌트 모두 swapped=false, resolvedLogicalType == requestedLogicalType
+
+// 정책에 krds.table → krds.card-list(MOBILE 한정) 규칙을 명시하면 그때 교체된다
+PlatformLayoutPolicy policy = new PlatformLayoutPolicy(..., List.of(
+        new PlatformLayoutPolicy.ComponentSwapRule(
+                "krds.table", "krds.card-list", "MOBILE", "좁은 화면에서 표 대신 카드 목록 사용")), ...);
+service.convert("MOBILE", List.of("krds.table"), policy);
+// → swapped=true, resolvedLogicalType="krds.card-list"
+
+// 지원하지 않는 플랫폼은 즉시 예외
+assertThatThrownBy(() -> service.convert("WATCH", List.of()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("PLATFORM_NOT_SUPPORTED");
+```
+
+---
+
+## 6. ScreenSpecification에서 분기될 수 있는 화면 템플릿 모델 변환
 
 `CrudModelFactory`는 이 파이프라인이 CRUD 화면일 때 쓰는 변환기고, `featureType`(board/master-detail)에 따라 실제로는 다른 클래스로 분기될 수 있다.
 
 | 클래스 | 경로 | 역할 |
 |---|---|---|
-| `BoardModelFactory` | `service/BoardModelFactory.java` | 게시판(BBS) 스키마 → `BoardTemplateModel`. 주석에 "컬럼 변환 로직은 `CrudModelFactory`와 동일하며, 게시판 전용으로 복합 PK(`BBS_ID`,`NTT_ID`) 탐색·첨부파일 판단·목록/폼/검색 필드 선별을 추가한다"고 명시 |
+| `BoardModelFactory` | `service/BoardModelFactory.java` | 게시판(BBS) 스키마 → `BoardTemplateModel`. 게시판 전용으로 복합 PK(`BBS_ID`,`NTT_ID`) 탐색·첨부파일 판단·목록/폼/검색 필드 선별을 추가한다 |
 
 **흥미로운 점**: Board는 `CrudModelFactory`의 자매 클래스(`BoardModelFactory`)를 따로 뒀는데, **MasterDetail은 별도 Factory가 없다** — `MasterDetailGenerationPlanner`와 `MasterDetailScreenSourceGenerator` 둘 다 그냥 `CrudModelFactory`를 직접 재사용한다(마스터 테이블용 CRUD 모델 1개 + 디테일 테이블용 CRUD 모델 1개를 각각 만드는 방식). CRUD/Board/MasterDetail 3종 생성기가 "각자 독립"이라던 이전 아키텍처 문서의 설명과는 별개로, **모델 변환 레이어에서는 CRUD와 MasterDetail이 실제로 같은 클래스를 공유**한다.
 
 두 Factory 모두 `GenerationQueryContractFactory`를 공유해서 쿼리 계약(`queryContract`)과 라벨 오버라이드를 만든다는 점은 동일하다(4번 섹션 참고).
+
+**후속 조치로 이 비대칭을 두 가지 방향에서 보완했다:**
+
+1. **테스트 공백 해소** — `MasterDetailGenerationPlannerTest`는 원래 "잘못된 패키지"/"테이블 없음" 두 실패 케이스만 검증했고, `CrudModelFactory`를 두 번 호출해 마스터+디테일을 조합하는 **성공 경로는 테스트가 전혀 없었다.** 실제 `CrudModelFactory`/`MasterDetailRelationResolver`를 사용하는 테스트를 추가해, 마스터/디테일의 독립적인 `urlPrefix` 생성·`deriveDetailDomain()`의 `LETTN` 접두어 제거·FK 관계 해석(`MasterDetailRelationResolver`)을 고정했다.
+2. **수동 동기화 리스크 해소** — `BoardModelFactory`가 `CrudModelFactory`와 "우연히 동일하게" 복제해 갖고 있던 컬럼→`FieldModel` 변환 로직을 `CrudMappingUtils.toFieldModel(Map)`로 추출해 두 Factory가 공유하도록 리팩터링했다(위 4번 섹션 (2)단계 참고). 이제 이 매핑 로직을 고치면 두 Factory에 자동으로 반영되며, 더는 쓰이지 않게 된 `ColumnMeta` record는 삭제했다. 단, `buildListFields`/`buildDetailFields`/`buildFormFields` 같은 필드 선별 로직은 **의도적으로 그대로 뒀다** — Board의 고정 복합 PK(`BBS_ID`/`NTT_ID`) 처리와 Crud의 동적 PK 탐지는 우연한 중복이 아니라 실제로 다른 업무 규칙이기 때문이다.
+
+전체 테스트 스위트(리팩터링 전후 `CrudModelFactoryTest` 25건, `BoardModelFactoryTest` 8건 포함)를 실행해 동작 변화가 없음을 확인했다.
 
 ---
 
@@ -339,10 +445,41 @@ screenSpecification ──→ layoutDensity / formColumnLayout / actionPlacement
   ScreenSpecification (APPROVED / REVIEW_REQUIRED)
         │            rawColumns(재사용)   CrudProgramMetadata(메뉴/URL 연동)
         ▼                  │                              │
-  CrudModelFactory.fromSchema() ◀─────────────────────────┘   (featureType=board → BoardModelFactory, master-detail → CrudModelFactory 재사용, 5번 참고)
+  CrudModelFactory.fromSchema() ◀─────────────────────────┘   (featureType=board → BoardModelFactory, master-detail → CrudModelFactory 재사용, 6번 참고)
         │
         ▼
   CrudTemplateModel / BoardTemplateModel (FreeMarker 렌더링용 최종 모델)
 ```
 
 `ScreenSpecAssembler`는 "화면에 어떤 필드를 넣을지"(디자인 + 스키마)를 결정하고, `ScreenSpecificationService`가 그 결과를 데이터 바인딩 재해석·2차 검증·DB 저장까지 오케스트레이션한다. `CrudModelFactory`(또는 board면 `BoardModelFactory`)는 최종 승인된 명세에 "이 화면이 기존 메뉴 시스템 어디에 꽂히는지"(`ProgramMetadata`)까지 더해 최종 렌더링 모델을 완성한다.
+
+---
+
+## 7. Target Pipeline 아티팩트와의 대응 관계
+
+이 문서가 [Target Pipeline 아티팩트](https://claude.ai/code/artifact/a4038e88-9752-458f-a246-4720a90d4da0)(`docs/figma/artifacts/SpringAI_Architecture_Target_Pipeline.html`, 14개 다이어그램)의 어느 부분을 더 파고든 것인지, 그리고 어느 부분은 그쪽에 아예 없는 새 내용인지 정리한다.
+
+| 이 문서 섹션 | Target Pipeline 대응 위치 | 비고 |
+|---|---|---|
+| 1. 입력 이미지/스크린샷 준비 | **5번 "Spring MCP 서버 상세 — DesignReferenceTool"**(`#mcp-server-detail`)의 첫 박스 "입력: 로컬 이미지/PDF 또는 Figma 프레임" | Target Pipeline은 이 박스 하나로 뭉뚱그려져 있다. `ReferencePathValidator`/`PdfPageRasterizer`/`ImagePreprocessor`(매직바이트 검증, contact sheet 등) 세부 단계는 **거기 없음** — 이 문서가 한 단계 더 아래를 다룬다 |
+| 2. 비전 모델 분석 테스트 | 같은 5번 다이어그램의 "DesignAnalysisResult → UiDesignSpec (Vision LLM: Ollama/OpenAI)" 박스 | `VisionAnalysisClient` 구현체 분기(OpenAI/Ollama)·`supportsVision()` 사전점검은 거기서도 "Vision LLM"으로만 뭉뚱그려짐 |
+| 3. ScreenSpecAssembler | 정확히 같은 5번 다이어그램 안의 **"2단계 · `ScreenSpecAssembler.assemble()`"** 점선 박스 | 박스 이름까지 그대로 일치 — 가장 정확히 겹치는 지점 |
+| 4. CrudModelFactory | **6번 "Thymeleaf 생성 서비스 상세"**(`#thymeleaf-gen-detail`)의 auto 경로 박스 **"`CrudModelFactory.fromSchema()`"** | 박스 이름 그대로 일치. 이 6번 다이어그램 자체에도 "auto 전용이다"라는 정정 노트가 이미 있다 |
+| 5. 예외 처리 테스트 — 비전 분석 실패/승인 차단 | 5번 다이어그램의 승인 흐름(단순 즉시 APPROVED vs REVIEW_REQUIRED)에 개념적으로 대응 | 다만 `approve()`가 예외를 던지는 **실패 케이스 자체는 다이어그램에 그려져 있지 않다**(성공 경로 위주) |
+| 5. 예외 처리 테스트 — **convertPlatform/플랫폼 변환** | **없음** | 14개 다이어그램 전체에 `convertPlatform`/`FigmaPlatformConversionService`/컴포넌트 스왑이 **한 번도 등장하지 않는다**. "Desktop/Tablet/Mobile"이라는 단어는 두 곳에 나오지만 전혀 다른 맥락(승인 Gate 기준, 반응형 회귀 검증)이다 |
+| 6. Board/MasterDetail 분기 | **(2026-09-01) 2.2 "코드 생성 Tool 오케스트레이션"**(`#generate-crud-project-usecase`) 표에 반영됨 — "모델 변환(Model Factory)" 행 + 캡션 문단 | 처음 이 문서를 쓸 당시엔 없었으나, 2.2절 두 비교표에 `CrudModelFactory`/`BoardModelFactory`/MasterDetail 재사용 관계를 새 행으로 추가했다. 다만 6번 다이어그램에는 여전히 반영 안 됨(CRUD 전용 그대로) |
+
+### 4·5번 섹션의 2.2절(`#generate-crud-project-usecase`) 대응 관계
+
+문서 4·5번 섹션은 위 표처럼 6번 다이어그램(`CrudModelFactory.fromSchema()` 내부)에 대응하지만, **Tool 오케스트레이션 레벨인 2.2절**과는 다음처럼 대응한다.
+
+| 이 문서 섹션 | 2.2절 대응 위치 | 비고 |
+|---|---|---|
+| 1~3번(입력 준비 → 비전 분석 → `ScreenSpecAssembler`) | `DesignReferenceTool 계열 (선택)` 박스 하나로 압축 | 내부 3단계 전부 이 박스 안에 숨고, "5번 참고"로만 위임됨 |
+| 4번 — `fromSchema()` 진입점 자체(어디서 호출되는지) | `GenerateCrudProjectUseCase` 박스의 "`CrudGenerationPlanner → CrudModelFactory`" 한 줄 + 표의 "모델 변환(Model Factory)" 행 | CRUD 열만 정확히 일치. `fromSchema()` 내부 (1)~(10)단계·4개 오버로드 자체는 2.2에 없음(6번 다이어그램 몫) |
+| 4번 — 부가 진입점 `withDesignComponents()` | **없음** | 6번·2.2 어디에도 안 그려짐 — 이 문서에만 있는 새 내용 |
+| 5번 — 비전 분석 실패(`supportsVision()` 사전 차단) | **없음** | `DesignReferenceTool 계열` 박스는 성공 경로만 그려져 있음 |
+| 5번 — `approve()` 승인 차단(REVIEW_REQUIRED) | `CrudGenerationApprovalPolicy(신규)` 박스와 인접하지만 **차단 사유가 다름** | `approve()`는 화면명세 미해결 이슈, `CrudGenerationApprovalPolicy`는 고위험 테이블 미승인 — 서로 다른 게이트라 혼동 주의 |
+| 5번 — `convertPlatform` | **없음** | 위 표와 동일하게 2.2에도 전혀 없음 |
+
+**요약**: 이 문서의 1~4번은 Target Pipeline의 **5번(`#mcp-server-detail`)·6번(`#thymeleaf-gen-detail`) 두 다이어그램을 한 단계 더 파고든 상세**이고, 5번(convertPlatform·비전 분석 실패·`withDesignComponents()`)은 Target Pipeline이 아예 다루지 않는 새 영역이다. 6번(Board/MasterDetail 분기)은 **2.2절에는 반영됐지만 6번 다이어그램에는 아직 반영되지 않았다.**
