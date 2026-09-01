@@ -986,6 +986,7 @@
           <tr><td>분기(Dispatch)</td><td><code>CrudGenerationDispatchService</code> — <code>isAuto()</code> 분기 있음</td><td><code>BoardGenerationDispatchService</code>(2026-08-28 추가) — CRUD와 별개 클래스지만 동일한 패턴의 <code>isAuto()</code> 분기</td><td><code>MasterDetailGenerationDispatchService</code> — CRUD와 별개 클래스지만 동일한 패턴의 <code>isAuto()</code> 분기</td></tr>
           <tr><td>auto 저장 주체</td><td colspan="3" style="text-align:center"><code>CodeServiceGenerationExecutor</code> — <code>GenerationExecutor</code> 구현체가 코드베이스에 이것 하나뿐이라 세 Tool이 같은 Spring 싱글턴을 공유</td></tr>
           <tr><td>claude 경로</td><td><code>BuildCrudPromptUseCase</code> — 프롬프트만 반환, 파일 저장 없음</td><td><code>BuildBoardPromptUseCase</code>(<code>BoardPromptGenerationService</code>, 2026-08-28 추가) — 테이블 구성·스키마·업무규칙 프롬프트만 반환</td><td><code>BuildMasterDetailPromptUseCase</code> — 프롬프트만 반환</td></tr>
+          <tr><td>모델 변환(Model Factory)</td><td><code>CrudModelFactory.fromSchema()</code></td><td><code>BoardModelFactory</code> — 자매 클래스, 컬럼→<code>FieldModel</code> 매핑은 <code>CrudMappingUtils.toFieldModel()</code>로 <code>CrudModelFactory</code>와 공유</td><td style="color:var(--rest)"><b>없음</b> — 전용 Factory 없이 <code>CrudModelFactory.fromSchema()</code>를 마스터·디테일에 각각 재사용(2회 호출)</td></tr>
           <tr><td>렌더러(저장 내용 결정)</td><td><code>CrudGenerationRenderer</code>→<code>CrudTemplateRenderer</code></td><td><code>BoardGenerationRenderer</code>→<code>BoardTemplateRenderer</code></td><td><code>MasterDetailGenerationRenderer</code>→<code>MasterDetailTemplateRenderer</code></td></tr>
           <tr><td>레이어 정의</td><td><code>CrudLayerDefinition</code>(VO/Controller/Service/Mapper/View)</td><td><code>BoardLayerDefinition</code>(BBS 전용 레이어)</td><td><code>MasterDetailLayerDefinition</code>(1:N 마스터-디테일 전용 레이어)</td></tr>
           <tr><td>실제 파일 쓰기</td><td colspan="3" style="text-align:center"><code>ApprovedProjectWritePort.apply()</code>(공통)</td></tr>
@@ -999,6 +1000,25 @@
       <code>ApprovedProjectWritePort</code> 하나로 합류합니다(2·6·7행). 도메인별 차이는 "누가
       저장하느냐"가 아니라 "무엇을 저장하느냐"에 있습니다 — 서로 다른 Renderer가 서로 다른
       <code>.ftl</code> 템플릿 세트로 파일 목록만 다르게 만들고, 그 결과물만 같은 실행기에 넘깁니다.
+    </p>
+    <p class="subsection-sub" style="margin-top:10px">
+      <b>(2026-09-01 갱신) 두 번째 발견: "모델 변환기"는 사실 둘뿐입니다.</b> 위 표의 신규 행대로,
+      Board는 <code>CrudModelFactory</code>의 자매 클래스 <code>BoardModelFactory</code>를 따로 두지만
+      <b>MasterDetail은 전용 Factory가 없습니다</b> — <code>MasterDetailGenerationPlanner</code>·
+      <code>MasterDetailScreenSourceGenerator</code> 둘 다 <code>CrudModelFactory.fromSchema()</code>를
+      마스터 테이블용 1회 + 디테일 테이블용 1회, 총 두 번 호출해 조합합니다. Dispatch·Renderer
+      레벨에서는 "세 Tool이 각자 독립"이라는 위 서술(<code>MasterDetailGenerationDispatchService</code>가
+      <code>CrudGenerationDispatchService</code>와 완전히 별개라는 점 등)이 맞지만, <b>모델 변환
+      레이어에서는 CRUD와 MasterDetail이 실제로 같은 클래스를 공유</b>한다는 점이 예외입니다.
+      이 비대칭은 최근까지 <code>MasterDetailGenerationPlannerTest</code>에 두 모델을 조합하는
+      성공 경로 테스트가 없었는데, 이를 추가해 마스터/디테일 독립 <code>urlPrefix</code> 생성과
+      FK 관계 해석(<code>MasterDetailRelationResolver</code>)을 고정했습니다. 또한
+      <code>BoardModelFactory</code>가 <code>CrudModelFactory</code>와 "우연히 동일하게" 복제해 갖고
+      있던 컬럼→<code>FieldModel</code> 변환 로직은 <code>CrudMappingUtils.toFieldModel()</code>로
+      추출해 두 Factory가 공유하도록 리팩터링했고, 더는 쓰이지 않는 <code>ColumnMeta</code> record는
+      삭제했습니다. <code>buildListFields</code>/<code>buildDetailFields</code>/<code>buildFormFields</code>
+      같은 필드 선별 로직은 Board의 고정 복합 PK 처리와 Crud의 동적 PK 탐지가 실제로 다른 업무
+      규칙이라 의도적으로 공유하지 않았습니다.
     </p>
 
     <div class="data-table-wrap" style="margin-top:24px">
@@ -1342,22 +1362,30 @@
     </p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 340" role="img" aria-label="로컬 이미지나 Figma 프레임을 분석해 DesignAnalysisResult와 UiDesignSpec을 만들고, createScreenSpecification이 단순 케이스면 즉시 승인하고 REVIEW_REQUIRED 케이스면 수정과 승인을 거쳐 APPROVED ScreenSpecification을 만든다. (2026-08-28 기준) FigmaDesignSpecMapper 파싱 단계에서 컴포넌트별 fills/strokes 첫 SOLID 색상과 노드 트리 좌표·auto-layout·텍스트스타일(geometryTree)은 이제 캡처되어 ScreenSpecAssembler.assemble()이 componentStyles/componentGeometry로 옮기지만, claude 경로(ScreenSpecificationPromptFormatter) 프롬프트에만 반영되고 auto 경로(CrudModelFactory)는 여전히 참조하지 않는다. 루트 프레임 배경색·폰트(tokens)도 (2026-08-28) ScreenSpecAssembler.assemble() 매핑과 프롬프트 반영이 마저 완료돼, layoutDensity 등 구조값과 함께 componentStyles/componentGeometry/tokens까지 전부 claude 경로 끝까지 생존한다. auto 경로만 셋 다 미참조한다.">
+        <svg viewBox="0 0 1180 470" role="img" aria-label="로컬 이미지/PDF(입력 A)와 Figma 프레임(입력 B), 실행 중인 URL을 캡처하는 입력 C는 서로 다른 메커니즘으로 UiDesignSpec을 만든다 — A는 VisionAnalysisClient가 LLM(OpenAI·Ollama)으로 이미지를 추론하며 생성형 호출이라 자동 재시도가 없고 하드 타임아웃으로 실패하지만, B는 FigmaApiClient가 노드 트리를 결정론적으로 파싱하며 GET 요청이라 429/5xx에 최대 5회 자동 재시도하고, C는 captureWebPage로 렌더링된 DOM을 Chromium으로 캡처한 뒤 RenderedDesignSpecMapper가 고정된 CSS/ARIA 셀렉터로 결정론적으로 매핑하며 주된 용도는 생성 결과와 원본 디자인의 구조적 일치도를 비교하는 품질 검증이다. 세 경로 모두 DesignAnalysisResult로 수렴한 뒤에야 같은 코드를 탄다. 이후 createScreenSpecification이 단순 케이스면 즉시 승인하고 REVIEW_REQUIRED 케이스면 수정과 승인을 거쳐 APPROVED ScreenSpecification을 만든다. (2026-08-28 기준) FigmaDesignSpecMapper 파싱 단계에서 컴포넌트별 fills/strokes 첫 SOLID 색상과 노드 트리 좌표·auto-layout·텍스트스타일(geometryTree)은 이제 캡처되어 ScreenSpecAssembler.assemble()이 componentStyles/componentGeometry로 옮기지만, claude 경로(ScreenSpecificationPromptFormatter) 프롬프트에만 반영되고 auto 경로(CrudModelFactory)는 여전히 참조하지 않는다. 루트 프레임 배경색·폰트(tokens)도 (2026-08-28) ScreenSpecAssembler.assemble() 매핑과 프롬프트 반영이 마저 완료돼, layoutDensity 등 구조값과 함께 componentStyles/componentGeometry/tokens까지 전부 claude 경로 끝까지 생존한다. auto 경로만 셋 다 미참조한다. 3단계 소비 지점에서 CrudModelFactory(auto)는 이 3필드를 전혀 참조하지 않고, ScreenSpecificationPromptFormatter(claude)만 JSON 블록과 tokens 블록으로 프롬프트에 반영한다.">
           <defs>
             <marker id="arrow5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow5Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
             <marker id="arrow5Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
           </defs>
 
-          <rect class="node-box" x="40" y="40" width="220" height="90" rx="8"></rect>
-          <text class="node-title" x="150" y="76" text-anchor="middle">입력</text>
-          <text class="node-sub" x="150" y="94" text-anchor="middle">로컬 이미지/PDF</text>
-          <text class="node-sub" x="150" y="112" text-anchor="middle">또는 Figma 프레임</text>
+          <rect class="node-box" x="40" y="40" width="220" height="38" rx="8"></rect>
+          <text class="node-title" x="150" y="56" text-anchor="middle" style="font-size:10px">입력 A · 로컬 이미지/PDF</text>
+          <text class="node-sub" x="150" y="71" text-anchor="middle" style="font-size:7.5px">VisionAnalysisClient(LLM 추론)</text>
 
-          <rect class="node-box accent" x="320" y="40" width="240" height="90" rx="8"></rect>
-          <text class="node-title" x="440" y="76" text-anchor="middle">DesignAnalysisResult</text>
-          <text class="node-sub" x="440" y="94" text-anchor="middle">→ UiDesignSpec</text>
-          <text class="node-sub" x="440" y="112" text-anchor="middle">Vision LLM (Ollama · OpenAI)</text>
+          <rect class="node-box" x="40" y="81" width="220" height="38" rx="8"></rect>
+          <text class="node-title" x="150" y="97" text-anchor="middle" style="font-size:10px">입력 B · Figma 프레임</text>
+          <text class="node-sub" x="150" y="112" text-anchor="middle" style="font-size:7.5px">FigmaApiClient → 결정론적 매퍼</text>
+
+          <rect class="node-box" x="40" y="122" width="220" height="38" rx="8"></rect>
+          <text class="node-title" x="150" y="138" text-anchor="middle" style="font-size:10px">입력 C · 캡처 화면(실행 중인 URL)</text>
+          <text class="node-sub" x="150" y="153" text-anchor="middle" style="font-size:7.5px">captureWebPage → 결정론적 DOM 매퍼</text>
+
+          <rect class="node-box accent" x="320" y="40" width="240" height="96" rx="8"></rect>
+          <text class="node-title" x="440" y="60" text-anchor="middle">DesignAnalysisResult</text>
+          <text class="node-sub" x="440" y="76" text-anchor="middle" style="font-size:8px">A: Vision LLM 추론(확률적·재시도 없음)</text>
+          <text class="node-sub" x="440" y="88" text-anchor="middle" style="font-size:8px">B: Figma 결정론적 매퍼(HTTP 자동 재시도)</text>
+          <text class="node-sub" x="440" y="100" text-anchor="middle" style="font-size:8px">C: 브라우저 DOM 결정론적 매퍼(analyzeCapturedDesign)</text>
 
           <rect class="node-box accent" x="620" y="40" width="240" height="126" rx="8"></rect>
           <text class="node-title" x="740" y="76" text-anchor="middle">createScreenSpecification()</text>
@@ -1401,8 +1429,19 @@
           <text class="node-sub" x="465" y="284" text-anchor="middle" style="font-size:9px">3필드 모두 매핑 완료(아래 표 참고)</text>
           <text class="node-sub" x="465" y="298" text-anchor="middle" style="font-size:9px">layoutDensity와 함께 이제 4종이 생존</text>
 
-          <path class="edge accent" marker-end="url(#arrow5Accent)" d="M260,85 L320,85"></path>
-          <path class="edge accent" marker-end="url(#arrow5Accent)" d="M560,85 L620,85"></path>
+          <path class="edge rest dashed" marker-end="url(#arrow5Rest)" d="M465,310 L465,330"></path>
+          <rect class="node-box rest" x="320" y="330" width="290" height="120" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="465" y="354" text-anchor="middle" style="font-size:11.5px">3단계 · 소비 — auto vs claude</text>
+          <text class="node-sub" x="465" y="372" text-anchor="middle" style="font-size:9px">CrudModelFactory(auto): 3필드 모두 미참조</text>
+          <text class="node-sub" x="465" y="386" text-anchor="middle" style="font-size:9px">ScreenSpecificationPromptFormatter(claude):</text>
+          <text class="node-sub" x="465" y="400" text-anchor="middle" style="font-size:9px">JSON 블록 + tokens 블록으로 프롬프트 반영</text>
+          <text class="node-sub" x="465" y="418" text-anchor="middle" style="font-size:9px">→ claude 경로만 끝까지 생존, auto 참조 0건</text>
+          <text class="jump-hint" x="465" y="436" text-anchor="middle" style="font-size:8px">↳ 6번(Thymeleaf 코드 생성, auto 소비처)</text>
+
+          <path class="edge accent" marker-end="url(#arrow5Accent)" d="M260,59 L320,88"></path>
+          <path class="edge accent" marker-end="url(#arrow5Accent)" d="M260,100 L320,88"></path>
+          <path class="edge accent" marker-end="url(#arrow5Accent)" d="M260,141 L320,88"></path>
+          <path class="edge accent" marker-end="url(#arrow5Accent)" d="M560,88 L620,88"></path>
           <path class="edge accent" marker-end="url(#arrow5Accent)" d="M860,85 L920,85"></path>
           <text class="edge-label accent" x="890" y="74" text-anchor="middle" style="font-size:9px">단순 케이스: 즉시</text>
 
@@ -1420,8 +1459,54 @@
       </div>
       <div class="legend">
         <span><i class="swatch" style="background:var(--accent)"></i>정상 진행 경로</span>
-        <span><i class="swatch" style="background:var(--rest)"></i>파싱·매핑 상세 단계 — (2026-08-28) componentStyles/componentGeometry/tokens 모두 claude 경로까지 생존, auto 경로(CrudModelFactory)만 셋 다 미참조</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>파싱·매핑·소비 상세 단계(입력 B · Figma 전용, 입력 A·C엔 대응 단계 없음) — (2026-08-28) componentStyles/componentGeometry/tokens 모두 claude 경로까지 생존, auto 경로(CrudModelFactory)만 셋 다 미참조</span>
       </div>
+      <figcaption>
+        <b>(2026-09-01 갱신) "입력" 박스는 실제로는 완전히 다른 세 파이프라인이다.</b> 로컬 이미지/PDF(입력 A)와
+        Figma 프레임(입력 B)이 하나의 박스로 뭉뚱그려져 있었으나, <code>DesignReferenceAnalysisService</code>
+        코드를 보면 둘은 <code>UiDesignSpec</code>을 만드는 방식 자체가 다르다 — A는
+        <code>VisionAnalysisClient.analyze()</code>가 LLM(OpenAI·Ollama)으로 이미지를 <b>추론</b>하고,
+        B는 <code>FigmaDesignSpecMapper.map()</code>이 노드 트리를 그대로 읽는 <b>결정론적 파싱</b>이라
+        LLM 호출 자체가 없다. 외부 호출 안전장치도 다르다 — A는 생성형 POST라 <code>CompletableFuture
+        .orTimeout()</code> 하드 타임아웃만 있고 자동 재시도가 없지만(<code>analyzeWithTimeout()</code>
+        주석: "생성형 POST는 중복 실행 부작용이 있어 자동 retry하지 않는다"), B는 멱등한 GET이라
+        <code>FigmaApiClient</code>가 429/5xx에 최대 5회 지수 백오프로 자동 재시도한다. 두 경로는
+        <code>ExternalCallGuard</code>의 서로 다른 bulkhead(A는 chat 동시성, B는 capture 동시성)로도
+        격리돼 있다. 아래 "1단계 · FigmaDesignSpecMapper 파싱"은 애초에 <b>입력 B(Figma) 전용</b> 상세이며,
+        입력 A(Vision LLM)·C(브라우저 캡처) 경로에는 대응하는 상세 단계가 없다 — <code>UiDesignSpec</code>이라는
+        공통 레코드로 수렴한 뒤부터만 세 경로가 같은 코드(<code>createScreenSpecification</code> 이하)를 탄다.
+      </figcaption>
+      <figcaption>
+        <b>(2026-09-01 추가) "입력 A = 스크린샷"은 아니다 — A는 사전 목업, C는 사후 캡처다.</b>
+        <code>ReferencePathValidator</code>는 확장자(<code>png</code>/<code>jpg</code>/<code>jpeg</code>/
+        <code>pdf</code>)와 매직바이트만 검사할 뿐, 그 이미지가 스크린샷인지 디자이너가 내보낸 목업인지
+        손으로 그린 와이어프레임을 찍은 사진인지 구분하지 않는다 — 코드에 그런 판별 로직 자체가 없다.
+        다만 용례로 보면 입력 A는 보통 <b>아직 구현되지 않은 화면을 어떻게 만들지 알려주는 사전 참조</b>
+        (디자이너가 넘긴 목업 등)로 쓰이고, 입력 C(브라우저 캡처)는 반대로 <b>이미 구현된 살아있는
+        화면을 사후에 캡처</b>해 생성 결과를 검증하는 용도(<code>compareDesignFidelity</code>, 15번 참고)로
+        쓰인다 — "사전 참조냐 사후 검증이냐"가 둘의 실질적인 차이지, 파일 형식이나 스크린샷 여부가
+        기준이 아니다.
+      </figcaption>
+      <figcaption>
+        <b>(2026-09-01 추가) 입력 C · 캡처 화면 — "화면 소스를 직접 읽는" 게 아니라 렌더링된 DOM을 읽는다.</b>
+        <code>captureWebPage()</code>가 실행 중인 URL을 Chromium(<code>jsp-design-extractor</code>)으로
+        렌더링해 저장한 뒤, <code>analyzeCapturedDesign()</code>이 <code>WebCaptureProjectionPolicy</code>로
+        안전 필터링하고 <code>RenderedDesignSpecMapper.map()</code>이 <b>결정론적으로</b>
+        <code>UiDesignSpec</code>을 만든다(provider="web-capture"/model="deterministic-mapper" —
+        B의 "figma"/"deterministic-mapper"와 같은 패턴). 컴포넌트 인식은 고정된 CSS/ARIA 셀렉터
+        집합(<code>form</code>·<code>table</code>·<code>input</code>·<code>select</code>·
+        <code>[role=search]</code> 등)으로 렌더링 완료된 DOM을 훑는 방식이라, JSP든 Thymeleaf든
+        최종 HTML만 보고 템플릿 엔진을 구분하지 않는다 — 그래서 서버가 그 URL을 실제로 서빙 중이어야
+        하며 정적 <code>.jsp</code>/<code>.html</code> 파일만으로는 동작하지 않는다.
+        <code>&lt;input type=text&gt;</code>의 실제 입력값은 애초에 읽지 않고, 라벨에 이메일·전화번호
+        패턴이 있으면 버리는 이중 안전장치가 있다. <code>analyzeCapturedDesign()</code>이 반환하는
+        analysisId는 <code>createScreenSpecification</code>에 그대로 전달할 수 있지만, 이 경로의
+        유일하게 문서화된 소비처는 <code>compareDesignFidelity()</code>(Figma 원본과 "생성 후 재캡처한
+        화면"의 구조적 일치도 비교)다 — 즉 설계 의도는 기존 화면을 읽어 새 화면 생성 명세를 뽑아내는
+        "역추출"이 아니라, 생성 결과가 원본 디자인과 얼마나 일치하는지 검증하는 <b>품질 회귀 루프</b>다.
+        <code>DesignSourceType.WEB_CAPTURE</code>는 RAG 시맨틱 재사용 대상에서도 제외된다.
+        환경변수 설정부터 Tool 호출 순서까지 실제로 캡처 하나를 만드는 절차는 15번 다이어그램 참고.
+      </figcaption>
       <figcaption>
         표준 단일 테이블처럼 JOIN·공통코드·미매핑 필드가 없는 <b>단순 케이스</b>는 <code>buildFullCrudPrompt</code>
         호출 안에서 화면명세가 즉시 <code>APPROVED</code>로 생성돼 그대로 진행됩니다. JOIN·공통코드·파일 처리 등
@@ -2515,6 +2600,108 @@
         <code>code-reviewer</code>/<code>architect</code> 독립 검토 증적, ② 2026-08-25부터 최소 30일간
         <code>AI_GENERATION_READINESS_COMPARISON</code> 관측 후 2026-09-24 이후 분석)이 아직 충족되지 않았으므로
         이 절의 "구현·커밋 완료" 표시는 Merge·전환 최종 확정을 의미하지 않습니다.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section class="diagram-block" id="web-capture-guide">
+    <h2>15. 브라우저 캡처 실행 가이드 <span class="ver-tag">신규 반영</span></h2>
+    <p class="section-sub">
+      5번 다이어그램의 <b>입력 C</b>·8번 다이어그램(<code>jsp-design-extractor</code> 내부 흐름)을 실제로
+      돌리는 <b>운영 절차</b>입니다. 8번은 extractor 내부에서 무슨 일이 일어나는지를 보여주고, 이 절은
+      "무엇을 설정하고 어떤 순서로 Tool을 호출해야 캡처 하나가 만들어지는지"를 보여줍니다.
+    </p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1180 490" role="img" aria-label="extractor 서버를 기동하고 springai의 WEB_CAPTURE를 활성화한 뒤 getWebCaptureStatus로 READY를 확인한다. 인증이 필요하면 세션을 먼저 발급받고, captureWebPage로 캡처한 뒤 analyzeCapturedDesign으로 UiDesignSpec을 만들어 createScreenSpecification 또는 compareDesignFidelity로 이어간다.">
+          <defs>
+            <marker id="arrow15" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow15Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow15Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+          </defs>
+
+          <rect class="node-box" x="40" y="40" width="260" height="90" rx="8"></rect>
+          <g class="step-badge"><circle cx="62" cy="62" r="13"></circle><text x="62" y="66" text-anchor="middle">1</text></g>
+          <text class="node-title" x="170" y="76" text-anchor="middle" style="font-size:12.5px">extractor 서버 기동</text>
+          <text class="node-sub" x="170" y="94" text-anchor="middle" style="font-size:8.5px">npm install &amp;&amp; playwright install chromium</text>
+          <text class="node-sub" x="170" y="110" text-anchor="middle" style="font-size:8.5px">EXTRACTOR_API_KEY=... npm start</text>
+
+          <rect class="node-box accent" x="330" y="40" width="280" height="90" rx="8"></rect>
+          <g class="step-badge"><circle cx="352" cy="62" r="13"></circle><text x="352" y="66" text-anchor="middle">2</text></g>
+          <text class="node-title" x="470" y="76" text-anchor="middle" style="font-size:12.5px">springai 활성화</text>
+          <text class="node-sub" x="470" y="94" text-anchor="middle" style="font-size:8.5px">WEB_CAPTURE_ENABLED=true</text>
+          <text class="node-sub" x="470" y="110" text-anchor="middle" style="font-size:8px">extractor-api-key(①과 동일) + document-key-secret(다른 값)</text>
+
+          <rect class="node-box" x="650" y="40" width="260" height="90" rx="8"></rect>
+          <g class="step-badge"><circle cx="672" cy="62" r="13"></circle><text x="672" y="66" text-anchor="middle">3</text></g>
+          <text class="node-title" x="780" y="76" text-anchor="middle" style="font-size:12.5px">getWebCaptureStatus()</text>
+          <text class="node-sub" x="780" y="94" text-anchor="middle" style="font-size:8.5px">extractor 헬스체크 + 저장소 쓰기 확인</text>
+          <text class="node-sub" x="780" y="110" text-anchor="middle" style="font-size:8.5px">READY 확인 후 다음 단계 진행</text>
+
+          <path class="edge" marker-end="url(#arrow15)" d="M300,85 L330,85"></path>
+          <path class="edge" marker-end="url(#arrow15)" d="M610,85 L650,85"></path>
+
+          <path class="edge rest dashed" marker-end="url(#arrow15Rest)" d="M470,130 L470,168"></path>
+          <rect class="node-box rest" x="330" y="168" width="280" height="88" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="470" y="192" text-anchor="middle" style="font-size:11.5px">④(선택) 인증 세션 발급</text>
+          <text class="node-sub" x="470" y="210" text-anchor="middle" style="font-size:8.5px">POST /api/web-capture/sessions (X-API-Key)</text>
+          <text class="node-sub" x="470" y="226" text-anchor="middle" style="font-size:8.5px">원문 username/password는 운영자만 입력</text>
+          <text class="node-sub" x="470" y="242" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ sessionId 발급(storageStateRef로 사용)</text>
+
+          <path class="edge accent" marker-end="url(#arrow15Accent)" d="M780,130 Q780,250 300,300"></path>
+          <path class="edge rest dashed" marker-end="url(#arrow15Rest)" d="M400,256 Q300,270 250,300"></path>
+          <text class="edge-label" x="330" y="270" text-anchor="middle" style="font-size:8px">storageStateRef 전달(선택)</text>
+
+          <rect class="node-box accent" x="40" y="300" width="300" height="100" rx="8"></rect>
+          <g class="step-badge"><circle cx="62" cy="322" r="13"></circle><text x="62" y="326" text-anchor="middle">5</text></g>
+          <text class="node-title" x="190" y="336" text-anchor="middle" style="font-size:12.5px">captureWebPage()</text>
+          <text class="node-sub" x="190" y="354" text-anchor="middle" style="font-size:8.5px">url / profile=LOCAL_WEB / viewport / readiness</text>
+          <text class="node-sub" x="190" y="370" text-anchor="middle" style="font-size:8.5px">interactions(선택, 최대 20개)</text>
+          <text class="node-sub" x="190" y="386" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ artifactId 반환</text>
+
+          <path class="edge accent" marker-end="url(#arrow15Accent)" d="M340,350 L380,350"></path>
+
+          <rect class="node-box accent" x="380" y="300" width="300" height="100" rx="8"></rect>
+          <g class="step-badge"><circle cx="402" cy="322" r="13"></circle><text x="402" y="326" text-anchor="middle">6</text></g>
+          <text class="node-title" x="530" y="336" text-anchor="middle" style="font-size:12.5px">analyzeCapturedDesign()</text>
+          <text class="node-sub" x="530" y="354" text-anchor="middle" style="font-size:8.5px">artifactId → UiDesignSpec(결정론적 매핑)</text>
+          <text class="node-sub" x="530" y="370" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">→ DesignAnalysisResult(analysisId) 반환</text>
+
+          <path class="edge rest dashed" marker-end="url(#arrow15Rest)" d="M680,325 L720,325"></path>
+          <a class="diagram-link" href="#mcp-server-detail">
+            <title>5번 다이어그램: Spring MCP 서버 상세로 이동(createScreenSpecification의 designAnalysisId 인자)</title>
+            <rect class="node-box rest" x="720" y="280" width="280" height="88" rx="8" style="stroke-dasharray:5 4"></rect>
+            <text class="node-title" x="860" y="304" text-anchor="middle" style="font-size:11.5px">→ createScreenSpecification()</text>
+            <text class="node-sub" x="860" y="322" text-anchor="middle" style="font-size:8.5px">designAnalysisId로 전달(5번 참고)</text>
+            <text class="node-sub" x="860" y="338" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">기술적으로는 가능 — 문서화된 주 용도는 아님</text>
+            <g class="jump-badge"><circle cx="982" cy="294" r="12"></circle><text x="982" y="298" text-anchor="middle">5</text></g>
+          </a>
+
+          <path class="edge rest dashed" marker-end="url(#arrow15Rest)" d="M680,375 Q700,412 720,412"></path>
+          <rect class="node-box rest" x="720" y="378" width="280" height="88" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="860" y="402" text-anchor="middle" style="font-size:11.5px">→ compareDesignFidelity()</text>
+          <text class="node-sub" x="860" y="420" text-anchor="middle" style="font-size:8.5px">Figma 원본과 구조적 일치도(Jaccard) 비교</text>
+          <text class="node-sub" x="860" y="436" text-anchor="middle" style="font-size:8px;fill:var(--accent)">이 경로가 유일하게 문서화된 주 용도</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>필수 실행 순서(①→②→③→⑤→⑥)</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>선택 단계 또는 분기 목적지</span>
+      </div>
+      <figcaption>
+        <b>환경변수 이름은 정확히 일치해야 합니다.</b> <code>application.yaml</code>(188-207행) 기준
+        <code>WEB_CAPTURE_ENABLED</code>·<code>WEB_CAPTURE_EXTRACTOR_API_KEY</code>·
+        <code>WEB_CAPTURE_DOCUMENT_KEY_SECRET</code>이며, <code>WebCaptureProperties.validate()</code>가
+        기동 시점에 <code>enabled=true</code>인데 두 키 중 하나라도 비었거나 <b>두 키 값이 같으면</b>
+        예외를 던져 기동을 막습니다. <code>WEB_CAPTURE_EXTRACTOR_API_KEY</code>는 extractor를 띄울 때
+        쓴 <code>EXTRACTOR_API_KEY</code>와 <b>반드시 같은 값</b>이어야 하고(둘이 서로 다른 값이면
+        <code>X-Extractor-Key</code> 인증에서 거부됩니다), <code>allowed-origins</code>는 환경변수가
+        아니라 <code>application.yaml</code>의 리스트라 캡처 대상이 기본값
+        (<code>127.0.0.1:8080</code>/<code>localhost:8080</code>) 밖의 포트라면 yaml을 직접 고쳐야
+        합니다. 캡처 결과는 <code>WEB_CAPTURE_ARTIFACT_PATH</code>(기본
+        <code>{tmpdir}/springai-design-artifacts</code>)에 쌓이고
+        <code>WEB_CAPTURE_RETENTION_HOURS</code>(기본 24시간)가 지나면 <code>cleanupExpired()</code>가
+        자동으로 정리합니다.
       </figcaption>
     </figure>
   </section>
