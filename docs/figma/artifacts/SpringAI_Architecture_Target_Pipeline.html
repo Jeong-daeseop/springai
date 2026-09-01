@@ -1840,6 +1840,18 @@
         <code>figpack-v1</code>은 <code>website-figma-contract</code>의 계약이라 2번 다이어그램의
         <code>jsp-to-figma-plugin</code>이 그대로 소비할 수 있습니다.
       </figcaption>
+      <figcaption>
+        <b>(2026-09-01 추가) 이 다이어그램은 extractor 프로세스 내부만 보여준다 — springai가 어떻게
+        여기까지 도달하는지는 별도다.</b> 위 1~5단계는 <code>jsp-design-extractor</code> Node 서버
+        안에서 일어나는 일이며, 이 서버는 springai의 <code>captureWebPage()</code>/
+        <code>captureWebPageMultiViewport()</code> MCP Tool이 <code>POST /v1/captures</code>로
+        호출해야 비로소 실행됩니다(<code>WebCaptureClient</code>). 그리고 5단계가 만드는
+        <code>figpack-v1</code>은 <code>jsp-to-figma-plugin</code>에 바로 전달되지 않습니다 —
+        springai가 이걸 받아 <code>DesignArtifactService</code>로 먼저 저장한 뒤,
+        <code>prepareFigmaImport()</code>/<code>prepareFigmaBundleImport()</code> Tool을 또 한 번
+        호출해야 사람이 Figma Plugin에 넣을 수 있는 <code>.figpack</code>/<code>.figbundle.zip</code>
+        파일이 나옵니다. 이 앞뒤 연결 전체(환경변수 설정 → Tool 호출 순서)는 15번 다이어그램 참고.
+      </figcaption>
     </figure>
   </section>
 
@@ -2026,6 +2038,16 @@
         <code>sha256</code> hash를 전부 대조해 위·변조나 손상된 <code>figpack-v1</code>을 초기에 차단합니다.
         Plugin은 네트워크에 접근하지 않고, 4단계 <code>build()</code> 도중 실패하면 이번 실행에서 만든
         임시 최상위 Frame(<code>"IMPORTING {title}"</code>)만 제거해 Figma 파일의 다른 내용을 건드리지 않습니다.
+      </figcaption>
+      <figcaption>
+        <b>(2026-09-01 추가) 1단계 "figpack-v1 ZIP"은 어디서 오는가.</b> 8번 다이어그램의 extractor가
+        직접 이 Plugin에 파일을 넘기지 않습니다 — springai의 <code>prepareFigmaImport(artifactId)</code>
+        (단일 viewport) 또는 <code>prepareFigmaBundleImport(bundle)</code>(Desktop/Tablet/Mobile
+        멀티뷰포트, <code>bundle.json</code> + viewport별 <code>.figpack</code> 3개를 zip 하나로 묶음)
+        Tool을 호출해야 로컬 파일(<code>.figpack</code>/<code>.figbundle.zip</code>)이 생성되고,
+        이 Plugin이 <code>networkAccess:none</code>이라 그 파일을 <b>사람이 Figma Desktop의 파일
+        선택 대화상자로 직접 골라야</b> 1단계가 시작됩니다. <code>captureWebPage()</code> 호출부터
+        여기까지 이어지는 전체 Tool 호출 순서는 15번 다이어그램 참고.
       </figcaption>
     </figure>
   </section>
@@ -2609,11 +2631,14 @@
     <p class="section-sub">
       5번 다이어그램의 <b>입력 C</b>·8번 다이어그램(<code>jsp-design-extractor</code> 내부 흐름)을 실제로
       돌리는 <b>운영 절차</b>입니다. 8번은 extractor 내부에서 무슨 일이 일어나는지를 보여주고, 이 절은
-      "무엇을 설정하고 어떤 순서로 Tool을 호출해야 캡처 하나가 만들어지는지"를 보여줍니다.
+      "무엇을 설정하고 어떤 순서로 Tool을 호출해야 캡처 하나가 만들어지는지"를 보여줍니다. ⑤ 이후는
+      두 갈래로 갈립니다 — <code>UiDesignSpec</code>으로 변환하는 경로(⑥, 이미 있던 흐름)와,
+      <b>실행 중인 JSP/Thymeleaf 화면을 그대로 Figma 프레임으로 재현하는 경로</b>(⑥ 없이 곧바로
+      <code>prepareFigmaImport</code>→11번 <code>jsp-to-figma-plugin</code>, 이번에 추가)입니다.
     </p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 490" role="img" aria-label="extractor 서버를 기동하고 springai의 WEB_CAPTURE를 활성화한 뒤 getWebCaptureStatus로 READY를 확인한다. 인증이 필요하면 세션을 먼저 발급받고, captureWebPage로 캡처한 뒤 analyzeCapturedDesign으로 UiDesignSpec을 만들어 createScreenSpecification 또는 compareDesignFidelity로 이어간다.">
+        <svg viewBox="0 0 1180 600" role="img" aria-label="extractor 서버를 기동하고 springai의 WEB_CAPTURE를 활성화한 뒤 getWebCaptureStatus로 READY를 확인한다. 인증이 필요하면 세션을 먼저 발급받고, captureWebPage로 캡처한다. 이후 두 갈래로 갈린다 — analyzeCapturedDesign으로 UiDesignSpec을 만들어 createScreenSpecification 또는 compareDesignFidelity로 이어가거나, analyzeCapturedDesign 없이 곧바로 prepareFigmaImport/prepareFigmaBundleImport로 figpack을 만들어 jsp-to-figma-plugin이 Figma Desktop에서 사람이 수동 실행하는 것으로 실제 JSP/Thymeleaf 화면을 Figma 프레임으로 재현한다.">
           <defs>
             <marker id="arrow15" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow15Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
@@ -2682,6 +2707,27 @@
           <text class="node-title" x="860" y="402" text-anchor="middle" style="font-size:11.5px">→ compareDesignFidelity()</text>
           <text class="node-sub" x="860" y="420" text-anchor="middle" style="font-size:8.5px">Figma 원본과 구조적 일치도(Jaccard) 비교</text>
           <text class="node-sub" x="860" y="436" text-anchor="middle" style="font-size:8px;fill:var(--accent)">이 경로가 유일하게 문서화된 주 용도</text>
+
+          <path class="edge accent" marker-end="url(#arrow15Accent)" d="M190,400 L190,470"></path>
+          <text class="edge-label" x="205" y="450">⑥ 없이 원본</text>
+          <text class="edge-label" x="205" y="462">캡처에서 바로 분기</text>
+
+          <rect class="node-box accent" x="40" y="470" width="340" height="100" rx="8"></rect>
+          <text class="node-title" x="210" y="496" text-anchor="middle" style="font-size:12px">prepareFigmaImport()</text>
+          <text class="node-sub" x="210" y="512" text-anchor="middle" style="font-size:8px">/ prepareFigmaBundleImport() (멀티뷰포트)</text>
+          <text class="node-sub" x="210" y="528" text-anchor="middle" style="font-size:8.5px">artifactId → .figpack / .figbundle.zip 파일</text>
+          <text class="node-sub" x="210" y="544" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">analyzeCapturedDesign() 불필요(원본 캡처 그대로 사용)</text>
+
+          <path class="edge accent" marker-end="url(#arrow15Accent)" d="M380,520 L420,520"></path>
+          <a class="diagram-link" href="#jsp-to-figma-detail">
+            <title>11번 다이어그램: jsp-to-figma-plugin 상세로 이동(JSP/Thymeleaf 화면을 Figma 프레임으로 재현)</title>
+            <rect class="node-box rest" x="420" y="470" width="340" height="100" rx="8" style="stroke-dasharray:5 4"></rect>
+            <text class="node-title" x="590" y="496" text-anchor="middle" style="font-size:12px">→ jsp-to-figma-plugin</text>
+            <text class="node-sub" x="590" y="514" text-anchor="middle" style="font-size:8.5px">Figma Desktop에서 사람이 수동 실행(networkAccess:none)</text>
+            <text class="node-sub" x="590" y="530" text-anchor="middle" style="font-size:8.5px">Frame·Text·이미지로 화면 재현</text>
+            <text class="node-sub" x="590" y="546" text-anchor="middle" style="font-size:8px;fill:var(--accent)">→ 2번 다이어그램 Figma 파일에 반영(11번 참고)</text>
+            <g class="jump-badge"><circle cx="742" cy="484" r="12"></circle><text x="742" y="488" text-anchor="middle">11</text></g>
+          </a>
         </svg>
       </div>
       <div class="legend">
@@ -2702,6 +2748,245 @@
         <code>{tmpdir}/springai-design-artifacts</code>)에 쌓이고
         <code>WEB_CAPTURE_RETENTION_HOURS</code>(기본 24시간)가 지나면 <code>cleanupExpired()</code>가
         자동으로 정리합니다.
+      </figcaption>
+      <figcaption>
+        <b>(2026-09-01 추가) "JSP/Thymeleaf 화면을 읽어서 Figma 화면을 만드는" 경로는 여기서 ⑥을 거치지
+        않습니다.</b> <code>prepareFigmaImport(artifactId)</code>/<code>prepareFigmaBundleImport(bundle)</code>은
+        <code>analyzeCapturedDesign()</code>이 만드는 <code>UiDesignSpec</code>을 전혀 쓰지 않고,
+        ⑤ <code>captureWebPage()</code>가 만든 원본 <code>RenderedDesignDocument</code>를 그대로
+        <code>.figpack</code>/<code>.figbundle.zip</code>으로 포장할 뿐입니다 — 즉 이 경로는
+        <code>UiDesignSpec</code>·<code>DesignAnalysisResult</code>·<code>AI_DESIGN_ANALYSIS</code>
+        테이블을 전혀 거치지 않는 <b>완전히 별도의 소비 경로</b>입니다. 최종적으로 Figma 파일에 Frame이
+        실제로 그려지는 건 <code>jsp-to-figma-plugin</code>을 <b>사람이 Figma Desktop에서 수동으로
+        실행</b>했을 때뿐입니다(<code>manifest.json</code>의 <code>networkAccess: none</code> —
+        springai 서버가 원격으로 트리거할 수 없음). Figma REST API 자체가 노드 생성을 지원하지 않아
+        (읽기·댓글 전용), 노드를 실제로 만들려면 Figma 앱 안에서 실행되는 Plugin API가 필요하기
+        때문입니다. 상세 5단계(<code>parse()</code> 무결성 검증 → <code>build()</code> Frame 생성)는
+        11번 다이어그램 참고.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section class="diagram-block" id="figma-design-orchestration">
+    <h2>16. Figma 디자인 생성 — Schema-first vs Design-first <span class="ver-tag">신규 반영</span></h2>
+    <p class="section-sub">
+      <code>FigmaDesignOrchestrationTool</code>(<code>figmaMcpSecret</code> 기반, 5·8·11·15번과는
+      완전히 별개 경로)이 새 Figma 화면을 만들 때 DB 테이블을 <b>언제 확정하느냐</b>에 따라 갈라지는
+      두 워크플로우입니다. 15번(브라우저 캡처)과는 무관하며, 이건 텍스트/이미지/기존 화면 참조로
+      <b>새 디자인을 만드는</b> 경로입니다.
+    </p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1180 470" role="img" aria-label="Schema-first 경로는 createDesignFromXXX 호출 시 database와 tableName을 함께 넘겨 generateFigmaBundleForOperation이 곧바로 PREVIEW_READY까지 진행한다. Design-first 경로는 createDesignFromReference 또는 createDesignFromImage만 테이블 없이 호출할 수 있고, generateFigmaBundleForOperation은 분석은 실행하되 AWAITING_TABLE_BINDING으로 멈춰 필드 후보를 issues에 담아 반환하며, 이후 bindFigmaDesignRequestTable로 테이블을 지정하면 재분석을 거쳐 PREVIEW_READY 또는 REJECTED로 전이한다.">
+          <defs>
+            <marker id="arrow16" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow16Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow16Good" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--good)"></path></marker>
+            <marker id="arrow16Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+          </defs>
+
+          <text class="group-label" x="40" y="26">Schema-first</text>
+          <rect class="node-box accent" x="40" y="40" width="300" height="92" rx="8"></rect>
+          <text class="node-title" x="190" y="66" text-anchor="middle" style="font-size:11.5px">createDesignFromXXX()</text>
+          <text class="node-sub" x="190" y="84" text-anchor="middle" style="font-size:8.5px">Reference/Image/Components/MultiScreen</text>
+          <text class="node-sub" x="190" y="100" text-anchor="middle" style="font-size:8.5px;fill:var(--accent)">database + tableName 함께 전달</text>
+          <text class="node-sub" x="190" y="116" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">Text는 파라미터 자체에 테이블 없음(NL→스키마 직결)</text>
+
+          <path class="edge accent" marker-end="url(#arrow16Accent)" d="M340,86 L390,86"></path>
+
+          <rect class="node-box accent" x="390" y="40" width="300" height="92" rx="8"></rect>
+          <text class="node-title" x="540" y="70" text-anchor="middle" style="font-size:11.5px">generateFigmaBundleForOperation()</text>
+          <text class="node-sub" x="540" y="90" text-anchor="middle" style="font-size:8.5px">테이블 있음 → 즉시 분석·필드 매칭</text>
+          <text class="node-sub" x="540" y="106" text-anchor="middle" style="font-size:8.5px">→ FigmaExportBundle 저장</text>
+
+          <path class="edge accent" marker-end="url(#arrow16Accent)" d="M690,86 L740,86"></path>
+
+          <rect class="node-box good" x="740" y="40" width="240" height="92" rx="8"></rect>
+          <text class="node-title" x="860" y="76" text-anchor="middle" style="font-size:12.5px">PREVIEW_READY</text>
+          <text class="node-sub" x="860" y="96" text-anchor="middle" style="font-size:8.5px">Bundle 생성 완료</text>
+          <text class="node-sub" x="860" y="112" text-anchor="middle" style="font-size:8px;fill:var(--rest)">매칭 실패 시 REJECTED</text>
+
+          <text class="group-label" x="40" y="186">Design-first(디자인 먼저, 테이블은 나중에)</text>
+          <rect class="node-box accent" x="40" y="200" width="300" height="92" rx="8"></rect>
+          <text class="node-title" x="190" y="224" text-anchor="middle" style="font-size:10.5px">createDesignFromReference()</text>
+          <text class="node-title" x="190" y="240" text-anchor="middle" style="font-size:10.5px">/ createDesignFromImage()</text>
+          <text class="node-sub" x="190" y="258" text-anchor="middle" style="font-size:8.5px;fill:var(--rest)">database/tableName 생략</text>
+          <text class="node-sub" x="190" y="274" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">이 2종만 지원 — 나머지는 즉시 REJECTED</text>
+
+          <path class="edge accent" marker-end="url(#arrow16Accent)" d="M340,246 L390,246"></path>
+
+          <rect class="node-box accent" x="390" y="200" width="300" height="92" rx="8"></rect>
+          <text class="node-title" x="540" y="228" text-anchor="middle" style="font-size:11px">generateFigmaBundleForOperation()</text>
+          <text class="node-sub" x="540" y="248" text-anchor="middle" style="font-size:8.5px">테이블 없음 → 분석은 실행, 매칭은 보류</text>
+          <text class="node-sub" x="540" y="264" text-anchor="middle" style="font-size:8.5px">"디자인을 먼저 보고 테이블은 나중에"</text>
+
+          <path class="edge rest dashed" marker-end="url(#arrow16Rest)" d="M690,246 L740,246"></path>
+
+          <rect class="node-box rest" x="740" y="200" width="240" height="92" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="860" y="226" text-anchor="middle" style="font-size:11px">AWAITING_TABLE_BINDING</text>
+          <text class="node-sub" x="860" y="244" text-anchor="middle" style="font-size:8px">issues: DATABASE_TABLE_PENDING</text>
+          <text class="node-sub" x="860" y="258" text-anchor="middle" style="font-size:8px">+ FIELD_CANDIDATE × N(라벨·역할·신뢰도)</text>
+
+          <path class="edge rest dashed" marker-end="url(#arrow16Rest)" d="M860,292 L860,320 Q860,340 690,360"></path>
+
+          <rect class="node-box accent" x="390" y="360" width="300" height="92" rx="8"></rect>
+          <text class="node-title" x="540" y="386" text-anchor="middle" style="font-size:11px">bindFigmaDesignRequestTable()</text>
+          <text class="node-sub" x="540" y="404" text-anchor="middle" style="font-size:8.5px">database + tableName 지정</text>
+          <text class="node-sub" x="540" y="420" text-anchor="middle" style="font-size:8.5px">→ ANALYZED로 되돌린 뒤 재분석(재귀 호출)</text>
+
+          <path class="edge accent" marker-end="url(#arrow16Accent)" d="M340,406 L390,406"></path>
+          <rect class="node-box" x="40" y="360" width="300" height="92" rx="8"></rect>
+          <text class="node-title" x="190" y="390" text-anchor="middle" style="font-size:11px">사람이 FIELD_CANDIDATE 확인</text>
+          <text class="node-sub" x="190" y="408" text-anchor="middle" style="font-size:8.5px">추천 필드 후보와 실제 테이블 비교</text>
+          <text class="node-sub" x="190" y="424" text-anchor="middle" style="font-size:8.5px">→ 바인딩할 database/tableName 결정</text>
+
+          <path class="edge accent" marker-end="url(#arrow16Accent)" d="M690,406 L740,406"></path>
+          <rect class="node-box good" x="740" y="360" width="240" height="92" rx="8"></rect>
+          <text class="node-title" x="860" y="390" text-anchor="middle" style="font-size:11.5px">PREVIEW_READY / REJECTED</text>
+          <text class="node-sub" x="860" y="408" text-anchor="middle" style="font-size:8px">매칭 애매하면 REJECTED +</text>
+          <text class="node-sub" x="860" y="422" text-anchor="middle" style="font-size:8px">reviseScreenSpecification 안내</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>정상 진행 경로(두 워크플로우 공통)</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>Design-first 전용 중간 상태(REFERENCE_STYLE·IMAGE_REFERENCE만 해당)</span>
+      </div>
+      <figcaption>
+        <b>7종 요청 유형 중 Design-first가 가능한 건 2종뿐입니다.</b> 나머지(COMPONENT_SPECIFIED·
+        MULTI_SCREEN_FLOW)는 <code>database</code>/<code>tableName</code> 없이
+        <code>generateFigmaBundleForOperation</code>을 호출하면 <code>AWAITING_TABLE_BINDING</code>
+        예외 없이 <b>즉시 REJECTED</b>됩니다. <code>TEXT_DESCRIPTION</code>(<code>createDesignFromText</code>)은
+        더 근본적으로 다릅니다 — Tool 파라미터 자체에 <code>database</code>/<code>tableName</code>이
+        없고, JavaDoc에 "자연어 프롬프트 → DB Schema 기반 ScreenSpecification"이라고 명시된 대로 처음부터
+        DB 스키마가 전제입니다. <code>MODIFY_EXISTING</code>·<code>PLATFORM_CONVERT</code>는 새 테이블을
+        지정하는 게 아니라 기존 <code>screenSpecificationId</code>를 수정/변환하는 것이라 이 비교 자체가
+        해당하지 않습니다.
+      </figcaption>
+      <figcaption>
+        <b>코드에 남은 stale 주석 하나.</b> <code>FigmaDesignOrchestrationService.java</code>의
+        <code>awaitTableBinding()</code> 메서드 JavaDoc에는 여전히 "과도기적 제약:
+        <code>bindFigmaDesignRequestTable</code>(A-01)이 아직 없어..."라고 쓰여 있지만, 이 Tool은
+        이미 완전히 구현·연결되어 있습니다(<code>bindTable()</code>이 <code>generateBundle()</code>을
+        재귀 호출). 기능상 문제는 아니고 갱신되지 않은 주석입니다.
+      </figcaption>
+      <div class="data-table-wrap" style="margin-top:10px">
+        <table class="data-table">
+          <thead>
+            <tr><th>요청 유형(Tool)</th><th>테이블 생략 가능?</th><th>생략 시 동작</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>REFERENCE_STYLE(<code>createDesignFromReference</code>)</td><td>✅</td><td><code>AWAITING_TABLE_BINDING</code> — <code>bindFigmaDesignRequestTable</code>로 이어감</td></tr>
+            <tr><td>IMAGE_REFERENCE(<code>createDesignFromImage</code>)</td><td>✅</td><td><code>AWAITING_TABLE_BINDING</code> — 동일</td></tr>
+            <tr><td>COMPONENT_SPECIFIED(<code>createDesignWithComponents</code>)</td><td>❌</td><td>즉시 REJECTED</td></tr>
+            <tr><td>MULTI_SCREEN_FLOW(<code>createMultiScreenFlow</code>)</td><td>❌</td><td>즉시 REJECTED(화면마다 필요)</td></tr>
+            <tr><td>TEXT_DESCRIPTION(<code>createDesignFromText</code>)</td><td>해당 없음</td><td>Tool 파라미터에 테이블 자체가 없음 — 처음부터 DB 스키마 전제</td></tr>
+            <tr><td>MODIFY_EXISTING(<code>modifyExistingDesign</code>)</td><td>해당 없음</td><td>새 테이블이 아니라 기존 <code>screenSpecificationId</code> 수정</td></tr>
+            <tr><td>PLATFORM_CONVERT(<code>convertPlatform</code>)</td><td>해당 없음</td><td>새 테이블이 아니라 기존 <code>screenSpecificationId</code> 변환</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </figure>
+  </section>
+
+  <section class="diagram-block" id="jsp-to-thymeleaf-binding-generation">
+    <h2>17. JSP→Thymeleaf 변환 파이프라인 — Binding Contract 생성 상세 <span class="ver-tag">신규 반영</span></h2>
+    <p class="section-sub">
+      14번 다이어그램(Thymeleaf 마이그레이션 승인 워크플로우)의 <b>앞단</b>입니다. 14번은 이미 만들어진
+      HTML을 승인·Apply하는 상태기계만 보여줬는데, 이 절이 <b>실제로 그 HTML을 레거시 JSP에서 만들어내는</b>
+      <code>ThymeleafBindingGenerationService.preview()</code>(<code>previewThymeleafBindingGeneration</code>
+      Tool) 내부입니다. 5·8·11·15·16번(디자인 참조·브라우저 캡처·Figma 생성) 어디와도 다른 네 번째
+      경로 — 순수 정적 파일 파싱이라 서버 실행도 브라우저도 필요 없습니다.
+    </p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1180 470" role="img" aria-label="프로젝트 루트 안의 JSP·Controller·VO 파일을 안전하게 읽고 각 소스 리더가 증거를 추출해 LegacyScreenAnalysis를 만든다. BindingContractAssembler가 Controller·VO를 JSP hint보다 우선해 계약을 조립하며 REVIEW_REQUIRED면 즉시 차단한다. 선택적으로 APPROVED ScreenSpecification과 Design Token을 결합한 뒤 BindingComposer가 화면 역할별 FreeMarker 템플릿으로 Thymeleaf HTML을 조합한다. RegenerationDiffService가 이전 적용 계약과 권한·HTTP method를 비교해 CSRF 보호가 약해지면 차단하고, 통과하면 기존 ThymeleafProjectWorkflowService.preview()로 넘겨 14번 다이어그램의 PREVIEW_READY 상태로 진입한다.">
+          <defs>
+            <marker id="arrow17" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow17Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow17Good" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--good)"></path></marker>
+            <marker id="arrow17Rest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+          </defs>
+
+          <rect class="node-box accent" x="40" y="40" width="270" height="92" rx="8"></rect>
+          <g class="step-badge"><circle cx="62" cy="62" r="13"></circle><text x="62" y="66" text-anchor="middle">1</text></g>
+          <text class="node-title" x="175" y="66" text-anchor="middle" style="font-size:11.5px">소스 읽기</text>
+          <text class="node-sub" x="175" y="84" text-anchor="middle" style="font-size:8px">JSP + Controller.java + VO.java</text>
+          <text class="node-sub" x="175" y="98" text-anchor="middle" style="font-size:8px">(선택: VO superclass·secondary VO)</text>
+          <text class="node-sub" x="175" y="114" text-anchor="middle" style="font-size:7.5px;fill:var(--ink-muted)">경로 이탈 차단 + budget(20개·2MB·10MB)</text>
+
+          <path class="edge accent" marker-end="url(#arrow17Accent)" d="M310,86 L360,86"></path>
+
+          <rect class="node-box accent" x="360" y="40" width="280" height="92" rx="8"></rect>
+          <g class="step-badge"><circle cx="382" cy="62" r="13"></circle><text x="382" y="66" text-anchor="middle">2</text></g>
+          <text class="node-title" x="500" y="66" text-anchor="middle" style="font-size:11.5px">증거 추출</text>
+          <text class="node-sub" x="500" y="84" text-anchor="middle" style="font-size:8px">JspSourceReader/ControllerSourceReader</text>
+          <text class="node-sub" x="500" y="98" text-anchor="middle" style="font-size:8px">/VoSourceReader(정규식 기반)</text>
+          <text class="node-sub" x="500" y="114" text-anchor="middle" style="font-size:8px;fill:var(--accent)">→ LegacyScreenAnalysis</text>
+
+          <path class="edge accent" marker-end="url(#arrow17Accent)" d="M640,86 L680,86"></path>
+
+          <rect class="node-box accent" x="680" y="40" width="300" height="92" rx="8"></rect>
+          <g class="step-badge"><circle cx="702" cy="62" r="13"></circle><text x="702" y="66" text-anchor="middle">3</text></g>
+          <text class="node-title" x="830" y="62" text-anchor="middle" style="font-size:10.5px">BindingContractAssembler</text>
+          <text class="node-sub" x="830" y="80" text-anchor="middle" style="font-size:8px">CONTRACT_STAGE</text>
+          <text class="node-sub" x="830" y="96" text-anchor="middle" style="font-size:8px">Controller·VO가 JSP hint보다 항상 우선</text>
+          <text class="node-sub" x="830" y="112" text-anchor="middle" style="font-size:7.5px;fill:var(--rest)">REVIEW_REQUIRED 판정 포함</text>
+
+          <path class="edge rest dashed" marker-end="url(#arrow17Rest)" d="M900,132 L900,155"></path>
+          <rect class="node-box rest" x="750" y="155" width="300" height="60" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-sub" x="900" y="176" text-anchor="middle" style="font-size:8.5px">차단 시 issues와 함께 즉시 반환</text>
+          <text class="node-sub" x="900" y="192" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">(표시 필드 미검증 등, 조용히 통과 안 시킴)</text>
+
+          <path class="edge accent" marker-end="url(#arrow17Accent)" d="M830,132 L830,260"></path>
+
+          <rect class="node-box rest" x="40" y="260" width="280" height="92" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="180" y="284" text-anchor="middle" style="font-size:10.5px">④(선택) 명세·토큰 결합</text>
+          <text class="node-sub" x="180" y="302" text-anchor="middle" style="font-size:8px">screenSpecificationId(APPROVED 필수)</text>
+          <text class="node-sub" x="180" y="318" text-anchor="middle" style="font-size:8px">designSystemProfileId(DESIGN.md override 병합)</text>
+          <text class="node-sub" x="180" y="334" text-anchor="middle" style="font-size:7.5px;fill:var(--ink-muted)">실패해도 FATAL 아님(토큰 없이 계속)</text>
+
+          <path class="edge accent" marker-end="url(#arrow17Accent)" d="M320,306 L360,306"></path>
+
+          <rect class="node-box accent" x="360" y="260" width="280" height="92" rx="8"></rect>
+          <g class="step-badge"><circle cx="382" cy="282" r="13"></circle><text x="382" y="286" text-anchor="middle">5</text></g>
+          <text class="node-title" x="510" y="282" text-anchor="middle" style="font-size:10.5px">BindingComposer.compose()</text>
+          <text class="node-sub" x="510" y="300" text-anchor="middle" style="font-size:8px">COMPOSE_STAGE — FreeMarker</text>
+          <text class="node-sub" x="510" y="316" text-anchor="middle" style="font-size:8px">LIST/FORM/DETAIL 템플릿별 th:field·th:text</text>
+
+          <path class="edge accent" marker-end="url(#arrow17Accent)" d="M640,306 L680,306"></path>
+
+          <rect class="node-box accent" x="680" y="260" width="300" height="92" rx="8"></rect>
+          <g class="step-badge"><circle cx="702" cy="282" r="13"></circle><text x="702" y="286" text-anchor="middle">6</text></g>
+          <text class="node-title" x="830" y="280" text-anchor="middle" style="font-size:10.5px">RegenerationDiffService.diff()</text>
+          <text class="node-sub" x="830" y="298" text-anchor="middle" style="font-size:8px">REGENERATION_DIFF_STAGE</text>
+          <text class="node-sub" x="830" y="314" text-anchor="middle" style="font-size:7.5px">이전 적용 계약과 권한·HTTP method(CSRF) 비교</text>
+          <text class="node-sub" x="830" y="328" text-anchor="middle" style="font-size:7.5px;fill:var(--rest)">변경 감지 시 차단</text>
+
+          <path class="edge accent" marker-end="url(#arrow17Accent)" d="M830,352 L830,380"></path>
+
+          <a class="diagram-link" href="#thymeleaf-migration-workflow">
+            <title>14번 다이어그램: Thymeleaf 마이그레이션 승인 워크플로우로 이동(PREVIEW_READY 이후)</title>
+            <rect class="node-box good" x="680" y="380" width="300" height="80" rx="8"></rect>
+            <g class="step-badge"><circle cx="702" cy="400" r="13"></circle><text x="702" y="404" text-anchor="middle">7</text></g>
+            <text class="node-title" x="840" y="400" text-anchor="middle" style="font-size:10.5px">ThymeleafProjectWorkflowService</text>
+            <text class="node-sub" x="840" y="418" text-anchor="middle" style="font-size:8px">.preview() → PREVIEW_READY</text>
+            <text class="jump-hint" x="840" y="434" text-anchor="middle" style="font-size:8px">↳ 14번(승인·Apply·rollback)</text>
+            <g class="jump-badge"><circle cx="962" cy="394" r="12"></circle><text x="962" y="398" text-anchor="middle">14</text></g>
+          </a>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--accent)"></i>정상 진행 경로</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>선택 단계 또는 차단(REVIEW_REQUIRED/회귀 감지) 결과</span>
+      </div>
+      <figcaption>
+        각 단계는 실패하면 조용히 다음 단계로 넘기지 않고 <code>blocked(stage, ..., issues)</code>로
+        <b>어느 단계에서 왜 막혔는지</b>를 그대로 반환합니다. 특히 6단계(재생성 diff)는 다른 어떤
+        생성 경로에도 없는 안전장치입니다 — 화면을 다시 생성했더니 CSRF 보호나 권한 evidence가
+        빠지는 회귀를 <code>REGENERATION_PERMISSION_OR_CSRF_CHANGED</code>로 자동 차단합니다.
+        1단계의 파일 읽기는 <code>LegacySourceInventoryService.resolveAllowedFile()</code>이
+        <code>projectRootPath</code> 밖으로 경로 이탈을 막고, <code>SourceReadBudget</code>이
+        파일 수·크기 상한으로 리소스 소진을 방어합니다.
       </figcaption>
     </figure>
   </section>
