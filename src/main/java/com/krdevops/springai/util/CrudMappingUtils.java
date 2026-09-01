@@ -1,5 +1,9 @@
 package com.krdevops.springai.util;
 
+import com.krdevops.springai.model.crud.FieldModel;
+
+import java.util.Map;
+
 /**
  * CRUD 코드 생성에 필요한 정적 변환 유틸리티.
  * CrudPromptBuilderService 의 private 메서드를 이관하여 CrudModelFactory 에서 재사용한다.
@@ -59,6 +63,35 @@ public final class CrudMappingUtils {
             case "bit", "boolean"                           -> "BIT";
             default                                         -> "VARCHAR";
         };
+    }
+
+    /**
+     * DB 컬럼 메타데이터 한 행(Map)을 {@link FieldModel}로 변환한다.
+     * {@code CrudModelFactory}와 {@code BoardModelFactory}가 동일하게 사용하던 컬럼 변환 로직을
+     * 이곳으로 합쳐, 한쪽만 고치고 다른 쪽에 반영을 빠뜨리는 수동 동기화 위험을 없앤다.
+     *
+     * <p>Map 키는 {@code CrudSchemaQueryService.fetchColumns()} SQL 결과 기준
+     * (COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH, IS_NULLABLE, COLUMN_KEY, COLUMN_COMMENT).
+     */
+    public static FieldModel toFieldModel(Map<String, Object> row) {
+        Object len = row.get("CHARACTER_MAXIMUM_LENGTH");
+        String dataType = (String) row.get("DATA_TYPE");
+        String columnName = (String) row.get("COLUMN_NAME");
+        boolean nullable = !"NO".equals(row.get("IS_NULLABLE"));
+        boolean pk = "PRI".equals(row.get("COLUMN_KEY"));
+        String comment = row.get("COLUMN_COMMENT") != null ? (String) row.get("COLUMN_COMMENT") : "";
+        int columnSize = len != null ? ((Number) len).intValue() : 0;
+
+        String javaType = mapJavaType(dataType, columnSize);
+        Integer maxLength = "varchar".equalsIgnoreCase(dataType) ? columnSize : null;
+
+        return new FieldModel(
+                columnName,
+                toCamelCase(columnName),
+                javaType, comment, pk, !nullable,
+                "String".equals(javaType), maxLength,
+                mapJdbcType(dataType)
+        );
     }
 
     /**

@@ -20,8 +20,10 @@ import java.util.Map;
 /**
  * 게시판(BBS) 스키마 → {@link BoardTemplateModel} 변환 팩토리.
  *
- * <p>컬럼 변환 로직은 {@code CrudModelFactory} 와 동일하며, 게시판 전용으로
- * 복합 PK(BBS_ID, NTT_ID) 탐색·첨부파일 판단·목록/폼/검색 필드 선별을 추가한다.
+ * <p>컬럼 → {@link FieldModel} 변환은 {@code CrudModelFactory}와 함께
+ * {@link CrudMappingUtils#toFieldModel(Map)}을 공유한다(중복 로직 아님 — 한쪽만 고치고
+ * 반영을 빠뜨리는 수동 동기화 위험 없음). 게시판 전용으로는 복합 PK(BBS_ID, NTT_ID)
+ * 탐색·첨부파일 판단·목록/폼/검색 필드 선별을 추가한다.
  */
 @Service
 public class BoardModelFactory {
@@ -64,9 +66,9 @@ public class BoardModelFactory {
             BoardProgramMetadata metadata,
             ScreenSpecification screenSpecification) {
 
-        // mainTable 컬럼 → FieldModel 변환
+        // mainTable 컬럼 → FieldModel 변환 (CrudModelFactory와 공유하는 CrudMappingUtils.toFieldModel())
         List<FieldModel> fields = schemas.get("main").stream()
-                .map(this::toFieldModel).toList();
+                .map(CrudMappingUtils::toFieldModel).toList();
 
         // 복합 PK: BBS_ID, NTT_ID 탐색
         FieldModel bbsId = fields.stream()
@@ -157,28 +159,6 @@ public class BoardModelFactory {
                 hasFile, atchFileId, resolvedFileDetailTable,
                 fields, listFields, detailFields, insertFields, formFields, searchFields, noticeAtExists,
                 display, route, queryContract
-        );
-    }
-
-    // CrudModelFactory 와 동일한 변환 로직
-    private FieldModel toFieldModel(Map<String, Object> row) {
-        Object len = row.get("CHARACTER_MAXIMUM_LENGTH");
-        String dataType = (String) row.get("DATA_TYPE");
-        String columnName = (String) row.get("COLUMN_NAME");
-        boolean nullable = !"NO".equals(row.get("IS_NULLABLE"));
-        boolean pk = "PRI".equals(row.get("COLUMN_KEY"));
-        String comment = row.get("COLUMN_COMMENT") != null ? (String) row.get("COLUMN_COMMENT") : "";
-        int columnSize = len != null ? ((Number) len).intValue() : 0;
-
-        String javaType = CrudMappingUtils.mapJavaType(dataType, columnSize);
-        Integer maxLength = "varchar".equalsIgnoreCase(dataType) ? columnSize : null;
-
-        return new FieldModel(
-                columnName,
-                CrudMappingUtils.toCamelCase(columnName),
-                javaType, comment, pk, !nullable,
-                "String".equals(javaType), maxLength,
-                CrudMappingUtils.mapJdbcType(dataType)
         );
     }
 

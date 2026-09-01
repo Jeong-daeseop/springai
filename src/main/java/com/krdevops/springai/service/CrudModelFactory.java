@@ -1,6 +1,5 @@
 package com.krdevops.springai.service;
 
-import com.krdevops.springai.model.crud.ColumnMeta;
 import com.krdevops.springai.model.crud.CrudProgramMetadata;
 import com.krdevops.springai.model.crud.CrudRouteModel;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
@@ -125,13 +124,9 @@ public class CrudModelFactory {
                 ? (resolvedViewType == CrudViewType.THYMELEAF
                         ? ScreenSubsetMode.LIST_AND_DETAIL : ScreenSubsetMode.LIST_ONLY)
                 : subsetMode;
-        // Map → ColumnMeta 변환
-        List<ColumnMeta> columns = rawColumns.stream()
-                .map(this::toColumnMeta)
-                .toList();
-
-        List<FieldModel> fields = columns.stream()
-                .map(this::toFieldModel)
+        // Map → FieldModel 변환 (BoardModelFactory와 공유하는 CrudMappingUtils.toFieldModel())
+        List<FieldModel> fields = rawColumns.stream()
+                .map(CrudMappingUtils::toFieldModel)
                 .toList();
 
         // PK 필드 — 복합키(예: NTT_ID+BBS_ID)를 모두 인식한다.
@@ -387,40 +382,4 @@ public class CrudModelFactory {
                 || name.contains("secret");
     }
 
-    /**
-     * rawColumn Map → ColumnMeta record.
-     * Map 키는 CrudSchemaQueryService.fetchColumns() SQL 결과 기준.
-     */
-    private ColumnMeta toColumnMeta(Map<String, Object> row) {
-        Object len = row.get("CHARACTER_MAXIMUM_LENGTH");
-        return new ColumnMeta(
-                (String) row.get("COLUMN_NAME"),
-                (String) row.get("DATA_TYPE"),
-                len != null ? ((Number) len).intValue() : 0,
-                !"NO".equals(row.get("IS_NULLABLE")),
-                "PRI".equals(row.get("COLUMN_KEY")),
-                row.get("COLUMN_COMMENT") != null ? (String) row.get("COLUMN_COMMENT") : ""
-        );
-    }
-
-    /**
-     * ColumnMeta → FieldModel record.
-     * 타입 변환·jdbcType·stringType 판단은 CrudMappingUtils 에 위임한다.
-     */
-    private FieldModel toFieldModel(ColumnMeta col) {
-        String javaType = CrudMappingUtils.mapJavaType(col.dataType(), col.columnSize());
-        Integer maxLength = "varchar".equalsIgnoreCase(col.dataType()) ? col.columnSize() : null;
-
-        return new FieldModel(
-                col.columnName(),
-                CrudMappingUtils.toCamelCase(col.columnName()),
-                javaType,
-                col.remarks(),
-                col.pk(),
-                !col.nullable(),
-                "String".equals(javaType),
-                maxLength,
-                CrudMappingUtils.mapJdbcType(col.dataType())
-        );
-    }
 }
