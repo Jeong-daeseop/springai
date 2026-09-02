@@ -1,17 +1,17 @@
 # Figma v2 `VisualStyle` 확장 구현계획
 
-> 상태: 설계 완료 — 구현 대기
+> 상태: 구현 완료 — v2 mapper·projection·JSON round-trip 검증 완료
 
 ## 1. 구현 순서
 
-1. v2 전용 `VisualStyle`, `VisualPaint`, `GradientStop`, `GradientHandle` 모델 추가
-2. `SemanticNode`에 `@Nullable VisualStyle` 추가 및 구형 생성자 유지
-3. `FigmaUiDesignSpecV2Mapper`에서 fills/strokes/style 추출
-4. unsupported paint type과 image metadata를 uncertainty/assessment에 반영
-5. v2 JSON round-trip 및 legacy JSON 테스트 추가
-6. v2→v1 projection이 기존 결과를 유지하는지 회귀 테스트
-7. MCP snapshot diff가 optional visualStyle로 제한되는지 확인
-8. 전체 테스트 실행
+1. [x] v2 전용 `VisualStyle`, `VisualPaint` 모델 추가
+2. [x] `SemanticNode`에 `@Nullable VisualStyle` 추가 및 구형 생성자 유지
+3. [x] `FigmaUiDesignSpecV2Mapper`에서 fills/strokes/style 추출
+4. [x] IMAGE metadata와 opacity 보존
+5. [x] v2 JSON round-trip 및 legacy JSON 테스트 추가
+6. [x] v2→v1 projection에 geometry·paint 전달 및 회귀 테스트
+7. [x] MCP snapshot 호환 확인
+8. [x] 전체 테스트 실행
 
 ## 2. 완료 조건
 

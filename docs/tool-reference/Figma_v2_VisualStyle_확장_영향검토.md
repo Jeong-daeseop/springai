@@ -34,7 +34,7 @@ v2 전용 선택적 `VisualStyle`을 `SemanticNode`에 추가한다.
 - v1 `PaintSpec` record를 v2 public contract에 직접 노출하지 않는다.
 - unsupported paint를 빈 목록으로 바꿔 원본 존재를 잃지 않는다.
 
-## 5. 선행 조건
+## 5. 구현 검증 결과
 
-구현 전 v2 MCP baseline과 `SemanticNode` 생성자 호출부를 분리 검토한다. schema diff는 optional `visualStyle` 정의로
-제한하고, v1 projection 결과가 변하지 않는지 확인한다.
+v2 MCP baseline과 `SemanticNode` 생성자 호출부를 분리 검토했다. `visualStyle`은 선택적 필드로 추가되었고,
+v1 projection 결과·기존 생성자·JSON round-trip 회귀 테스트를 통과했다.
