@@ -11,6 +11,7 @@ import com.krdevops.springai.model.design.PageSpec;
 import com.krdevops.springai.model.design.ScreenFieldBinding;
 import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.design.ScreenSpecification;
+import com.krdevops.springai.model.design.UiDesignSpec;
 import com.krdevops.springai.model.design.UiFieldRole;
 import org.junit.jupiter.api.Test;
 
@@ -106,6 +107,44 @@ class ScreenSpecificationServiceTest {
         assertThat(revised.searchPanelPlacement()).isEqualTo(SearchPanelPlacement.NONE);
     }
 
+    @Test
+    void revisionPreservesCurrentDesignContextAndIgnoresProposedValues() {
+        CrudSchemaQueryService schema = mock(CrudSchemaQueryService.class);
+        ScreenSpecRepository repository = mock(ScreenSpecRepository.class);
+        ScreenSpecificationService service = new ScreenSpecificationService(
+                schema, mock(ScreenSpecAssembler.class), mock(ScreenDataBindingResolver.class),
+                new ScreenSpecValidator(), repository);
+        UiDesignSpec.ComponentSpec currentStyle = new UiDesignSpec.ComponentSpec(
+                "ACTION_GROUP", List.of("Primary Button"), "rgba(0,80,200,1.00)", null);
+        UiDesignSpec.NodeGeometry currentGeometry = new UiDesignSpec.NodeGeometry(
+                "1:2", "COMPONENT", "Primary Button", 10, 20, 120, 44,
+                8, 0.8, "rgba(0,80,200,1.00)", null, null, null, List.of());
+        ScreenSpecification current = withDesignContext(
+                specification(1, "NTT_SJ"), List.of(currentStyle), List.of(currentGeometry),
+                Map.of("primaryColor", "#0050c8"));
+
+        UiDesignSpec.ComponentSpec proposedStyle = new UiDesignSpec.ComponentSpec(
+                "ACTION_GROUP", List.of("Changed Button"), "rgba(255,0,0,1.00)", null);
+        UiDesignSpec.NodeGeometry proposedGeometry = new UiDesignSpec.NodeGeometry(
+                "9:9", "COMPONENT", "Changed Button", 0, 0, 1, 1,
+                null, null, "rgba(255,0,0,1.00)", null, null, null, List.of());
+        ScreenSpecification proposed = withDesignContext(
+                specification(1, "NTT_SJ"), List.of(proposedStyle), List.of(proposedGeometry),
+                Map.of("primaryColor", "#ff0000"));
+        when(repository.findLatest("spec-1")).thenReturn(Optional.of(current));
+        when(schema.fetchColumns("com", "LETTNBBS"))
+                .thenReturn(List.of(Map.of("COLUMN_NAME", "NTT_SJ")));
+
+        ScreenSpecification revised = service.revise(proposed);
+
+        assertThat(revised.componentStyles()).isEqualTo(current.componentStyles());
+        assertThat(revised.componentGeometry()).isEqualTo(current.componentGeometry());
+        assertThat(revised.tokens()).isEqualTo(current.tokens());
+        assertThat(revised.componentStyles()).isNotEqualTo(proposed.componentStyles());
+        assertThat(revised.componentGeometry()).isNotEqualTo(proposed.componentGeometry());
+        assertThat(revised.tokens()).isNotEqualTo(proposed.tokens());
+    }
+
     private ScreenSpecification specification(int version, String column) {
         return specification(version, column, LayoutDensity.STANDARD, FormColumnLayout.SINGLE_COLUMN);
     }
@@ -131,5 +170,20 @@ class ScreenSpecificationServiceTest {
                 "com", "LETTNBBS", List.of(DataSourceSpec.primary("com", "LETTNBBS")),
                 List.of(new PageSpec("list", "BOARD_LIST", List.of(title), PageSpec.migrateActions("SEARCH"))),
                 List.of(), density, formColumnLayout, actionPlacement, searchPanelPlacement, LocalDateTime.now());
+    }
+
+    private ScreenSpecification withDesignContext(
+            ScreenSpecification specification,
+            List<UiDesignSpec.ComponentSpec> componentStyles,
+            List<UiDesignSpec.NodeGeometry> componentGeometry,
+            Map<String, String> tokens) {
+        return new ScreenSpecification(
+                specification.id(), specification.version(), specification.status(), specification.screenName(),
+                specification.featureType(), specification.archetype(), specification.database(),
+                specification.primaryTable(), specification.dataSources(), specification.pages(),
+                specification.issues(), specification.layoutDensity(), specification.formColumnLayout(),
+                specification.actionPlacement(), specification.searchPanelPlacement(), specification.createdAt(),
+                specification.uiDesignSpecReference(), specification.designSystemSnapshotReference(),
+                componentStyles, componentGeometry, tokens);
     }
 }

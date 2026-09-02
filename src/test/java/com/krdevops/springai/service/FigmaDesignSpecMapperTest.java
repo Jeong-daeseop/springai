@@ -117,8 +117,8 @@ class FigmaDesignSpecMapperTest {
                   "children":[
                     {"type":"COMPONENT","name":"Primary Button",
                      "absoluteBoundingBox":{"x":100,"y":100,"width":120,"height":40},
-                     "fills":[{"type":"SOLID","visible":true,"color":{"r":1,"g":0.341176,"b":0.2,"a":1}}],
-                     "strokes":[{"type":"SOLID","visible":true,"color":{"r":0,"g":0,"b":0,"a":1}}]}
+                     "fills":[{"type":"SOLID","visible":true,"color":{"r":1,"g":0.341176,"b":0.2}}],
+                     "strokes":[{"type":"SOLID","visible":true,"color":{"r":0,"g":0,"b":0}}]}
                   ]
                 }
                 """));
@@ -151,6 +151,172 @@ class FigmaDesignSpecMapperTest {
         var actionGroup = result.components().stream()
                 .filter(component -> "ACTION_GROUP".equals(component.type()))
                 .findFirst().orElseThrow();
+        assertThat(actionGroup.backgroundColor()).isNull();
+        assertThat(actionGroup.borderColor()).isNull();
+    }
+
+    @Test
+    void componentsApplyPaintOpacityAndCompatibleColorAlpha() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"type":"COMPONENT","name":"Primary Button",
+                     "absoluteBoundingBox":{"x":100,"y":100,"width":120,"height":40},
+                     "fills":[{"type":"SOLID","opacity":0.5,
+                               "color":{"r":1,"g":0,"b":0,"a":0.8}}],
+                     "strokes":[{"type":"SOLID","opacity":0.5,
+                                 "color":{"r":0,"g":0,"b":0}}]}
+                  ]
+                }
+                """));
+
+        var actionGroup = mapper.map(document, "crud").components().stream()
+                .filter(component -> "ACTION_GROUP".equals(component.type()))
+                .findFirst().orElseThrow();
+
+        assertThat(actionGroup.backgroundColor()).isEqualTo("rgba(255,0,0,0.40)");
+        assertThat(actionGroup.borderColor()).isEqualTo("rgba(0,0,0,0.50)");
+    }
+
+    @Test
+    void geometryPreservesOrderedPaintMetadataSeparatelyFromColorAlpha() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {"type":"FRAME","name":"화면","absoluteBoundingBox":{"x":0,"y":0,"width":100,"height":100},
+                 "fills":[{"type":"SOLID","opacity":0.5,"color":{"r":1,"g":0,"b":0,"a":0.8}},
+                           {"type":"GRADIENT_LINEAR","visible":false,
+                            "gradientStops":[{"position":0,"color":{"r":1,"g":0,"b":0,"a":0.5}},
+                                              {"position":1,"color":{"r":0,"g":0,"b":1}}],
+                            "gradientHandlePositions":[{"x":0,"y":0.5},{"x":1,"y":0.5}]},
+                           {"type":"IMAGE","opacity":0.25,"imageRef":"asset-123","scaleMode":"FILL"}],
+                 "strokes":[{"type":"SOLID","color":{"r":0,"g":1,"b":0}}]}
+                """));
+
+        var geometry = mapper.map(document, "crud").geometryTree().get(0);
+
+        assertThat(geometry.fills()).extracting(UiDesignSpec.PaintSpec::type)
+                .containsExactly("SOLID", "GRADIENT_LINEAR", "IMAGE");
+        assertThat(geometry.fills().get(0).color()).isEqualTo("rgba(255,0,0,0.80)");
+        assertThat(geometry.fills().get(0).opacity()).isEqualTo(0.5);
+        assertThat(geometry.fills().get(1).visible()).isFalse();
+        assertThat(geometry.fills().get(1).gradientStops()).extracting(UiDesignSpec.PaintSpec.GradientStop::position)
+                .containsExactly(0.0, 1.0);
+        assertThat(geometry.fills().get(1).gradientStops().get(0).color()).isEqualTo("rgba(255,0,0,0.50)");
+        assertThat(geometry.fills().get(1).gradientHandlePositions()).hasSize(2);
+        assertThat(geometry.fills().get(2).color()).isNull();
+        assertThat(geometry.fills().get(2).imageRef()).isEqualTo("asset-123");
+        assertThat(geometry.fills().get(2).scaleMode()).isEqualTo("FILL");
+        assertThat(geometry.strokes()).hasSize(1);
+
+        UiDesignSpec restored = objectMapper.readValue(objectMapper.writeValueAsString(mapper.map(document, "crud")), UiDesignSpec.class);
+        assertThat(restored.geometryTree().get(0).fills()).isEqualTo(geometry.fills());
+        assertThat(restored.geometryTree().get(0).strokes()).isEqualTo(geometry.strokes());
+    }
+
+    @Test
+    void componentsClampPaintAndColorAlpha() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"type":"COMPONENT","name":"Primary Button",
+                     "absoluteBoundingBox":{"x":100,"y":100,"width":120,"height":40},
+                     "fills":[{"type":"SOLID","opacity":2,
+                               "color":{"r":1,"g":0,"b":0,"a":2}}],
+                     "strokes":[{"type":"SOLID","opacity":-1,
+                                 "color":{"r":0,"g":0,"b":0}}]}
+                  ]
+                }
+                """));
+
+        var actionGroup = mapper.map(document, "crud").components().stream()
+                .filter(component -> "ACTION_GROUP".equals(component.type()))
+                .findFirst().orElseThrow();
+
+        assertThat(actionGroup.backgroundColor()).isEqualTo("rgba(255,0,0,1.00)");
+        assertThat(actionGroup.borderColor()).isEqualTo("rgba(0,0,0,0.00)");
+    }
+
+    @Test
+    void componentsSupplementFirstValidFillAndStrokeIndependently() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"type":"FRAME","name":"Button Group",
+                     "absoluteBoundingBox":{"x":100,"y":100,"width":300,"height":40}},
+                    {"type":"COMPONENT","name":"Primary Button",
+                     "absoluteBoundingBox":{"x":100,"y":100,"width":120,"height":40},
+                     "fills":[{"type":"SOLID","color":{"r":1,"g":0,"b":0}}]},
+                    {"type":"COMPONENT","name":"Secondary Button",
+                     "absoluteBoundingBox":{"x":240,"y":100,"width":120,"height":40},
+                     "fills":[{"type":"SOLID","color":{"r":0,"g":1,"b":0}}],
+                     "strokes":[{"type":"SOLID","color":{"r":0,"g":0,"b":1}}]},
+                    {"type":"COMPONENT","name":"Tertiary Button",
+                     "absoluteBoundingBox":{"x":380,"y":100,"width":120,"height":40},
+                     "strokes":[{"type":"SOLID","color":{"r":0,"g":0,"b":0}}]}
+                  ]
+                }
+                """));
+
+        var actionGroup = mapper.map(document, "crud").components().stream()
+                .filter(component -> "ACTION_GROUP".equals(component.type()))
+                .findFirst().orElseThrow();
+
+        assertThat(actionGroup.backgroundColor()).isEqualTo("rgba(255,0,0,1.00)");
+        assertThat(actionGroup.borderColor()).isEqualTo("rgba(0,0,255,1.00)");
+    }
+
+    @Test
+    void componentsSkipInvisibleAndUnsupportedPaintsBeforeVisibleSolid() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"type":"COMPONENT","name":"Primary Button",
+                     "absoluteBoundingBox":{"x":100,"y":100,"width":120,"height":40},
+                     "fills":[
+                       {"type":"SOLID","visible":false,"color":{"r":1,"g":0,"b":0}},
+                       {"type":"GRADIENT_LINEAR","visible":true},
+                       {"type":"IMAGE","visible":true},
+                       {"type":"SOLID","visible":true,"color":{"r":0,"g":1,"b":0}}
+                     ]}
+                  ]
+                }
+                """));
+
+        var actionGroup = mapper.map(document, "crud").components().stream()
+                .filter(component -> "ACTION_GROUP".equals(component.type()))
+                .findFirst().orElseThrow();
+
+        assertThat(actionGroup.backgroundColor()).isEqualTo("rgba(0,255,0,1.00)");
+    }
+
+    @Test
+    void componentsIgnoreGradientAndImageOnlyPaints() throws Exception {
+        var document = new FigmaNodeDocument("v1", objectMapper.readTree("""
+                {
+                  "type":"FRAME", "name":"목록",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"type":"COMPONENT","name":"Primary Button",
+                     "absoluteBoundingBox":{"x":100,"y":100,"width":120,"height":40},
+                     "fills":[
+                       {"type":"GRADIENT_LINEAR","visible":true},
+                       {"type":"IMAGE","visible":true}
+                     ]}
+                  ]
+                }
+                """));
+
+        var actionGroup = mapper.map(document, "crud").components().stream()
+                .filter(component -> "ACTION_GROUP".equals(component.type()))
+                .findFirst().orElseThrow();
+
         assertThat(actionGroup.backgroundColor()).isNull();
         assertThat(actionGroup.borderColor()).isNull();
     }

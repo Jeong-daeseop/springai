@@ -79,6 +79,35 @@ public record UiDesignSpec(
     public record FieldHint(String id, String label, UiFieldRole role, String control, double confidence) {}
     public record InteractionSpec(String trigger, String result) {}
 
+    /** Figma paint의 배열 순서와 최소 메타데이터를 보존한다. */
+    public record PaintSpec(
+            String type, boolean visible, double opacity, @Nullable String color,
+            @Nullable List<GradientStop> gradientStops,
+            @Nullable List<GradientHandlePosition> gradientHandlePositions,
+            @Nullable String imageRef, @Nullable String scaleMode) {
+        public PaintSpec {
+            type = type == null || type.isBlank() ? "UNKNOWN" : type.toUpperCase();
+            opacity = Math.max(0.0, Math.min(1.0, opacity));
+            gradientStops = gradientStops == null ? List.of() : List.copyOf(gradientStops);
+            gradientHandlePositions = gradientHandlePositions == null ? List.of() : List.copyOf(gradientHandlePositions);
+        }
+
+        /** gradient 상세 필드 도입 전 호출자 호환. */
+        public PaintSpec(String type, boolean visible, double opacity, @Nullable String color) {
+            this(type, visible, opacity, color, List.of(), List.of(), null, null);
+        }
+
+        /** 이미지 메타데이터 도입 전 gradient 생성자 호환. */
+        public PaintSpec(String type, boolean visible, double opacity, @Nullable String color,
+                         List<GradientStop> gradientStops,
+                         List<GradientHandlePosition> gradientHandlePositions) {
+            this(type, visible, opacity, color, gradientStops, gradientHandlePositions, null, null);
+        }
+
+        public record GradientStop(double position, @Nullable String color) {}
+        public record GradientHandlePosition(double x, double y) {}
+    }
+
     /** 노드 트리의 좌표·스타일을 부모-자식 구조 그대로 보존한 기하 정보(픽셀 근접 재현용). */
     public record NodeGeometry(
             String nodeId, String type, String name,
@@ -86,10 +115,24 @@ public record UiDesignSpec(
             @Nullable Integer cornerRadius, @Nullable Double opacity,
             @Nullable String backgroundColor, @Nullable String borderColor,
             @Nullable AutoLayout autoLayout, @Nullable TextStyle textStyle,
-            List<NodeGeometry> children) {
+            List<NodeGeometry> children, @Nullable List<PaintSpec> fills, @Nullable List<PaintSpec> strokes) {
 
         public NodeGeometry {
             children = children == null ? List.of() : List.copyOf(children);
+            fills = fills == null ? List.of() : List.copyOf(fills);
+            strokes = strokes == null ? List.of() : List.copyOf(strokes);
+        }
+
+        /** fills/strokes 도입 전 호출자 호환. */
+        public NodeGeometry(
+                String nodeId, String type, String name,
+                double x, double y, double width, double height,
+                @Nullable Integer cornerRadius, @Nullable Double opacity,
+                @Nullable String backgroundColor, @Nullable String borderColor,
+                @Nullable AutoLayout autoLayout, @Nullable TextStyle textStyle,
+                List<NodeGeometry> children) {
+            this(nodeId, type, name, x, y, width, height, cornerRadius, opacity,
+                    backgroundColor, borderColor, autoLayout, textStyle, children, List.of(), List.of());
         }
 
         public record AutoLayout(

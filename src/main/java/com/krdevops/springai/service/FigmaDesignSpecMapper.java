@@ -118,8 +118,8 @@ public class FigmaDesignSpecMapper {
     private List<UiDesignSpec.ComponentSpec> components(
             List<NodeInfo> nodes, List<String> uncertainties) {
         Map<String, LinkedHashSet<String>> values = new LinkedHashMap<>();
-        // 타입별로 처음 매치된 노드의 색상만 대표값으로 채택한다(여러 노드가 같은 타입으로 묶이는
-        // 그룹핑 구조이므로, 노드별 개별 색상까지는 반영하지 않는다 — 구현계획서 §6 리스크 참고).
+        // 타입별로 처음 발견한 유효 fill/stroke를 각각 대표값으로 채택한다. 두 값은 독립적으로
+        // 보충하며, 이미 선택한 값은 같은 타입의 뒤 노드가 덮어쓰지 않는다.
         Map<String, String[]> colorsByType = new LinkedHashMap<>();
         for (NodeInfo node : nodes) {
             String normalized = text(node);
@@ -132,8 +132,10 @@ public class FigmaDesignSpecMapper {
             if (componentType != null) {
                 values.computeIfAbsent(componentType, ignored -> new LinkedHashSet<>())
                         .add(node.name().isBlank() ? node.type() : node.name());
-                colorsByType.computeIfAbsent(componentType,
-                        ignored -> new String[] {solidFillColor(node), solidStrokeColor(node)});
+                String[] colors = colorsByType.computeIfAbsent(componentType,
+                        ignored -> new String[] {null, null});
+                if (colors[0] == null) colors[0] = solidFillColor(node);
+                if (colors[1] == null) colors[1] = solidStrokeColor(node);
             } else if (("COMPONENT".equals(node.type()) || "INSTANCE".equals(node.type()))
                     && genericName(node.name())) {
                 uncertainties.add("의미를 알 수 없는 컴포넌트가 있습니다: " + safeLabel(node.name()));
@@ -165,7 +167,8 @@ public class FigmaDesignSpecMapper {
             if ("SOLID".equals(paint.path("type").asText())
                     && paint.path("visible").asBoolean(true)
                     && paint.path("color").isObject()) {
-                return rgba(paint.path("color"));
+                double paintOpacity = clampAlpha(paint.path("opacity").asDouble(1.0));
+                return rgba(paint.path("color"), paintOpacity);
             }
         }
         return null;
@@ -189,7 +192,59 @@ public class FigmaDesignSpecMapper {
                 node.path("cornerRadius").isNumber() ? node.path("cornerRadius").asInt() : null,
                 node.path("opacity").isNumber() ? node.path("opacity").asDouble() : null,
                 firstSolidPaint(node.path("fills")), firstSolidPaint(node.path("strokes")),
-                autoLayoutOf(node), textStyleOf(node), children);
+                autoLayoutOf(node), textStyleOf(node), children,
+                paintSpecs(node.path("fills"), uncertainties, node.path("id").asText(""), "fills"),
+                paintSpecs(node.path("strokes"), uncertainties, node.path("id").asText(""), "strokes"));
+    }
+
+    private List<UiDesignSpec.PaintSpec> paintSpecs(JsonNode paints, List<String> uncertainties,
+                                                     String nodeId, String field) {
+        if (!paints.isArray()) return List.of();
+        List<UiDesignSpec.PaintSpec> result = new ArrayList<>();
+        int index = 0;
+        for (JsonNode paint : paints) {
+            if (index++ >= 16) {
+                uncertainties.add("노드 " + safeLabel(nodeId) + "의 " + field + " paint가 16개를 초과해 잘렸습니다.");
+                break;
+            }
+            String type = paint.path("type").asText("").toUpperCase(Locale.ROOT);
+            if (type.isBlank()) type = "UNKNOWN";
+            if (!Set.of("SOLID", "GRADIENT_LINEAR", "GRADIENT_RADIAL", "GRADIENT_ANGULAR",
+                    "GRADIENT_DIAMOND", "IMAGE", "EMOJI").contains(type)) {
+                uncertainties.add("지원되지 않는 " + field + " paint type을 보존했습니다: " + type);
+                type = "UNKNOWN";
+            }
+            String color = "SOLID".equals(type) && paint.path("color").isObject()
+                    ? rgba(paint.path("color")) : null;
+            result.add(new UiDesignSpec.PaintSpec(type, paint.path("visible").asBoolean(true),
+                    paint.path("opacity").asDouble(1.0), color,
+                    gradientStops(paint.path("gradientStops")), gradientHandles(paint.path("gradientHandlePositions")),
+                    paint.path("imageRef").isTextual() ? paint.path("imageRef").asText() : null,
+                    paint.path("scaleMode").isTextual() ? paint.path("scaleMode").asText() : null));
+        }
+        return List.copyOf(result);
+    }
+
+    private List<UiDesignSpec.PaintSpec.GradientStop> gradientStops(JsonNode value) {
+        if (!value.isArray()) return List.of();
+        List<UiDesignSpec.PaintSpec.GradientStop> result = new ArrayList<>();
+        for (JsonNode stop : value) {
+            if (!stop.isObject()) continue;
+            String color = stop.path("color").isObject() ? rgba(stop.path("color")) : null;
+            result.add(new UiDesignSpec.PaintSpec.GradientStop(stop.path("position").asDouble(0), color));
+        }
+        return List.copyOf(result);
+    }
+
+    private List<UiDesignSpec.PaintSpec.GradientHandlePosition> gradientHandles(JsonNode value) {
+        if (!value.isArray()) return List.of();
+        List<UiDesignSpec.PaintSpec.GradientHandlePosition> result = new ArrayList<>();
+        for (JsonNode point : value) {
+            if (!point.isObject()) continue;
+            result.add(new UiDesignSpec.PaintSpec.GradientHandlePosition(
+                    point.path("x").asDouble(0), point.path("y").asDouble(0)));
+        }
+        return List.copyOf(result);
     }
 
     private UiDesignSpec.NodeGeometry.@Nullable AutoLayout autoLayoutOf(JsonNode node) {
@@ -258,7 +313,14 @@ public class FigmaDesignSpecMapper {
         return left.type().equals(right.type())
                 && normalizedSiblingName(left.name()).equals(normalizedSiblingName(right.name()))
                 && withinSizeTolerance(left.width(), right.width())
-                && withinSizeTolerance(left.height(), right.height());
+                && withinSizeTolerance(left.height(), right.height())
+                && java.util.Objects.equals(left.opacity(), right.opacity())
+                && java.util.Objects.equals(left.cornerRadius(), right.cornerRadius())
+                && java.util.Objects.equals(left.backgroundColor(), right.backgroundColor())
+                && java.util.Objects.equals(left.borderColor(), right.borderColor())
+                && java.util.Objects.equals(left.fills(), right.fills())
+                && java.util.Objects.equals(left.strokes(), right.strokes())
+                && java.util.Objects.equals(left.textStyle(), right.textStyle());
     }
 
     /** 이름 끝의 인덱스 숫자(예: "Row 1", "Row2")를 제거해 반복 형제 판정 시 같은 패턴으로 묶는다. */
@@ -453,11 +515,20 @@ public class FigmaDesignSpecMapper {
     }
 
     private String rgba(JsonNode color) {
+        return rgba(color, 1.0);
+    }
+
+    private String rgba(JsonNode color, double paintOpacity) {
         int r = (int) Math.round(color.path("r").asDouble(0) * 255);
         int g = (int) Math.round(color.path("g").asDouble(0) * 255);
         int b = (int) Math.round(color.path("b").asDouble(0) * 255);
-        double a = color.path("a").asDouble(1);
+        double colorAlpha = clampAlpha(color.path("a").asDouble(1.0));
+        double a = clampAlpha(colorAlpha * paintOpacity);
         return "rgba(%d,%d,%d,%.2f)".formatted(r, g, b, a);
+    }
+
+    private double clampAlpha(double alpha) {
+        return Math.max(0.0, Math.min(1.0, alpha));
     }
 
     private record NodeInfo(

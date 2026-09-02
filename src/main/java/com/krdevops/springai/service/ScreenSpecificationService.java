@@ -174,7 +174,8 @@ public class ScreenSpecificationService {
                 current.database(), current.primaryTable(), proposed.dataSources(), proposed.pages(),
                 issues, current.layoutDensity(), current.formColumnLayout(),
                 current.actionPlacement(), current.searchPanelPlacement(), LocalDateTime.now(),
-                current.uiDesignSpecReference(), current.designSystemSnapshotReference());
+                current.uiDesignSpecReference(), current.designSystemSnapshotReference(),
+                current.componentStyles(), current.componentGeometry(), current.tokens());
         ScreenSpecification validated = validator.validate(revision);
         repository.save(validated);
         return validated;

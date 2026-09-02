@@ -2756,6 +2756,12 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "fills" : {
+            "items" : {
+              "$ref" : "#/$defs/PaintSpec"
+            },
+            "type" : "array"
+          },
           "height" : {
             "format" : "double",
             "type" : "number"
@@ -2769,6 +2775,12 @@
           "opacity" : {
             "format" : "double",
             "type" : "number"
+          },
+          "strokes" : {
+            "items" : {
+              "$ref" : "#/$defs/PaintSpec"
+            },
+            "type" : "array"
           },
           "textStyle" : {
             "additionalProperties" : false,
@@ -2808,6 +2820,67 @@
           }
         },
         "required" : [ "children", "height", "name", "nodeId", "type", "width", "x", "y" ],
+        "type" : "object"
+      },
+      "PaintSpec" : {
+        "additionalProperties" : false,
+        "properties" : {
+          "color" : {
+            "type" : "string"
+          },
+          "gradientHandlePositions" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "x" : {
+                  "format" : "double",
+                  "type" : "number"
+                },
+                "y" : {
+                  "format" : "double",
+                  "type" : "number"
+                }
+              },
+              "required" : [ "x", "y" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "gradientStops" : {
+            "items" : {
+              "additionalProperties" : false,
+              "properties" : {
+                "color" : {
+                  "type" : "string"
+                },
+                "position" : {
+                  "format" : "double",
+                  "type" : "number"
+                }
+              },
+              "required" : [ "position" ],
+              "type" : "object"
+            },
+            "type" : "array"
+          },
+          "imageRef" : {
+            "type" : "string"
+          },
+          "opacity" : {
+            "format" : "double",
+            "type" : "number"
+          },
+          "scaleMode" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "visible" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "opacity", "type", "visible" ],
         "type" : "object"
       },
       "SemanticRole" : {
@@ -3488,7 +3561,7 @@
   }
 }, {
   "name" : "validateGeneratedCode",
-  "description" : "생성된 eGovFrame 5.x 소스 파일 단건을 검증합니다.\nfilePath: 검증할 파일의 절대경로\n파일 종류에 따라 아래 규칙을 자동으로 적용합니다:\n  *Controller.java  → @Controller, @RequestMapping, EgovPropertyService, PaginationInfo 등\n  *ServiceImpl.java → EgovAbstractServiceImpl 상속, @Transactional, @Override 등\n  *Service.java     → interface 선언, 목록/건수 메서드, throws Exception 등\n  *Mapper.java      → @Mapper, EgovAbstractMapper 상속 등\n  *VO.java          → @Getter/@Setter, PaginationInfo, 검색 필드 등\n  *Mapper.xml       → namespace, resultMap, 페이징 LIMIT, searchCondition 등\n  *List.jsp         → UTF-8, JSTL, <c:url>, pageIndex 등\n  *Detail/Regist/Updt.jsp → UTF-8, JSTL, <c:url> 등 (pageIndex 검사 없음)\n미준수 항목은 ❌, 통과 항목은 ✅ 로 표시합니다.\n",
+  "description" : "생성된 eGovFrame 5.x 소스 파일 단건을 검증합니다.\nfilePath: 검증할 파일의 절대경로\n파일 종류에 따라 아래 규칙을 자동으로 적용합니다:\n  *Controller.java  → @Controller, @RequestMapping, EgovPropertyService, PaginationInfo 등\n  *ServiceImpl.java → EgovAbstractServiceImpl 상속, @Transactional, @Override 등\n  *Service.java     → interface 선언, 목록/건수 메서드, throws Exception 등\n  *Mapper.java      → @Mapper, EgovAbstractMapper 상속 등\n  *VO.java          → @Getter/@Setter, PaginationInfo, 검색 필드 등\n  *Mapper.xml       → namespace, resultMap, 페이징 LIMIT, searchCondition 등\n  *List.jsp         → UTF-8, JSTL, <c:url>, pageIndex 등\n  *Detail/Regist/Updt.jsp → UTF-8, JSTL, <c:url> 등 (pageIndex 검사 없음)\n  *List.html(Thymeleaf) → th 네임스페이스, th:* 속성, layout:decorate, pageIndex 등\n  *Detail/Regist/Updt.html → th 네임스페이스, th:* 속성, layout:decorate 등(pageIndex 검사 없음)\n  default/gnb/lnb/breadcrumb/footer.html(공통 layout) → th 네임스페이스, th:* 속성,\n    th:fragment/layout:fragment 정의 여부(layout:decorate 검사 없음 — 이 파일들은 layout을\n    적용받는 쪽이 아니라 정의하는 쪽입니다)\n미준수 항목은 ❌, 통과 항목은 ✅ 로 표시합니다.\n",
   "inputSchema" : {
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,
@@ -3502,7 +3575,7 @@
   }
 }, {
   "name" : "validateGeneratedCodeDirectory",
-  "description" : "디렉터리 내 eGovFrame 5.x 소스 파일 전체를 일괄 검증합니다.\ndirectoryPath: 검증할 디렉터리 절대경로 (하위 디렉터리 포함)\n.java / .xml / .jsp 파일을 자동으로 탐색하여 레이어별 표준 준수 여부를 검사합니다.\n미준수 항목이 있는 파일만 상세 내용을 출력합니다.\n",
+  "description" : "디렉터리 내 eGovFrame 5.x 소스 파일 전체를 일괄 검증합니다.\ndirectoryPath: 검증할 디렉터리 절대경로 (하위 디렉터리 포함)\n.java / .xml / .jsp / .html(Thymeleaf) 파일을 자동으로 탐색하여 레이어별 표준 준수 여부를 검사합니다.\n미준수 항목이 있는 파일만 상세 내용을 출력합니다.\n",
   "inputSchema" : {
     "$schema" : "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties" : false,

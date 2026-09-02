@@ -72,7 +72,8 @@ public class ScreenDataBindingResolver {
                 specification.issues(), specification.layoutDensity(), specification.formColumnLayout(),
                 specification.actionPlacement(), specification.searchPanelPlacement(),
                 specification.createdAt(), specification.uiDesignSpecReference(),
-                specification.designSystemSnapshotReference());
+                specification.designSystemSnapshotReference(), specification.componentStyles(),
+                specification.componentGeometry(), specification.tokens());
     }
 
     private java.util.Optional<ResolvedJoin> resolveJoin(
