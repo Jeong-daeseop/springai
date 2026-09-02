@@ -14,10 +14,13 @@ public final class FigmaPaintCssConverter {
     public static String toCss(UiDesignSpec.PaintSpec paint) {
         if (paint == null || paint.gradientStops().isEmpty()) return null;
         String function = switch (paint.type()) {
+            case "GRADIENT_LINEAR" -> "linear-gradient";
             case "GRADIENT_RADIAL" -> "radial-gradient";
             case "GRADIENT_ANGULAR" -> "conic-gradient";
-            default -> "linear-gradient";
+            case "GRADIENT_DIAMOND" -> "radial-gradient"; // CSS 근사
+            default -> null;
         };
+        if (function == null) return null;
         String prefix = "linear-gradient".equals(function) ? angle(paint) + "deg, " : "";
         String stops = paint.gradientStops().stream()
                 .sorted(Comparator.comparingDouble(UiDesignSpec.PaintSpec.GradientStop::position))
