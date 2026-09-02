@@ -3,7 +3,9 @@
 > [`Figma_fills_strokes_반영_검토.md`](./Figma_fills_strokes_반영_검토.md)의 검토 결과를 바탕으로 작성한
 > 구현명세서 + 구현목록. 검토 결론대로 **claude 경로(텍스트 프롬프트)에만 반영**하는 저비용 범위로
 > 스코프를 좁혔다. auto 경로 CSS 자동주입 + `.ftl` 템플릿 재설계는 2차(제외 범위)로 명시적으로 미룬다.
-> 구현 승인 전까지는 이 문서에 따라 코드를 변경하지 않는다.
+>
+> **상태(2026-09-02 갱신): 구현 완료.** 커밋 `bbc8079`(feat: capture Figma component fills/strokes for
+> claude-path prompts)로 §8 Phase 1~4가 전부 반영됐다. 이 문서는 완료된 구현의 설계 기록으로 유지한다.
 
 ---
 
