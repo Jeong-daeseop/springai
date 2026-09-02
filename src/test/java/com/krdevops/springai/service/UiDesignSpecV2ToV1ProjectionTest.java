@@ -28,6 +28,31 @@ class UiDesignSpecV2ToV1ProjectionTest {
         assertThat(result.actions()).isEmpty();
     }
 
+    @Test
+    void VisualStyle을_v1_geometry로_명시적으로_투영한다() {
+        UiDesignSpecV2.InferenceEvidence evidence = new UiDesignSpecV2.InferenceEvidence(
+                List.of("1:2"), 0.9, "TEST", false, false);
+        UiDesignSpecV2.VisualStyle style = new UiDesignSpecV2.VisualStyle(0.75,
+                List.of(new UiDesignSpecV2.VisualPaint("SOLID", true, 0.5,
+                        "rgba(255,0,0,0.80)", null, null)),
+                List.of(new UiDesignSpecV2.VisualPaint("IMAGE", true, 1,
+                        null, "asset-1", "FILL")));
+        UiDesignSpecV2.SemanticNode node = new UiDesignSpecV2.SemanticNode(
+                "node-1:2", "container", "CARD",
+                new UiDesignSpecV2.Geometry(1, 2, 100, 40), java.util.Map.of(), null, style,
+                List.of(), List.of(), evidence);
+
+        UiDesignSpec result = projection.project(spec(List.of(node)), "crud");
+
+        assertThat(result.geometryTree()).singleElement().satisfies(geometry -> {
+            assertThat(geometry.opacity()).isEqualTo(0.75);
+            assertThat(geometry.fills()).singleElement().satisfies(paint ->
+                    assertThat(paint.color()).isEqualTo("rgba(255,0,0,0.80)"));
+            assertThat(geometry.strokes()).singleElement().satisfies(paint ->
+                    assertThat(paint.type()).isEqualTo("IMAGE"));
+        });
+    }
+
     private UiDesignSpecV2 spec(List<UiDesignSpecV2.SemanticNode> nodes) {
         List<String> ids = nodes.stream().map(UiDesignSpecV2.SemanticNode::semanticId).toList();
         return new UiDesignSpecV2(
