@@ -3310,6 +3310,108 @@
         </p>
       </figcaption>
     </figure>
+
+    <h3 class="subsection-title" id="crud-source-generator-detail">17.2 CRUD 소스 생성기 상세</h3>
+    <p class="section-sub">
+      바로 위 17.1(Thymeleaf 마이그레이션)과 비교하기 위한 <b>CRUD 소스 생성기 자체</b>의 요약
+      다이어그램입니다. 새로운 사실을 추가하는 게 아니라 <b>2.2절</b>(전체 오케스트레이션)과
+      <b>6번 다이어그램</b>(Thymeleaf 생성 서비스 상세, 5a번 배지)에 이미 있는 CRUD auto/claude
+      경로를 이 위치에서 다시 구성한 것입니다 — 상세 근거는 그쪽을 참고하세요.
+    </p>
+    <figure>
+      <div class="svg-scroll">
+        <svg viewBox="0 0 1180 440" role="img" aria-label="CrudGenerationTool 호출이 CrudGenerationDispatchService.isAuto()로 분기한다. auto 경로는 CrudModelFactory.fromSchema()로 DB 스키마를 CRUD 모델로 만들고, 고위험 테이블로 지정된 경우에만 CrudGenerationApprovalPolicy가 승인된 ScreenSpecification 없이는 조건부로 차단하며, CrudGenerationRenderer(내부 CrudTemplateRenderer)가 VO/Controller/Service/Mapper/View를 렌더링한 뒤 CodeServiceGenerationExecutor가 3-way(Base·Current·New) Region 병합과 GenerationOwnershipManifest로 사용자 수정을 보호하며 ApprovedProjectWritePort로 저장하고 AI_CRUD_GENERATION_SNAPSHOT에 기록한다. claude 경로는 같은 CrudModelFactory 모델을 CodeTemplateTool이 .ftl 원문(디버깅·확인용)으로 반환하면 Claude Desktop이 직접 코드를 작성하고 CodeSaverTool.saveCode()로 별도 저장한다(ApprovedProjectWritePort 미사용). 승인 방식은 기본적으로 AUTOMATED_OWNERSHIP_CHECK로 사람 개입이 없다.">
+          <defs>
+            <marker id="arrow17b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
+            <marker id="arrow17bAccent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
+            <marker id="arrow17bRest" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--rest)"></path></marker>
+          </defs>
+
+          <rect class="node-box" x="340" y="16" width="500" height="44" rx="8"></rect>
+          <text class="node-title" x="590" y="43" text-anchor="middle" style="font-size:12.5px">CrudGenerationTool</text>
+
+          <path class="edge" marker-end="url(#arrow17b)" d="M590,60 L590,76"></path>
+
+          <rect class="node-box" x="340" y="76" width="500" height="44" rx="8"></rect>
+          <text class="node-title" x="590" y="103" text-anchor="middle" style="font-size:12px">CrudGenerationDispatchService.isAuto()</text>
+
+          <path class="edge" marker-end="url(#arrow17b)" d="M430,120 Q290,132 290,140"></path>
+          <path class="edge" marker-end="url(#arrow17b)" d="M750,120 Q890,132 890,140"></path>
+
+          <text class="group-label" x="290" y="132" text-anchor="middle" style="font-size:9.5px">auto 경로</text>
+          <text class="group-label" x="890" y="132" text-anchor="middle" style="font-size:9.5px">claude 경로</text>
+
+          <g><title>1. CrudModelFactory.fromSchema() — DB 스키마 → CRUD 모델</title>
+            <rect class="node-box" x="60" y="140" width="460" height="46" rx="8"></rect>
+            <text class="node-title" x="290" y="168" text-anchor="middle" style="font-size:11.5px">1. CrudModelFactory.fromSchema()</text>
+          </g>
+          <path class="edge" marker-end="url(#arrow17b)" d="M290,186 L290,200"></path>
+
+          <g><title>2. CrudGenerationApprovalPolicy — 고위험 테이블만 조건부 차단</title>
+            <rect class="node-box rest" x="60" y="200" width="460" height="46" rx="8" stroke-dasharray="6 4"></rect>
+            <text class="node-title" x="290" y="220" text-anchor="middle" style="font-size:11.5px">2. CrudGenerationApprovalPolicy</text>
+            <text class="node-sub" x="290" y="236" text-anchor="middle" style="font-size:8px">고위험 테이블만 승인된 ScreenSpecification 없이는 차단(조건부)</text>
+          </g>
+          <path class="edge" marker-end="url(#arrow17bRest)" d="M290,246 L290,260"></path>
+
+          <g><title>3. CrudGenerationRenderer(내부 CrudTemplateRenderer)</title>
+            <rect class="node-box" x="60" y="260" width="460" height="46" rx="8"></rect>
+            <text class="node-title" x="290" y="280" text-anchor="middle" style="font-size:11px">3. CrudGenerationRenderer(내부 CrudTemplateRenderer)</text>
+            <text class="node-sub" x="290" y="296" text-anchor="middle" style="font-size:8px">VO/Controller/Service/Mapper/View 렌더링</text>
+          </g>
+          <path class="edge good" marker-end="url(#arrow17bAccent)" d="M290,306 L290,320"></path>
+
+          <g><title>4. CodeServiceGenerationExecutor → ApprovedProjectWritePort → AI_CRUD_GENERATION_SNAPSHOT</title>
+            <rect class="node-box good" x="60" y="320" width="460" height="76" rx="8"></rect>
+            <text class="node-title" x="290" y="342" text-anchor="middle" style="font-size:11.5px">4. CodeServiceGenerationExecutor</text>
+            <text class="node-sub" text-anchor="middle" style="font-size:8px"><tspan x="290" y="357">3-way(Base·Current·New) Region 병합 · GenerationOwnershipManifest</tspan><tspan x="290" y="370">→ ApprovedProjectWritePort 저장 → AI_CRUD_GENERATION_SNAPSHOT(+14.1절)</tspan></text>
+          </g>
+
+          <g><title>5. CodeTemplateTool — .ftl 원문 반환(디버깅·확인용)</title>
+            <rect class="node-box" x="660" y="140" width="460" height="46" rx="8"></rect>
+            <text class="node-title" x="890" y="168" text-anchor="middle" style="font-size:11.5px">5. CodeTemplateTool(.ftl 원문 반환)</text>
+          </g>
+          <path class="edge" marker-end="url(#arrow17b)" d="M890,186 L890,200"></path>
+
+          <g><title>6. Claude Desktop이 프롬프트를 읽고 직접 코드 작성</title>
+            <rect class="node-box" x="660" y="200" width="460" height="46" rx="8"></rect>
+            <text class="node-title" x="890" y="228" text-anchor="middle" style="font-size:11.5px">6. Claude Desktop(직접 코드 작성)</text>
+          </g>
+          <path class="edge" marker-end="url(#arrow17b)" d="M890,246 L890,260"></path>
+
+          <g><title>7. CodeSaverTool.saveCode() — 별도 저장, ApprovedProjectWritePort 미사용</title>
+            <rect class="node-box" x="660" y="260" width="460" height="56" rx="8"></rect>
+            <text class="node-title" x="890" y="284" text-anchor="middle" style="font-size:11.5px">7. CodeSaverTool.saveCode()</text>
+            <text class="node-sub" x="890" y="300" text-anchor="middle" style="font-size:8px">별도 저장 — ApprovedProjectWritePort 미사용</text>
+          </g>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--good)"></i>실제 파일 쓰기까지 가는 핵심 실행 경로(공통 실행기)</span>
+        <span><i class="swatch" style="background:var(--rest)"></i>조건부(고위험 테이블 지정 시에만 작동)</span>
+      </div>
+      <figcaption>
+        <ul style="margin:0;padding-left:20px">
+          <li style="margin-bottom:6px"><b>1~4(auto).</b> DB 스키마 기반으로 서버가 직접 렌더링해
+            즉시 저장합니다. 4번 <code>CodeServiceGenerationExecutor</code>는 Board·MasterDetail
+            파이프라인과 공유하는 <b>단 하나뿐인</b> <code>GenerationExecutor</code> 구현체입니다
+            (6번 다이어그램에서 이미 확인된 사실).</li>
+          <li style="margin-bottom:6px"><b>2(조건부).</b> 기본은 <code>AUTOMATED_OWNERSHIP_CHECK</code>
+            — 사람 개입 없이 자동 적용됩니다. 2026-08-26부터 고위험으로 지정한 테이블만 예외로
+            승인된 <code>ScreenSpecification</code> 없이는 차단됩니다(14번 다이어그램에서 이미
+            비교한 그 예외 경로).</li>
+          <li><b>5~7(claude).</b> 서버는 파일을 쓰지 않습니다. <code>.ftl</code> 원문 텍스트만
+            반환하고, 실제 코드 작성과 저장은 Claude Desktop과 <code>CodeSaverTool.saveCode()</code>
+            몫입니다 — <code>ApprovedProjectWritePort</code>를 아예 거치지 않습니다.</li>
+        </ul>
+        <p style="margin:16px 0 0">
+          이 다이어그램과 17.1을 나란히 보면, <b>왜 두 실행기를 합치지 않았는지</b>(위 17번 개요의
+          결론)가 구조적으로 드러납니다 — 17.1은 파일 전체 단위·명시적 해시 승인·소스 리더 3종의
+          증거 조립이 핵심이고, 이 다이어그램은 Region 단위 3-way 병합·자동 승인·DB 스키마 단일
+          입력이 핵심이라 서로 겹치는 부분이 파일 쓰기 Port 하나뿐입니다.
+        </p>
+      </figcaption>
+    </figure>
   </section>
 
   <footer class="notes">
