@@ -79,6 +79,28 @@ class FigmaUiDesignSpecV2MapperTest {
     }
 
     @Test
+    void visualStyle은_JSON_roundTrip에서_보존된다() throws Exception {
+        FigmaNodeDocument document = document("""
+                {"id":"1:1","type":"FRAME","name":"List",
+                 "opacity":0.8,"absoluteBoundingBox":{"x":0,"y":0,"width":800,"height":600},
+                 "fills":[{"type":"IMAGE","imageRef":"asset-1","scaleMode":"FILL"}],"children":[]}
+                """);
+        UiDesignSpecV2 original = mapper.map("ui-visual", new FigmaReference("file-1", "1:1"), document, "crud");
+
+        UiDesignSpecV2 restored = objectMapper.readValue(
+                objectMapper.writeValueAsString(original), UiDesignSpecV2.class);
+
+        assertThat(restored.nodes()).singleElement().satisfies(node -> {
+            assertThat(node.visualStyle().opacity()).isEqualTo(0.8);
+            assertThat(node.visualStyle().fills()).singleElement().satisfies(paint -> {
+                assertThat(paint.type()).isEqualTo("IMAGE");
+                assertThat(paint.imageRef()).isEqualTo("asset-1");
+                assertThat(paint.scaleMode()).isEqualTo("FILL");
+            });
+        });
+    }
+
+    @Test
     void 단일_FRAME이_아니면_거부한다() throws Exception {
         FigmaNodeDocument document = document("""
                 {"id":"0:1","type":"SECTION","name":"Screens","children":[]}
