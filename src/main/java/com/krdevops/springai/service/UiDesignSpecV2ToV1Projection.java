@@ -31,9 +31,30 @@ public class UiDesignSpecV2ToV1Projection {
                 .filter(issue -> issue.severity() != UiDesignSpecV2.Severity.INFO)
                 .map(UiDesignSpecV2.DesignIssue::message)
                 .toList();
+        List<UiDesignSpec.NodeGeometry> geometry = spec.nodes().stream()
+                .filter(node -> node.geometry() != null)
+                .map(this::geometry)
+                .toList();
         return new UiDesignSpec(
                 archetype(featureType), null, components, actions, fields,
-                Map.of(), List.of(), uncertainties);
+                Map.of(), List.of(), uncertainties, geometry);
+    }
+
+    private UiDesignSpec.NodeGeometry geometry(UiDesignSpecV2.SemanticNode node) {
+        UiDesignSpecV2.Geometry source = node.geometry();
+        UiDesignSpecV2.VisualStyle style = node.visualStyle();
+        String fill = style == null || style.fills().isEmpty() ? null : style.fills().get(0).color();
+        String stroke = style == null || style.strokes().isEmpty() ? null : style.strokes().get(0).color();
+        Double opacity = style == null ? null : style.opacity();
+        List<UiDesignSpec.PaintSpec> fills = style == null ? List.of() : style.fills().stream()
+                .map(paint -> new UiDesignSpec.PaintSpec(paint.type(), paint.visible(), paint.opacity(),
+                        paint.color())).toList();
+        List<UiDesignSpec.PaintSpec> strokes = style == null ? List.of() : style.strokes().stream()
+                .map(paint -> new UiDesignSpec.PaintSpec(paint.type(), paint.visible(), paint.opacity(),
+                        paint.color())).toList();
+        return new UiDesignSpec.NodeGeometry(node.semanticId(), node.logicalType(), node.semanticId(),
+                source.x(), source.y(), source.width(), source.height(), null, opacity,
+                fill, stroke, null, null, List.of(), fills, strokes);
     }
 
     private UiDesignSpec.FieldHint field(UiDesignSpecV2.SemanticNode node) {
