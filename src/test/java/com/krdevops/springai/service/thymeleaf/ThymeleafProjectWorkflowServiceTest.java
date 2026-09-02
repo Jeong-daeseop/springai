@@ -325,4 +325,53 @@ class ThymeleafProjectWorkflowServiceTest {
                 ---
                 """.formatted(spacing);
     }
+
+    @Test
+    void previewFlagsKrdsClassesWhenAssetsMissing() {
+        String relative = "src/main/resources/templates/users/list.html";
+        String html = "<a class=\"krds-btn primary medium\">등록</a>";
+
+        var preview = workflow.preview(projectRoot, Map.of(relative, html));
+
+        assertThat(preview.operation().status()).isEqualTo(ProjectOperationStatus.PREVIEW_READY);
+        assertThat(preview.operation().validationErrors())
+                .anyMatch(error -> error.contains("KRDS_ASSETS_MISSING"));
+        assertThatThrownBy(() -> workflow.approve(preview.operation().operationId(), preview.previewHash()))
+                .hasMessageContaining("THYMELEAF_PREVIEW_VALIDATION_FAILED");
+    }
+
+    @Test
+    void previewPassesWhenKrdsAssetsAlreadyDeployed() throws Exception {
+        createBootKrdsAssets(projectRoot);
+        String relative = "src/main/resources/templates/users/list.html";
+        String html = "<a class=\"krds-btn primary medium\">등록</a>";
+
+        var preview = workflow.preview(projectRoot, Map.of(relative, html));
+
+        assertThat(preview.operation().status()).isEqualTo(ProjectOperationStatus.PREVIEW_READY);
+        assertThat(preview.operation().validationErrors())
+                .noneMatch(error -> error.contains("KRDS_ASSETS_MISSING"));
+    }
+
+    @Test
+    void previewIgnoresKrdsAssetCheckWhenScreenHasNoKrdsClasses() {
+        String relative = "src/main/resources/templates/users/list.html";
+        String html = "<div><form th:action=\"/users\"></form></div>";
+
+        var preview = workflow.preview(projectRoot, Map.of(relative, html));
+
+        assertThat(preview.operation().validationErrors())
+                .noneMatch(error -> error.contains("KRDS_ASSETS_MISSING"));
+    }
+
+    private void createBootKrdsAssets(Path root) throws Exception {
+        Path css = root.resolve("src/main/resources/static/resources/css/styles.css");
+        Path bundle = root.resolve("src/main/resources/static/resources/css/_ds_bundle.css");
+        Path js = root.resolve("src/main/resources/static/resources/js/krds.min.js");
+        Files.createDirectories(css.getParent());
+        Files.createDirectories(js.getParent());
+        Files.writeString(css, "/* styles */");
+        Files.writeString(bundle, "/* bundle */");
+        Files.writeString(js, "/* js */");
+    }
 }

@@ -153,6 +153,37 @@ public class ThymeleafProjectWorkflowService {
         this(stateService, validationGate, hashFactory, null, new InMemoryThymeleafOperationStore());
     }
 
+    /** krds-* 클래스 참조 탐지(존재 시에만 KRDS 자산 검사를 수행 — 무관한 화면까지 막지 않기 위함). */
+    private static final java.util.regex.Pattern KRDS_CLASS_PATTERN =
+            java.util.regex.Pattern.compile("class=\"[^\"]*\\bkrds-[a-z-]+");
+
+    /**
+     * KRDS 원본 자산(WAR/Boot 두 배치 방식). {@link com.krdevops.springai.service.initializr.FilePlanFactory}가
+     * {@code initializeProject()} 시점에 배치하는 경로와 동일하다(`Thymeleaf_레거시전환_KRDS_반영_검토.md`
+     * §3-3, 해결안 B: 안내형 실패).
+     */
+    private static final String[] KRDS_ASSET_PATHS_WAR = {
+            "src/main/webapp/resources/css/styles.css",
+            "src/main/webapp/resources/css/_ds_bundle.css",
+            "src/main/webapp/resources/js/krds.min.js"
+    };
+    private static final String[] KRDS_ASSET_PATHS_BOOT = {
+            "src/main/resources/static/resources/css/styles.css",
+            "src/main/resources/static/resources/css/_ds_bundle.css",
+            "src/main/resources/static/resources/js/krds.min.js"
+    };
+
+    private boolean krdsAssetsPresent(Path root) {
+        return allExist(root, KRDS_ASSET_PATHS_WAR) || allExist(root, KRDS_ASSET_PATHS_BOOT);
+    }
+
+    private boolean allExist(Path root, String[] relativePaths) {
+        for (String relative : relativePaths) {
+            if (!Files.exists(root.resolve(relative), LinkOption.NOFOLLOW_LINKS)) return false;
+        }
+        return true;
+    }
+
     public WorkflowResult preview(Path projectRoot, Map<String, String> generatedFiles) {
         return preview(projectRoot, generatedFiles, null, LegacySourceManifest.empty());
     }
@@ -170,6 +201,7 @@ public class ThymeleafProjectWorkflowService {
         if (generatedFiles == null || generatedFiles.isEmpty()) {
             throw new IllegalArgumentException("generatedFiles는 최소 1개 이상이어야 합니다.");
         }
+        boolean krdsAssetsPresent = krdsAssetsPresent(root);
         Map<String, String> files = new LinkedHashMap<>();
         Map<String, String> sourceHashes = new LinkedHashMap<>();
         List<String> validationErrors = new ArrayList<>();
@@ -188,6 +220,12 @@ public class ThymeleafProjectWorkflowService {
                     .forEach(issue -> validationErrors.add(entry.getKey() + ": " + issue));
             new DesignHardcodingValidator().validate(content).forEach(issue ->
                     validationErrors.add(entry.getKey() + ": " + issue));
+            if (!krdsAssetsPresent && KRDS_CLASS_PATTERN.matcher(content).find()) {
+                validationErrors.add(entry.getKey() + ": KRDS_ASSETS_MISSING — 이 화면은 krds-* 클래스를 "
+                        + "쓰지만 대상 프로젝트에 styles.css/_ds_bundle.css/krds.min.js가 없어 스타일이 "
+                        + "적용되지 않습니다. ProjectInitializrTool.initializeProject()로 KRDS 자산을 먼저 "
+                        + "배치하세요.");
+            }
         });
 
         ThymeleafProjectOperation operation = stateService.createOperation(root.toString());

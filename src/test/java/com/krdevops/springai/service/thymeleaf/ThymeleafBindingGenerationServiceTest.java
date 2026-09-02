@@ -74,6 +74,17 @@ class ThymeleafBindingGenerationServiceTest {
         Files.copy(FIXTURE.resolve("EgovEmployerList.jsp"), legacy.resolve("EgovEmployerList.jsp"));
         Files.copy(FIXTURE.resolve("EgovEmployerController.java"), legacy.resolve("EgovEmployerController.java"));
         Files.copy(FIXTURE.resolve("EmployerVO.java"), legacy.resolve("EmployerVO.java"));
+
+        // BindingComposer가 legacy-thymeleaf 템플릿으로 만드는 화면은 krds-* 클래스를 쓰므로,
+        // ThymeleafProjectWorkflowService의 KRDS 자산 검증 게이트를 통과하려면 배치돼 있어야 한다.
+        Path css = projectRoot.resolve("src/main/resources/static/resources/css/styles.css");
+        Path bundle = projectRoot.resolve("src/main/resources/static/resources/css/_ds_bundle.css");
+        Path js = projectRoot.resolve("src/main/resources/static/resources/js/krds.min.js");
+        Files.createDirectories(css.getParent());
+        Files.createDirectories(js.getParent());
+        Files.writeString(css, "/* styles */");
+        Files.writeString(bundle, "/* bundle */");
+        Files.writeString(js, "/* js */");
     }
 
     @Test
