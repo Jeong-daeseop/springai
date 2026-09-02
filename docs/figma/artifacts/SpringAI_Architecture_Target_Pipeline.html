@@ -3290,23 +3290,24 @@
           구조적으로 막습니다.
         </p>
         <p style="margin:16px 0 0">
-          <b>이 게이트 목록에 없는 것 — CSS/JS 자산 검증.</b> 위 7단계 어디에도 대상 프로젝트에
-          <code>styles.css</code>/<code>_ds_bundle.css</code>/<code>krds.min.js</code>가 실제로
-          존재하는지 확인하는 단계가 없습니다. 7단계가 넘겨받는 14번의 <code>preview()</code>도
-          이 자산을 검사하지 않으므로, 초기화(<code>initializeProject()</code>) 없이 순수 레거시
-          프로젝트에 이 파이프라인만 단독 실행하면 <code>krds-btn</code>/<code>krds-input</code>
-          클래스명은 생성되지만 실제 스타일 정의가 없는 화면이 <code>APPLIED</code>까지 조용히
-          완주될 수 있습니다(<code>Thymeleaf_레거시전환_KRDS_반영_검토.md</code>). 이걸 감지할 수
-          있는 지렛대는 이미 17번(<b>Dual Pipeline Common Control Plane</b>)의
-          <code>GenerationControlPlaneService.readiness()</code>에 마련돼 있습니다 —
-          <code>ReleaseReadinessEvaluator</code>가 <code>RENDER</code> 게이트(브라우저 렌더 증적)를
-          필수로 요구하므로, 이 증적이 없으면 <code>ready:false</code>를 정확히 반환합니다. 다만
-          <code>approve()</code>/<code>apply()</code>가 이 <code>readiness()</code>를 아예 참조하지
-          않아 "물어보면 알려주는 사후 조회"에 그치고, 실제 승인·적용을 막지는 못합니다.
-          <code>readiness()</code>를 게이트로 연결하는 방안과 그 부작용(레이어 역전, 기존 운영
-          데이터 소급 영향 등)은
-          <code>Thymeleaf_레거시전환_Readiness_Apply_연동_검토.md</code>에 정리했습니다(2026-09-02
-          작성, 아직 미구현).
+          <b>CSS/JS 자산 검증 — 구현 완료(커밋 <code>65e0ab2</code>).</b> 원래 이 7단계 게이트
+          목록 어디에도 대상 프로젝트에 <code>styles.css</code>/<code>_ds_bundle.css</code>/
+          <code>krds.min.js</code>가 실제로 존재하는지 확인하는 단계가 없었습니다. 그래서
+          초기화(<code>initializeProject()</code>) 없이 순수 레거시 프로젝트에 이 파이프라인만
+          단독 실행하면 <code>krds-btn</code>/<code>krds-input</code> 클래스명은 생성되지만 실제
+          스타일 정의가 없는 화면이 <code>APPLIED</code>까지 조용히 완주될 수 있었습니다
+          (<code>Thymeleaf_레거시전환_KRDS_반영_검토.md</code>). 처음엔 17번(<b>Dual Pipeline
+          Common Control Plane</b>)의 <code>GenerationControlPlaneService.readiness()</code>를
+          <code>approve()</code>/<code>apply()</code> 앞에 연결하는 방향을 검토했지만, 검증 증적
+          (<code>BINDING</code>/<code>BUILD</code>/<code>RENDER</code>)이 <code>apply()</code>가
+          끝난 뒤 <code>revalidate()</code>에서만 생긴다는 구조적 제약이 드러나 그 방향은
+          <b>기각</b>했습니다(<code>Thymeleaf_레거시전환_Readiness_Apply_연동_검토.md</code>).
+          대신 <code>ThymeleafProjectWorkflowService.preview()</code>가 생성 화면에
+          <code>krds-*</code> 클래스가 있는지 직접 탐지하고, 있는데 자산이 없으면 기존
+          <code>validationErrors</code>→<code>approve()</code> 차단 메커니즘을 그대로 재사용해
+          <code>THYMELEAF_PREVIEW_VALIDATION_FAILED</code>로 막습니다 —
+          <code>ProjectInitializrTool.initializeProject()</code> 실행을 안내하는 메시지가
+          함께 반환됩니다.
         </p>
       </figcaption>
     </figure>

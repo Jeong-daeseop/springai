@@ -13,6 +13,11 @@
 > [`Thymeleaf_레거시전환_KRDS_반영_검토.md`](./Thymeleaf_레거시전환_KRDS_반영_검토.md) §6-1에
 > 재정리했다. 이 문서 §2~§5는 readiness() API 자체의 동작 방식(코드 근거)을 설명하는 부분으로는
 > 여전히 유효하며, §4의 "제안"만 재검토 대상이다.
+>
+> **구현 완료(2026-09-02, 커밋 `65e0ab2`)**: §6-1의 해결안 B(안내형 실패)가
+> `ThymeleafProjectWorkflowService.preview()`에 실제로 반영됐다. `readiness()`/`apply()` 연동(이
+> 문서의 원래 제안)이 아니라, krds-* 클래스 사용 화면에 한해 CSS/JS 자산 존재를 직접 확인하고
+> 기존 `validationErrors`→`approve()` 차단 메커니즘을 재사용하는 방식이다.
 
 ---
 

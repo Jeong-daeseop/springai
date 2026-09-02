@@ -181,7 +181,7 @@ FilePlanFactory.java:349-350  layout에 <link rel="stylesheet" ... styles.css> /
 `REVIEW_REQUIRED` 패턴 재사용). §5의 "덮어쓰기 위험"을 자동화 이전에 걸러내면서도, 안전한 경우엔
 실제로 문제가 고쳐진다.
 
-### 해결안 B — 안내형 실패 (기존 패턴 재사용, 권장)
+### 해결안 B — 안내형 실패 (기존 패턴 재사용, 권장) — **구현 완료(커밋 `65e0ab2`)**
 
 이 코드베이스에는 이미 같은 패턴이 있다 — layout 없이 화면 생성 Tool을 호출하면 그냥 에러만
 던지지 않고 `generateThymeleafLayout()`을 먼저 실행하라고 구체적으로 안내한다(`CLAUDE.md` "layout
@@ -190,6 +190,15 @@ FilePlanFactory.java:349-350  layout에 <link rel="stylesheet" ... styles.css> /
 "이 문제를 고치려면 [자산 배치 Tool]을 실행하세요"라고 다음 행동을 안내한다. 자동은 아니지만
 사람이 안내를 따라 **실제로 문제를 해결하는 행동**을 하게 만든다는 점에서 방안 1(그냥 막고 끝)과
 다르다.
+
+**실제 구현**: `ThymeleafProjectWorkflowService.preview()`가 생성 화면 콘텐츠에서 `krds-*` 클래스
+사용 여부를 정규식으로 탐지하고, 대상 프로젝트에 `styles.css`/`_ds_bundle.css`/`krds.min.js`(WAR
+또는 Boot 경로)가 모두 있는지 확인한다. 없으면 기존 `validationErrors` 메커니즘에
+`KRDS_ASSETS_MISSING` + `ProjectInitializrTool.initializeProject()` 안내 메시지를 추가한다 —
+`preview()` 자체는 막지 않고 `PREVIEW_READY`로 진행되며, `approve()` 시점에
+`THYMELEAF_PREVIEW_VALIDATION_FAILED`로 명확히 차단된다. 새 검증 파이프라인 없이 기존
+`approve()`의 `validationErrors` 빈 값 검사를 그대로 재사용했다. 테스트
+`ThymeleafProjectWorkflowServiceTest`(자산 없음/있음/krds 클래스 없는 화면 3케이스)로 검증했다.
 
 ### 해결안 C — KRDS를 격리해서 배치 (충돌 위험 자체를 제거)
 
@@ -201,7 +210,7 @@ CSS 스코프 설계가 추가로 필요해 셋 중 구현 범위가 가장 크�
 | 방안 | 실제로 고치나 | 위험 | 구현 비용 |
 |---|---|---|---|
 | A. 충돌검사+자동배치 | ✅(안전한 경우만) | 낮음 | 중간 |
-| B. 안내형 실패 | 사람이 실행해야 고쳐짐(반자동) | 없음 | 낮음(기존 패턴 재사용) |
+| B. 안내형 실패 | 사람이 실행해야 고쳐짐(반자동) | 없음 | 낮음(기존 패턴 재사용) — **구현 완료** |
 | C. 격리 배치 | ✅(항상) | 매우 낮음 | 높음 |
 
 ### 최종 권장 순서
