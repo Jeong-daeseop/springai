@@ -26,4 +26,15 @@ class FigmaPaintCssConverterTest {
                 List.of(new UiDesignSpec.PaintSpec.GradientStop(0.5, null)), List.of());
         assertThat(FigmaPaintCssConverter.toCss(paint)).isNull();
     }
+
+    @Test
+    void mapsRadialAndAngularGradientTypesToCssFunctions() {
+        var stops = List.of(new UiDesignSpec.PaintSpec.GradientStop(0, "rgba(0,0,0,1.00)"),
+                new UiDesignSpec.PaintSpec.GradientStop(1, "rgba(255,255,255,1.00)"));
+        var radial = new UiDesignSpec.PaintSpec("GRADIENT_RADIAL", true, 1, null, stops, List.of());
+        var angular = new UiDesignSpec.PaintSpec("GRADIENT_ANGULAR", true, 1, null, stops, List.of());
+
+        assertThat(FigmaPaintCssConverter.toCss(radial)).startsWith("radial-gradient(");
+        assertThat(FigmaPaintCssConverter.toCss(angular)).startsWith("conic-gradient(");
+    }
 }
