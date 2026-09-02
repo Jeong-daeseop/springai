@@ -87,6 +87,7 @@ public record UiDesignSpecV2(
             @Nullable Geometry geometry,
             Map<String, String> layoutConstraints,
             @Nullable ComponentReference componentRef,
+            @Nullable VisualStyle visualStyle,
             List<TokenBinding> tokenBindings,
             List<InteractionCandidate> interactionCandidates,
             InferenceEvidence evidence
@@ -104,9 +105,37 @@ public record UiDesignSpecV2(
         /** 최소 Node 생성을 위한 호환 생성자. */
         public SemanticNode(
                 String semanticId, String role, @Nullable String logicalType,
+                @Nullable Geometry geometry, Map<String, String> layoutConstraints,
+                @Nullable ComponentReference componentRef, List<TokenBinding> tokenBindings,
+                List<InteractionCandidate> interactionCandidates, InferenceEvidence evidence) {
+            this(semanticId, role, logicalType, geometry, layoutConstraints, componentRef, null,
+                    tokenBindings, interactionCandidates, evidence);
+        }
+
+        /** 최소 Node 생성을 위한 호환 생성자. */
+        public SemanticNode(
+                String semanticId, String role, @Nullable String logicalType,
                 InferenceEvidence evidence, List<TokenBinding> tokenBindings) {
-            this(semanticId, role, logicalType, null, Map.of(), null,
+            this(semanticId, role, logicalType, null, Map.of(), null, null,
                     tokenBindings, List.of(), evidence);
+        }
+    }
+
+    public record VisualStyle(
+            double opacity, List<VisualPaint> fills, List<VisualPaint> strokes) {
+        public VisualStyle {
+            opacity = Math.max(0, Math.min(1, opacity));
+            fills = immutable(fills);
+            strokes = immutable(strokes);
+        }
+    }
+
+    public record VisualPaint(
+            String type, boolean visible, double opacity,
+            @Nullable String color, @Nullable String imageRef, @Nullable String scaleMode) {
+        public VisualPaint {
+            type = type == null || type.isBlank() ? "UNKNOWN" : type.toUpperCase();
+            opacity = Math.max(0, Math.min(1, opacity));
         }
     }
 

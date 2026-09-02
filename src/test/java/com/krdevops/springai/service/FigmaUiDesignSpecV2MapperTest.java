@@ -20,6 +20,7 @@ class FigmaUiDesignSpecV2MapperTest {
         FigmaNodeDocument document = document("""
                 {
                   "id":"1:1","type":"FRAME","name":"QNA List","layoutMode":"VERTICAL",
+                  "fills":[{"type":"SOLID","opacity":0.5,"color":{"r":1,"g":0,"b":0,"a":0.8}}],
                   "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
                   "children":[
                     {"id":"1:2","type":"TEXT","name":"Title","characters":"문의 목록",
@@ -44,6 +45,15 @@ class FigmaUiDesignSpecV2MapperTest {
                     assertThat(node.evidence().sourceNodeRefs()).containsExactly("1:3");
                     assertThat(node.geometry().width()).isEqualTo(120);
                     assertThat(node.interactionCandidates()).hasSize(1);
+                });
+        assertThat(spec.nodes()).filteredOn(node -> node.semanticId().equals("node-1:1"))
+                .singleElement().satisfies(node -> {
+                    assertThat(node.visualStyle()).isNotNull();
+                    assertThat(node.visualStyle().fills()).singleElement().satisfies(paint -> {
+                        assertThat(paint.type()).isEqualTo("SOLID");
+                        assertThat(paint.opacity()).isEqualTo(0.5);
+                        assertThat(paint.color()).isEqualTo("rgba(255,0,0,0.80)");
+                    });
                 });
         assertThat(spec.renderabilityAssessments())
                 .filteredOn(value -> value.semanticId().equals("node-1:4"))

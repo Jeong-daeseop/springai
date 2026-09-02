@@ -77,11 +77,32 @@ public class FigmaUiDesignSpecV2Mapper {
                 "layoutMode", raw.path("layoutMode").asText("NONE"),
                 "primaryAxisSizingMode", raw.path("primaryAxisSizingMode").asText("AUTO"),
                 "counterAxisSizingMode", raw.path("counterAxisSizingMode").asText("AUTO"));
+        UiDesignSpecV2.VisualStyle visualStyle = new UiDesignSpecV2.VisualStyle(
+                raw.path("opacity").asDouble(1.0), visualPaints(raw.path("fills")), visualPaints(raw.path("strokes")));
         return new UiDesignSpecV2.SemanticNode(
-                entry.semanticId(), role(raw), logicalType(raw), geometry, constraints, null,
+                entry.semanticId(), role(raw), logicalType(raw), geometry, constraints, null, visualStyle,
                 List.of(), interactions(entry),
                 new UiDesignSpecV2.InferenceEvidence(
                         List.of(entry.sourceNodeRef()), confidence(raw), "FIGMA_NODE_TREE", false, false));
+    }
+
+    private List<UiDesignSpecV2.VisualPaint> visualPaints(JsonNode paints) {
+        if (!paints.isArray()) return List.of();
+        List<UiDesignSpecV2.VisualPaint> result = new ArrayList<>();
+        for (JsonNode paint : paints) {
+            String type = paint.path("type").asText("UNKNOWN");
+            JsonNode color = paint.path("color");
+            String rgba = color.isObject() ? "rgba(%d,%d,%d,%.2f)".formatted(
+                    Math.round(color.path("r").asDouble(0) * 255),
+                    Math.round(color.path("g").asDouble(0) * 255),
+                    Math.round(color.path("b").asDouble(0) * 255),
+                    Math.max(0, Math.min(1, color.path("a").asDouble(1)))) : null;
+            result.add(new UiDesignSpecV2.VisualPaint(type, paint.path("visible").asBoolean(true),
+                    paint.path("opacity").asDouble(1), rgba,
+                    paint.path("imageRef").isTextual() ? paint.path("imageRef").asText() : null,
+                    paint.path("scaleMode").isTextual() ? paint.path("scaleMode").asText() : null));
+        }
+        return List.copyOf(result);
     }
 
     private List<UiDesignSpecV2.InteractionCandidate> interactions(NodeEntry entry) {
