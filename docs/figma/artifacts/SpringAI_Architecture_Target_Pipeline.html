@@ -1661,6 +1661,22 @@
         사후 감사 순)을 먼저 갖추는 걸 전제로 하며, 구체 설계는
         <code>Figma_Variable_Style_이름_구현계획.md</code>에 정리했다(2026-09-02 작성, 아직 미구현).
       </p>
+      <p class="subsection-sub" style="margin-top:10px">
+        <b>2026-09-04 확인: DESIGN.md/KRDS 토큰 반영(17.3절)은 이 3종 입력과 완전히 독립적이다.</b>
+        입력 A(<code>analyzeDesignReference</code>)·B(<code>analyzeFigmaReference</code>)·
+        C(<code>analyzeCapturedDesign</code>, <code>DesignArtifactTool.java</code>)는 모두 같은
+        반환 타입 <code>DesignAnalysisResult</code>를 거쳐 <code>screenSpecificationId</code>로
+        합류하지만, <code>CrudPromptBuilderService.buildFullCrudPrompt()</code> 안에서
+        <code>designSystemProfileId</code>와 <code>screenSpecification</code>은 서로 참조하지 않는
+        <b>별개의 두 <code>if</code> 분기</b>다 — 하나는 17.3절의 KRDS 토큰 안내 블록을, 다른 하나는
+        위 표의 <code>ScreenSpecificationPromptFormatter.format()</code> 블록을 각자 독립적으로
+        프롬프트에 붙인다. 즉 <code>screenSpecificationId</code>가 A/B/C 중 무엇에서 왔든,
+        <code>designSystemProfileId</code>만 함께 넘기면 KRDS 토큰 블록은 동일하게 붙는다(반대로
+        <code>screenSpecificationId</code> 없이 <code>designSystemProfileId</code>만 줘도 동작).
+        auto 경로(<code>CrudDesignMdCssProcessor</code>)도 <code>GenerationContext.attributes</code>의
+        <code>designSystemProfileId</code> 키만 보고 실행되어 화면명세와 무관하다 — 이 문서 관점에서
+        화면명세 파이프라인과 KRDS 토큰 반영 파이프라인은 서로 다른 두 개의 독립 레이어다.
+      </p>
     </figure>
   </section>
 
