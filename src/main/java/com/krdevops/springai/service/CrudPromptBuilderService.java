@@ -26,6 +26,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CrudPromptBuilderService {
 
+    /**
+     * {@link com.krdevops.springai.service.thymeleaf.CompanyDesignTokenResolver}가
+     * {@code "--krds-" + collectionName + "-" + variableName} 형식으로 CSS 변수 이름을 만들기
+     * 때문에, semantic 컬렉션에서 온 토큰만 이 접두어로 걸러낼 수 있다.
+     */
+    private static final String SEMANTIC_CSS_VAR_PREFIX = "--krds-semantic-";
+
     private static final String KRDS_ASSET_WARNING = """
             ⚠️ 이 프로젝트에 _ds_bundle.css/krds.min.js가 없습니다.
                코드 생성 전에 ProjectInitializrTool.initializeProject()를 먼저 실행하세요.
@@ -413,6 +420,10 @@ public class CrudPromptBuilderService {
         all.putAll(tokens.spacingTokens());
         all.putAll(tokens.radiusTokens());
         all.putAll(tokens.layoutTokens());
+        // claude 경로는 프롬프트에 텍스트로 그대로 들어가 토큰 비용에 직결된다(auto 경로는
+        // styles.css patch라 영향 없음) — primitive/mode/responsive까지 다 넣으면 552개까지도
+        // 늘어날 수 있어, semantic 컬렉션(디자인 의도가 이미 부여된 값)만 안내한다.
+        all.entrySet().removeIf(entry -> !entry.getValue().startsWith(SEMANTIC_CSS_VAR_PREFIX));
         if (all.isEmpty()) {
             return;
         }

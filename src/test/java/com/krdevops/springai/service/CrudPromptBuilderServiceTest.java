@@ -9,6 +9,11 @@ import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.SearchPanelPlacement;
 import com.krdevops.springai.model.design.UiDesignSpec;
+import com.krdevops.springai.model.thymeleaf.AppliedDesignRules;
+import com.krdevops.springai.model.thymeleaf.ResolvedDesignTokens;
+import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult;
+import com.krdevops.springai.service.thymeleaf.CompanyDesignTokenResolver;
+import com.krdevops.springai.service.thymeleaf.DesignMdRuleLoader;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -24,6 +29,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -35,6 +41,8 @@ import static org.mockito.Mockito.when;
 class CrudPromptBuilderServiceTest {
 
     CrudSchemaQueryService crudSchemaQueryService;
+    DesignMdRuleLoader designMdRuleLoader;
+    CompanyDesignTokenResolver companyDesignTokenResolver;
     CrudPromptBuilderService service;
 
     @BeforeEach
@@ -42,12 +50,13 @@ class CrudPromptBuilderServiceTest {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
         CommonCodeService commonCodeService = mock(CommonCodeService.class);
         crudSchemaQueryService = mock(CrudSchemaQueryService.class);
+        designMdRuleLoader = mock(DesignMdRuleLoader.class);
+        companyDesignTokenResolver = mock(CompanyDesignTokenResolver.class);
 
         service = new CrudPromptBuilderService(
                 jdbcTemplate, commonCodeService, new EgovPromptBuilder(), crudSchemaQueryService,
                 new ScreenSpecificationPromptFormatter(new ObjectMapper()),
-                mock(com.krdevops.springai.service.thymeleaf.DesignMdRuleLoader.class),
-                mock(com.krdevops.springai.service.thymeleaf.CompanyDesignTokenResolver.class));
+                designMdRuleLoader, companyDesignTokenResolver);
 
         when(crudSchemaQueryService.fetchColumns(any(), any())).thenReturn(fakeColumns());
     }
@@ -240,6 +249,42 @@ class CrudPromptBuilderServiceTest {
 
         assertThat(result).startsWith("=== eGovFrame 5.x CRUD 전체 소스 생성 지시 ===")
                 .doesNotContain("⚠️ 이 프로젝트에 _ds_bundle.css/krds.min.js가 없습니다.");
+    }
+
+    @Test
+    void buildFullCrudPrompt_withDesignSystemProfileId_onlyIncludesSemanticCollectionTokens(
+            @TempDir Path outputPath) throws IOException {
+        createAsset(outputPath, "src/main/webapp/resources/css/_ds_bundle.css");
+        createAsset(outputPath, "src/main/webapp/resources/js/krds.min.js");
+
+        AppliedDesignRules rules = new AppliedDesignRules(
+                outputPath.resolve("DESIGN.md").toString(), "hash", "1.0", List.of(), List.of(), List.of());
+        when(designMdRuleLoader.load(outputPath.toString()))
+                .thenReturn(ThymeleafGenerationStageResult.success(rules, List.of()));
+        ResolvedDesignTokens tokens = new ResolvedDesignTokens(
+                "krds", "1", null,
+                Map.of(
+                        "color/text/success", "--krds-mode-color-text-success",
+                        "gap/1", "--krds-semantic-gap-1"),
+                Map.of(), Map.of(
+                        "radius/max", "--krds-semantic-radius-max",
+                        "color/light/gray/95", "--krds-primitive-color-light-gray-95"),
+                Map.of(), Map.of(), Map.of(), List.of());
+        when(companyDesignTokenResolver.resolve(eq("krds"), eq(rules)))
+                .thenReturn(ThymeleafGenerationStageResult.success(tokens, List.of()));
+
+        String result = service.buildFullCrudPrompt(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp",
+                outputPath.toString(), "5.0", "jsp",
+                null, null, null,
+                com.krdevops.springai.model.crud.CrudProgramMetadata.fallback(null), null, "krds");
+
+        assertThat(result)
+                .contains("[KRDS 디자인 토큰 — DESIGN.md 기준]")
+                .contains("gap/1 -> --krds-semantic-gap-1")
+                .contains("radius/max -> --krds-semantic-radius-max")
+                .doesNotContain("color/text/success")
+                .doesNotContain("color/light/gray/95");
     }
 
     private static void createAsset(Path root, String relativePath) throws IOException {
