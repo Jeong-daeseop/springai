@@ -215,6 +215,9 @@ public class CrudPromptBuilderService {
         if (md.blocksGeneration()) {
             return "프로그램 메타데이터 검증 실패: " + md.message();
         }
+        if (packageName == null || !packageName.startsWith("egovframework.let.")) {
+            return "packageName은 egovframework.let.* 형식이어야 합니다: " + packageName;
+        }
         CrudViewType resolvedViewType = CrudViewType.from(viewType);
         CrudLayoutMode resolvedLayoutMode = resolvedViewType == CrudViewType.THYMELEAF
                 ? CrudLayoutMode.from(layoutMode)
