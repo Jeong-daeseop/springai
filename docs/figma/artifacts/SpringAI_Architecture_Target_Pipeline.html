@@ -3133,14 +3133,18 @@
       정리돼 있으므로 여기서는 반복하지 않습니다.
     </p>
     <p class="subsection-sub">
-      <b>DESIGN.md·Figma 참조 메타데이터는 이 5가지 공통 모델에 포함되지 않습니다.</b>
+      <b>DESIGN.md·Figma 참조 메타데이터는 이 5가지 공통 모델 자체에는 여전히 포함되지 않습니다</b>
+      (<code>GenerationOperation</code>/<code>ApprovalMode</code> 등에 새 필드가 생긴 게 아님).
       <code>DesignMdRuleLoader</code>(DESIGN.md 파싱)와 <code>CompanyDesignTokenResolver</code>
-      (<code>VariableRegistryEntry</code> — 게시된 Figma Variable 이름)는 17.1(바로 아래)의
-      선택적 4·7단계에서만 등장하는 <b>실행기 개별 로직</b>이며, 17.2(CRUD 소스 생성기)는 DB
-      스키마만 입력으로 쓰므로 둘 다 참조하지 않습니다(<code>CrudModelFactory</code>/
-      <code>CodeServiceGenerationExecutor</code> grep 0건). Figma 노드의
-      <code>boundVariables</code>/<code>fillStyleId</code>/<code>textStyleId</code> 같은 원시
-      참조 필드는 이 프로젝트 어디에도 읽는 코드가 없습니다 — 상세는 17.1절 4단계 참고.
+      (<code>VariableRegistryEntry</code> — 게시된 Figma Variable 이름)는 17.1의 선택적 4·7단계에서만
+      등장하는 실행기 개별 로직이었지만, <b>2026-09-04(커밋 <code>13402d2</code>) 이후 17.2(CRUD
+      소스 생성기)도 CRUD 전용 확장점을 통해 같은 두 클래스를 참조하기 시작했습니다</b> —
+      <code>CrudModelFactory</code>/<code>CodeServiceGenerationExecutor</code> 자체는 여전히 grep
+      0건이지만, 신규 <code>CrudDesignMdCssProcessor</code>(auto, <code>GenerationContext.attributes</code>의
+      <code>designSystemProfileId</code>로 조건부 실행)와 <code>CrudPromptBuilderService</code>(claude)가
+      직접 호출합니다 — 상세는 <b>17.3절</b> 참고. Figma 노드의 <code>boundVariables</code>/
+      <code>fillStyleId</code>/<code>textStyleId</code> 같은 원시 참조 필드는 이 프로젝트 어디에도
+      읽는 코드가 없다는 점(17.1절 4단계)은 그대로입니다.
     </p>
 
     <h3 class="subsection-title" id="jsp-to-thymeleaf-binding-generation">17.1 JSP→Thymeleaf 변환 파이프라인 — Binding Contract 생성 상세 <span class="ver-tag">신규 반영</span></h3>
@@ -3357,15 +3361,11 @@
       바로 위 17.1(Thymeleaf 마이그레이션)과 비교하기 위한 <b>CRUD 소스 생성기 자체</b>의 요약
       다이어그램입니다. 새로운 사실을 추가하는 게 아니라 <b>2.2절</b>(전체 오케스트레이션)과
       <b>6번 다이어그램</b>(Thymeleaf 생성 서비스 상세, 5a번 배지)에 이미 있는 CRUD auto/claude
-      경로를 이 위치에서 다시 구성한 것입니다 — 상세 근거는 그쪽을 참고하세요. <b>DESIGN.md·Figma
-      참조 메타데이터와 무관</b> — 아래 흐름 어디에도 <code>DesignMdRuleLoader</code>/
-      <code>CompanyDesignTokenResolver</code>가 없습니다(grep 0건, 두 클래스의 전체 참조처가
-      <code>service/thymeleaf/</code> 패키지 3개 파일뿐임을 확인). 이 경로는 DB 스키마만 입력으로
-      받습니다. auto 경로가 유일하게 CSS를 만지는 지점인 <code>KrdsStylesConfigurer</code>
-      (<code>CrudFormColumnCssProcessor</code>/<code>CrudTableDensityCssProcessor</code>가 호출)도
-      DESIGN.md 참조가 <b>0건</b>입니다 — 클래스 안에 하드코딩된 <code>CRUD_CSS</code> 문자열
-      상수를 <code>styles.css</code>에 patch할 뿐이라, DESIGN.md 내용과 무관하게 항상 같은 고정
-      CSS가 적용됩니다.
+      경로를 이 위치에서 다시 구성한 것입니다 — 상세 근거는 그쪽을 참고하세요. 아래 흐름 자체(스키마
+      조회→모델 변환→렌더링→저장)는 DB 스키마만 입력으로 쓰는 구조가 그대로입니다. 다만
+      <b>2026-09-04부터는 이 흐름과 별개로 DESIGN.md 반영 경로가 병렬로 추가됐습니다</b> — 상세는
+      바로 아래 <b>17.3절</b>을 참고하세요(이 절의 다이어그램 자체는 그 병렬 경로를 다시 그리지
+      않습니다).
     </p>
     <figure>
       <div class="svg-scroll">
@@ -3475,7 +3475,7 @@
               <tr><td>고위험 테이블 게이트</td><td><code>CrudGenerationApprovalPolicy</code>(<code>CrudGenerationApplicationService</code>가 호출) — 고위험 테이블은 승인된 명세 없이 차단</td><td>⚠️ <b>없음</b> — 이 게이트의 유일한 호출처가 auto 구현체뿐이라 claude 구현체(<code>CrudPromptGenerationService</code>)는 아예 거치지 않음</td></tr>
               <tr><td>승인 방식</td><td><code>AUTOMATED_OWNERSHIP_CHECK</code>(자동, 고위험 테이블만 예외)</td><td>서버 측 승인 상태 머신 없음 — Claude와의 대화 안에서 사람이 암묵적으로 확인</td></tr>
               <tr><td>이력·감사 기록</td><td><code>AI_CRUD_GENERATION_SNAPSHOT</code>+<code>AI_GENERATION_OPERATION_AUDIT</code>/<code>_VALIDATION_EVIDENCE</code>(14.1절 투영 대상)</td><td>⚠️ 없음 — <code>CodeServiceGenerationExecutor</code> 미경유로 Dual Pipeline Common Control Plane 조회·감사 대상에서 빠짐</td></tr>
-              <tr><td>DESIGN.md/KRDS 반영</td><td colspan="2" style="text-align:center">둘 다 없음(공통점) — <code>KrdsStylesConfigurer</code>는 하드코딩 CSS만 patch</td></tr>
+              <tr><td>DESIGN.md/KRDS 반영</td><td><code>CrudDesignMdCssProcessor</code>(PRE_WRITE order=95) — <code>styles.css</code>에 published Variable 552개 전체를 patch(claude보다 범위 넓음, 토큰 비용 제약 없음)</td><td><code>CrudPromptBuilderService.appendDesignMdTokenGuidance()</code> — 프롬프트 텍스트 안내, semantic 컬렉션 48개로 제한(전체를 넣으면 프롬프트가 6만자를 넘어 실제 서버 테스트에서 출력 제한에 걸림을 확인)</td></tr>
             </tbody>
           </table>
         </div>
@@ -3486,6 +3486,55 @@
         </p>
       </figcaption>
     </figure>
+
+    <h3 class="subsection-title" id="design-md-krds-token-reflection">17.3 DESIGN.md 기반 KRDS 토큰 반영 <span class="ver-tag implemented">신규 구현</span></h3>
+    <p class="section-sub">
+      2026-09-04 커밋 <code>13402d2</code>·<code>ebce324</code>·<code>466ac01</code>로 추가된 흐름입니다.
+      바로 위 17.2 표의 "DESIGN.md/KRDS 반영" 행이 이 절에서 정정된 근거입니다. 목표는 Figma에
+      Publish된 KRDS 표준 Variable을 <code>initializeProject()</code>와 CRUD 생성(auto·claude 둘 다)이
+      실제로 참조하게 만드는 것이며, 값은 항상 <code>var(--krds-...)</code> 형태의 CSS 변수
+      <b>참조</b>이고 raw hex/px 값은 어디에도 주입하지 않습니다.
+    </p>
+    <div class="data-table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>단계</th><th>담당 클래스</th><th>동작</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>① 내보내기</td><td><code>ComponentRegistryToDesignMdExporter</code></td><td>Figma "Publish"로 게시된 <code>ComponentRegistry</code>(Variable+Component)를 DESIGN.md YAML frontmatter로 직렬화. raw 값 재분석 없이 이미 검증된 <code>CompanyDesignTokenResolver</code> 결과를 재사용.</td></tr>
+          <tr><td>② 선반영</td><td><code>ProjectInitializrService.applyDesignSystemProfile()</code></td><td><code>initializeProject(designSystemProfileId=...)</code> 호출 시 정적 자산 생성 직후 DESIGN.md를 프로젝트 루트에 쓰고, <code>KrdsStylesConfigurer.ensureDesignMdTokenStyles()</code>로 <code>styles.css</code>에 marker patch. 실패해도 골격 생성 자체는 막지 않음(non-fatal, 실제 서버로 경로 화이트리스트 위반 케이스까지 확인).</td></tr>
+          <tr><td>③ CRUD auto</td><td><code>CrudDesignMdCssProcessor</code>(PRE_WRITE order=95)</td><td><code>CrudGenerationPlanner.processorSteps()</code>에 등록. <code>designSystemProfileId</code>가 있을 때만 <code>supports()</code>가 true — 기존 호출자에는 영향 없음. published Variable 552개 전체를 <code>styles.css</code>에 patch(프롬프트가 아니라 파일이라 토큰 비용 제약이 없음).</td></tr>
+          <tr><td>③ CRUD claude</td><td><code>CrudPromptBuilderService.appendDesignMdTokenGuidance()</code></td><td>같은 토큰을 프롬프트 텍스트로 안내하되, <code>--krds-semantic-</code> 접두어로 semantic 컬렉션 48개만 필터링. 552개를 그대로 넣었더니 프롬프트가 약 6만자로 늘어나 실제 서버 호출에서 출력 크기 제한에 걸리는 걸 확인해 좁혔다 — auto와 claude가 반영하는 <b>범위가 의도적으로 비대칭</b>이다.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="subsection-sub" style="margin-top:10px">
+      <b>구현 중 발견해 함께 고친 기존 버그 3건</b>(모두 <code>CrudPromptBuilderService</code>/
+      <code>CompanyDesignTokenResolver</code>의 기존 코드, 이번에 새로 만든 코드가 아님):
+      ① <code>generateCssVariableName()</code>이 <code>variableName</code>(사람이 읽는 이름, 예
+      <code>"color/background"</code>) 대신 <code>variableKey</code>(Figma 내부 해시)를 참조해
+      <code>--krds-website-tokens-7c781ed8...</code>처럼 읽을 수 없는 이름이 나오던 문제.
+      ② <code>mapTokenByType()</code>이 Figma <code>resolvedType</code>(COLOR/FLOAT 정도만 구분)만
+      보고 분류해, FLOAT 타입인 <code>gap</code>/<code>padding</code>/<code>radius</code>/
+      <code>size-height</code> 변수가 전부 "미분류→색상"으로 잘못 떨어지던 문제 — 이제 COLOR만
+      타입을 신뢰하고 나머지는 변수 이름 접두어로 분류한다. ③ <code>CrudPromptBuilderService</code>의
+      <code>packageName</code> 형식 검증이 <code>IllegalArgumentException</code>을 던져 DB 조회 이후
+      깊은 지점에서 실패하던 것을, 다른 검증 실패와 동일하게 메서드 진입 직후 문자열 메시지로
+      반환하도록 통일.
+    </p>
+    <p class="subsection-sub" style="margin-top:10px">
+      <b>실 서버 검증(2026-09-04):</b> 재시작된 서버로 MCP Tool을 직접 호출해 확인했습니다 —
+      <code>initializeProject(designSystemProfileId="krds")</code>는 프로젝트 루트에 DESIGN.md를
+      쓰고 <code>styles.css</code>에 <code>egov-design-md-tokens</code> marker를 patch했고,
+      <code>designSystemProfileId</code> 없이 생성한 베이스라인 프로젝트는 아무 영향이 없었습니다.
+      CRUD auto 경로는 DESIGN.md만 미리 갖다 둔(즉 <code>initializeProject()</code>가 patch하지
+      않은) 프로젝트에서 <code>styles.css</code>에 새로 marker가 생기는 것으로 <code>CrudDesignMdCssProcessor</code>
+      자체의 동작을 격리 확인했고, CRUD claude 경로는 처음엔 552개를 다 넣어 출력 제한 에러를
+      실제로 재현한 뒤, semantic 48개로 좁힌 수정 후 정확히 48개(padding 10+gap 12+size-height 11+radius 15)만
+      나오는 것을 재확인했습니다. DB에는 실제로 Figma 플러그인(<code>krds-design-system-author-plugin</code>)에서
+      재추출한 <code>krds</code> 프로필 registryVersion <code>2.2.4</code>(published Variable 552개 +
+      기존 컴포넌트 10개)가 반영돼 있습니다.
+    </p>
   </section>
 
   <footer class="notes">
@@ -3696,6 +3745,17 @@
       <code>captureWebPageMultiViewport()</code>가 이미 만드는 <code>breakpointObservations</code>를
       재분류해 <code>MOVED</code>를 가드레일 위반 의심 신호로 요약합니다. ③ Tool 총계를 105개
       메서드/40개 객체로 갱신했습니다.</li>
+      <li><b>2026-09-04 갱신:</b> 17.3절(DESIGN.md 기반 KRDS 토큰 반영)을 신규 추가했습니다(커밋
+      <code>13402d2</code>·<code>ebce324</code>·<code>466ac01</code>). 17번 도입부와 17.2절이 각각
+      "CRUD 소스 생성기는 DESIGN.md를 참조하지 않는다"고 단정했던 문장, 그리고 17.2절 비교표의
+      "DESIGN.md/KRDS 반영 — 둘 다 없음" 행을 이 갱신으로 정정했습니다 — 실제로는
+      <code>ComponentRegistryToDesignMdExporter</code>·<code>CrudDesignMdCssProcessor</code>(auto)·
+      <code>CrudPromptBuilderService.appendDesignMdTokenGuidance()</code>(claude)가 신규 추가돼
+      더는 사실이 아닙니다. 구현 과정에서 <code>CompanyDesignTokenResolver</code>의 기존 버그
+      2건(<code>variableKey</code>→<code>variableName</code> 오참조, FLOAT 타입 전부가 색상으로
+      잘못 분류되던 문제)도 실제 DB/Figma 데이터로 발견해 함께 고쳤고, 재시작한 실 서버로
+      <code>initializeProject()</code>·CRUD auto·CRUD claude 세 경로 모두 MCP Tool을 직접 호출해
+      검증했습니다.</li>
       <li>이 다이어그램은 정적 스냅샷입니다 — Tool·서비스 구성이 바뀌면 함께 갱신이 필요합니다.</li>
     </ul>
   </footer>
