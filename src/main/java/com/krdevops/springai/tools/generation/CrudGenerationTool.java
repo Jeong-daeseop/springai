@@ -52,6 +52,9 @@ public class CrudGenerationTool {
             programStorePath: 프로그램 저장 경로 메타데이터입니다.
             designReferenceId: analyzeDesignReference()가 반환한 분석 ID입니다. 화면명세 초안 생성에 사용합니다.
             screenSpecificationId: APPROVED 상태의 화면명세 ID입니다. designReferenceId보다 우선합니다.
+            designSystemProfileId: DESIGN.md/ComponentRegistry 기준 KRDS 디자인 토큰을 반영할 DesignSystemProfile ID입니다(선택).
+              생략하거나 DESIGN.md/토큰 해석에 실패하면 조용히 건너뜁니다 — auto는 styles.css에 CSS 변수 참조를 추가로 patch하고,
+              claude는 프롬프트에 안내 텍스트만 추가합니다. 값은 항상 CSS 변수 참조이며 실제 hex/px 값이 아닙니다.
             [필수] app.pipeline-evolution.mode=V2_APPLY(현재 운영 기본값)에서는 viewType="thymeleaf" +
             llmProvider="auto" 조합에 designReferenceId 또는 screenSpecificationId 중 하나가 반드시 있어야
             합니다 — 없으면 DB 조회 전에 즉시 실패하며, analyzeFigmaReference() → createScreenSpecification()
@@ -75,9 +78,11 @@ public class CrudGenerationTool {
                                       @Nullable String layoutView, @Nullable String breadcrumbView,
                                       @Nullable String programFileName, @Nullable String programUrl,
                                       @Nullable String programKoreanName, @Nullable String programStorePath,
-                                      @Nullable String designReferenceId, @Nullable String screenSpecificationId) {
+                                      @Nullable String designReferenceId, @Nullable String screenSpecificationId,
+                                      @Nullable String designSystemProfileId) {
         return facade.buildFullCrudPrompt(database, tableName, domain, packageName, outputPath, llmProvider,
                 egovVersion, viewType, layoutMode, layoutView, breadcrumbView, programFileName, programUrl,
-                programKoreanName, programStorePath, designReferenceId, screenSpecificationId);
+                programKoreanName, programStorePath, designReferenceId, screenSpecificationId,
+                designSystemProfileId);
     }
 }

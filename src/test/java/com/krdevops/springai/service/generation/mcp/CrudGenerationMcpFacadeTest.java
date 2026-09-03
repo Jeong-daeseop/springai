@@ -26,7 +26,7 @@ class CrudGenerationMcpFacadeTest {
         CrudGenerationMcpFacade facade = new CrudGenerationMcpFacade(dispatch, formatter);
         String response = facade.buildFullCrudPrompt(
                 "com", "EMP", "Employer", "egovframework.let.emp", "/tmp/out", "auto",
-                "5.0", "jsp", null, null, null, null, null, null, null, null, null);
+                "5.0", "jsp", null, null, null, null, null, null, null, null, null, null);
 
         assertThat(response).isEqualTo("formatted");
         ArgumentCaptor<CrudGenerationCommand> command =

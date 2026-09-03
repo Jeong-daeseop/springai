@@ -4,17 +4,24 @@ import com.krdevops.springai.model.FilePlan;
 import com.krdevops.springai.model.GenerationReport;
 import com.krdevops.springai.model.ProjectSpec;
 import com.krdevops.springai.model.VersionCapability;
+import com.krdevops.springai.model.thymeleaf.AppliedDesignRules;
+import com.krdevops.springai.model.thymeleaf.ResolvedDesignTokens;
+import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult;
+import com.krdevops.springai.service.designsystem.ComponentRegistryToDesignMdExporter;
 import com.krdevops.springai.service.initializr.FilePlanExecutor;
 import com.krdevops.springai.service.initializr.FilePlanFactory;
 import com.krdevops.springai.service.initializr.GenerationHistoryRecorder;
 import com.krdevops.springai.service.initializr.ProjectValidator;
 import com.krdevops.springai.service.initializr.ResultBuilder;
 import com.krdevops.springai.service.initializr.VersionCapabilityResolver;
+import com.krdevops.springai.service.thymeleaf.CompanyDesignTokenResolver;
+import com.krdevops.springai.service.thymeleaf.DesignMdRuleLoader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 
@@ -38,6 +45,10 @@ public class ProjectInitializrService {
     private final ProjectValidator validator;
     private final ResultBuilder resultBuilder;
     private final GenerationHistoryRecorder recorder;
+    private final ComponentRegistryToDesignMdExporter designMdExporter;
+    private final DesignMdRuleLoader designMdRuleLoader;
+    private final CompanyDesignTokenResolver companyDesignTokenResolver;
+    private final KrdsStylesConfigurer krdsStylesConfigurer;
 
     // ── 공개 API ─────────────────────────────────────────────────────────────
 
@@ -73,13 +84,21 @@ public class ProjectInitializrService {
                                     String packageName, String buildTool,
                                     String projectType, String egovVersion, String outputPath) {
         return initializeProject(projectName, groupId, artifactId, packageName, buildTool,
-                projectType, egovVersion, outputPath, "jsp");
+                projectType, egovVersion, outputPath, "jsp", null);
     }
 
     public String initializeProject(String projectName, String groupId, String artifactId,
                                     String packageName, String buildTool,
                                     String projectType, String egovVersion, String outputPath,
                                     String viewType) {
+        return initializeProject(projectName, groupId, artifactId, packageName, buildTool,
+                projectType, egovVersion, outputPath, viewType, null);
+    }
+
+    public String initializeProject(String projectName, String groupId, String artifactId,
+                                    String packageName, String buildTool,
+                                    String projectType, String egovVersion, String outputPath,
+                                    String viewType, String designSystemProfileId) {
 
         // ① Capability 해석 + Spec 조립
         VersionCapability cap = resolver.resolve(egovVersion);
@@ -98,6 +117,11 @@ public class ProjectInitializrService {
         // ⑤ FilePlan 루프 실행 (파일 단위 에러 격리)
         GenerationReport report = executor.execute(spec, plans);
 
+        // ⑤.5 DESIGN.md 선반영 (선택) — 실패해도 골격 생성 자체는 막지 않는다.
+        if (designSystemProfileId != null && !designSystemProfileId.isBlank()) {
+            applyDesignSystemProfile(spec, designSystemProfileId);
+        }
+
         // ⑥ 사후 검증 (필수 파일 + namespace + Java 버전)
         validator.validateResult(spec, report);
 
@@ -106,6 +130,36 @@ public class ProjectInitializrService {
 
         // ⑧ 결과 빌드 (ProjectContext 블록 포함)
         return resultBuilder.build(spec, report);
+    }
+
+    /**
+     * ComponentRegistry에서 내보낸 DESIGN.md를 프로젝트 루트에 쓰고, 해석된 KRDS 토큰을
+     * styles.css에 patch한다. 어느 단계든 실패해도 warning만 남기고 계속 진행한다 — 이 반영은
+     * 스타일 개선이지 프로젝트 골격 생성을 막을 사유가 아니다.
+     */
+    private void applyDesignSystemProfile(ProjectSpec spec, String designSystemProfileId) {
+        try {
+            String designMd = designMdExporter.export(designSystemProfileId);
+            Files.writeString(spec.root().resolve("DESIGN.md"), designMd, StandardCharsets.UTF_8);
+
+            ThymeleafGenerationStageResult<AppliedDesignRules> rulesResult =
+                    designMdRuleLoader.load(spec.root().toString());
+            if (!rulesResult.successful()) {
+                log.warn("[initializeProject] DESIGN.md 파싱 실패, KRDS 토큰 반영 건너뜀: profileId={}",
+                        designSystemProfileId);
+                return;
+            }
+            ThymeleafGenerationStageResult<ResolvedDesignTokens> tokensResult =
+                    companyDesignTokenResolver.resolve(designSystemProfileId, rulesResult.value());
+            if (!tokensResult.successful()) {
+                log.warn("[initializeProject] 디자인 토큰 해석 실패, KRDS 토큰 반영 건너뜀: profileId={}",
+                        designSystemProfileId);
+                return;
+            }
+            krdsStylesConfigurer.ensureDesignMdTokenStyles(spec.root().toString(), tokensResult.value());
+        } catch (Exception e) {
+            log.warn("[initializeProject] DESIGN.md 반영 실패(non-fatal): {}", e.getMessage(), e);
+        }
     }
 
     // ── private 헬퍼 ─────────────────────────────────────────────────────────

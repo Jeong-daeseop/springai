@@ -10,6 +10,7 @@ public final class CrudGenerationAttributes {
     public static final String VIEW_TYPE = "crud.viewType";
     public static final String LAYOUT_MODE = "crud.layoutMode";
     public static final String LAYOUT_REFERENCE = "crud.layoutReference";
+    public static final String DESIGN_SYSTEM_PROFILE_ID = "crud.designSystemProfileId";
 
     private CrudGenerationAttributes() {
     }

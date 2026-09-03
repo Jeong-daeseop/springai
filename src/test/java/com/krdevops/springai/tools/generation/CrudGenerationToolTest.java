@@ -80,7 +80,7 @@ class CrudGenerationToolTest {
         String result = tool.buildFullCrudPrompt(
                 "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out", "auto",
                 null, null, null, null, null,
-                null, null, null, null, "analysis-1", "spec-1");
+                null, null, null, null, "analysis-1", "spec-1", null);
 
         assertThat(result).contains("=== [auto] eGovFrame 5.x CRUD 소스 생성 완료 ===");
         verify(generateCrudProjectUseCase).execute(expectedCommand);
@@ -104,13 +104,13 @@ class CrudGenerationToolTest {
                 .thenReturn(screenSpecification);
         when(crudPromptBuilderService.buildFullCrudPrompt(
                 "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out",
-                "5.0", "jsp", null, null, null, metadata, screenSpecification))
+                "5.0", "jsp", null, null, null, metadata, screenSpecification, null))
                 .thenReturn("CLAUDE_PROMPT");
 
         String result = tool.buildFullCrudPrompt(
                 "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out", "claude",
                 null, null, null, null, null,
-                null, null, null, null, "analysis-1", "spec-1");
+                null, null, null, null, "analysis-1", "spec-1", null);
 
         assertThat(result).isEqualTo("CLAUDE_PROMPT");
         verify(generateCrudProjectUseCase, never()).execute(any());
@@ -132,7 +132,7 @@ class CrudGenerationToolTest {
         String result = tool.buildFullCrudPrompt(
                 "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out", "auto",
                 "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb",
-                "EgovEmployerList", "/emp/list.do", "직원목록", "/emp/", null, null);
+                "EgovEmployerList", "/emp/list.do", "직원목록", "/emp/", null, null, null);
 
         assertThat(result).contains("=== [auto] eGovFrame 5.x CRUD 소스 생성 완료 ===");
         verify(generateCrudProjectUseCase).execute(expectedCommand);
@@ -157,20 +157,20 @@ class CrudGenerationToolTest {
         when(crudPromptBuilderService.buildFullCrudPrompt(
                 "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out",
                 "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb",
-                metadata, screenSpecification))
+                metadata, screenSpecification, null))
                 .thenReturn("CLAUDE_PROMPT_WITH_METADATA");
 
         String result = tool.buildFullCrudPrompt(
                 "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out", "claude",
                 "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb",
-                "EgovEmployerList", "/emp/list.do", "직원목록", "/emp/", null, null);
+                "EgovEmployerList", "/emp/list.do", "직원목록", "/emp/", null, null, null);
 
         assertThat(result).isEqualTo("CLAUDE_PROMPT_WITH_METADATA");
         verify(crudProgramMetadataService).resolve("com", "Employer", "LETTNEMPLYRINFO", expectedOptions);
         verify(crudPromptBuilderService).buildFullCrudPrompt(
                 "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out",
                 "5.0", "thymeleaf", "create", "layout/admin", "layout/admin-breadcrumb",
-                metadata, screenSpecification);
+                metadata, screenSpecification, null);
     }
 
     @Test
@@ -188,13 +188,13 @@ class CrudGenerationToolTest {
         assertThatThrownBy(() -> tool.buildFullCrudPrompt(
                 "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "/tmp/out", "claude",
                 null, null, null, null, null,
-                null, null, null, null, "analysis-1", "spec-1"))
+                null, null, null, null, "analysis-1", "spec-1", null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("REVIEW_REQUIRED");
 
         verify(crudPromptBuilderService, never()).buildFullCrudPrompt(
                 any(), any(), any(), any(), any(), any(), any(), any(), any(), any(),
-                any(CrudProgramMetadata.class), any());
+                any(CrudProgramMetadata.class), any(), any());
     }
 
     /** buildFullCrudPrompt(llmProvider="auto")가 Facade에서 조립하는 Command 형태. */

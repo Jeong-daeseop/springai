@@ -2,6 +2,7 @@ package com.krdevops.springai.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.krdevops.springai.config.EgovProperties;
+import com.krdevops.springai.model.thymeleaf.ResolvedDesignTokens;
 import com.krdevops.springai.service.contract.OperationHashFactory;
 import com.krdevops.springai.service.write.FileSystemApprovedProjectWritePort;
 import com.krdevops.springai.service.write.SafePathResolver;
@@ -11,6 +12,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -168,6 +171,79 @@ class KrdsStylesConfigurerTest {
         assertThat(result.status()).isEqualTo(KrdsStylesConfigurer.Status.PATCHED);
         assertThat(result.message()).contains("신규 생성");
         assertThat(Files.readString(cssDir.resolve("styles.css"))).contains(KrdsStylesConfigurer.START_MARKER);
+    }
+
+    private static ResolvedDesignTokens tokensWithColor(String logicalName, String cssVarName) {
+        return new ResolvedDesignTokens(
+                "profile-1", "1", null,
+                Map.of(logicalName, cssVarName), Map.of(), Map.of(), Map.of(), Map.of(),
+                Map.of(), List.of());
+    }
+
+    private static ResolvedDesignTokens emptyTokens() {
+        return new ResolvedDesignTokens(
+                "profile-1", "1", null,
+                Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), List.of());
+    }
+
+    @Test
+    void designMdTokenStylesArePatchedIdempotentlyAsVariableReferences(@TempDir Path root) throws Exception {
+        Path css = root.resolve("src/main/webapp/resources/css/styles.css");
+        Files.createDirectories(css.getParent());
+        Files.writeString(css, ".user { color: black; }\n");
+        KrdsStylesConfigurer configurer = configurer(root);
+        ResolvedDesignTokens tokens = tokensWithColor("primary", "--krds-color-light-primary-60");
+
+        var first = configurer.ensureDesignMdTokenStyles(root.toString(), tokens);
+        String content = Files.readString(css);
+        var second = configurer.ensureDesignMdTokenStyles(root.toString(), tokens);
+
+        assertThat(first.status()).isEqualTo(KrdsStylesConfigurer.Status.PATCHED);
+        assertThat(second.status()).isEqualTo(KrdsStylesConfigurer.Status.PRESERVED);
+        assertThat(content).containsOnlyOnce(KrdsStylesConfigurer.DESIGN_MD_TOKEN_START_MARKER)
+                .contains("--design-md-primary: var(--krds-color-light-primary-60);")
+                .startsWith(".user")
+                // 반드시 변수 참조(var(...))로만 쓰고 raw 값이 섞이지 않아야 한다.
+                .doesNotContain("#");
+    }
+
+    @Test
+    void designMdTokenStyles_emptyTokens_skipsWithoutTouchingFile(@TempDir Path root) throws Exception {
+        Path css = root.resolve("src/main/webapp/resources/css/styles.css");
+        Files.createDirectories(css.getParent());
+        Files.writeString(css, ".user { color: black; }\n");
+        String before = Files.readString(css);
+
+        var result = configurer(root).ensureDesignMdTokenStyles(root.toString(), emptyTokens());
+
+        assertThat(result.status()).isEqualTo(KrdsStylesConfigurer.Status.PRESERVED);
+        assertThat(Files.readString(css)).isEqualTo(before);
+    }
+
+    @Test
+    void designMdTokenStyles_updatesOutdatedBlockAndPreservesRulesOutsideIt(@TempDir Path root) throws Exception {
+        Path css = root.resolve("src/main/webapp/resources/css/styles.css");
+        Files.createDirectories(css.getParent());
+        Files.writeString(css, """
+.before { color: red; }
+/* === egov-design-md-tokens:start === */
+:root {
+    --design-md-primary: var(--krds-color-light-secondary-60);
+}
+/* === egov-design-md-tokens:end === */
+.after { color: blue; }
+""");
+
+        var result = configurer(root).ensureDesignMdTokenStyles(
+                root.toString(), tokensWithColor("primary", "--krds-color-light-primary-60"));
+        String updated = Files.readString(css);
+
+        assertThat(result.status()).isEqualTo(KrdsStylesConfigurer.Status.PATCHED);
+        assertThat(updated)
+                .contains(".before { color: red; }")
+                .contains(".after { color: blue; }")
+                .contains("--design-md-primary: var(--krds-color-light-primary-60);")
+                .doesNotContain("--krds-color-light-secondary-60");
     }
 
     /** ATOMIC_APPROVED 전환 확인: 디스크 쓰기가 실패하면 원본 파일이 그대로 보존돼야 한다. */

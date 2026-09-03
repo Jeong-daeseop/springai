@@ -330,7 +330,8 @@ public class CrudGenerationPlanner {
 
         GenerationContext context = new GenerationContext(
                 "crud", database, tableName, domain, packageName, outputPath, egovVersion,
-                viewType.value(), attributes(model, viewType, layoutMode, layoutReference));
+                viewType.value(),
+                attributes(model, viewType, layoutMode, layoutReference, command.designSystemProfileId()));
 
         GenerationBlueprint blueprint = new GenerationBlueprint(
                 context,
@@ -342,12 +343,15 @@ public class CrudGenerationPlanner {
 
     private static Map<String, Object> attributes(
             CrudTemplateModel model, CrudViewType viewType, CrudLayoutMode layoutMode,
-            ThymeleafLayoutValidator.LayoutReference layoutReference) {
+            ThymeleafLayoutValidator.LayoutReference layoutReference, String designSystemProfileId) {
         Map<String, Object> attributes = new LinkedHashMap<>();
         attributes.put(CrudGenerationAttributes.MODEL, model);
         attributes.put(CrudGenerationAttributes.VIEW_TYPE, viewType);
         attributes.put(CrudGenerationAttributes.LAYOUT_MODE, layoutMode);
         attributes.put(CrudGenerationAttributes.LAYOUT_REFERENCE, layoutReference);
+        if (designSystemProfileId != null) {
+            attributes.put(CrudGenerationAttributes.DESIGN_SYSTEM_PROFILE_ID, designSystemProfileId);
+        }
         return attributes;
     }
 
@@ -359,6 +363,8 @@ public class CrudGenerationPlanner {
         return List.of(
                 new ProcessorStep(KrdsAssetVerificationProcessor.ID,
                         GenerationStage.PRE_WRITE, 90, FailurePolicy.STOP),
+                new ProcessorStep(CrudDesignMdCssProcessor.ID,
+                        GenerationStage.PRE_WRITE, 95, FailurePolicy.CONTINUE),
                 new ProcessorStep(CrudTableDensityCssProcessor.ID,
                         GenerationStage.PRE_WRITE, 100, FailurePolicy.STOP),
                 new ProcessorStep(CrudFormColumnCssProcessor.ID,

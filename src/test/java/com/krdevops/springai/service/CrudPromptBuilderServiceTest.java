@@ -45,7 +45,9 @@ class CrudPromptBuilderServiceTest {
 
         service = new CrudPromptBuilderService(
                 jdbcTemplate, commonCodeService, new EgovPromptBuilder(), crudSchemaQueryService,
-                new ScreenSpecificationPromptFormatter(new ObjectMapper()));
+                new ScreenSpecificationPromptFormatter(new ObjectMapper()),
+                mock(com.krdevops.springai.service.thymeleaf.DesignMdRuleLoader.class),
+                mock(com.krdevops.springai.service.thymeleaf.CompanyDesignTokenResolver.class));
 
         when(crudSchemaQueryService.fetchColumns(any(), any())).thenReturn(fakeColumns());
     }

@@ -25,8 +25,11 @@ import com.krdevops.springai.service.generation.pipeline.processor.DefaultGenera
 import com.krdevops.springai.service.generation.pipeline.processor.MyBatisRuntimeProcessor;
 import com.krdevops.springai.service.generation.pipeline.processor.ThymeleafRuntimeProcessor;
 import com.krdevops.springai.model.write.ProjectChangeSet;
+import com.krdevops.springai.service.thymeleaf.CompanyDesignTokenResolver;
+import com.krdevops.springai.service.thymeleaf.DesignMdRuleLoader;
 import com.krdevops.springai.service.write.ApplyOutcome;
 import com.krdevops.springai.service.write.ApprovedProjectWritePort;
+import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 
 import java.io.IOException;
@@ -81,6 +84,10 @@ public final class CrudPipelineFixture {
                 new CodeServiceGenerationExecutor(codeService, writePort),
                 new GenerationProcessorRunner(List.of(
                         new KrdsAssetVerificationProcessor(),
+                        new CrudDesignMdCssProcessor(
+                                Mockito.mock(DesignMdRuleLoader.class),
+                                Mockito.mock(CompanyDesignTokenResolver.class),
+                                krdsStylesConfigurer),
                         new CrudTableDensityCssProcessor(krdsStylesConfigurer),
                         new CrudFormColumnCssProcessor(krdsStylesConfigurer),
                         new CrudEntryPointProcessor(warEntryPointConfigurer),

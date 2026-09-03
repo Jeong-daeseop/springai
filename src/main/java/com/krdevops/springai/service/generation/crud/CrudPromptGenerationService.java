@@ -40,7 +40,7 @@ public class CrudPromptGenerationService implements BuildCrudPromptUseCase {
                 command.database(), command.tableName(), command.domain(), command.packageName(),
                 command.outputPath().toString(), command.egovVersion(), command.viewType(),
                 command.layout().layoutMode(), command.layout().layoutView(), command.layout().breadcrumbView(),
-                metadata, screenSpecification);
+                metadata, screenSpecification, command.designSystemProfileId());
         return new PromptGenerationResult(prompt);
     }
 }

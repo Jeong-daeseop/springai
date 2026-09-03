@@ -6,7 +6,12 @@ import com.krdevops.springai.model.crud.CrudProgramMetadata;
 import com.krdevops.springai.model.crud.CrudViewType;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.FieldSelectionSource;
+import com.krdevops.springai.model.thymeleaf.AppliedDesignRules;
+import com.krdevops.springai.model.thymeleaf.ResolvedDesignTokens;
+import com.krdevops.springai.model.thymeleaf.ThymeleafGenerationStageResult;
 import com.krdevops.springai.policy.SensitiveFieldPolicy;
+import com.krdevops.springai.service.thymeleaf.CompanyDesignTokenResolver;
+import com.krdevops.springai.service.thymeleaf.DesignMdRuleLoader;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -32,6 +37,8 @@ public class CrudPromptBuilderService {
     private final EgovPromptBuilder promptBuilder;
     private final CrudSchemaQueryService crudSchemaQueryService;
     private final ScreenSpecificationPromptFormatter screenSpecificationPromptFormatter;
+    private final DesignMdRuleLoader designMdRuleLoader;
+    private final CompanyDesignTokenResolver companyDesignTokenResolver;
 
     /**
      * Claude 프롬프트의 레거시 플레이스홀더 계약과 스키마 설명에 필요한 값을 담는 레코드.
@@ -210,6 +217,22 @@ public class CrudPromptBuilderService {
                                       String layoutMode, String layoutView, String breadcrumbView,
                                       CrudProgramMetadata metadata,
                                       ScreenSpecification screenSpecification) {
+        return buildFullCrudPrompt(database, tableName, domain, packageName, outputPath, egovVersion, viewType,
+                layoutMode, layoutView, breadcrumbView, metadata, screenSpecification, null);
+    }
+
+    /**
+     * DESIGN.md 기준 KRDS 디자인 토큰을 claude 경로 프롬프트에 안내 텍스트로 반영한다.
+     * {@code designSystemProfileId}가 없거나 DESIGN.md/토큰 해석에 실패하면 조용히 건너뛴다
+     * (auto 경로의 {@code CrudDesignMdCssProcessor}와 동일한 non-fatal 원칙).
+     */
+    public String buildFullCrudPrompt(String database, String tableName,
+                                      String domain, String packageName, String outputPath,
+                                      String egovVersion, String viewType,
+                                      String layoutMode, String layoutView, String breadcrumbView,
+                                      CrudProgramMetadata metadata,
+                                      ScreenSpecification screenSpecification,
+                                      String designSystemProfileId) {
         CrudProgramMetadata md =
                 metadata == null ? CrudProgramMetadata.fallback(null) : metadata;
         if (md.blocksGeneration()) {
@@ -238,6 +261,9 @@ public class CrudPromptBuilderService {
         StringBuilder sb = new StringBuilder();
         if (!KrdsAssetVerifier.hasCompleteAssets(outputPath)) {
             sb.append(KRDS_ASSET_WARNING);
+        }
+        if (designSystemProfileId != null && !designSystemProfileId.isBlank()) {
+            appendDesignMdTokenGuidance(sb, outputPath, designSystemProfileId);
         }
         sb.append("=== eGovFrame 5.x CRUD 전체 소스 생성 지시 ===\n\n");
         if (screenSpecification != null) {
@@ -366,6 +392,37 @@ public class CrudPromptBuilderService {
 
         log.info("CRUD 프롬프트 빌드 완료: table={}, domain={}", tableName, domain);
         return sb.toString();
+    }
+
+    private void appendDesignMdTokenGuidance(StringBuilder sb, String outputPath, String designSystemProfileId) {
+        ThymeleafGenerationStageResult<AppliedDesignRules> rulesResult = designMdRuleLoader.load(outputPath);
+        if (!rulesResult.successful()) {
+            log.warn("CRUD claude 경로: DESIGN.md 파싱 실패, KRDS 토큰 안내 건너뜀: outputPath={}", outputPath);
+            return;
+        }
+        ThymeleafGenerationStageResult<ResolvedDesignTokens> tokensResult =
+                companyDesignTokenResolver.resolve(designSystemProfileId, rulesResult.value());
+        if (!tokensResult.successful()) {
+            log.warn("CRUD claude 경로: 디자인 토큰 해석 실패, KRDS 토큰 안내 건너뜀: profileId={}", designSystemProfileId);
+            return;
+        }
+        ResolvedDesignTokens tokens = tokensResult.value();
+        Map<String, String> all = new LinkedHashMap<>();
+        all.putAll(tokens.colorTokens());
+        all.putAll(tokens.typographyTokens());
+        all.putAll(tokens.spacingTokens());
+        all.putAll(tokens.radiusTokens());
+        all.putAll(tokens.layoutTokens());
+        if (all.isEmpty()) {
+            return;
+        }
+        sb.append("[KRDS 디자인 토큰 — DESIGN.md 기준]\n");
+        sb.append("- 이 프로젝트는 다음 CSS 변수를 씁니다. 반드시 변수 참조(var(...))로만 사용하고 ");
+        sb.append("실제 hex/px 값을 임의로 지어내지 마세요:\n");
+        for (Map.Entry<String, String> entry : all.entrySet()) {
+            sb.append("  ").append(entry.getKey()).append(" -> ").append(entry.getValue()).append("\n");
+        }
+        sb.append("\n");
     }
 
     private void appendRegisteredRole(StringBuilder sb, CrudProgramMetadata metadata, String role, String label) {

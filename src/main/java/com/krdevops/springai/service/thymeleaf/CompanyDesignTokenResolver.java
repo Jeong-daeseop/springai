@@ -158,11 +158,13 @@ public class CompanyDesignTokenResolver {
      * @return CSS Variable 이름 (예: --krds-color-primary-60)
      */
     private String generateCssVariableName(VariableRegistryEntry varEntry, String logicalName) {
-        // collectionKey와 variableKey를 조합하여 생성
+        // collectionName과 variableName(사람이 읽는 이름)을 조합하여 생성
         // 형식: --krds-{collection}-{variable}
         // 예: --krds-color-primary-60
+        // 주의: variableKey는 Figma 내부 opaque ID(해시)라 사람이 읽을 수 없다 — 반드시
+        // variableName을 써야 한다.
         String collection = sanitizeName(varEntry.collectionName());
-        String variable = sanitizeName(varEntry.variableKey());
+        String variable = sanitizeName(varEntry.variableName());
         return "--krds-" + collection + "-" + variable;
     }
 
@@ -184,6 +186,11 @@ public class CompanyDesignTokenResolver {
     /**
      * resolvedType에 따라 Token을 적절한 맵에 배치한다.
      *
+     * <p>Figma의 실제 {@code resolvedType}은 COLOR/FLOAT/STRING/BOOLEAN 정도로만 구분되고
+     * spacing/radius/typography를 별도로 알려주지 않는다 — 그래서 FLOAT 타입인 gap/padding/
+     * radius/size 변수가 전부 "미분류"로 색상에 잘못 떨어지는 문제가 있었다. COLOR만 타입으로
+     * 신뢰하고, 그 외는 변수 이름(logicalName) 접두어로 분류한다.
+     *
      * @param type resolvedType (color, typography 등)
      * @param logicalName 논리 이름
      * @param cssVarName CSS Variable 이름
@@ -199,13 +206,23 @@ public class CompanyDesignTokenResolver {
                                  Map<String, String> spacingTokens,
                                  Map<String, String> radiusTokens,
                                  Map<String, String> layoutTokens) {
-        if (type == null) {
-            return;
-        }
+        String typeKey = type == null ? "" : type.toLowerCase();
+        String nameKey = logicalName == null ? "" : logicalName.toLowerCase();
 
-        String typeKey = type.toLowerCase();
         if (typeKey.contains("color")) {
             colorTokens.putIfAbsent(logicalName, cssVarName);
+            return;
+        }
+        if (nameKey.contains("radius") || nameKey.contains("corner")) {
+            radiusTokens.putIfAbsent(logicalName, cssVarName);
+        } else if (nameKey.contains("gap") || nameKey.contains("padding") || nameKey.contains("margin")
+                || nameKey.contains("spacing") || nameKey.contains("size")) {
+            spacingTokens.putIfAbsent(logicalName, cssVarName);
+        } else if (nameKey.contains("font") || nameKey.contains("typo") || nameKey.contains("letter-spacing")
+                || nameKey.contains("line-height") || nameKey.contains("weight")) {
+            typographyTokens.putIfAbsent(logicalName, cssVarName);
+        } else if (nameKey.contains("layout") || nameKey.contains("grid") || nameKey.contains("breakpoint")) {
+            layoutTokens.putIfAbsent(logicalName, cssVarName);
         } else if (typeKey.contains("typography") || typeKey.contains("font")) {
             typographyTokens.putIfAbsent(logicalName, cssVarName);
         } else if (typeKey.contains("spacing") || typeKey.contains("size")) {
@@ -215,7 +232,7 @@ public class CompanyDesignTokenResolver {
         } else if (typeKey.contains("layout") || typeKey.contains("grid")) {
             layoutTokens.putIfAbsent(logicalName, cssVarName);
         } else {
-            // 미분류 타입은 색상에 임시로 배치
+            // 이름·타입 어느 쪽으로도 분류가 안 되는 진짜 미분류 타입만 색상에 임시로 배치
             colorTokens.putIfAbsent(logicalName, cssVarName);
             log.warn("Unknown token type: {} for {}", type, logicalName);
         }

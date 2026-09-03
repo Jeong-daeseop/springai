@@ -39,14 +39,17 @@ public class CrudGenerationMcpFacade {
             @Nullable String programKoreanName,
             @Nullable String programStorePath,
             @Nullable String designReferenceId,
-            @Nullable String screenSpecificationId) {
+            @Nullable String screenSpecificationId,
+            @Nullable String designSystemProfileId) {
 
         CrudGenerationCommand command = new CrudGenerationCommand(
                 database, tableName, domain, packageName, Path.of(outputPath),
                 llmProvider, egovVersion, viewType,
                 new LayoutOptions(layoutMode, layoutView, breadcrumbView),
                 new ProgramMetadataOverrides(programFileName, programUrl, programKoreanName, programStorePath),
-                new DesignContextReference(designReferenceId, screenSpecificationId));
+                new DesignContextReference(designReferenceId, screenSpecificationId),
+                RendererProfileReference.defaultThymeleafKrds(),
+                designSystemProfileId);
 
         CrudToolResult result = dispatchCrudGenerationUseCase.execute(command);
         return formatter.format(result);

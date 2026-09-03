@@ -1,5 +1,6 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.model.thymeleaf.ResolvedDesignTokens;
 import com.krdevops.springai.model.write.ProjectChangeSet;
 import com.krdevops.springai.model.write.ProjectWritePolicy;
 import com.krdevops.springai.service.contract.OperationHashFactory;
@@ -14,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 기존 사용자 CSS를 보존하면서 게시판 CRUD 공통 계약만 멱등적으로 추가한다.
@@ -40,6 +42,8 @@ public class KrdsStylesConfigurer {
     public static final String DENSITY_END_MARKER = TableDensityCssContract.END_MARKER;
     public static final String FORM_COLUMN_LAYOUT_START_MARKER = FormColumnLayoutCssContract.START_MARKER;
     public static final String FORM_COLUMN_LAYOUT_END_MARKER = FormColumnLayoutCssContract.END_MARKER;
+    public static final String DESIGN_MD_TOKEN_START_MARKER = "/* === egov-design-md-tokens:start === */";
+    public static final String DESIGN_MD_TOKEN_END_MARKER = "/* === egov-design-md-tokens:end === */";
     static final String CRUD_CSS = """
 
 /* === egov-board-crud:start === */
@@ -222,6 +226,83 @@ public class KrdsStylesConfigurer {
         } catch (IOException e) {
             return new CssPatchResult(Status.FAILED, target.toString(), e.getMessage());
         }
+    }
+
+    /**
+     * DESIGN.md에서 해석된 디자인 토큰을 별도 marker로 멱등 보강한다.
+     *
+     * <p>값은 항상 {@code var(--krds-...)} 형태의 KRDS CSS 변수 참조이며, raw hex/px 값을
+     * 직접 쓰지 않는다 — {@link com.krdevops.springai.service.thymeleaf.CompanyDesignTokenResolver}의
+     * "이름만, 값 아님" 계약을 그대로 유지한다. 반영할 토큰이 없으면 파일을 건드리지 않는다.
+     */
+    public CssPatchResult ensureDesignMdTokenStyles(String outputPath, ResolvedDesignTokens tokens) {
+        String body = buildDesignMdTokenCss(tokens);
+        if (body == null) {
+            return new CssPatchResult(Status.PRESERVED, null, "반영할 디자인 토큰이 없어 건너뜀");
+        }
+        TargetResolution resolution = resolveTarget(outputPath);
+        if (resolution == null) {
+            return new CssPatchResult(Status.NOT_FOUND, null,
+                    "정적 CSS 리소스 경로를 찾을 수 없습니다. initializeProject를 먼저 실행하세요.");
+        }
+        Path target = resolution.path();
+        try {
+            boolean existed = Files.exists(target);
+            String current = existed ? Files.readString(target, StandardCharsets.UTF_8) : "";
+            String beforeHash = existed ? hashFactory.sha256Hex(current.getBytes(StandardCharsets.UTF_8)) : null;
+            String expected = body.trim();
+            int start = current.indexOf(DESIGN_MD_TOKEN_START_MARKER);
+            if (start >= 0) {
+                int end = current.indexOf(DESIGN_MD_TOKEN_END_MARKER, start);
+                if (end < 0) {
+                    return new CssPatchResult(Status.FAILED, target.toString(),
+                            "DESIGN.md 토큰 CSS 종료 marker가 없어 안전하게 갱신할 수 없습니다.");
+                }
+                end += DESIGN_MD_TOKEN_END_MARKER.length();
+                String existing = current.substring(start, end).trim();
+                if (existing.equals(expected)) {
+                    return new CssPatchResult(Status.PRESERVED, target.toString(), "기존 DESIGN.md 토큰 블록 유지");
+                }
+                writeChange(outputPath, resolution.relativePath(), beforeHash,
+                        current.substring(0, start) + expected + current.substring(end));
+                return new CssPatchResult(Status.PATCHED, target.toString(), "DESIGN.md 토큰 CSS 갱신 완료");
+            }
+            writeChange(outputPath, resolution.relativePath(), beforeHash, current + body);
+            return new CssPatchResult(Status.PATCHED, target.toString(), "DESIGN.md 토큰 CSS 보강 완료");
+        } catch (IOException e) {
+            return new CssPatchResult(Status.FAILED, target.toString(), e.getMessage());
+        }
+    }
+
+    private String buildDesignMdTokenCss(ResolvedDesignTokens tokens) {
+        StringBuilder body = new StringBuilder();
+        appendDeclarations(body, tokens.colorTokens());
+        appendDeclarations(body, tokens.typographyTokens());
+        appendDeclarations(body, tokens.spacingTokens());
+        appendDeclarations(body, tokens.radiusTokens());
+        appendDeclarations(body, tokens.layoutTokens());
+        if (body.isEmpty()) {
+            return null;
+        }
+        return "\n" + DESIGN_MD_TOKEN_START_MARKER + "\n:root {\n" + body + "}\n"
+                + DESIGN_MD_TOKEN_END_MARKER + "\n";
+    }
+
+    private void appendDeclarations(StringBuilder body, Map<String, String> tokens) {
+        if (tokens == null) {
+            return;
+        }
+        for (Map.Entry<String, String> entry : tokens.entrySet()) {
+            body.append("    --design-md-").append(sanitize(entry.getKey()))
+                    .append(": var(").append(entry.getValue()).append(");\n");
+        }
+    }
+
+    private static String sanitize(String name) {
+        if (name == null || name.isBlank()) {
+            return "unknown";
+        }
+        return name.toLowerCase().replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
     }
 
     private TargetResolution resolveTarget(String outputPath) {

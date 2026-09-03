@@ -67,6 +67,10 @@ public class ProjectInitializrTool {
                             - "jsp"       : 공통 index.jsp + MainController + WEB-INF/jsp/egovframework/main/main.jsp 생성
                             - "thymeleaf" : MainController + templates/egovframework/main/main.html
                                             + layout 5종 + 공통 index.jsp + Thymeleaf ViewResolver 생성
+              designSystemProfileId : DESIGN.md/ComponentRegistry 기준 KRDS 디자인 토큰을 반영할 DesignSystemProfile ID (선택)
+                            지정하면 ComponentRegistry에서 내보낸 DESIGN.md를 프로젝트 루트에 생성하고,
+                            해석된 토큰을 styles.css에 CSS 변수 참조로 patch합니다. 실패해도 프로젝트 골격
+                            생성 자체는 막지 않습니다(non-fatal).
 
             ⚠️ 사용자가 "프로젝트 생성", "새 프로젝트 만들어줘", "프로젝트 초기화" 요청 시
                반드시 이 Tool을 직접 호출하세요. Desktop Commander나 Bash로 대체하지 마세요.
@@ -77,10 +81,10 @@ public class ProjectInitializrTool {
     public String initializeProject(String projectName, String groupId, String artifactId,
                                     String packageName, String buildTool,
                                     String projectType, String egovVersion, String outputPath,
-                                    @Nullable String viewType) {
+                                    @Nullable String viewType, @Nullable String designSystemProfileId) {
         return projectInitializrService.initializeProject(
             projectName, groupId, artifactId, packageName, buildTool,
-            projectType, egovVersion, outputPath, viewType);
+            projectType, egovVersion, outputPath, viewType, designSystemProfileId);
     }
 
     @McpToolRisk(McpToolRiskLevel.FILE_WRITE)
