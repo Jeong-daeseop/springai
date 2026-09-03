@@ -357,6 +357,8 @@ public class CrudGenerationPlanner {
      */
     private static List<ProcessorStep> processorSteps() {
         return List.of(
+                new ProcessorStep(KrdsAssetVerificationProcessor.ID,
+                        GenerationStage.PRE_WRITE, 90, FailurePolicy.STOP),
                 new ProcessorStep(CrudTableDensityCssProcessor.ID,
                         GenerationStage.PRE_WRITE, 100, FailurePolicy.STOP),
                 new ProcessorStep(CrudFormColumnCssProcessor.ID,

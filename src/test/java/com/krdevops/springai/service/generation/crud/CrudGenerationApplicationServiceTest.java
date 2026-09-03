@@ -83,6 +83,7 @@ class CrudGenerationApplicationServiceTest {
 
     @BeforeEach
     void buildPipelineAndStubSuccessPath() {
+        CrudPipelineFixture.createWarKrdsAssets(Path.of("/tmp/egov-test"));
         sut = CrudPipelineFixture.applicationService(
                 crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
                 crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector,

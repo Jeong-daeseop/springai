@@ -21,6 +21,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class CrudPromptBuilderService {
 
+    private static final String KRDS_ASSET_WARNING = """
+            ⚠️ 이 프로젝트에 _ds_bundle.css/krds.min.js가 없습니다.
+               코드 생성 전에 ProjectInitializrTool.initializeProject()를 먼저 실행하세요.
+
+            """;
+
     private final JdbcTemplate jdbcTemplate;
     private final CommonCodeService commonCodeService;
     private final EgovPromptBuilder promptBuilder;
@@ -227,6 +233,9 @@ public class CrudPromptBuilderService {
 
         // 3. 통합 프롬프트 조립
         StringBuilder sb = new StringBuilder();
+        if (!KrdsAssetVerifier.hasCompleteAssets(outputPath)) {
+            sb.append(KRDS_ASSET_WARNING);
+        }
         sb.append("=== eGovFrame 5.x CRUD 전체 소스 생성 지시 ===\n\n");
         if (screenSpecification != null) {
             sb.append(screenSpecificationPromptFormatter.format(screenSpecification)).append('\n');

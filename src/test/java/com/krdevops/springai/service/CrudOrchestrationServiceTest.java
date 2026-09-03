@@ -68,6 +68,7 @@ class CrudOrchestrationServiceTest {
 
     @BeforeEach
     void buildPipelineAndStubMetadataInfrastructure() {
+        CrudPipelineFixture.createWarKrdsAssets(Path.of("/tmp/egov-test"));
         sut = new CrudOrchestrationService(CrudPipelineFixture.applicationService(
                 crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
                 crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector,
@@ -438,6 +439,7 @@ class CrudOrchestrationServiceTest {
     @Test
     void orchestrate_thymeleafReuseCustomLayoutView_allFilesPresent_rendersWithCustomPaths(
             @TempDir Path tempDir) throws Exception {
+        CrudPipelineFixture.createWarKrdsAssets(tempDir);
         given(crudSchemaQueryService.fetchColumns(any(), any())).willReturn(fakeColumns());
         given(crudModelFactory.fromSchema(any(), any(), any(), any(), any(), any(), any(CrudViewType.class), any(ScreenSubsetMode.class), any())).willReturn(fakeModel());
         given(crudTemplateRenderer.renderByLayerKey(any(), any(), any(), any(), any(), any())).willReturn("// code");

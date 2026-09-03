@@ -79,6 +79,7 @@ class CrudOrchestrationProcessorOrderTest {
 
     @BeforeEach
     void buildPipelineAndStubFullSuccessPath() {
+        CrudPipelineFixture.createWarKrdsAssets(Path.of("/tmp/egov-test"));
         sut = new CrudOrchestrationService(CrudPipelineFixture.applicationService(
                 crudSchemaQueryService, crudProgramMetadataService, generationDesignContextService,
                 crudModelFactory, thymeleafLayoutValidator, routeCollisionDetector,

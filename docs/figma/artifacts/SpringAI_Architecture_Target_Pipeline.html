@@ -1364,7 +1364,7 @@
   </section>
 
   <section class="diagram-block" id="mcp-server-detail">
-    <h2>5. Spring MCP 서버 상세 — DesignReferenceTool</h2>
+    <h2>5. Spring MCP 서버 상세 — DesignReferenceTool 입력 3종과 claude 경로 소비처</h2>
     <p class="section-sub">
       2번 다이어그램의 <b>5번 배지</b>를 펼친 내부 흐름입니다. DB 매핑 난이도에 따라
       "즉시 승인" 또는 "사람 확인 필요"로 갈라집니다.
@@ -1434,8 +1434,8 @@
           <rect class="node-box rest" x="320" y="210" width="290" height="100" rx="8" style="stroke-dasharray:5 4"></rect>
           <text class="node-title" x="465" y="234" text-anchor="middle" style="font-size:11.5px">2단계 · ScreenSpecAssembler.assemble()</text>
           <text class="node-sub" x="465" y="252" text-anchor="middle" style="font-size:9px">(2026-08-28) componentStyles/componentGeometry/tokens 매핑됨</text>
-          <text class="node-sub" x="465" y="266" text-anchor="middle" style="font-size:9px">→ ScreenSpecification 필드로 전달(claude 경로 전용)</text>
-          <text class="node-sub" x="465" y="284" text-anchor="middle" style="font-size:9px">3필드 모두 매핑 완료(아래 표 참고)</text>
+          <text class="node-sub" x="465" y="266" text-anchor="middle" style="font-size:9px">→ ScreenSpecification 필드로 전달(auto/claude 구분 없이 항상)</text>
+          <text class="node-sub" x="465" y="284" text-anchor="middle" style="font-size:9px">3필드 모두 매핑 완료</text>
           <text class="node-sub" x="465" y="298" text-anchor="middle" style="font-size:9px">layoutDensity와 함께 이제 4종이 생존</text>
 
           <path class="edge rest dashed" marker-end="url(#arrow5Rest)" d="M465,310 L465,330"></path>
@@ -1470,6 +1470,16 @@
         <span><i class="swatch" style="background:var(--accent)"></i>정상 진행 경로</span>
         <span><i class="swatch" style="background:var(--rest)"></i>파싱·매핑·소비 상세 단계(입력 B · Figma 전용, 입력 A·C엔 대응 단계 없음) — (2026-08-28) componentStyles/componentGeometry/tokens 모두 claude 경로까지 생존, auto 경로(CrudModelFactory)만 셋 다 미참조</span>
       </div>
+      <figcaption>
+        <b>2단계에서 매핑되는 3필드.</b> <code>ScreenSpecAssembler.assemble()</code>이
+        <code>UiDesignSpec</code>(1단계 <code>FigmaDesignSpecMapper</code> 산출물)에서 꺼내
+        <code>ScreenSpecification</code> 필드로 옮기는 값은 다음 세 가지입니다.
+        <ul style="margin:8px 0 0;padding-left:20px">
+          <li><code>componentStyles</code> ← <code>resolvedUi.components()</code>(컴포넌트별 배경색·테두리색)</li>
+          <li><code>componentGeometry</code> ← <code>resolvedUi.geometryTree()</code>(노드 좌표·auto-layout·텍스트스타일 트리)</li>
+          <li><code>tokens</code> ← <code>resolvedUi.tokens()</code>(루트 프레임 배경색·폰트)</li>
+        </ul>
+      </figcaption>
       <figcaption>
         <b>"입력" A·B·C는 완전히 다른 세 파이프라인이다.</b> 로컬 이미지/PDF(입력 A)와
         Figma 프레임(입력 B)은 <code>DesignReferenceAnalysisService</code>
@@ -3122,6 +3132,16 @@
       다이어그램·테이블 스키마 등 상세는 <b>14.1절(실행기 ↔ 공통 제어 계층 관계도)</b>에 이미
       정리돼 있으므로 여기서는 반복하지 않습니다.
     </p>
+    <p class="subsection-sub">
+      <b>DESIGN.md·Figma 참조 메타데이터는 이 5가지 공통 모델에 포함되지 않습니다.</b>
+      <code>DesignMdRuleLoader</code>(DESIGN.md 파싱)와 <code>CompanyDesignTokenResolver</code>
+      (<code>VariableRegistryEntry</code> — 게시된 Figma Variable 이름)는 17.1(바로 아래)의
+      선택적 4·7단계에서만 등장하는 <b>실행기 개별 로직</b>이며, 17.2(CRUD 소스 생성기)는 DB
+      스키마만 입력으로 쓰므로 둘 다 참조하지 않습니다(<code>CrudModelFactory</code>/
+      <code>CodeServiceGenerationExecutor</code> grep 0건). Figma 노드의
+      <code>boundVariables</code>/<code>fillStyleId</code>/<code>textStyleId</code> 같은 원시
+      참조 필드는 이 프로젝트 어디에도 읽는 코드가 없습니다 — 상세는 17.1절 4단계 참고.
+    </p>
 
     <h3 class="subsection-title" id="jsp-to-thymeleaf-binding-generation">17.1 JSP→Thymeleaf 변환 파이프라인 — Binding Contract 생성 상세 <span class="ver-tag">신규 반영</span></h3>
     <p class="section-sub">
@@ -3133,7 +3153,7 @@
     </p>
     <figure>
       <div class="svg-scroll">
-        <svg viewBox="0 0 1180 470" role="img" aria-label="프로젝트 루트 안의 JSP·Controller·VO 파일을 안전하게 읽고 각 소스 리더가 증거를 추출해 LegacyScreenAnalysis를 만든다. BindingContractAssembler가 Controller·VO를 JSP hint보다 우선해 계약을 조립하며 REVIEW_REQUIRED면 즉시 차단한다. 선택적으로 APPROVED ScreenSpecification과 Design Token을 결합한 뒤 BindingComposer가 화면 역할별 FreeMarker 템플릿으로 Thymeleaf HTML을 조합한다. RegenerationDiffService가 이전 적용 계약과 권한·HTTP method를 비교해 CSRF 보호가 약해지면 차단하고, 통과하면 기존 ThymeleafProjectWorkflowService.preview()로 넘겨 14번 다이어그램의 PREVIEW_READY 상태로 진입한다.">
+        <svg viewBox="0 0 1180 470" role="img" aria-label="프로젝트 루트 안의 JSP·Controller·VO 파일을 안전하게 읽고 각 소스 리더가 증거를 추출해 LegacyScreenAnalysis를 만든다. BindingContractAssembler가 Controller·VO를 JSP hint보다 우선해 계약을 조립하며 REVIEW_REQUIRED면 즉시 차단한다. 선택적으로 APPROVED ScreenSpecification과 DesignMdRuleLoader가 파싱한 DESIGN.md, CompanyDesignTokenResolver가 조회한 VariableRegistryEntry(게시된 Figma Variable 이름만, boundVariables 등 원시 필드 아님)를 결합한 뒤 BindingComposer가 화면 역할별 FreeMarker 템플릿으로 Thymeleaf HTML을 조합한다. RegenerationDiffService가 이전 적용 계약과 권한·HTTP method를 비교해 CSRF 보호가 약해지면 차단하고, 통과하면 기존 ThymeleafProjectWorkflowService.preview()로 넘겨 14번 다이어그램의 PREVIEW_READY 상태로 진입한다 — 이 preview()는 별도로 DESIGN.md 리비전을 다시 로드해 이후 apply() 시점 drift 감지에 사용한다.">
           <defs>
             <marker id="arrow17" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"></path></marker>
             <marker id="arrow17Accent" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"></path></marker>
@@ -3143,61 +3163,62 @@
 
           <rect class="node-box accent" x="40" y="40" width="270" height="92" rx="8"></rect>
           <g class="step-badge"><circle cx="62" cy="62" r="13"></circle><text x="62" y="66" text-anchor="middle">1</text></g>
-          <text class="node-title" x="175" y="66" text-anchor="middle" style="font-size:11.5px">소스 읽기</text>
-          <text class="node-sub" x="175" y="84" text-anchor="middle" style="font-size:8px">JSP + Controller.java + VO.java</text>
-          <text class="node-sub" x="175" y="98" text-anchor="middle" style="font-size:8px">(선택: VO superclass·secondary VO)</text>
-          <text class="node-sub" x="175" y="114" text-anchor="middle" style="font-size:7.5px;fill:var(--ink-muted)">경로 이탈 차단 + budget(20개·2MB·10MB)</text>
+          <text class="node-title" x="175" y="66" text-anchor="middle" style="font-size:12.5px">소스 읽기</text>
+          <text class="node-sub" x="175" y="84" text-anchor="middle" style="font-size:9.5px">JSP + Controller.java + VO.java</text>
+          <text class="node-sub" x="175" y="98" text-anchor="middle" style="font-size:9.5px">(선택: VO superclass·secondary VO)</text>
+          <text class="node-sub" x="175" y="114" text-anchor="middle" style="font-size:9px;fill:var(--ink-muted)">경로 이탈 차단 + budget(20개·2MB·10MB)</text>
 
           <path class="edge accent" marker-end="url(#arrow17Accent)" d="M310,86 L360,86"></path>
 
           <rect class="node-box accent" x="360" y="40" width="280" height="92" rx="8"></rect>
           <g class="step-badge"><circle cx="382" cy="62" r="13"></circle><text x="382" y="66" text-anchor="middle">2</text></g>
-          <text class="node-title" x="500" y="66" text-anchor="middle" style="font-size:11.5px">증거 추출</text>
-          <text class="node-sub" x="500" y="84" text-anchor="middle" style="font-size:8px">JspSourceReader/ControllerSourceReader</text>
-          <text class="node-sub" x="500" y="98" text-anchor="middle" style="font-size:8px">/VoSourceReader(정규식 기반)</text>
-          <text class="node-sub" x="500" y="114" text-anchor="middle" style="font-size:8px;fill:var(--accent)">→ LegacyScreenAnalysis</text>
+          <text class="node-title" x="500" y="66" text-anchor="middle" style="font-size:12.5px">증거 추출</text>
+          <text class="node-sub" x="500" y="84" text-anchor="middle" style="font-size:9.5px">JspSourceReader/ControllerSourceReader</text>
+          <text class="node-sub" x="500" y="98" text-anchor="middle" style="font-size:9.5px">/VoSourceReader(정규식 기반)</text>
+          <text class="node-sub" x="500" y="114" text-anchor="middle" style="font-size:9.5px;fill:var(--accent)">→ LegacyScreenAnalysis</text>
 
           <path class="edge accent" marker-end="url(#arrow17Accent)" d="M640,86 L680,86"></path>
 
           <rect class="node-box accent" x="680" y="40" width="300" height="92" rx="8"></rect>
           <g class="step-badge"><circle cx="702" cy="62" r="13"></circle><text x="702" y="66" text-anchor="middle">3</text></g>
-          <text class="node-title" x="830" y="62" text-anchor="middle" style="font-size:10.5px">BindingContractAssembler</text>
-          <text class="node-sub" x="830" y="80" text-anchor="middle" style="font-size:8px">CONTRACT_STAGE</text>
-          <text class="node-sub" x="830" y="96" text-anchor="middle" style="font-size:8px">Controller·VO가 JSP hint보다 항상 우선</text>
-          <text class="node-sub" x="830" y="112" text-anchor="middle" style="font-size:7.5px;fill:var(--rest)">REVIEW_REQUIRED 판정 포함</text>
+          <text class="node-title" x="830" y="62" text-anchor="middle" style="font-size:11.5px">BindingContractAssembler</text>
+          <text class="node-sub" x="830" y="80" text-anchor="middle" style="font-size:9.5px">CONTRACT_STAGE</text>
+          <text class="node-sub" x="830" y="96" text-anchor="middle" style="font-size:9.5px">Controller·VO가 JSP hint보다 항상 우선</text>
+          <text class="node-sub" x="830" y="112" text-anchor="middle" style="font-size:9px;fill:var(--rest)">REVIEW_REQUIRED 판정 포함</text>
 
           <path class="edge rest dashed" marker-end="url(#arrow17Rest)" d="M900,132 L900,155"></path>
           <rect class="node-box rest" x="750" y="155" width="300" height="60" rx="8" style="stroke-dasharray:5 4"></rect>
-          <text class="node-sub" x="900" y="176" text-anchor="middle" style="font-size:8.5px">차단 시 issues와 함께 즉시 반환</text>
-          <text class="node-sub" x="900" y="192" text-anchor="middle" style="font-size:8px;fill:var(--ink-muted)">(표시 필드 미검증 등, 조용히 통과 안 시킴)</text>
+          <text class="node-sub" x="900" y="176" text-anchor="middle" style="font-size:10px">차단 시 issues와 함께 즉시 반환</text>
+          <text class="node-sub" x="900" y="192" text-anchor="middle" style="font-size:9.5px;fill:var(--ink-muted)">(표시 필드 미검증 등, 조용히 통과 안 시킴)</text>
 
           <path class="edge accent" marker-end="url(#arrow17Accent)" d="M830,132 L830,260"></path>
 
-          <rect class="node-box rest" x="40" y="260" width="280" height="108" rx="8" style="stroke-dasharray:5 4"></rect>
-          <text class="node-title" x="180" y="280" text-anchor="middle" style="font-size:10.5px">④(선택) 명세·토큰 결합</text>
-          <text class="node-sub" x="180" y="296" text-anchor="middle" style="font-size:8px">screenSpecificationId(APPROVED 필수)</text>
-          <text class="node-sub" x="180" y="310" text-anchor="middle" style="font-size:8px">designSystemProfileId(DESIGN.md override 병합)</text>
-          <text class="node-sub" x="180" y="326" text-anchor="middle" style="font-size:7.5px;fill:var(--rest)">→ 색상·간격 값 없음, CSS 변수명만 주석(provenance) 기록</text>
-          <text class="node-sub" x="180" y="340" text-anchor="middle" style="font-size:7.5px;fill:var(--ink-muted)">실패해도 FATAL 아님(토큰 없이 계속)</text>
+          <rect class="node-box rest" x="40" y="260" width="280" height="132" rx="8" style="stroke-dasharray:5 4"></rect>
+          <text class="node-title" x="180" y="280" text-anchor="middle" style="font-size:11.5px">④(선택) 명세·토큰 결합</text>
+          <text class="node-sub" x="180" y="296" text-anchor="middle" style="font-size:9.5px">screenSpecificationId(APPROVED 필수)</text>
+          <text class="node-sub" x="180" y="310" text-anchor="middle" style="font-size:9.5px">designSystemProfileId → DesignMdRuleLoader(DESIGN.md 파싱)</text>
+          <text class="node-sub" x="180" y="324" text-anchor="middle" style="font-size:9px">→ CompanyDesignTokenResolver.resolve()</text>
+          <text class="node-sub" x="180" y="338" text-anchor="middle" style="font-size:8.5px;fill:var(--rest)">VariableRegistryEntry: 게시된 Figma Variable 이름만(boundVariables 아님)</text>
+          <text class="node-sub" x="180" y="352" text-anchor="middle" style="font-size:9px;fill:var(--ink-muted)">→ 색상값 없음, CSS 변수명만 주석 기록 · 실패해도 FATAL 아님</text>
 
           <path class="edge accent" marker-end="url(#arrow17Accent)" d="M320,314 L360,314"></path>
 
           <rect class="node-box accent" x="360" y="260" width="280" height="108" rx="8"></rect>
           <g class="step-badge"><circle cx="382" cy="282" r="13"></circle><text x="382" y="286" text-anchor="middle">5</text></g>
-          <text class="node-title" x="510" y="280" text-anchor="middle" style="font-size:10.5px">BindingComposer.compose()</text>
-          <text class="node-sub" x="510" y="296" text-anchor="middle" style="font-size:8px">COMPOSE_STAGE — FreeMarker</text>
-          <text class="node-sub" x="510" y="310" text-anchor="middle" style="font-size:8px">LIST/FORM/DETAIL 템플릿별 th:field·th:text</text>
-          <text class="node-sub" x="510" y="326" text-anchor="middle" style="font-size:7.5px;fill:var(--accent)">krds-table-wrap/krds-input/krds-btn 하드코딩</text>
-          <text class="node-sub" x="510" y="340" text-anchor="middle" style="font-size:7.5px;fill:var(--ink-muted)">(템플릿 고정 — ④단계 여부와 무관하게 항상 적용)</text>
+          <text class="node-title" x="510" y="280" text-anchor="middle" style="font-size:11.5px">BindingComposer.compose()</text>
+          <text class="node-sub" x="510" y="296" text-anchor="middle" style="font-size:9.5px">COMPOSE_STAGE — FreeMarker</text>
+          <text class="node-sub" x="510" y="310" text-anchor="middle" style="font-size:9.5px">LIST/FORM/DETAIL 템플릿별 th:field·th:text</text>
+          <text class="node-sub" x="510" y="326" text-anchor="middle" style="font-size:9px;fill:var(--accent)">krds-table-wrap/krds-input/krds-btn 하드코딩</text>
+          <text class="node-sub" x="510" y="340" text-anchor="middle" style="font-size:9px;fill:var(--ink-muted)">(템플릿 고정 — ④단계 여부와 무관하게 항상 적용)</text>
 
           <path class="edge accent" marker-end="url(#arrow17Accent)" d="M640,314 L680,306"></path>
 
           <rect class="node-box accent" x="680" y="260" width="300" height="92" rx="8"></rect>
           <g class="step-badge"><circle cx="702" cy="282" r="13"></circle><text x="702" y="286" text-anchor="middle">6</text></g>
-          <text class="node-title" x="830" y="280" text-anchor="middle" style="font-size:10.5px">RegenerationDiffService.diff()</text>
-          <text class="node-sub" x="830" y="298" text-anchor="middle" style="font-size:8px">REGENERATION_DIFF_STAGE</text>
-          <text class="node-sub" x="830" y="314" text-anchor="middle" style="font-size:7.5px">이전 적용 계약과 권한·HTTP method(CSRF) 비교</text>
-          <text class="node-sub" x="830" y="328" text-anchor="middle" style="font-size:7.5px;fill:var(--rest)">변경 감지 시 차단</text>
+          <text class="node-title" x="830" y="280" text-anchor="middle" style="font-size:11.5px">RegenerationDiffService.diff()</text>
+          <text class="node-sub" x="830" y="298" text-anchor="middle" style="font-size:9.5px">REGENERATION_DIFF_STAGE</text>
+          <text class="node-sub" x="830" y="314" text-anchor="middle" style="font-size:9px">이전 적용 계약과 권한·HTTP method(CSRF) 비교</text>
+          <text class="node-sub" x="830" y="328" text-anchor="middle" style="font-size:9px;fill:var(--rest)">변경 감지 시 차단</text>
 
           <path class="edge accent" marker-end="url(#arrow17Accent)" d="M830,352 L830,380"></path>
 
@@ -3205,9 +3226,9 @@
             <title>14번 다이어그램: Thymeleaf 마이그레이션 승인 워크플로우로 이동(PREVIEW_READY 이후)</title>
             <rect class="node-box good" x="680" y="380" width="300" height="80" rx="8"></rect>
             <g class="step-badge"><circle cx="702" cy="400" r="13"></circle><text x="702" y="404" text-anchor="middle">7</text></g>
-            <text class="node-title" x="840" y="400" text-anchor="middle" style="font-size:10.5px">ThymeleafProjectWorkflowService</text>
-            <text class="node-sub" x="840" y="418" text-anchor="middle" style="font-size:8px">.preview() → PREVIEW_READY</text>
-            <text class="jump-hint" x="840" y="434" text-anchor="middle" style="font-size:8px">↳ 14번(승인·Apply·rollback)</text>
+            <text class="node-title" x="840" y="400" text-anchor="middle" style="font-size:11.5px">ThymeleafProjectWorkflowService</text>
+            <text class="node-sub" x="840" y="418" text-anchor="middle" style="font-size:9.5px">.preview() → PREVIEW_READY</text>
+            <text class="jump-hint" x="840" y="434" text-anchor="middle" style="font-size:9.5px">↳ 14번(승인·Apply·rollback)</text>
             <g class="jump-badge"><circle cx="962" cy="394" r="12"></circle><text x="962" y="398" text-anchor="middle">14</text></g>
           </a>
         </svg>
@@ -3253,8 +3274,17 @@
             화면명세나 회사 디자인 토큰을 추가로 결합하는 선택적 보강 단계 — 지난 5·6·15·16번에서
             계속 나온 그 <code>ScreenSpecification</code>이 여기서도 등장.
             <b>기능</b>: <code>screenSpecificationId</code>를 주면 반드시 <code>APPROVED</code>
-            상태여야 함(아니면 예외), <code>designSystemProfileId</code>를 주면 <code>DESIGN.md</code>
-            override + 회사 Design Token을 병합(실패해도 FATAL 아님 — 토큰 없이 계속 진행).
+            상태여야 함(아니면 예외). <code>designSystemProfileId</code>를 주면
+            <code>DesignMdRuleLoader</code>(R6-055)가 프로젝트의 <code>DESIGN.md</code>를 파싱해
+            <code>AppliedDesignRules</code>로 만들고, <code>CompanyDesignTokenResolver.resolve()</code>가
+            이걸 <code>ComponentRegistry.variables()</code>(<code>VariableRegistryEntry</code>)와
+            병합해 <code>ResolvedDesignTokens</code>를 만듭니다(실패해도 FATAL 아님 — 토큰 없이
+            계속 진행). <b>참조 메타데이터 명확화</b>: <code>VariableRegistryEntry</code>는 JavaDoc에
+            "<b>Published</b>(게시된) Figma Variable과 Collection의 공개 Key를 보존한다"고 명시돼
+            있어, 사람이 Figma UI에서 미리 게시한 Variable의 <b>이름·키만</b> 담습니다 — Figma
+            노드의 <code>boundVariables</code>/<code>fillStyleId</code>/<code>textStyleId</code> 같은
+            원시 참조 필드를 자동으로 읽는 코드는 <b>프로젝트 전체에 존재하지 않습니다</b>(grep 0건,
+            5번 섹션의 <code>FigmaDesignSpecMapper</code> 검토와 동일한 결론).
             <b>주의</b>: <code>BindingComposer.java</code> JavaDoc에 명시된 대로 이 토큰은 실제
             색상·간격 값을 CSS에 주입하지 않습니다 — 논리 토큰이 <b>어떤 CSS 변수를 참조하는지
             이름만</b> <code>egov-authority-provenance</code>와 같은 방식으로 HTML 주석에 남기는
@@ -3280,7 +3310,12 @@
             마지막 단계.
             <b>기능</b>: 조합된 HTML을 <code>outputRelativePath</code>와 함께 기존
             <code>ThymeleafProjectWorkflowService</code>에 전달 → <code>PREVIEW_READY</code>로 전이
-            → 이후는 14번(승인 → Apply → rollback)이 그대로 이어받음.</li>
+            → 이후는 14번(승인 → Apply → rollback)이 그대로 이어받음. <b>DESIGN.md 두 번째
+            접점</b>: <code>preview()</code>는 4단계와 별개로 <code>currentDesignRevision(root)</code>
+            → 같은 <code>DesignMdRuleLoader</code>를 다시 호출해 DESIGN.md의 현재 리비전 해시를
+            <code>designRevision</code>으로 기록합니다 — 이건 토큰 병합용이 아니라, 이후
+            <code>apply()</code> 시점에 DESIGN.md가 그사이 바뀌었는지 감지하는 drift 체크용입니다
+            (14번 다이어그램의 <code>apply()</code>가 리비전 불일치 시 CONFLICT로 전이).</li>
         </ul>
         <p style="margin:16px 0 0">
           <b>왜 게이트를 세 번(3·6·4는 선택)이나 두었는가.</b> JSP·Controller·VO는 사람이 손으로
@@ -3307,7 +3342,12 @@
           <code>validationErrors</code>→<code>approve()</code> 차단 메커니즘을 그대로 재사용해
           <code>THYMELEAF_PREVIEW_VALIDATION_FAILED</code>로 막습니다 —
           <code>ProjectInitializrTool.initializeProject()</code> 실행을 안내하는 메시지가
-          함께 반환됩니다.
+          함께 반환됩니다. 자산 존재 확인은 WAR 경로(<code>src/main/webapp/resources/...</code>)와
+          Boot 경로(<code>src/main/resources/static/resources/...</code>) 중 어느 한쪽이라도 3종
+          파일이 모두 있으면 통과로 처리합니다 — 프로젝트 유형을 별도로 판별하지 않습니다.
+          <code>krds-*</code> 클래스가 없는 화면은 이 검사 자체를 건너뛰므로 무관한 화면까지
+          막지 않으며, <code>ThymeleafProjectWorkflowServiceTest</code>에 자산 없음·있음·krds
+          클래스 없음 3케이스로 회귀 테스트를 추가했습니다.
         </p>
       </figcaption>
     </figure>
@@ -3317,7 +3357,15 @@
       바로 위 17.1(Thymeleaf 마이그레이션)과 비교하기 위한 <b>CRUD 소스 생성기 자체</b>의 요약
       다이어그램입니다. 새로운 사실을 추가하는 게 아니라 <b>2.2절</b>(전체 오케스트레이션)과
       <b>6번 다이어그램</b>(Thymeleaf 생성 서비스 상세, 5a번 배지)에 이미 있는 CRUD auto/claude
-      경로를 이 위치에서 다시 구성한 것입니다 — 상세 근거는 그쪽을 참고하세요.
+      경로를 이 위치에서 다시 구성한 것입니다 — 상세 근거는 그쪽을 참고하세요. <b>DESIGN.md·Figma
+      참조 메타데이터와 무관</b> — 아래 흐름 어디에도 <code>DesignMdRuleLoader</code>/
+      <code>CompanyDesignTokenResolver</code>가 없습니다(grep 0건, 두 클래스의 전체 참조처가
+      <code>service/thymeleaf/</code> 패키지 3개 파일뿐임을 확인). 이 경로는 DB 스키마만 입력으로
+      받습니다. auto 경로가 유일하게 CSS를 만지는 지점인 <code>KrdsStylesConfigurer</code>
+      (<code>CrudFormColumnCssProcessor</code>/<code>CrudTableDensityCssProcessor</code>가 호출)도
+      DESIGN.md 참조가 <b>0건</b>입니다 — 클래스 안에 하드코딩된 <code>CRUD_CSS</code> 문자열
+      상수를 <code>styles.css</code>에 patch할 뿐이라, DESIGN.md 내용과 무관하게 항상 같은 고정
+      CSS가 적용됩니다.
     </p>
     <figure>
       <div class="svg-scroll">
@@ -3329,61 +3377,61 @@
           </defs>
 
           <rect class="node-box" x="340" y="16" width="500" height="44" rx="8"></rect>
-          <text class="node-title" x="590" y="43" text-anchor="middle" style="font-size:12.5px">CrudGenerationTool</text>
+          <text class="node-title" x="590" y="43" text-anchor="middle" style="font-size:13.5px">CrudGenerationTool</text>
 
           <path class="edge" marker-end="url(#arrow17b)" d="M590,60 L590,76"></path>
 
           <rect class="node-box" x="340" y="76" width="500" height="44" rx="8"></rect>
-          <text class="node-title" x="590" y="103" text-anchor="middle" style="font-size:12px">CrudGenerationDispatchService.isAuto()</text>
+          <text class="node-title" x="590" y="103" text-anchor="middle" style="font-size:13px">CrudGenerationDispatchService.isAuto()</text>
 
           <path class="edge" marker-end="url(#arrow17b)" d="M430,120 Q290,132 290,140"></path>
           <path class="edge" marker-end="url(#arrow17b)" d="M750,120 Q890,132 890,140"></path>
 
-          <text class="group-label" x="290" y="132" text-anchor="middle" style="font-size:9.5px">auto 경로</text>
-          <text class="group-label" x="890" y="132" text-anchor="middle" style="font-size:9.5px">claude 경로</text>
+          <text class="group-label" x="290" y="132" text-anchor="middle" style="font-size:10.5px">auto 경로</text>
+          <text class="group-label" x="890" y="132" text-anchor="middle" style="font-size:10.5px">claude 경로</text>
 
           <g><title>1. CrudModelFactory.fromSchema() — DB 스키마 → CRUD 모델</title>
             <rect class="node-box" x="60" y="140" width="460" height="46" rx="8"></rect>
-            <text class="node-title" x="290" y="168" text-anchor="middle" style="font-size:11.5px">1. CrudModelFactory.fromSchema()</text>
+            <text class="node-title" x="290" y="168" text-anchor="middle" style="font-size:12.5px">1. CrudModelFactory.fromSchema()</text>
           </g>
           <path class="edge" marker-end="url(#arrow17b)" d="M290,186 L290,200"></path>
 
           <g><title>2. CrudGenerationApprovalPolicy — 고위험 테이블만 조건부 차단</title>
             <rect class="node-box rest" x="60" y="200" width="460" height="46" rx="8" stroke-dasharray="6 4"></rect>
-            <text class="node-title" x="290" y="220" text-anchor="middle" style="font-size:11.5px">2. CrudGenerationApprovalPolicy</text>
-            <text class="node-sub" x="290" y="236" text-anchor="middle" style="font-size:8px">고위험 테이블만 승인된 ScreenSpecification 없이는 차단(조건부)</text>
+            <text class="node-title" x="290" y="220" text-anchor="middle" style="font-size:12.5px">2. CrudGenerationApprovalPolicy</text>
+            <text class="node-sub" x="290" y="236" text-anchor="middle" style="font-size:9.5px">고위험 테이블만 승인된 ScreenSpecification 없이는 차단(조건부)</text>
           </g>
           <path class="edge" marker-end="url(#arrow17bRest)" d="M290,246 L290,260"></path>
 
           <g><title>3. CrudGenerationRenderer(내부 CrudTemplateRenderer)</title>
             <rect class="node-box" x="60" y="260" width="460" height="46" rx="8"></rect>
-            <text class="node-title" x="290" y="280" text-anchor="middle" style="font-size:11px">3. CrudGenerationRenderer(내부 CrudTemplateRenderer)</text>
-            <text class="node-sub" x="290" y="296" text-anchor="middle" style="font-size:8px">VO/Controller/Service/Mapper/View 렌더링</text>
+            <text class="node-title" x="290" y="280" text-anchor="middle" style="font-size:12px">3. CrudGenerationRenderer(내부 CrudTemplateRenderer)</text>
+            <text class="node-sub" x="290" y="296" text-anchor="middle" style="font-size:9.5px">VO/Controller/Service/Mapper/View 렌더링</text>
           </g>
           <path class="edge good" marker-end="url(#arrow17bAccent)" d="M290,306 L290,320"></path>
 
           <g><title>4. CodeServiceGenerationExecutor → ApprovedProjectWritePort → AI_CRUD_GENERATION_SNAPSHOT</title>
             <rect class="node-box good" x="60" y="320" width="460" height="76" rx="8"></rect>
-            <text class="node-title" x="290" y="342" text-anchor="middle" style="font-size:11.5px">4. CodeServiceGenerationExecutor</text>
-            <text class="node-sub" text-anchor="middle" style="font-size:8px"><tspan x="290" y="357">3-way(Base·Current·New) Region 병합 · GenerationOwnershipManifest</tspan><tspan x="290" y="370">→ ApprovedProjectWritePort 저장 → AI_CRUD_GENERATION_SNAPSHOT(+14.1절)</tspan></text>
+            <text class="node-title" x="290" y="342" text-anchor="middle" style="font-size:12.5px">4. CodeServiceGenerationExecutor</text>
+            <text class="node-sub" text-anchor="middle" style="font-size:9.5px"><tspan x="290" y="357">3-way(Base·Current·New) Region 병합 · GenerationOwnershipManifest</tspan><tspan x="290" y="370">→ ApprovedProjectWritePort 저장 → AI_CRUD_GENERATION_SNAPSHOT(+14.1절)</tspan></text>
           </g>
 
           <g><title>5. CodeTemplateTool — .ftl 원문 반환(디버깅·확인용)</title>
             <rect class="node-box" x="660" y="140" width="460" height="46" rx="8"></rect>
-            <text class="node-title" x="890" y="168" text-anchor="middle" style="font-size:11.5px">5. CodeTemplateTool(.ftl 원문 반환)</text>
+            <text class="node-title" x="890" y="168" text-anchor="middle" style="font-size:12.5px">5. CodeTemplateTool(.ftl 원문 반환)</text>
           </g>
           <path class="edge" marker-end="url(#arrow17b)" d="M890,186 L890,200"></path>
 
           <g><title>6. Claude Desktop이 프롬프트를 읽고 직접 코드 작성</title>
             <rect class="node-box" x="660" y="200" width="460" height="46" rx="8"></rect>
-            <text class="node-title" x="890" y="228" text-anchor="middle" style="font-size:11.5px">6. Claude Desktop(직접 코드 작성)</text>
+            <text class="node-title" x="890" y="228" text-anchor="middle" style="font-size:12.5px">6. Claude Desktop(직접 코드 작성)</text>
           </g>
           <path class="edge" marker-end="url(#arrow17b)" d="M890,246 L890,260"></path>
 
           <g><title>7. CodeSaverTool.saveCode() — 별도 저장, ApprovedProjectWritePort 미사용</title>
             <rect class="node-box" x="660" y="260" width="460" height="56" rx="8"></rect>
-            <text class="node-title" x="890" y="284" text-anchor="middle" style="font-size:11.5px">7. CodeSaverTool.saveCode()</text>
-            <text class="node-sub" x="890" y="300" text-anchor="middle" style="font-size:8px">별도 저장 — ApprovedProjectWritePort 미사용</text>
+            <text class="node-title" x="890" y="284" text-anchor="middle" style="font-size:12.5px">7. CodeSaverTool.saveCode()</text>
+            <text class="node-sub" x="890" y="300" text-anchor="middle" style="font-size:9.5px">별도 저장 — ApprovedProjectWritePort 미사용</text>
           </g>
         </svg>
       </div>
@@ -3410,6 +3458,31 @@
           결론)가 구조적으로 드러납니다 — 17.1은 파일 전체 단위·명시적 해시 승인·소스 리더 3종의
           증거 조립이 핵심이고, 이 다이어그램은 Region 단위 3-way 병합·자동 승인·DB 스키마 단일
           입력이 핵심이라 서로 겹치는 부분이 파일 쓰기 Port 하나뿐입니다.
+        </p>
+      </figcaption>
+      <figcaption style="margin-top:14px">
+        <b>auto vs claude 비교</b> — 근본 차이는 "서버가 파일을 쓰느냐, 사람(Claude)이 쓰느냐"
+        하나이고, 이 한 가지 차이가 아래 표의 나머지 전부로 연쇄됩니다.
+        <div class="data-table-wrap" style="margin-top:10px">
+          <table class="data-table">
+            <thead>
+              <tr><th>항목</th><th>auto</th><th>claude</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>실행 주체</td><td>서버가 <code>CrudGenerationRenderer</code>(내부 <code>CrudTemplateRenderer</code>)로 직접 렌더링</td><td><code>CodeTemplateTool</code>이 <code>.ftl</code> 원문만 반환 — Claude Desktop이 직접 작성</td></tr>
+              <tr><td>파일 저장</td><td><code>CodeServiceGenerationExecutor</code> → <code>ApprovedProjectWritePort</code>로 서버가 즉시 저장</td><td>서버는 저장 안 함 — <code>CodeSaverTool.saveCode()</code>를 Claude가 별도 호출해야 함</td></tr>
+              <tr><td>기존 사용자 수정 보호</td><td>3-way(Base·Current·New) Region 병합 + <code>GenerationOwnershipManifest</code>로 재생성 시 충돌 자동 감지</td><td>⚠️ 없음 — <code>CodeServiceGenerationExecutor</code>를 거치지 않아 재생성 시 덮어써도 서버가 감지 못함</td></tr>
+              <tr><td>고위험 테이블 게이트</td><td><code>CrudGenerationApprovalPolicy</code>(<code>CrudGenerationApplicationService</code>가 호출) — 고위험 테이블은 승인된 명세 없이 차단</td><td>⚠️ <b>없음</b> — 이 게이트의 유일한 호출처가 auto 구현체뿐이라 claude 구현체(<code>CrudPromptGenerationService</code>)는 아예 거치지 않음</td></tr>
+              <tr><td>승인 방식</td><td><code>AUTOMATED_OWNERSHIP_CHECK</code>(자동, 고위험 테이블만 예외)</td><td>서버 측 승인 상태 머신 없음 — Claude와의 대화 안에서 사람이 암묵적으로 확인</td></tr>
+              <tr><td>이력·감사 기록</td><td><code>AI_CRUD_GENERATION_SNAPSHOT</code>+<code>AI_GENERATION_OPERATION_AUDIT</code>/<code>_VALIDATION_EVIDENCE</code>(14.1절 투영 대상)</td><td>⚠️ 없음 — <code>CodeServiceGenerationExecutor</code> 미경유로 Dual Pipeline Common Control Plane 조회·감사 대상에서 빠짐</td></tr>
+              <tr><td>DESIGN.md/KRDS 반영</td><td colspan="2" style="text-align:center">둘 다 없음(공통점) — <code>KrdsStylesConfigurer</code>는 하드코딩 CSS만 patch</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin:12px 0 0">
+          auto 경로는 자동화 대가로 3중 보호(Region 병합·조건부 승인 게이트·감사 이력)를 갖췄지만,
+          claude 경로는 이 셋 중 어느 것도 시스템 차원에서 작동하지 않습니다. 특히 <b>고위험 테이블
+          게이트가 claude 경로에는 없다</b>는 점은 두 경로 사이의 실질적인 안전성 격차입니다.
         </p>
       </figcaption>
     </figure>

@@ -11,8 +11,12 @@ import com.krdevops.springai.model.design.SearchPanelPlacement;
 import com.krdevops.springai.model.design.UiDesignSpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -192,6 +196,54 @@ class CrudPromptBuilderServiceTest {
                 .contains("krds-*/egov-* 클래스 체계")
                 .contains("고정 px width/height로 옮기면 반응형이 깨집니다")
                 .contains("krds-table-wrap의 767px 이하 모바일 대응");
+    }
+
+    @Test
+    void buildFullCrudPrompt_withoutKrdsAssets_prependsWarning(@TempDir Path outputPath) {
+        String result = service.buildFullCrudPrompt(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp",
+                outputPath.toString(), "5.0", "thymeleaf");
+
+        assertThat(result).startsWith("""
+                ⚠️ 이 프로젝트에 _ds_bundle.css/krds.min.js가 없습니다.
+                   코드 생성 전에 ProjectInitializrTool.initializeProject()를 먼저 실행하세요.
+
+                === eGovFrame 5.x CRUD 전체 소스 생성 지시 ===
+                """);
+    }
+
+    @Test
+    void buildFullCrudPrompt_withWarKrdsAssets_doesNotAddWarning(@TempDir Path outputPath)
+            throws IOException {
+        createAsset(outputPath, "src/main/webapp/resources/css/_ds_bundle.css");
+        createAsset(outputPath, "src/main/webapp/resources/js/krds.min.js");
+
+        String result = service.buildFullCrudPrompt(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp",
+                outputPath.toString(), "5.0", "thymeleaf");
+
+        assertThat(result).startsWith("=== eGovFrame 5.x CRUD 전체 소스 생성 지시 ===")
+                .doesNotContain("⚠️ 이 프로젝트에 _ds_bundle.css/krds.min.js가 없습니다.");
+    }
+
+    @Test
+    void buildFullCrudPrompt_withBootKrdsAssets_doesNotAddWarning(@TempDir Path outputPath)
+            throws IOException {
+        createAsset(outputPath, "src/main/resources/static/resources/css/_ds_bundle.css");
+        createAsset(outputPath, "src/main/resources/static/resources/js/krds.min.js");
+
+        String result = service.buildFullCrudPrompt(
+                "com", "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp",
+                outputPath.toString(), "5.0", "thymeleaf");
+
+        assertThat(result).startsWith("=== eGovFrame 5.x CRUD 전체 소스 생성 지시 ===")
+                .doesNotContain("⚠️ 이 프로젝트에 _ds_bundle.css/krds.min.js가 없습니다.");
+    }
+
+    private static void createAsset(Path root, String relativePath) throws IOException {
+        Path asset = root.resolve(relativePath);
+        Files.createDirectories(asset.getParent());
+        Files.createFile(asset);
     }
 
     private static List<Map<String, Object>> fakeColumns() {

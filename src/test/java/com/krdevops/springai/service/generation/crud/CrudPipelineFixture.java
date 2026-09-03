@@ -29,6 +29,9 @@ import com.krdevops.springai.service.write.ApplyOutcome;
 import com.krdevops.springai.service.write.ApprovedProjectWritePort;
 import org.mockito.stubbing.Answer;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -77,6 +80,7 @@ public final class CrudPipelineFixture {
                 new CrudGenerationRenderer(crudTemplateRenderer),
                 new CodeServiceGenerationExecutor(codeService, writePort),
                 new GenerationProcessorRunner(List.of(
+                        new KrdsAssetVerificationProcessor(),
                         new CrudTableDensityCssProcessor(krdsStylesConfigurer),
                         new CrudFormColumnCssProcessor(krdsStylesConfigurer),
                         new CrudEntryPointProcessor(warEntryPointConfigurer),
@@ -93,6 +97,23 @@ public final class CrudPipelineFixture {
     /** mock된 {@link ApprovedProjectWritePort#apply}가 항상 전체 성공한 것처럼 응답하게 한다. */
     public static Answer<ApplyOutcome> alwaysSucceeds() {
         return failingPaths(path -> false, null);
+    }
+
+    /** 테스트 프로젝트를 KRDS 원본 자산이 완비된 WAR fixture로 만든다. */
+    public static void createWarKrdsAssets(Path projectRoot) {
+        try {
+            createAsset(projectRoot.resolve("src/main/webapp/resources/css/_ds_bundle.css"));
+            createAsset(projectRoot.resolve("src/main/webapp/resources/js/krds.min.js"));
+        } catch (IOException e) {
+            throw new IllegalStateException("KRDS 테스트 자산 생성 실패: " + projectRoot, e);
+        }
+    }
+
+    private static void createAsset(Path asset) throws IOException {
+        Files.createDirectories(asset.getParent());
+        if (Files.notExists(asset)) {
+            Files.createFile(asset);
+        }
     }
 
     /**
