@@ -90,6 +90,11 @@ public final class CrudPipelineFixture {
                                 krdsStylesConfigurer),
                         new CrudTableDensityCssProcessor(krdsStylesConfigurer),
                         new CrudFormColumnCssProcessor(krdsStylesConfigurer),
+                        new CrudComponentFragmentProcessor(
+                                new com.krdevops.springai.service.designsystem.KrdsComponentFragmentWriter(
+                                        codeService, writePort,
+                                        new com.krdevops.springai.service.contract.OperationHashFactory(
+                                                new com.fasterxml.jackson.databind.ObjectMapper()))),
                         new CrudEntryPointProcessor(warEntryPointConfigurer,
                                 new com.krdevops.springai.service.generation.layout.ProjectTypeDetector()),
                         new ThymeleafRuntimeProcessor(thymeleafRuntimeConfigurer),

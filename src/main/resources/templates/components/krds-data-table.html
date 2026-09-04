@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  KRDS Data table fragment (목록 화면). thymeleafFragment: "components/krds-data-table :: dataTable"
+  columns: [{name, label}]   rows: List<Map|VO>   emptyText: 빈 목록 문구
+  variant: KRDS 표 유형 (basic 고정 — 목록 표는 구조 고정)
+-->
+<div th:fragment="dataTable(columns, rows, emptyText, variant)" class="krds-table-wrap">
+  <table th:class="'tbl data ' + (${variant} ?: 'basic')">
+    <thead>
+      <tr><th th:each="col : ${columns}" scope="col" th:text="${col.label}"></th></tr>
+    </thead>
+    <tbody>
+      <tr th:if="${#lists.isEmpty(rows)}">
+        <td th:colspan="${#lists.size(columns)}" th:text="${emptyText} ?: '데이터가 없습니다.'"></td>
+      </tr>
+      <tr th:each="row : ${rows}">
+        <td th:each="col : ${columns}" th:text="${row[col.name]} ?: '-'"></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

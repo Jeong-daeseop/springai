@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  KRDS Text input fragment. thymeleafFragment: "components/krds-text-input :: textInput"
+  size: small | medium | large   state: is-error | is-success (null=default)
+  이 fragment는 상위 form의 th:object 컨텍스트를 상속한다. path=자바 필드명.
+-->
+<div th:fragment="textInput(path, label, size, state, placeholder, maxlength, required)" class="krds-form-group">
+  <label th:for="${path}" class="krds-form-label">
+    <span th:text="${label}">항목</span><span th:if="${required}" class="egov-required-mark">*</span>
+  </label>
+  <input type="text" th:id="${path}" th:name="${path}" th:field="*{__${path}__}"
+         th:class="'krds-input ' + (${size} ?: 'medium') + (${state} != null ? ' ' + ${state} : '') + ' egov-control'"
+         th:placeholder="${placeholder}" th:maxlength="${maxlength}"/>
+  <p th:if="${#fields.hasErrors('__${path}__')}" class="krds-form-hint is-error" th:errors="*{__${path}__}"></p>
+</div>
+</body>
+</html>

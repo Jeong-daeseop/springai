@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  KRDS Date input fragment. thymeleafFragment: "components/krds-date-input :: dateInput"
+  KRDS date-input은 .calendar-input + .form-btn-datepicker 계열(krds-input 아님).
+  mode: single | period
+-->
+<div th:fragment="dateInput(path, label, mode, required)" class="form-group">
+  <span class="form-tit">
+    <span th:text="${label}">날짜</span><span th:if="${required}" class="egov-required-mark">*</span>
+  </span>
+  <th:block th:if="${mode} == null or ${mode} == 'single'">
+    <input type="text" class="calendar-input" th:id="${path}" th:name="${path}"
+           th:field="*{__${path}__}" placeholder="YYYY-MM-DD"/>
+    <button type="button" class="form-btn-datepicker" aria-label="날짜 선택"></button>
+  </th:block>
+  <th:block th:if="${mode} == 'period'">
+    <input type="text" class="calendar-input" th:name="${path} + 'From'" placeholder="시작일"/>
+    <span> ~ </span>
+    <input type="text" class="calendar-input" th:name="${path} + 'To'" placeholder="종료일"/>
+  </th:block>
+  <p class="form-hint">YYYY-MM-DD 형식으로 입력하세요.</p>
+</div>
+</body>
+</html>

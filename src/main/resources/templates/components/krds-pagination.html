@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  KRDS Pagination fragment. thymeleafFragment: "components/krds-pagination :: pagination"
+  paginationInfo: eGovFrame PaginationInfo (currentPageNo, firstPageNoOnPageList,
+                  lastPageNoOnPageList, totalPageCount, ...)
+  linkUrl: 페이지 이동 기본 경로. ?pageIndex=N 파라미터가 덧붙는다.
+  variant: KRDS 페이지네이션 유형 (pc | mobile, 기본 pc)
+-->
+<nav th:fragment="pagination(paginationInfo, linkUrl, variant)"
+     th:class="'krds-pagination ' + (${variant} ?: 'pc')" aria-label="페이지 탐색">
+  <ul class="page-navi">
+    <li class="prev">
+      <a class="page-link"
+         th:classappend="${paginationInfo.currentPageNo <= 1} ? ' is-disabled'"
+         th:href="${paginationInfo.currentPageNo <= 1} ? '#' : @{${linkUrl}(pageIndex=${paginationInfo.currentPageNo - 1})}"
+         aria-label="이전 페이지">이전</a>
+    </li>
+    <li th:each="pageNo : ${#numbers.sequence(paginationInfo.firstPageNoOnPageList, paginationInfo.lastPageNoOnPageList)}"
+        th:classappend="${pageNo == paginationInfo.currentPageNo} ? ' is-current'">
+      <span th:if="${pageNo == paginationInfo.currentPageNo}" class="page-link link-dot" aria-current="page"
+            th:text="${pageNo}"></span>
+      <a th:unless="${pageNo == paginationInfo.currentPageNo}" class="page-link"
+         th:href="@{${linkUrl}(pageIndex=${pageNo})}" th:text="${pageNo}"></a>
+    </li>
+    <li class="next">
+      <a class="page-link"
+         th:classappend="${paginationInfo.currentPageNo >= paginationInfo.totalPageCount} ? ' is-disabled'"
+         th:href="${paginationInfo.currentPageNo >= paginationInfo.totalPageCount} ? '#' : @{${linkUrl}(pageIndex=${paginationInfo.currentPageNo + 1})}"
+         aria-label="다음 페이지">다음</a>
+    </li>
+  </ul>
+</nav>
+</body>
+</html>

@@ -369,6 +369,8 @@ public class CrudGenerationPlanner {
                         GenerationStage.PRE_WRITE, 100, FailurePolicy.STOP),
                 new ProcessorStep(CrudFormColumnCssProcessor.ID,
                         GenerationStage.PRE_WRITE, 110, FailurePolicy.STOP),
+                new ProcessorStep(CrudComponentFragmentProcessor.ID,
+                        GenerationStage.PRE_WRITE, 115, FailurePolicy.STOP),
                 new ProcessorStep(CrudEntryPointProcessor.ID,
                         GenerationStage.POST_WRITE, 100, FailurePolicy.CONTINUE),
                 new ProcessorStep(SharedProcessorIds.THYMELEAF_RUNTIME,

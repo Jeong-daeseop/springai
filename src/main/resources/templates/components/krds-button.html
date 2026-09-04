@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!--
+  KRDS Button fragment. thymeleafFragment: "components/krds-button :: button"
+  variant: primary | secondary | tertiary   size: xsmall | small | medium | large | xlarge
+-->
+<button th:fragment="button(label, variant, size, buttonType)"
+        th:type="${buttonType} ?: 'button'"
+        th:class="'krds-btn ' + (${variant} ?: 'primary') + ' ' + (${size} ?: 'medium') + ' egov-btn'"
+        th:text="${label} ?: '버튼'">버튼</button>
+</body>
+</html>
