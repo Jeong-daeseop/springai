@@ -152,18 +152,26 @@ KRDS Figma 컴포넌트는 **영문 PascalCase variant 속성명 + 소문자 값
 
 → `DesignCodeComponentMapping.propertyMappings[].figmaProperty`에 이 속성명을 그대로 사용.
 
-### B2 draft 매핑표 (variant 축은 규칙 기반 추정 — 구현 시 `get_design_context`로 확정)
+### B2 매핑표 (KRDS 공식 문서 krds.go.kr 확인, 2026-09-04)
 
-| logicalType | figmaComponentSetKey | 추정 variant 축 | eGov 대상 마크업(초안) |
-|---|---|---|---|
-| `button` | `104d078e1895f788a91cfc8c42073fe6bc85e77a` | `Type`(primary/secondary/…), `Size`(large/medium/small), `State` | `<button class="krds-btn {Color} {Size} egov-btn">` |
-| `text-input` | `e2643d821fe50580f30fd5d0378ad7e486543da6` | `Size`, `State`(default/error/disabled/readonly) | `<input type="text" class="krds-input {Size} egov-control">` |
-| `select` | `69ac27b250e29b249f408e70a7f72f6422206d66` | `Size`, `State` | `<select class="krds-select {Size} egov-control">` |
-| `date-input` | `91e9276f499af0a7b06d94e514e40324fe66172a` | `Type`(single/period), `Size`, `State` | `<input type="text" class="krds-input {Size} egov-control" data-role="datepicker">` |
-| `data-table` | `194a582dc105671593355376a992d90ab42ca7ce` | `Type`, `Size`(밀도) | `<table class="tbl data">` (목록) |
-| `pagination` | `a786257623cc432e95c4dbaa80cd56741d2a753d` | (원자 컴포넌트 — 페이지 항목 상태) | 페이징 프래그먼트 (PaginationInfo 연동) |
+| logicalType | figmaComponentSetKey | KRDS base 클래스 | Size | State | 변형(variant) | KRDS 문서 |
+|---|---|---|---|---|---|---|
+| `button` | `104d078e1895f788a91cfc8c42073fe6bc85e77a` | `.krds-btn` | `.xsmall .small .medium .large .xlarge` | (disabled) | 색상 `.primary .secondary .tertiary` / `.text` / `.icon` / `.icon.border` | component_05_02 |
+| `text-input` | `e2643d821fe50580f30fd5d0378ad7e486543da6` | `.krds-input` | `.small .medium .large` | `.is-error .is-success` (+focus/disabled) | label·help·placeholder·아이콘버튼(pw토글/삭제) | component_09_03 |
+| `select` | `69ac27b250e29b249f408e70a7f72f6422206d66` | **`.krds-form-select`** | `.small .medium .large` | `.completed .is-error` (+disabled) | — | component_06_03 |
+| `date-input` | `91e9276f499af0a7b06d94e514e40324fe66172a` | `.form-group`/`.form-tit`/**`.calendar-input`**/`.form-btn-datepicker`/`.form-hint` | — | (disabled) | 단일 / 기간(입력필드 2개) / 연·월·일 분리 / 달력아이콘 유무 | component_09_01 |
+| `data-table` | `194a582dc105671593355376a992d90ab42ca7ce` | `.krds-table-wrap` + `.tbl` | — | — | 기본형/스크롤형(헤더고정)/반응형, 정렬버튼, 빈값 `-` | component_04_11 |
+| `pagination` | `a786257623cc432e95c4dbaa80cd56741d2a753d` | `.krds-pagination` | — | `.disabled` | PC/모바일, `.page-navi.prev/.next`, `.page-link`, `.link-dot` | component_03_06 |
 
-**확정 필요 (B3 착수 시)**: 각 컴포넌트의 실제 variant 축·값 — KRDS 파일의 해당 컴포넌트 페이지에 `get_metadata`(nodeId 필요) 또는 실제 예제 화면에서 `get_design_context`. 현재 파일 페이지 목록이 5개로 잘려 컴포넌트 페이지 직접 접근 불가 → 컴포넌트별 node-id URL을 사용자가 제공하거나, KRDS 공식 문서(krds.go.kr) 병행 참조.
+**⚠️ 현재 eGov 생성 코드 ↔ KRDS 실제 클래스 불일치 (B3에서 정합 필요)**
+| eGov 생성기가 내는 것 | KRDS 실제 | 조치 |
+|---|---|---|
+| `krds-btn negative` (삭제 버튼) | KRDS엔 `negative` 없음 — `primary/secondary/tertiary`뿐 | B3에서 `secondary` 또는 커스텀 확장 유지 결정 |
+| `krds-select` | `krds-form-select` | 템플릿 클래스 교체 검토 |
+| `krds-input medium egov-control` | `krds-input` + `.medium` ✓ (일치) | 유지 |
+| 날짜 필드도 `<input class="krds-input">` | KRDS date-input은 `.calendar-input` + `.form-btn-datepicker` 별도 계열 | B3에서 date logicalType 감지 시 다른 fragment |
+
+**variant 축(Figma) → propertyMappings**: `button`은 Figma `Color`(primary/…)·`Size`(large/…)·`State`, 나머지는 `Size`·`State` 중심. Figma 인스턴스명 규칙 `Type=…, Color=…, State=…, Size=…` (Badge에서 확인). 정확한 축은 각 컴포넌트 node-id URL로 `get_design_context` 시 최종 확정.
 
 ## B3. CRUD 템플릿이 `designComponents` 소비
 
