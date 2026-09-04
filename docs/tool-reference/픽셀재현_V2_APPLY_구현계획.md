@@ -2,7 +2,7 @@
 
 > 작성일: 2026-09-04
 > 관련: `docs/tool-reference/픽셀재현_V2_APPLY_뒷단_완성_필요항목.md` (필요 항목 개요), `docs/tool-reference/V2_APPLY_디자인제시_구현요청_처리방안_검토.md`
-> 전제: 서버 `app.pipeline-evolution.mode`는 현재 `V2_PREVIEW` (`application.yaml:122`, 2026-09-04 로컬 롤백)
+> 전제: 서버 `app.pipeline-evolution.mode` 기본값 `V2_APPLY` (`application.yaml`, 2026-09-04 B5 복원). `APP_PIPELINE_EVOLUTION_MODE=V2_PREVIEW`로 낮추면 디자인 참조 없는 순수 스키마 Thymeleaf CRUD 생성 가능.
 
 ---
 
@@ -337,7 +337,19 @@ mappings: `@paginationInfo`/`@linkUrl`(req:false) — 전부 바인딩. eGovFram
 
 ## B5. 모드 전환
 
-- `application.yaml:122` `${APP_PIPELINE_EVOLUTION_MODE:V2_PREVIEW}` → `:V2_APPLY` 복원. Phase A·B 전부 완료 + 전체 테스트 통과 후.
+- `application.yaml` `${APP_PIPELINE_EVOLUTION_MODE:V2_PREVIEW}` → `:V2_APPLY` 복원. Phase A·B 전부 완료 + 전체 테스트 통과 후.
+
+### B5 구현 완료 (2026-09-04)
+
+**변경**: `application.yaml`의 `pipeline-evolution.mode` 기본값 `V2_PREVIEW` → `V2_APPLY`. 롤백 주석(`c884107`)을 "B5 복원" 주석으로 교체 — 이 모드에서 Thymeleaf CRUD 생성은 `designReferenceId`/`screenSpecificationId`(승인 화면명세)가 필요하고, 순수 스키마 생성만 하려면 `APP_PIPELINE_EVOLUTION_MODE=V2_PREVIEW`로 낮춘다는 안내 포함.
+
+**V2_APPLY 시맨틱(의도된 정책, 버그 아님)**:
+- 디자인 참조 없는 Thymeleaf CRUD 생성 → `CrudGenerationPlanner`가 DB 조회 전 `MAPPING_BLOCKED`로 reject + `analyzeFigmaReference`→`createScreenSpecification`→retry 안내(`CrudGenerationPlannerMigrationGuardTest.v2ApplyModeBlocksThymeleafGenerationWithoutDesignReference`).
+- `screenSpecificationId`(APPROVED) 있으면 게이트 통과 → 이후 A1(아티팩트 참조 검증) → B4(`RequiredComponentMappingApplyGate`) → B3(fragment 소비) 경로.
+- **JSP CRUD 생성은 영향 없음**(`RequiredComponentMappingApplyGate` 대상 아님, `v2ApplyModeDoesNotAffectJspGenerationWithoutDesignReference`).
+- 디자인 참조 **없이** Thymeleaf를 쓰려면 env로 `V2_PREVIEW` 지정.
+
+**검증**: 전체 `./gradlew test` — 2062건 통과, 0 실패(17 skipped). V2_APPLY 민감 경로(`CrudGenerationPlannerMigrationGuardTest`, `RequiredComponentMappingApplyGate*Test`, `GenerationDesignContextArtifactGateTest` 등)는 모두 모드를 명시 설정하므로 기본값 전환 영향 없음. `PipelineEvolutionPropertiesTest`는 Java 기본값(`DISABLED`)만 검사(yaml 무관).
 
 ---
 

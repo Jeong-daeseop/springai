@@ -118,12 +118,14 @@ chat:
 app:
   # 5축 파이프라인은 신규 Apply(V2_APPLY)를 기본 활성화한다. 장애·롤백 시
   # APP_PIPELINE_EVOLUTION_MODE=V2_PREVIEW 또는 DUAL_READ를 명시해 단계적으로 낮출 수 있다.
-  # [로컬 롤백 2026-09-04] V2_APPLY 디자인 명세 생성 경로(createFromV2 배선 + thymeleaf-krds
-  # 컴포넌트 매핑 시드)가 CRUD 생성기에 아직 연결되지 않아 buildFullCrudPrompt(Thymeleaf)가
-  # 항상 차단됨. 해당 배선 완료 시 기본값을 V2_APPLY로 되돌릴 것.
-  # 근거: docs/tool-reference/V2_APPLY_디자인제시_구현요청_처리방안_검토.md
+  # [B5 복원 2026-09-04] 픽셀 재현 뒷단(A1 createFromV2 배선/해시 규약 + B1 componentRef
+  # 추출 + B2 thymeleaf-krds 컴포넌트 매핑 6종 시드 + B3 fragment 소비 + B4 Apply Gate 통합
+  # 테스트)이 완료되어 기본값을 V2_APPLY로 되돌린다. 이 모드에서 Thymeleaf CRUD 생성은
+  # designReferenceId/screenSpecificationId(승인 화면명세)가 필요하다 — 순수 스키마 생성만
+  # 하려면 APP_PIPELINE_EVOLUTION_MODE=V2_PREVIEW로 낮춘다.
+  # 근거: docs/tool-reference/픽셀재현_V2_APPLY_구현계획.md (B5)
   pipeline-evolution:
-    mode: ${APP_PIPELINE_EVOLUTION_MODE:V2_PREVIEW}
+    mode: ${APP_PIPELINE_EVOLUTION_MODE:V2_APPLY}
     # 이 값 미만의 필수 시각 추론은 자동 승인하지 않는다.
     auto-approval-confidence-threshold: ${APP_PIPELINE_AUTO_APPROVAL_CONFIDENCE_THRESHOLD:0.85}
     # 이 값 미만은 원본 Evidence가 있어도 증거 품질 부족으로 Apply를 차단한다.
