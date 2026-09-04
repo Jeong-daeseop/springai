@@ -195,6 +195,118 @@ rendererProfile, sourceRevision, contentHash
 2. fragment 삽입 방식 — `thymeleafFragment`가 Thymeleaf `th:fragment` 정의면 생성 HTML에서 `th:replace`로 부르고, 그 fragment 파일도 프로젝트에 생성해야 함. 아니면 FTL이 fragment 문자열을 그대로 인라인 출력.
 3. `propertyMappings` 적용 — Figma variant 값(예: size=medium)을 fragment 파라미터로 어떻게 전달.
 
+---
+
+### B3 fragment 라이브러리 (2026-09-04 작성 — KRDS 문서 기반)
+
+#### `thymeleafFragment` 계약 (`ThymeleafFragmentContractValidator` 확인)
+
+- 형식: **`"<templates 상대경로> :: <fragmentName>"`** — 정적만(`${}` `~{}` `@{}` 등 금지), 경로 `[A-Za-z0-9_./-]`(`.html` 생략 가능, `..` 금지), 이름 `[A-Za-z_][A-Za-z0-9_-]*`
+- 대상 프로젝트의 `src/main/resources/templates/<경로>.html`(또는 WAR `src/main/webapp/WEB-INF/templates/...`)에 파일이 **정확히 1개** 존재해야 함
+- 그 파일에 `th:fragment="<이름>(p1, p2, ...)"` 선언이 정확히 1개, **파라미터 목록 = `propertyMappings[].fragmentParameter` ∪ `slotMappings[].fragmentSlot` (완전 일치)**
+- → fragment 파일은 대상 프로젝트에 **생성 산출물**로 넣어야 함. `generateThymeleafLayout`에 `templates/components/krds-*.html` 생성 단계 추가 (신규 B3 작업).
+
+#### 파라미터 규약
+
+fragment 파라미터는 3부류. 셋 다 `propertyMappings`에 항목이 있어야 검증 통과:
+- **디자인 variant** (`variant`, `size`, `state`): `figmaProperty` = 실제 Figma 속성명(`Type`/`Color`/`Size`/`State` — 아래 표는 KRDS 문서 기준 추정, Figma node-id로 확정 필요), `valueMapping`으로 Figma 값→KRDS 클래스 토큰 변환
+- **바인딩** (`path`, `id`): `figmaProperty` = 합성명(`@path` 등), `required:false` — Figma 소스 없음, CRUD FTL이 필드에서 채움
+- **콘텐츠 슬롯** (`label`, `hint`): `slotMappings` 또는 `propertyMappings`(figmaProperty=`Label` 등 텍스트 속성)
+
+#### 6종 fragment (초안)
+
+**1. `components/krds-button.html :: button`** — params `(label, variant, size, buttonType)`
+```html
+<button th:fragment="button(label, variant, size, buttonType)"
+        th:type="${buttonType}"
+        th:class="'krds-btn ' + ${variant} + ' ' + ${size} + ' egov-btn'"
+        th:text="${label}">버튼</button>
+```
+mappings: `Label`→`label`(slot, default "버튼") · `Type`→`variant`(valueMap: `solid→primary, outline→secondary, text→tertiary`) · `Size`→`size`(valueMap: `xsmall→xsmall … xlarge→xlarge`, default `medium`) · `@buttonType`→`buttonType`(required:false, default `button`)
+비고: KRDS엔 `negative` 없음 → 삭제 버튼은 `variant=secondary` + 별도 확인 클래스(예: `egov-btn-danger`)는 CRUD FTL이 `class`에 추가.
+
+**2. `components/krds-text-input.html :: textInput`** — params `(path, label, size, state, placeholder, maxlength, required)`
+```html
+<div th:fragment="textInput(path, label, size, state, placeholder, maxlength, required)" class="krds-form-group">
+  <label th:for="${path}" class="krds-form-label" th:text="${label}"><span th:if="${required}" class="egov-required-mark">*</span></label>
+  <input type="text" th:id="${path}" th:name="${path}" th:field="*{__${path}__}"
+         th:class="'krds-input ' + ${size} + (${state} != null ? ' ' + ${state} : '') + ' egov-control'"
+         th:placeholder="${placeholder}" th:maxlength="${maxlength}"/>
+  <p th:if="${#fields.hasErrors('__${path}__')}" class="krds-form-hint is-error" th:errors="*{__${path}__}"></p>
+</div>
+```
+mappings: `Size`→`size`(`small/medium/large`, default `medium`) · `State`→`state`(valueMap: `error→is-error, success→is-success`, default null) · `@path`→`path`(req:false) · `Label`→`label`(slot) · `@placeholder`/`@maxlength`/`@required`→동명(req:false)
+비고: `th:field="*{__${path}__}"` = 사전 계산 표현식(preprocessing). CRUD FTL이 `path`에 자바 필드명 전달.
+
+**3. `components/krds-select.html :: select`** — params `(path, label, size, state, options, required)`
+```html
+<div th:fragment="select(path, label, size, state, options, required)" class="krds-form-group">
+  <label th:for="${path}" class="krds-form-label" th:text="${label}"></label>
+  <select th:id="${path}" th:name="${path}" th:field="*{__${path}__}"
+          th:class="'krds-form-select ' + ${size} + (${state} != null ? ' ' + ${state} : '')">
+    <option value="">선택</option>
+    <option th:each="opt : ${options}" th:value="${opt.code}" th:text="${opt.codeNm}"></option>
+  </select>
+</div>
+```
+mappings: `Size`→`size` · `State`→`state`(valueMap: `error→is-error`) · `@path`/`@options`/`@required`(req:false) · `Label`→`label`(slot)
+비고: base 클래스 `krds-form-select` (eGov 생성기의 `krds-select` 아님). `options` = 공통코드 리스트.
+
+**4. `components/krds-date-input.html :: dateInput`** — params `(path, label, mode, required)`
+```html
+<div th:fragment="dateInput(path, label, mode, required)" class="form-group">
+  <span class="form-tit" th:text="${label}"></span>
+  <div th:if="${mode == 'single'}">
+    <input type="text" class="calendar-input" th:id="${path}" th:name="${path}" th:field="*{__${path}__}" placeholder="YYYY-MM-DD"/>
+    <button type="button" class="form-btn-datepicker" aria-label="날짜 선택"></button>
+  </div>
+  <div th:if="${mode == 'period'}">
+    <input type="text" class="calendar-input" th:name="${path} + 'From'" placeholder="시작일"/>
+    <span> ~ </span>
+    <input type="text" class="calendar-input" th:name="${path} + 'To'" placeholder="종료일"/>
+  </div>
+  <p class="form-hint">YYYY-MM-DD 형식</p>
+</div>
+```
+mappings: `Type`→`mode`(valueMap: `single→single, period→period`, default `single`) · `@path`/`@label`/`@required`(req:false)
+비고: KRDS date-input은 `.calendar-input`+`.form-btn-datepicker` 별도 계열(`krds-input` 아님). `mode` 감지는 CRUD FTL이 필드명/타입으로 결정.
+
+**5. `components/krds-data-table.html :: dataTable`** — params `(columns, rows, emptyText)`
+```html
+<div th:fragment="dataTable(columns, rows, emptyText)" class="krds-table-wrap">
+  <table class="tbl data">
+    <thead><tr><th th:each="col : ${columns}" scope="col" th:text="${col.label}"></th></tr></thead>
+    <tbody>
+      <tr th:if="${#lists.isEmpty(rows)}"><td th:colspan="${#lists.size(columns)}" th:text="${emptyText} ?: '데이터가 없습니다.'"></td></tr>
+      <tr th:each="row : ${rows}"><td th:each="col : ${columns}" th:text="${row[col.name]} ?: '-'"></td></tr>
+    </tbody>
+  </table>
+</div>
+```
+mappings: `@columns`/`@rows`/`@emptyText`(req:false) — 전부 바인딩. variant 없음(목록 표는 구조 고정).
+비고: 목록 화면 전용. 상세/등록/수정의 `tbl col` 폼 테이블은 매핑 대상 아님(2단 폼 로직이 담당).
+
+**6. `components/krds-pagination.html :: pagination`** — params `(paginationInfo, linkUrl)`
+```html
+<div th:fragment="pagination(paginationInfo, linkUrl)" class="krds-pagination">
+  <a class="page-navi prev" th:classappend="${paginationInfo.currentPageNo == 1} ? ' disabled'"
+     th:href="@{${linkUrl}(pageIndex=${paginationInfo.currentPageNo - 1})}">이전</a>
+  <a th:each="p : ${#numbers.sequence(paginationInfo.firstPageNoOnPageList, paginationInfo.lastPageNoOnPageList)}"
+     class="page-link" th:classappend="${p == paginationInfo.currentPageNo} ? ' active'"
+     th:href="@{${linkUrl}(pageIndex=${p})}" th:text="${p}"></a>
+  <a class="page-navi next" th:classappend="${paginationInfo.currentPageNo == paginationInfo.totalPageCount} ? ' disabled'"
+     th:href="@{${linkUrl}(pageIndex=${paginationInfo.currentPageNo + 1})}">다음</a>
+</div>
+```
+mappings: `@paginationInfo`/`@linkUrl`(req:false) — 전부 바인딩. eGovFrame `PaginationInfo` 연동.
+
+#### B3 열린 결정
+
+1. **fragment 파일을 대상 프로젝트에 넣는 방법** — `generateThymeleafLayout` 확장(`templates/components/` 6종 생성) vs 신규 `generateComponentFragments` 도구 vs 공유 classpath fragment.
+2. **`figmaProperty` 실제 이름 확정** — 위 mapping의 `Type`/`Color`/`Size`/`State`는 KRDS 문서 기반 추정. 각 컴포넌트 node-id URL로 `get_design_context` 시 확정 필요. 특히 button이 `Type`인지 `Color`인지(Badge는 `Type`+`Color` 둘 다 있었음).
+3. **바인딩 파라미터 처리** — `ComponentPropertyParameterResolver` 확인 결과: `required:false` + `defaultValue:null`이면 값이 null → **결과 `fragmentParameters`에 아예 안 담김**(에러 아님). 검증기(`ThymeleafFragmentContractValidator`)는 propertyMappings에 `fragmentParameter` 항목만 있으면 통과. → **바인딩 파라미터는 propertyMappings에 `required:false` 항목으로 등록(검증 통과용)하고, 실제 값은 CRUD FTL의 `th:replace` 호출부가 채운다.** 디자인 variant(`variant/size/state`)만 Figma에서 해석되어 render input으로 전달.
+4. **`th:field` preprocessing** (`*{__${path}__}`) 가 대상 Thymeleaf 버전에서 동작하는지 검증.
+
 ## B4. 검증 관문 갱신
 
 - B2 대응표 확정 후 `website-figma-contract/renderer-profile-thymeleaf-krds-v1.json`의 `componentMappingVersion` 갱신. `contentHash`는 JSON 필드와 `model/renderer/RendererProfileReference.java:14` `DEFAULT_CONTENT_HASH` 두 곳 동기화.
