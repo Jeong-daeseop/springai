@@ -338,11 +338,30 @@ mappings: `@paginationInfo`/`@linkUrl`(req:false) — 전부 바인딩. eGovFram
 
 ---
 
-## 진행 상태 (2026-09-04)
+## 진행 상태
 
-**결정: Phase A 보류. Phase B 데이터 확보 후 A+B를 함께 진행.**
+### A1 구현 완료 (2026-09-04)
 
-### A1 착수 중 발견 — 계획 대비 규모 증가
+**Phase A(A1) 구현·검증 완료.** 보류했던 결정을 뒤집고 A1을 먼저 진행했다.
+
+**변경 파일**
+| 파일 | 내용 |
+|---|---|
+| **신규** `service/UiDesignSpecV2ArtifactWriter.java` | `UiDesignSpecV2` → `UI_DESIGN_SPEC_V2` Artifact 영속화. `artifactId = spec.specId()`(readV2 ID 검사 만족), `contentHash = sha256(JSON 바이트)`(content-addressed). stage/commit/save 멱등. 반환: content-addressed `VersionedArtifactReference` |
+| `service/ScreenSpecificationService.java` | `createFromV2(..., VersionedArtifactReference designRef, listCols, detailCols)` 오버로드 추가 — 파생 대신 **영속화된 참조를 그대로 고정**. 기존 7-arg 오버로드는 파생 참조로 새 오버로드에 위임(하위 호환, `ScreenSpecificationV2IntegrationTest` 3건 유지) |
+| `service/GenerationDesignContextService.java` | `UiDesignSpecV1ToV2Adapter` + `UiDesignSpecV2ArtifactWriter` 주입(nullable). `resolve()`의 `designReferenceId` 분기에서 **V2_PREVIEW/V2_APPLY일 때만** v1 분석 → v1→v2 어댑터 → writer 영속화 → `createFromV2(designRef)` 경로. DISABLED/OBSERVE/DUAL_READ는 기존 v1 `create()` 유지(마이그레이션 가드 충돌 회피) |
+
+**해시 규약 불일치 해결**: `UiDesignSpecV2.contentHash()` 레코드 필드(원본 입력 해시)는 그대로 두고, 화면명세 참조에는 **저장 아티팩트의 실제 contentHash**(=sha256(JSON))를 쓴다. `createFromV2`가 더 이상 `uiSpec.contentHash()`에서 참조를 파생하지 않음 → content-addressed 저장소와 정합.
+
+**활성화 범위**: v1→v2 어댑터는 `componentRef`를 안 채우므로(§0), V2_APPLY에서 `RequiredComponentMappingApplyGate`가 순회할 componentRef가 0개 → 컴포넌트 대응표 없이 통과. 즉 **A1만으로 V2_APPLY에서 디자인 참조 CRUD 생성이 가능해지지만, 반영 신호는 여전히 archetype+enum+컬럼**(V2_PREVIEW와 동일 다이제스트). 픽셀 재현은 Phase B(B1~B3).
+
+**검증**: `UiDesignSpecV2ArtifactWriterTest`(2, 신규 — specId=artifactId, content-addressed hash, 멱등), `GenerationDesignContextServiceTest`(4, +2 — V2_PREVIEW v2 경로 / DISABLED v1 경로 유지), `GenerationDesignContextArtifactGateTest`(3), `ScreenSpecificationV2IntegrationTest`(3), `ScreenSpecificationServiceTest`(5), `generation.crud.*` / `CrudOrchestrationServiceTest` / `GenerationBaselineFixtureTest` / `RestMcpWorkflowCrossE2ETest` / `designsystem.*` — 총 332건 통과. 전체 `./gradlew test`도 실행.
+
+**남음**: B1(Figma→componentRef), B2 variant 정밀, B3(fragment 파일 생성 + FTL 소비), B4(프로파일 버전), B5(모드 전환).
+
+---
+
+### (이전 기록) A1 착수 중 발견 — 계획 대비 규모 증가
 
 A1 구현에 들어가 실제 아티팩트 영속화·참조 검증 계약을 추적한 결과, **공유 V2 인프라의 contentHash 규약 불일치**를 고쳐야 함이 드러났다:
 

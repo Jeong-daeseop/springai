@@ -83,6 +83,27 @@ public class ScreenSpecificationService {
             String database, String tableName, String screenName, String featureType,
             UiDesignSpecV2 uiSpec, List<String> listColumns, List<String> detailColumns) {
         if (uiSpec == null) throw new IllegalArgumentException("UiDesignSpecV2는 필수입니다.");
+        // 하위 호환: 영속화된 Artifact 참조가 없으면 uiSpec에서 파생한다. content-addressed 저장소에
+        // 실제로 저장하려면 write(uiSpec) 결과 참조를 받는 아래 오버로드를 사용한다.
+        VersionedArtifactReference derivedRef = new VersionedArtifactReference(
+                uiSpec.specId(), "UI_DESIGN_SPEC_V2", uiSpec.schemaVersion(),
+                uiSpec.contentHash(), uiSpec.source().sourceRevision());
+        return createFromV2(database, tableName, screenName, featureType, uiSpec,
+                derivedRef, listColumns, detailColumns);
+    }
+
+    /**
+     * 영속화된 {@code UI_DESIGN_SPEC_V2} Artifact의 실제 참조를 그대로 화면명세에 고정한다.
+     * {@code designRef.contentHash()}는 저장 JSON 바이트의 sha256이어야
+     * ({@code UiDesignSpecV2ArtifactWriter.write} 반환값) 생성 시점 재검증
+     * ({@code DesignContextArtifactReferenceValidator.requireActiveExact})을 통과한다.
+     */
+    public ScreenSpecification createFromV2(
+            String database, String tableName, String screenName, String featureType,
+            UiDesignSpecV2 uiSpec, VersionedArtifactReference designRef,
+            List<String> listColumns, List<String> detailColumns) {
+        if (uiSpec == null) throw new IllegalArgumentException("UiDesignSpecV2는 필수입니다.");
+        if (designRef == null) throw new IllegalArgumentException("designRef는 필수입니다.");
         if (v2Projection == null || v2QualityValidator == null) {
             throw new IllegalStateException("UiDesignSpecV2 생성 의존성이 구성되지 않았습니다.");
         }
@@ -94,9 +115,6 @@ public class ScreenSpecificationService {
         ScreenSpecification specification = assembler.assemble(
                 database, tableName, screenName, featureType, columns,
                 v2Projection.project(uiSpec, featureType), listColumns, detailColumns);
-        VersionedArtifactReference designRef = new VersionedArtifactReference(
-                uiSpec.specId(), "UI_DESIGN_SPEC_V2", uiSpec.schemaVersion(),
-                uiSpec.contentHash(), uiSpec.source().sourceRevision());
         specification = specification.withDesignContext(
                 designRef, uiSpec.designSystemSnapshotRef(), qualityIssues(uiSpec));
         specification = validator.validate(dataBindingResolver.resolve(specification));
