@@ -26,7 +26,8 @@ public record LayoutGenerationResult(
         MyBatisRuntimeConfigurer.ConfigurationResult myBatisResult,
         String egovVersion,
         boolean runtimeSkipped,
-        List<String> runtimeFailures) {
+        List<String> runtimeFailures,
+        String projectType) {
 
     public enum Status { CREATED, PRESERVED, FAILED }
 

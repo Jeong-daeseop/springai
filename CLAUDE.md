@@ -124,7 +124,7 @@ docker start egov-mysql
 |---|---|---|
 | `SchemaReaderTool` | `getTableSchema`, `getTableList` | MySQL 테이블 컬럼·PK·타입 조회 |
 | `CrudPromptBuilderTool` | `buildCrudPrompt` | DB 스키마 → eGovFrame CRUD 프롬프트 조립 |
-| `ThymeleafLayoutTool` | `generateThymeleafLayout` | Thymeleaf 공통 layout 5종 + GNB 동적 메뉴 컴포넌트 4종 생성, servlet-context.xml patch |
+| `ThymeleafLayoutTool` | `generateThymeleafLayout` | Thymeleaf 공통 layout 5종 + GNB 동적 메뉴 컴포넌트 4종 생성, 인터셉터 등록(WAR: servlet-context.xml patch / Boot: WebMvcConfigurer 클래스 생성) |
 | `CodeTemplateTool` | `renderCrudTemplate` | FreeMarker로 Controller/Service/Mapper/VO/JSP 렌더링 |
 | `CodeSaverTool` | `saveCode` | 생성된 소스를 지정 경로에 파일 저장 |
 | `CodeValidatorTool` | `validateCode` | 생성 코드 구문·규칙 검증 |
@@ -148,7 +148,7 @@ docker start egov-mysql
 | Tool 클래스 | 기능 |
 |---|---|
 | `EmployeeTool` | COMTNEMPLYRINFO CRUD (직원 관리) |
-| `MenuTool` | COMTNMENUINFO 메뉴 등록 |
+| `MenuTool` | LETTNMENUINFO/LETTNPROGRMLIST 메뉴·프로그램 등록 SQL 생성 |
 | `AuthTool` | 인증·권한 설정 |
 | `CommonCodeTool` | 공통코드 조회 |
 | `SqlTool` | DB 방언별 SQL 생성 |
@@ -174,17 +174,23 @@ docker start egov-mysql
 
 `CrudPromptBuilderTool`의 Thymeleaf 생성(`buildFullCrudPrompt`/`buildBoardFeature`/`buildMasterDetailPrompt`)은 `layoutMode=reuse`가 기본값이라 화면 생성 시 layout 파일을 다시 만들지 않습니다. **신규 프로젝트에서는 반드시 `generateThymeleafLayout()`을 먼저 호출**해 layout 5종(`default.html`/`gnb.html`/`lnb.html`/`breadcrumb.html`/`footer.html`)을 준비하세요.
 
-**GNB(상단 메뉴)는 이제 `COMTNMENUINFO`(`UPPER_MENU_NO=0`) + `COMTNPROGRMLIST` 조인 기반으로 매 요청마다 동적 렌더링됩니다.** `generateThymeleafLayout()`이 layout 5종과 함께 GNB 메뉴 컴포넌트 4종(`GnbMenuVO.java`, `GnbMenuMapper.java`/`.xml`, `EgovGnbMenuInterceptor.java`)을 `{packageName}.cmm.*`에 생성하고, WAR 프로젝트의 `servlet-context.xml`에 인터셉터 등록 블록을 자동 patch합니다(이미 등록되어 있으면 skip).
+**GNB(상단 메뉴)는 이제 `LETTNMENUINFO`(`UPPER_MENU_NO=0`) + `LETTNPROGRMLIST` 조인 기반으로 매 요청마다 동적 렌더링됩니다**(테이블명은 `menuTableName`/`programTableName`으로 변경 가능, 기본값이 `LETTN*`). `generateThymeleafLayout()`이 layout 5종과 함께 GNB 메뉴 컴포넌트 4종(`GnbMenuVO.java`, `GnbMenuMapper.java`/`.xml`, `EgovGnbMenuInterceptor.java`)을 `{packageName}.cmm.*`에 생성하고, WAR 프로젝트의 `servlet-context.xml`에 인터셉터 등록 블록을 자동 patch합니다(이미 등록되어 있으면 skip).
 
 **`packageName`은 사실상 필수입니다** — `initializeProject()`에 전달했던 packageName과 반드시 동일해야 합니다. 다르면 `EgovGnbMenuInterceptor`가 실제 CRUD 패키지와 어긋난 위치에 생성되어 동작하지 않습니다(생략 시 `egovframework.let.sample` 기본값 + 경고 문구가 반환되지만, 실제 프로젝트에서는 반드시 명시하세요).
 
-**1차 구현 제약**: WAR 프로젝트만 지원(Boot는 `servlet-context.xml` 자체가 없어 인터셉터 등록 불가 — `WebMvcConfigurer` 방식은 후속 과제), Jakarta Servlet(eGovFrame 5.0)만 지원(4.3/javax는 미지원). 메뉴 트리(`COMTNMENUINFO`) 등록은 `MenuTool.generateMenuInsertSql()`로 별도 수동 실행이 필요합니다(자동 INSERT 안 함).
+**구현 제약**: WAR와 Boot 모두 지원합니다 — 프로젝트 구조(`web.xml` 존재 → WAR / `application.yml` 존재 → Boot)를 감지해 WAR는 `servlet-context.xml`에 `<mvc:interceptors>`를 patch하고, Boot는 `{packageName}.config.EgovWebMvcConfig`(`WebMvcConfigurer`) 클래스를 생성해 인터셉터를 등록합니다(Boot의 MyBatis 배선은 `application.yml` `mybatis.mapper-locations` + `@MapperScan`, ViewResolver는 auto-configuration이 담당). Jakarta Servlet(eGovFrame 5.0)만 지원(4.3/javax는 미지원). 메뉴 트리(`LETTNMENUINFO`) 등록은 `MenuTool.generateMenuInsertSql()`로 별도 수동 실행이 필요합니다(자동 INSERT 안 함). 상세: `docs/crud/thymeleaf-layout-boot-support-plan.md`.
 
 **권장 순서:**
 ```
-1. initializeProject(packageName="egovframework.let.emp", ...)       → 프로젝트 골격 생성
+1. initializeProject(packageName="egovframework.let.emp", viewType="jsp", ...) → 프로젝트 골격 생성
+   ⚠️ Thymeleaf를 쓸 프로젝트여도 initializeProject는 viewType="jsp"(기본값)로 초기화하세요.
+      viewType="thymeleaf"로 초기화하면 정적 GNB가 든 layout 5종/main.html/ViewResolver가 먼저 생기는데,
+      2단계 generateThymeleafLayout()이 이를 어차피 다시 생성합니다(overwriteLayout 기본값 true).
+      중복일 뿐 아니라, 나중에 overwriteLayout=false로 재호출하면 그 정적 gnb.html이 남아 동적 GNB가 깨집니다.
+      viewType="jsp"로 초기화하면 layout 책임이 2단계로 단일화되어 이 위험이 없습니다.
 2. generateThymeleafLayout(outputPath, packageName="egovframework.let.emp")
-   → layout 5종 + GNB 메뉴 컴포넌트 4종 생성 + servlet-context.xml patch (최초 1회)
+   → layout 5종 + GNB 메뉴 컴포넌트 4종 생성 + 인터셉터 등록 (최초 1회)
+     (구조 자동 판정: WAR → servlet-context.xml patch / Boot → EgovWebMvcConfig 클래스 생성)
 3. (선택) analyzeDesignReference(...) → createScreenSpecification(...) → approveScreenSpecification(...)
    → 디자인 목업/스크린샷/PDF가 있을 때만 수행. 상세: 아래 "DesignReferenceTool 사용법"
 4. buildFullCrudPrompt(..., viewType="thymeleaf")                    → layoutMode 기본값(reuse)으로 layout 재사용

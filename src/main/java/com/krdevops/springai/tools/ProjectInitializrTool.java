@@ -65,8 +65,13 @@ public class ProjectInitializrTool {
               outputPath  : 생성 상위 경로         (예: /Users/user/Desktop)
               viewType    : 화면 기술              (선택, 기본값 "jsp")
                             - "jsp"       : 공통 index.jsp + MainController + WEB-INF/jsp/egovframework/main/main.jsp 생성
-                            - "thymeleaf" : MainController + templates/egovframework/main/main.html
-                                            + layout 5종 + 공통 index.jsp + Thymeleaf ViewResolver 생성
+                            - "thymeleaf" : MainController + templates/egovframework/main/main.html + layout 5종 생성
+                                            (WAR: 추가로 index.jsp + servlet-context.xml Thymeleaf ViewResolver.
+                                             Boot: spring-boot-starter-thymeleaf + thymeleaf-layout-dialect 의존성 +
+                                             "/" 매핑 MainController. ViewResolver는 Boot auto-configuration이 담당)
+                            ※ 어느 경우든 동적 GNB 컴포넌트/인터셉터 등록은 generateThymeleafLayout()이 별도 수행합니다.
+                              레이아웃 소유권 단일화를 위해 initializeProject는 viewType="jsp"로 두고
+                              Thymeleaf layout은 generateThymeleafLayout()에 맡기는 것을 권장합니다.
               designSystemProfileId : DESIGN.md/ComponentRegistry 기준 KRDS 디자인 토큰을 반영할 DesignSystemProfile ID (선택)
                             지정하면 ComponentRegistry에서 내보낸 DESIGN.md를 프로젝트 루트에 생성하고,
                             해석된 토큰을 styles.css에 CSS 변수 참조로 patch합니다. 실패해도 프로젝트 골격

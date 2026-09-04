@@ -97,8 +97,19 @@ ProjectInitializrTool (MCP Tool 진입점)
 |------|------|
 | `src/main/resources/application.yml` | datasource / mybatis / server / logging (local/prod 프로파일 분리) |
 | `src/main/resources/logback-spring.xml` | 콘솔 + 파일 롤링 로그 설정 |
-| `src/main/java/{pkg}/{Cls}Application.java` | `@SpringBootApplication` 메인 클래스 |
+| `src/main/java/{pkg}/{Cls}Application.java` | `@SpringBootApplication` + `@MapperScan("{pkg}")` 메인 클래스 |
 | `src/test/java/{pkg}/{Cls}ApplicationTests.java` | 기본 테스트 클래스 |
+
+**Boot + viewType="thymeleaf" 추가 생성** (docs/crud/thymeleaf-layout-boot-support-plan.md Phase 1):
+
+| 파일 | 설명 |
+|------|------|
+| `src/main/resources/templates/layout/{default,gnb,lnb,breadcrumb,footer}.html` | Thymeleaf 공통 layout 5종 (WAR와 동일 내용) |
+| `src/main/resources/templates/egovframework/main/main.html` | 메인 화면 |
+| `src/main/java/{pkg}/main/web/MainController.java` | `@GetMapping({"/", "/egovframework/com/main.do"})` → `egovframework/main/main` |
+| `build.gradle` / `pom.xml` | `spring-boot-starter-thymeleaf` + `nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect` 의존성 추가 |
+
+동적 GNB 컴포넌트 4종·인터셉터 등록은 `generateThymeleafLayout()`이 별도 수행한다.
 
 ---
 
@@ -251,8 +262,16 @@ dispatcher-servlet.xml 설정 파일 보여줘
 ## 후속 워크플로우
 
 ```
-Step 1. initializeProject()
+Step 1. initializeProject(viewType="jsp")
         → 프로젝트 골격 생성 + PROJECT_CONTEXT 블록 획득
+        → Thymeleaf 화면을 쓸 프로젝트여도 viewType="jsp"(기본값)로 초기화한다.
+          viewType="thymeleaf"로 초기화하면 정적 GNB가 든 layout 5종/main.html/ViewResolver가
+          먼저 생성되는데 generateThymeleafLayout()이 이를 어차피 다시 만든다(overwriteLayout 기본값 true).
+          중복이며, 나중에 overwriteLayout=false로 재호출하면 정적 gnb.html이 남아 동적 GNB가 깨진다.
+          Thymeleaf 공통 layout은 generateThymeleafLayout()에서만 만든다.
+
+Step 1-T. (Thymeleaf 프로젝트만) generateThymeleafLayout(outputPath, packageName)
+        → layout 5종 + GNB 메뉴 컴포넌트 4종 + servlet-context.xml patch (최초 1회)
 
 Step 2. SecurityTemplateTool.getSecurityTemplate()
         → Spring Security 설정 파일 생성

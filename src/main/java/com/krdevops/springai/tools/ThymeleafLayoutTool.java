@@ -36,9 +36,13 @@ public class ThymeleafLayoutTool {
             GNB 브랜드 영역에 쓸 eGovFrame 로고 이미지(src/main/webapp/resources/images/egov-logo.png)를 생성하고,
             MainController가 반환하는 egovframework/main/main 뷰를 Thymeleaf main.html로 렌더링하도록 메인 화면을 생성합니다.
             WAR 기본 진입점(index.jsp/index.html/web.xml)은 화면 생성기의 책임이므로 변경하지 않습니다.
-            WAR 프로젝트의 servlet-context.xml에 EgovGnbMenuInterceptor 등록 블록을 자동으로 patch합니다(이미 등록되어 있으면 skip).
-            GNB Mapper가 동작하도록 context-common.xml의 mapperLocations와 MapperScannerConfigurer도 자동으로 보강합니다.
-            또한 Thymeleaf 런타임 의존성과 ViewResolver를 보강해 JSP resolver보다 classpath:/templates/*.html 화면을 우선 렌더링합니다.
+            인터셉터 등록은 프로젝트 구조를 감지해 분기합니다:
+              - WAR(web.xml 존재): servlet-context.xml에 EgovGnbMenuInterceptor 등록 블록을 자동 patch(이미 등록되어 있으면 skip),
+                context-common.xml의 mapperLocations/MapperScannerConfigurer 보강, Thymeleaf ViewResolver 보강.
+              - Boot(application.yml 존재): {packageName}.config.EgovWebMvcConfig(WebMvcConfigurer) 클래스를 생성해
+                addInterceptors()에 EgovGnbMenuInterceptor를 등록(GnbMenuMapper 생성자 주입). MyBatis 배선은
+                application.yml의 mybatis.mapper-locations + @MapperScan이, ViewResolver/LayoutDialect는
+                Boot auto-configuration이 담당하므로 XML 보강은 하지 않습니다(initializeProject가 thymeleaf 의존성을 추가).
             GNB는 menuTableName(기본 LETTNMENUINFO, UPPER_MENU_NO=0)+programTableName(기본 LETTNPROGRMLIST)을 조회해 매 요청마다 동적으로 렌더링됩니다.
             생성되는 layout HTML은 인라인 style을 생성하지 않고 initializeProject()가 만든 /resources/css/styles.css의 egov-* 공통 클래스를 사용합니다.
             CrudGenerationTool의 Thymeleaf 생성은 layoutMode=reuse가 기본값이므로,
@@ -57,8 +61,9 @@ public class ThymeleafLayoutTool {
               생략 시 "egovframework.let.sample"을 쓰지만 실제 프로젝트에서는 반드시 명시하세요.
             menuTableName   : 메뉴 테이블명 (기본값: "LETTNMENUINFO")
             programTableName: 프로그램 테이블명 (기본값: "LETTNPROGRMLIST")
-            [1차 구현 제약] WAR 프로젝트만 지원(Boot는 서보플릿 XML이 없어 인터셉터 등록 불가),
-              Jakarta Servlet(eGovFrame 5.0)만 지원(4.3/javax는 미지원).
+            [구현 제약] WAR(servlet-context.xml patch)와 Boot(WebMvcConfigurer 클래스 생성) 모두 지원합니다.
+              Jakarta Servlet(eGovFrame 5.0)만 지원합니다(4.3/javax는 미지원).
+              구조 마커(web.xml / application.yml)가 없으면 UNKNOWN으로 판정해 WAR 경로로 폴백하고 경고를 반환합니다.
             """)
     public String generateThymeleafLayout(
             String outputPath,

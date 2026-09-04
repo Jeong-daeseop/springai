@@ -28,6 +28,19 @@ public class BootPomBuilder {
         String egovRteVersion = useParent ? ""
                 : "            <version>${egov.version}</version>\n";
 
+        String thymeleafDeps = !s.thymeleaf() ? "" : """
+
+        <!-- Thymeleaf (viewType=thymeleaf) — ViewResolver/LayoutDialect는 Boot auto-configuration이 구성 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>nz.net.ultraq.thymeleaf</groupId>
+            <artifactId>thymeleaf-layout-dialect</artifactId>
+        </dependency>
+""";
+
         return """
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -85,6 +98,7 @@ public class BootPomBuilder {
             <artifactId>mybatis-spring-boot-starter</artifactId>
             <version>%s</version>
         </dependency>
+%s
 
         <!-- eGovFrame 공통 (fdl.cmmn 기반 서비스 레이어 표준) -->
         <dependency>
@@ -152,6 +166,7 @@ public class BootPomBuilder {
               s.groupId(), s.artifactId(), projectName,
               javaVer, egovVersionProp,
               mbsbVer,
+              thymeleafDeps,
               fdlCmmnId, egovRteVersion,
               mbsbVer);
     }
