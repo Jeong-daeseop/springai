@@ -115,9 +115,21 @@ sourceRevision, approvedBy, approvedAt
 - (b) 신규 MCP 도구 `registerComponentMapping(...)` + `approveComponentMapping(mappingId)` — 세션에서 등록. `DesignCodeComponentMappingRepository.saveImmutable` + `DesignCodeComponentMappingApprovalService.approve`(46행) 위임.
 
 **결정/입력 필요 (사용자·디자이너)**
-- ~~KRDS Figma 라이브러리에서 각 컴포넌트 세트의 **실제 키**~~ → 아래 B2 인벤토리에서 조사 완료
+- ~~KRDS Figma 라이브러리에서 각 컴포넌트 세트의 **실제 키**~~ → B1 pragmatic으로 논리 키 `"krds:" + logicalType` 사용
 - 각 컴포넌트의 **Thymeleaf fragment 마크업** (파라미터·슬롯 포함) — B3에서 작성
-- Figma variant 속성명 ↔ fragment 파라미터명 대응 — variant 추출 진행 중
+- Figma variant 속성명 ↔ fragment 파라미터명 대응 — B2 시드에 최소 매핑 반영
+
+### B2 시드 구현 완료 (2026-09-04)
+
+| 파일 | 내용 |
+|---|---|
+| **신규** `service/designsystem/ThymeleafKrdsComponentMappingSeeder.java` | `ApplicationRunner`, `@ConditionalOnProperty("app.design-system.component-mapping-seed.enabled"=true)`. 6종 `DesignCodeComponentMapping`(button/text-input/select/date-input/data-table/pagination)을 **APPROVED로 직접 `saveImmutable`**(대화형 approve 우회). `figmaComponentSetKey = "krds:" + logicalType`(B1과 일치), `contentHash = hashService.compute(...)`, `supportedRendererProfiles = ["thymeleaf-krds"]`, `thymeleafFragment = "components/krds-<x> :: <name>"`. `repository.findVersion(id,"1.0")` 있으면 skip(멱등) |
+
+**최소 계약**: `propertyMappings`는 전부 `required:false` + defaultValue(예: `Type→variant`(primary), `Size→size`(medium), `Label→label`). `fixtureModel`은 canonical envelope `{schemaVersion:"1.0", figmaProperties:{...}, figmaSlots:{}, contextVariables:{}}`. → `ComponentFixtureModelAdapter.adapt`·`DesignComponentRenderInputService.resolve`(속성/변형/슬롯 3 resolver) 전부 ERROR 없이 통과 확인.
+
+**검증**: `ThymeleafKrdsComponentMappingSeederTest`(2 — 계약 자기정합, 6종 render input 해석). 전체 `./gradlew test` 통과.
+
+**활성화**: `app.design-system.component-mapping-seed.enabled=true` (기본 비활성 — DB 있는 환경에서만).
 
 ### B2 인벤토리 (2026-09-04 조사, KRDS_v1.0.0 Community)
 
