@@ -97,6 +97,9 @@ public class Egov${domain}Controller {
             @ModelAttribute("searchVO") ${domain}VO searchVO,
             ModelMap model) throws Exception {
         model.addAttribute("${domainLc}VO", new ${domain}VO());
+<#if designComponentPlan?? && designComponentPlan.commonCodeFields?has_content>
+        populateCommonCodes(model);
+</#if>
         populateLayoutModel(model, "crud-regist", "등록");
         return "${domainLc}/Egov${domain}Regist";
     }
@@ -116,6 +119,9 @@ public class Egov${domain}Controller {
             RedirectAttributes redirectAttributes) throws Exception {
 
         if (bindingResult.hasErrors()) {
+<#if designComponentPlan?? && designComponentPlan.commonCodeFields?has_content>
+            populateCommonCodes(model);
+</#if>
             populateLayoutModel(model, "crud-regist", "등록");
             return "${domainLc}/Egov${domain}Regist";
         }
@@ -143,6 +149,9 @@ public class Egov${domain}Controller {
 
         ${domain}VO vo = ${domainLc}Service.select${domain}(searchVO);
         model.addAttribute("${domainLc}VO", vo);
+<#if designComponentPlan?? && designComponentPlan.commonCodeFields?has_content>
+        populateCommonCodes(model);
+</#if>
         populateLayoutModel(model, "crud-list", "수정");
         return "${domainLc}/Egov${domain}Updt";
     }
@@ -162,6 +171,9 @@ public class Egov${domain}Controller {
             RedirectAttributes redirectAttributes) throws Exception {
 
         if (bindingResult.hasErrors()) {
+<#if designComponentPlan?? && designComponentPlan.commonCodeFields?has_content>
+            populateCommonCodes(model);
+</#if>
             populateLayoutModel(model, "crud-list", "수정");
             return "${domainLc}/Egov${domain}Updt";
         }
@@ -209,6 +221,19 @@ public class Egov${domain}Controller {
         model.addAttribute("currentPageSuffix", currentPageSuffix);
         model.addAttribute("menuContextUrl", "${route.resolvedMenuContextUrl()}");
     }
+<#if designComponentPlan?? && designComponentPlan.commonCodeFields?has_content>
+
+    /**
+     * 디자인 참조(픽셀 재현) 화면의 공통코드 select 항목을 모델에 채운다.
+     * 각 CODE_ID는 화면명세에서 확인된 값이며, 미확인 시 "CHANGE_ME"로 표시되므로 교체해야 한다.
+     */
+    private void populateCommonCodes(ModelMap model) throws Exception {
+<#list designComponentPlan.commonCodeFields as cc>
+        model.addAttribute("${cc.javaName}CodeList",
+                ${domainLc}Service.select${cc.javaName?cap_first}CodeList("${cc.codeId!'CHANGE_ME'}"));
+</#list>
+    }
+</#if>
 
     // @region:protected:customActions start
     // 이 위치에 추가한 커스텀 @RequestMapping 메서드는 재생성 시 보존됩니다.

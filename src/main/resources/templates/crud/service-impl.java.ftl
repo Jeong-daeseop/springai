@@ -62,4 +62,13 @@ public class Egov${domain}ServiceImpl extends EgovAbstractServiceImpl
         // @region:protected:beforeDelete end
         ${domainLc}Mapper.delete${domain}(${domainLc}VO);
     }
+<#if designComponentPlan?? && designComponentPlan.commonCodeFields?has_content>
+<#list designComponentPlan.commonCodeFields as cc>
+
+    @Override
+    public java.util.List<java.util.Map<String, Object>> select${cc.javaName?cap_first}CodeList(String codeId) throws Exception {
+        return ${domainLc}Mapper.select${cc.javaName?cap_first}CodeList(codeId);
+    }
+</#list>
+</#if>
 }

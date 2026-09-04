@@ -433,6 +433,101 @@ class CrudTemplateRendererTest {
         assertThat(countOccurrences(twoColumn, "<tr>")).isEqualTo(2);
     }
 
+    // ─── designComponentPlan(픽셀 재현) fragment 소비 ──────────────────────────
+
+    private DesignComponentRenderInput renderInput(String logicalType, String fragment) {
+        return new DesignComponentRenderInput(
+                "krds-" + logicalType, "1.0", logicalType, "krds:" + logicalType,
+                fragment, "thymeleaf-krds", java.util.Map.of(), java.util.Map.of(),
+                "krds-v1.0.0", "a".repeat(64));
+    }
+
+    @Test
+    void thymeleafRegist_withoutPlan_keepsTableFormMarkup() {
+        String result = renderer.renderByLayerKey("thymeleafRegist", model(true));
+
+        assertThat(result).contains("<table class=\"tbl col egov-form-table")
+                .doesNotContain("th:replace=\"~{components/krds-");
+    }
+
+    @Test
+    void thymeleafRegist_withPlan_replacesFieldsAndButtonsWithKrdsFragments() {
+        CrudTemplateModel connected = new CrudModelFactory().withDesignComponents(
+                model(true),
+                List.of(renderInput("text-input", "components/krds-text-input :: textInput"),
+                        renderInput("button", "components/krds-button :: button")),
+                List.of());
+
+        String result = renderer.renderByLayerKey("thymeleafRegist", connected);
+
+        assertThat(result)
+                .doesNotContain("<table class=\"tbl col egov-form-table")
+                .contains("th:replace=\"~{components/krds-text-input :: textInput(path='userNm'")
+                .contains("th:replace=\"~{components/krds-button :: button(label='저장'");
+    }
+
+    @Test
+    void thymeleafRegist_withCommonCodePlan_rendersSelectFragmentForThatField() {
+        CrudTemplateModel connected = new CrudModelFactory().withDesignComponents(
+                model(true),
+                List.of(renderInput("text-input", "components/krds-text-input :: textInput"),
+                        renderInput("select", "components/krds-select :: select")),
+                List.of(CrudModelFactory.commonCodeField("userNm", "COM001")));
+
+        String result = renderer.renderByLayerKey("thymeleafRegist", connected);
+
+        assertThat(result)
+                .contains("th:replace=\"~{components/krds-select :: select(path='userNm'")
+                .contains("options=${userNmCodeList}")
+                .contains("th:replace=\"~{components/krds-text-input :: textInput(path='age'");
+    }
+
+    @Test
+    void thymeleafUpdt_withPlan_replacesFieldsWithKrdsFragmentsAndKeepsHiddenPk() {
+        CrudTemplateModel connected = new CrudModelFactory().withDesignComponents(
+                model(true),
+                List.of(renderInput("text-input", "components/krds-text-input :: textInput")),
+                List.of());
+
+        String result = renderer.renderByLayerKey("thymeleafUpdt", connected);
+
+        assertThat(result)
+                .contains("<input type=\"hidden\" th:field=\"*{emplyrId}\"/>")
+                .contains("th:replace=\"~{components/krds-text-input :: textInput(path='userNm'")
+                .doesNotContain("<table class=\"tbl col egov-form-table");
+    }
+
+    @Test
+    void controller_withCommonCodePlan_emitsPopulateCommonCodesAndCodeListService() {
+        CrudTemplateModel connected = new CrudModelFactory().withDesignComponents(
+                model(true),
+                List.of(renderInput("select", "components/krds-select :: select")),
+                List.of(CrudModelFactory.commonCodeField("userNm", "COM001")));
+
+        String controller = renderer.renderByLayerKey("controller", connected);
+        String mapperXml = renderer.renderByLayerKey("mapperXml", connected);
+        String service = renderer.renderByLayerKey("service", connected);
+
+        assertThat(controller)
+                .contains("private void populateCommonCodes(ModelMap model)")
+                .contains("employerService.selectUserNmCodeList(\"COM001\")")
+                .contains("model.addAttribute(\"userNmCodeList\"");
+        assertThat(mapperXml)
+                .contains("<select id=\"selectUserNmCodeList\"")
+                .contains("FROM LETTCCMMNDETAILCODE")
+                .contains("WHERE CODE_ID = #{codeId}");
+        assertThat(service).contains("selectUserNmCodeList(String codeId)");
+    }
+
+    @Test
+    void controller_withoutPlan_hasNoCommonCodePlumbing() {
+        String controller = renderer.renderByLayerKey("controller", model(true));
+
+        assertThat(controller)
+                .doesNotContain("populateCommonCodes")
+                .doesNotContain("CodeList");
+    }
+
     @Test
     void jspRegist_twoColumn_wrapsPairedFieldsInFormRowTwoCol() {
         String single = renderer.renderByLayerKey(

@@ -397,6 +397,43 @@ mappings: `@paginationInfo`/`@linkUrl`(req:false) — 전부 바인딩. eGovFram
 
 ---
 
+### B3 구현 완료 (2026-09-04)
+
+**커밋 1 — fragment 인프라**
+| 파일 | 내용 |
+|---|---|
+| `templates/components/krds-{button,text-input,select,date-input,data-table,pagination}.html` | 6종 정본 fragment. `ThymeleafFragmentContractValidator` 계약 통과(B2 시드 6개 Mapping과 파라미터 정합 — data-table/pagination에 `variant` 파라미터 추가) |
+| `service/designsystem/KrdsComponentFragmentWriter.java` | 클래스패스 정본을 대상 프로젝트 `src/main/resources/templates/components/`(Boot) 또는 `.../webapp/WEB-INF/templates/components/`(WAR)에 멱등 복사(`ApprovedProjectWritePort` ATOMIC_APPROVED 배치) |
+| `service/generation/crud/CrudComponentFragmentProcessor.java` | PRE_WRITE(priority 115, STOP). `supports` = viewType THYMELEAF && `!model.designComponents().isEmpty()` — plan 없으면 조용히 제외 |
+| `CrudGenerationPlanner.processorSteps()` | 위 processor 등록 |
+
+**커밋 2 — FTL 소비 + 공통코드 select 풀스택**
+| 파일 | 내용 |
+|---|---|
+| `model/crud/CrudDesignComponentPlan.java` (신규) | 렌더 전용. `byLogicalType`(logicalType→render input) + `commonCodeFields`(자바명+CODE_ID). VO/Mapper/스키마 계약 무영향 |
+| `model/crud/CrudTemplateModel.java` | 24번째 컴포넌트 `designComponentPlan` 추가(+호환 생성자). null이면 산출물 바이트 동일 |
+| `service/CrudModelFactory.java` | `withDesignComponents(model, screenSpec, components)` — 화면명세 binding 중 `COMMON_CODE` source이면서 formFields에 남은 것만 `CommonCodeField`로. CODE_ID는 `FieldSource.codeGroup()` 있을 때만, 없으면 null(생성기가 `CHANGE_ME` 자리표시자). 테스트용 `withDesignComponents(model, components, commonCodeFields)` 오버로드 추가 |
+| `service/CrudTemplateRenderer.java` | plan 있으면 `designComponentPlan`을 FTL 모델에 추가 |
+| `templates/crud/thymeleaf-regist-body.html.ftl` / `thymeleaf-updt-body.html.ftl` | `<#if designComponentPlan??>` KRDS div-stack 폼(`krds-form-group` + `th:replace` fragment) / `<#else>` 기존 table 폼(바이트 동일). 필드→fragment: 공통코드+`has('select')`→select, 시간형(`LocalDate`/`LocalDateTime`/`Date`)+`has('date-input')`→date-input, `has('text-input')`→text-input, 그 외 기본 마크업. 버튼→`has('button')`→krds-button. 2단(`form-row-two-col`) 유지 |
+| `templates/crud/controller.java.ftl` | plan+공통코드 있으면 `populateCommonCodes(ModelMap)` 헬퍼 + registView/updtView/오류 재렌더 경로에서 호출. `service.select<Jn>CodeList("<CODE_ID 또는 CHANGE_ME>")` → `model.addAttribute("<jn>CodeList", ...)` |
+| `templates/crud/service.java.ftl` / `service-impl.java.ftl` / `mapper.java.ftl` / `mapper.xml.ftl` | `select<Jn>CodeList(String codeId)` — `SELECT CODE AS \`code\`, CODE_NM AS \`codeNm\` FROM LETTCCMMNDETAILCODE WHERE CODE_ID = #{codeId} AND USE_AT = 'Y'`(MyBatis `#{}`, 하드코딩 CODE_ID 없음 — 인자 전달). plan 없으면 미출력 |
+| `renderer-profile-thymeleaf-krds-v1.json` + `TemplateSetFingerprintServiceTest` | `templateSetHash` `e70a93e3…` → `7ea765532ca55e9ea9d9f7b76b135b6b79ab32fbb058abc2c24577ba36eeea84` |
+
+**B3 열린 결정 처리**
+1. fragment 파일 배치 → `CrudComponentFragmentProcessor`(생성 파이프라인 PRE_WRITE)가 대상 프로젝트에 복사. `generateThymeleafLayout` 확장 아님(생성 시점에만 필요).
+2. `figmaProperty` 실제 이름 → 미확정. variant 값은 아직 render input에 안 담기므로(B1 한계) fragment 기본값(`primary`/`medium`/…)에 의존. 후속 보정.
+3. 바인딩 파라미터 → `th:replace` 호출부(FTL)가 `path`/`options`/`required` 등 채움. 계약 검증은 propertyMappings 항목만 확인.
+4. `th:field` preprocessing(`*{__${path}__}`) → fragment는 `th:field="*{__${path}__}"` 사용. 대상 Thymeleaf 3.1(Spring6)에서 동작. 실기동 검증은 대상 프로젝트 생성 후 필요.
+
+**의도적 미구현(후속)**
+- **list 화면 data-table/pagination fragment 소비 안 함** — 기존 eGov 목록 마크업(행별 상세 링크, 검색 파라미터 보존 페이지네이션, 체크박스 컬럼)이 generic fragment보다 기능이 많아 교체 시 회귀. fragment 파일·시드는 유지(계약 완결성/타 화면용).
+- **detail 화면** — 2단 폼 로직이 담당(계획서 §309).
+- variant(`Type`/`Size`/`State`) Figma 추출 — B1 한계 그대로.
+
+**검증**: `CrudTemplateRendererTest`(+7 — plan 유무별 regist/updt fragment 치환, 공통코드 select, controller/mapper/service 공통코드 코드젠, plan 없을 때 바이트 동일), `KrdsComponentFragmentWriterTest`(신규 — 멱등 기록 + 6종 계약 통과), `TemplateSetFingerprintServiceTest`(golden 갱신) 통과. 전체 `./gradlew test`.
+
+---
+
 ### (이전 기록) B1 착수 중 발견 (2026-09-04) — mapper 확장 필요
 
 `FigmaUiDesignSpecV2Mapper`를 `resolve()`에 연결하는 것만으로는 픽셀 재현이 안 된다:

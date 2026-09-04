@@ -1,5 +1,6 @@
 package com.krdevops.springai.service;
 
+import com.krdevops.springai.model.crud.CrudDesignComponentPlan;
 import com.krdevops.springai.model.crud.CrudProgramMetadata;
 import com.krdevops.springai.model.crud.CrudRouteModel;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
@@ -59,7 +60,41 @@ public class CrudModelFactory {
      */
     public CrudTemplateModel withDesignComponents(
             CrudTemplateModel model, List<DesignComponentRenderInput> designComponents) {
+        return withDesignComponents(model, null, designComponents);
+    }
+
+    /**
+     * 승인된 디자인 컴포넌트 render 입력과, 화면명세에서 뽑은 렌더 전용 공통코드 필드 집합을
+     * {@link CrudDesignComponentPlan}으로 묶어 모델에 연결한다. plan은 렌더 전용이라 VO/Mapper/
+     * 스키마 계약에 영향을 주지 않는다.
+     */
+    public CrudTemplateModel withDesignComponents(
+            CrudTemplateModel model, ScreenSpecification screenSpecification,
+            List<DesignComponentRenderInput> designComponents) {
         if (model == null) throw new IllegalArgumentException("model은 필수입니다.");
+        return withDesignComponents(model, designComponents,
+                commonCodeFields(screenSpecification, model.formFields()));
+    }
+
+    /**
+     * 공통코드 필드 집합을 직접 지정해 연결한다(화면명세를 거치지 않는 테스트·특수 경로용).
+     */
+    public CrudTemplateModel withDesignComponents(
+            CrudTemplateModel model, List<DesignComponentRenderInput> designComponents,
+            List<CrudDesignComponentPlan.CommonCodeField> commonCodeFields) {
+        if (model == null) throw new IllegalArgumentException("model은 필수입니다.");
+        List<DesignComponentRenderInput> components =
+                designComponents == null ? List.of() : designComponents;
+        List<CrudDesignComponentPlan.CommonCodeField> codeFields =
+                commonCodeFields == null ? List.of() : commonCodeFields;
+        Map<String, DesignComponentRenderInput> byLogicalType = components.stream()
+                .filter(input -> input.logicalType() != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        DesignComponentRenderInput::logicalType, input -> input,
+                        (first, second) -> first, java.util.LinkedHashMap::new));
+        CrudDesignComponentPlan plan = byLogicalType.isEmpty() && codeFields.isEmpty()
+                ? null
+                : new CrudDesignComponentPlan(byLogicalType, codeFields);
         return new CrudTemplateModel(
                 model.packageName(), model.domain(), model.domainLc(), model.domainKr(),
                 model.tableName(), model.urlPrefix(), model.date(), model.egovVersion(),
@@ -67,7 +102,49 @@ public class CrudModelFactory {
                 model.listFields(), model.nonPkFields(), model.formFields(), model.route(),
                 model.queryContract(), model.detailFields(), model.layoutDensity(),
                 model.formColumnLayout(), model.actionPlacement(), model.searchPanelPlacement(),
-                designComponents);
+                components, plan);
+    }
+
+    /** 렌더 전용 공통코드 필드 1개를 만든다(테스트·특수 경로용). */
+    public static CrudDesignComponentPlan.CommonCodeField commonCodeField(String javaName, String codeId) {
+        return new CrudDesignComponentPlan.CommonCodeField(javaName, codeId);
+    }
+
+    /**
+     * 화면명세 binding 중 {@code COMMON_CODE} source이면서 실제 등록/수정 폼 필드(formFields)에
+     * 남아 있는 것만 골라 렌더 전용 공통코드 필드로 만든다. CODE_ID는 binding이 codeGroup을
+     * 명시했을 때만 채우고, 아니면 null(생성기가 자리표시자 처리).
+     */
+    private List<CrudDesignComponentPlan.CommonCodeField> commonCodeFields(
+            ScreenSpecification screenSpecification, List<FieldModel> formFields) {
+        if (screenSpecification == null || formFields == null || formFields.isEmpty()) {
+            return List.of();
+        }
+        java.util.Set<String> formFieldNames = formFields.stream()
+                .map(FieldModel::javaName)
+                .collect(java.util.stream.Collectors.toSet());
+        java.util.LinkedHashMap<String, String> byName = new java.util.LinkedHashMap<>();
+        screenSpecification.pages().stream()
+                .flatMap(page -> page.fields().stream())
+                .filter(field -> field.source() != null
+                        && field.source().type() == FieldSourceType.COMMON_CODE)
+                .forEach(field -> {
+                    String javaName = camelColumn(field);
+                    if (javaName != null && formFieldNames.contains(javaName)) {
+                        byName.putIfAbsent(javaName, field.source().codeGroup());
+                    }
+                });
+        return byName.entrySet().stream()
+                .map(entry -> new CrudDesignComponentPlan.CommonCodeField(entry.getKey(), entry.getValue()))
+                .toList();
+    }
+
+    private static String camelColumn(com.krdevops.springai.model.design.ScreenFieldBinding field) {
+        String column = field.source().column();
+        if (column != null && !column.isBlank()) {
+            return CrudMappingUtils.toCamelCase(column);
+        }
+        return field.id();
     }
 
     /**

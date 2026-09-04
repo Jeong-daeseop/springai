@@ -24,4 +24,11 @@ public interface ${domain}Mapper {
     void update${domain}(${domain}VO ${domainLc}VO);
 
     void delete${domain}(${domain}VO ${domainLc}VO);
+<#if designComponentPlan?? && designComponentPlan.commonCodeFields?has_content>
+<#list designComponentPlan.commonCodeFields as cc>
+
+    java.util.List<java.util.Map<String, Object>> select${cc.javaName?cap_first}CodeList(
+            @org.apache.ibatis.annotations.Param("codeId") String codeId);
+</#list>
+</#if>
 }

@@ -242,6 +242,9 @@ public class CrudTemplateRenderer {
         data.put("actionPlacement",   model.actionPlacement());
         data.put("searchPanelPlacement", model.searchPanelPlacement());
         data.put("designComponents",  model.designComponents());
+        if (model.designComponentPlan() != null) {
+            data.put("designComponentPlan", model.designComponentPlan());
+        }
         data.put("nonPkFields",       model.nonPkFields());
         data.put("formFields",        model.formFields());
         data.put("queryContract",     model.queryContract());

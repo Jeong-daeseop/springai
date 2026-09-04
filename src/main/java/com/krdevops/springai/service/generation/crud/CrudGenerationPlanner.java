@@ -266,7 +266,7 @@ public class CrudGenerationPlanner {
                 viewType, subsetMode, screenSpecification);
         if (viewType == CrudViewType.THYMELEAF && componentMappingApplyGate != null) {
             try {
-                model = crudModelFactory.withDesignComponents(model,
+                model = crudModelFactory.withDesignComponents(model, screenSpecification,
                         componentMappingApplyGate.requireForApply(screenSpecification,
                                 RequiredComponentMappingApplyGate.THYMELEAF_KRDS_PROFILE));
             } catch (RequiredComponentMappingApplyGate.RequiredComponentMappingException exception) {

@@ -1,3 +1,32 @@
+<#--
+  수정 화면 body.
+  designComponentPlan이 있으면(V2_APPLY 픽셀 재현) KRDS 컴포넌트 fragment(th:replace) 기반
+  div-stack 폼으로 렌더하고, 없으면 기존 table 폼을 그대로 유지한다(산출물 바이트 동일).
+-->
+<#macro updtFormField f>
+  <#if designComponentPlan.isCommonCode(f.javaName) && designComponentPlan.has('select')>
+                <div th:replace="~{components/krds-select :: select(path='${f.javaName}', label='${f.comment}', size='medium', state=null, options=${'$'}{${f.javaName}CodeList}, required=${f.required?c})}"></div>
+  <#elseif (f.javaType == 'LocalDate' || f.javaType == 'LocalDateTime' || f.javaType == 'Date') && designComponentPlan.has('date-input')>
+                <div th:replace="~{components/krds-date-input :: dateInput(path='${f.javaName}', label='${f.comment}', mode='single', required=${f.required?c})}"></div>
+  <#elseif designComponentPlan.has('text-input')>
+                <div th:replace="~{components/krds-text-input :: textInput(path='${f.javaName}', label='${f.comment}', size='medium', state=null, placeholder='${f.comment}을(를) 입력하세요', maxlength=<#if f.maxLength??>${f.maxLength?c}<#else>null</#if>, required=${f.required?c})}"></div>
+  <#else>
+                <div class="krds-form-group">
+                    <label for="${f.javaName}" class="krds-form-label">
+                        ${f.comment}<#if f.required><span class="egov-required-mark">*</span></#if>
+                    </label>
+                    <input type="<#if f.javaName?lower_case?contains('password')>password<#else>text</#if>"
+                           th:field="*{${f.javaName}}"
+                           id="${f.javaName}"
+                           class="krds-input medium egov-control"
+                           <#if f.maxLength??>maxlength="${f.maxLength?c}"</#if>
+                           placeholder="${f.comment}을(를) 입력하세요"/>
+                    <p th:if="${'$'}{#fields.hasErrors('${f.javaName}')}"
+                       class="krds-form-hint is-error"
+                       th:errors="*{${f.javaName}}"></p>
+                </div>
+  </#if>
+</#macro>
     <div class="egov-page-header">
         <h1 class="egov-page-title">${domainKr} 수정</h1>
     </div>
@@ -19,6 +48,25 @@
 </#if>
 </#list>
 
+<#if designComponentPlan??>
+        <div class="egov-form-body<#if formColumnLayout == "TWO_COLUMN"> egov-layout-two-col</#if>">
+<#list pkFields as p>
+            <div class="krds-form-group">
+                <span class="krds-form-label">${p.comment}</span>
+                <span th:text="${'$'}{${domainLc}VO.${p.javaName}}" class="egov-readonly-value"></span>
+            </div>
+</#list>
+<#if formColumnLayout == "TWO_COLUMN">
+<#list formFields?chunk(2) as pair>
+            <div class="form-row-two-col">
+<#list pair as f><@updtFormField f/></#list>
+            </div>
+</#list>
+<#else>
+<#list formFields as f><@updtFormField f/></#list>
+</#if>
+        </div>
+<#else>
         <div class="krds-table-wrap">
             <table class="tbl col egov-form-table<#if formColumnLayout == "TWO_COLUMN"> egov-layout-two-col</#if>">
                 <caption>${domainKr} 수정 입력 폼</caption>
@@ -83,13 +131,20 @@
                 </tbody>
             </table>
         </div>
+</#if>
 
         <div class="egov-form-actions">
+<#if designComponentPlan?? && designComponentPlan.has('button')>
+            <a th:href="@{${route.resolvedDetailPath()}(<#list pkFields as p>${p.javaName}=${'$'}{${domainLc}VO.${p.javaName}}<#sep>,</#sep></#list>)}"
+               th:replace="~{components/krds-button :: button(label='취소', variant='secondary', size='medium', buttonType='button')}"></a>
+            <button type="submit" th:replace="~{components/krds-button :: button(label='저장', variant='primary', size='medium', buttonType='submit')}"></button>
+<#else>
             <a th:href="@{${route.resolvedDetailPath()}(<#list pkFields as p>${p.javaName}=${'$'}{${domainLc}VO.${p.javaName}}<#sep>,</#sep></#list>)}"
                class="krds-btn secondary medium egov-btn">취소</a>
             <button type="submit" class="krds-btn primary medium egov-btn">
                 <span aria-hidden="true">✓</span>
                 저장
             </button>
+</#if>
         </div>
     </form>

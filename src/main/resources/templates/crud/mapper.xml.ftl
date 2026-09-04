@@ -91,5 +91,18 @@
         DELETE FROM ${tableName}
         WHERE <#list pkFields as p>${p.columnName} = #{${p.javaName}}<#sep> AND </#sep></#list>
     </delete>
+<#if designComponentPlan?? && designComponentPlan.commonCodeFields?has_content>
+<#list designComponentPlan.commonCodeFields as cc>
+
+    <!-- ${cc.javaName} 공통코드 목록 (디자인 참조 화면 전용)<#if !cc.codeId??> — TODO: 실제 CODE_ID를 codeId 인자로 전달하세요</#if> -->
+    <select id="select${cc.javaName?cap_first}CodeList" parameterType="string" resultType="java.util.HashMap">
+        SELECT CODE AS `code`, CODE_NM AS `codeNm`
+        FROM LETTCCMMNDETAILCODE
+        WHERE CODE_ID = #{codeId}
+          AND USE_AT = 'Y'
+        ORDER BY CODE
+    </select>
+</#list>
+</#if>
 
 </mapper>

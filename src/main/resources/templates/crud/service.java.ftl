@@ -20,4 +20,11 @@ public interface ${domain}Service {
     void update${domain}(${domain}VO ${domainLc}VO) throws Exception;
 
     void delete${domain}(${domain}VO ${domainLc}VO) throws Exception;
+<#if designComponentPlan?? && designComponentPlan.commonCodeFields?has_content>
+<#list designComponentPlan.commonCodeFields as cc>
+
+    /** ${cc.javaName} 공통코드 select 목록 (디자인 참조 화면 전용) */
+    java.util.List<java.util.Map<String, Object>> select${cc.javaName?cap_first}CodeList(String codeId) throws Exception;
+</#list>
+</#if>
 }
