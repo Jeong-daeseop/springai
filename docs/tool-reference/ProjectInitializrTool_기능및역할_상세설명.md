@@ -37,7 +37,10 @@ ProjectInitializrTool (MCP Tool 진입점)
 | `buildTool` | ✅ | `maven` 또는 `gradle` | `gradle` |
 | `projectType` | ✅ | `war` 또는 `boot` | `war` |
 | `egovVersion` | ✅ | `4.3` / `5.0` / `latest` | `5.0` |
-| `outputPath` | ✅ | 생성 상위 경로 | `/Users/me/Desktop` |
+| `outputPath` | ✅ | 생성 상위 경로 (실제 루트 = `{outputPath}/{projectName}`) | `/Users/me/Desktop` |
+| `serverPort` | ⬜ | Boot `application.yml`의 `server.port` 기본값 (기본 `8080`, 숫자 1~65535). `port: ${SERVER_PORT:<serverPort>}` 형태로 반영 — `SERVER_PORT` 환경변수가 있으면 우선. WAR는 미사용 | `9090` |
+| `viewType` | ⬜ | `jsp`(기본) / `thymeleaf` | `jsp` |
+| `designSystemProfileId` | ⬜ | KRDS 디자인 토큰 반영 `DesignSystemProfile` ID (non-fatal) | `krds` |
 
 > `projectType` 또는 `egovVersion` 미입력 시 사용자에게 반드시 확인
 

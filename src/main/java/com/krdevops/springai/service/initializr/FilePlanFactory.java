@@ -292,28 +292,28 @@ public class MainController {
         com.krdevops.springai.model.VersionCapability cap = buildCap(egovVersion);
         return new ProjectSpec("project", "com.example", "project",
                 packageName, "maven", false,
-                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap, "jsp");
+                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap, "jsp", "8080");
     }
 
     private static ProjectSpec minimalSpecForArtifact(String artifactId, String egovVersion) {
         com.krdevops.springai.model.VersionCapability cap = buildCap(egovVersion);
         return new ProjectSpec(artifactId, "com.example", artifactId,
                 "egovframework.let.sample", "maven", false,
-                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap, "jsp");
+                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap, "jsp", "8080");
     }
 
     private static ProjectSpec minimalSpecForProject(String projectName) {
         com.krdevops.springai.model.VersionCapability cap = buildCap("5.0");
         return new ProjectSpec(projectName, "com.example", projectName,
                 "egovframework.let.sample", "maven", false,
-                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap, "jsp");
+                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap, "jsp", "8080");
     }
 
     private static ProjectSpec minimalSpecForBoot(String artifactId, String packageName) {
         com.krdevops.springai.model.VersionCapability cap = buildCap("5.0");
         return new ProjectSpec(artifactId, "com.example", artifactId,
                 packageName, "maven", true,
-                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap, "jsp");
+                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap, "jsp", "8080");
     }
 
     /**

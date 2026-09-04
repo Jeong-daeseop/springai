@@ -63,6 +63,11 @@ public class ProjectInitializrTool {
               projectType : war 또는 boot
               egovVersion : 4.3 또는 5.0 또는 latest (5.0 = latest 동일)
               outputPath  : 생성 상위 경로         (예: /Users/user/Desktop)
+              serverPort  : Boot server.port 기본값 (선택, 기본값 "8080", 숫자 1~65535)
+                            - Boot 프로젝트의 application.yml에 `port: ${SERVER_PORT:<serverPort>}` 형태로 반영됩니다.
+                              (SERVER_PORT 환경변수가 있으면 그 값이 우선)
+                            - WAR 프로젝트는 외부 Tomcat에 배포하므로 이 값을 사용하지 않습니다.
+                            - 예: serverPort="9090" → 생성된 Boot 앱이 9090 포트로 기동
               viewType    : 화면 기술              (선택, 기본값 "jsp")
                             - "jsp"       : 공통 index.jsp + MainController + WEB-INF/jsp/egovframework/main/main.jsp 생성
                             - "thymeleaf" : MainController + templates/egovframework/main/main.html + layout 5종 생성
@@ -86,10 +91,11 @@ public class ProjectInitializrTool {
     public String initializeProject(String projectName, String groupId, String artifactId,
                                     String packageName, String buildTool,
                                     String projectType, String egovVersion, String outputPath,
-                                    @Nullable String viewType, @Nullable String designSystemProfileId) {
+                                    @Nullable String serverPort, @Nullable String viewType,
+                                    @Nullable String designSystemProfileId) {
         return projectInitializrService.initializeProject(
             projectName, groupId, artifactId, packageName, buildTool,
-            projectType, egovVersion, outputPath, viewType, designSystemProfileId);
+            projectType, egovVersion, outputPath, viewType, designSystemProfileId, serverPort);
     }
 
     @McpToolRisk(McpToolRiskLevel.FILE_WRITE)

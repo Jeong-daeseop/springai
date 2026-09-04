@@ -26,7 +26,7 @@ mybatis:
     default-statement-timeout: 30
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${serverPortExpr}
   servlet:
     encoding:
       charset: UTF-8
