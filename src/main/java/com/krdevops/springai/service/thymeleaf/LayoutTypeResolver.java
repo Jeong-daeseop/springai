@@ -2,7 +2,6 @@ package com.krdevops.springai.service.thymeleaf;
 
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.LayoutDensity;
-import com.krdevops.springai.model.design.FormColumnLayout;
 import com.krdevops.springai.model.design.ActionPlacement;
 import com.krdevops.springai.model.design.SearchPanelPlacement;
 import lombok.RequiredArgsConstructor;
@@ -10,8 +9,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * I-4A: Layout 판정 (layoutDensity, formColumnLayout, actionPlacement, searchPanel).
+ * I-4A: Layout 판정 (layoutDensity, actionPlacement, searchPanel).
  * 화면 구조와 필드 수 기반으로 레이아웃 정책을 결정한다.
+ *
+ * <p>formColumnLayout(1단/2단) 결정은 {@code FormColumnLayoutPolicy}로 이관되었다 (2026-09).
+ * 여기 있던 검증되지 않은 {@code >6} heuristic은 프로덕션에 배선된 적이 없어 제거했다.</p>
  */
 @Slf4j
 @Service
@@ -68,51 +70,6 @@ public class LayoutTypeResolver {
             LayoutDensity.STANDARD,
             0.8,
             "필드 수(" + totalFields + ") 6~15 → STANDARD (균형)"
-        );
-    }
-
-    /**
-     * formColumnLayout 판정: SINGLE_COLUMN, TWO_COLUMN, THREE_COLUMN
-     *
-     * @param spec ScreenSpecification
-     * @return FormColumnLayoutDecision
-     */
-    public FormColumnLayoutDecision resolveFormColumnLayout(ScreenSpecification spec) {
-        if (spec == null || spec.pages() == null || spec.pages().isEmpty()) {
-            return new FormColumnLayoutDecision(
-                FormColumnLayout.SINGLE_COLUMN,
-                0.8,
-                "기본값"
-            );
-        }
-
-        // 1. ScreenSpecification에 이미 설정된 경우
-        if (spec.formColumnLayout() != null && spec.formColumnLayout() != FormColumnLayout.SINGLE_COLUMN) {
-            return new FormColumnLayoutDecision(
-                spec.formColumnLayout(),
-                0.95,
-                "ScreenSpecification에서 명시됨: " + spec.formColumnLayout()
-            );
-        }
-
-        // 2. 필드 수 기반 판정
-        var totalFields = spec.pages().stream()
-            .mapToInt(p -> p.fields() != null ? p.fields().size() : 0)
-            .sum();
-
-        if (totalFields > 6) {
-            return new FormColumnLayoutDecision(
-                FormColumnLayout.TWO_COLUMN,
-                0.75,
-                "필드 수(" + totalFields + ") > 6 → TWO_COLUMN"
-            );
-        }
-
-        // 기본값
-        return new FormColumnLayoutDecision(
-            FormColumnLayout.SINGLE_COLUMN,
-            0.8,
-            "필드 수(" + totalFields + ") ≤ 6 → SINGLE_COLUMN"
         );
     }
 
@@ -179,12 +136,6 @@ public class LayoutTypeResolver {
 
     public record LayoutDensityDecision(
             LayoutDensity density,
-            double confidence,
-            String reasoning
-    ) {}
-
-    public record FormColumnLayoutDecision(
-            FormColumnLayout columnLayout,
             double confidence,
             String reasoning
     ) {}

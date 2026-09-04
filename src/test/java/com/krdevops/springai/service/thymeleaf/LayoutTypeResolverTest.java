@@ -4,7 +4,6 @@ import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.PageSpec;
 import com.krdevops.springai.model.design.ScreenSpecStatus;
 import com.krdevops.springai.model.design.LayoutDensity;
-import com.krdevops.springai.model.design.FormColumnLayout;
 import com.krdevops.springai.model.design.ActionPlacement;
 import com.krdevops.springai.model.design.SearchPanelPlacement;
 import org.junit.jupiter.api.DisplayName;
@@ -58,21 +57,6 @@ class LayoutTypeResolverTest {
 
         var decision = resolver.resolveLayoutDensity(spec);
         assertEquals(LayoutDensity.STANDARD, decision.density());
-    }
-
-    @Test
-    @DisplayName("기본값: SINGLE_COLUMN form layout")
-    void testSingleColumnFormLayout() {
-        var spec = new ScreenSpecification(
-            "spec1", 1, ScreenSpecStatus.DRAFT, "간단한 폼",
-            "CRUD", null, "db1", "table1",
-            List.of(), List.of(), List.of(),
-            LocalDateTime.now()
-        );
-
-        var decision = resolver.resolveFormColumnLayout(spec);
-        assertEquals(FormColumnLayout.SINGLE_COLUMN, decision.columnLayout());
-        assertTrue(decision.confidence() >= 0.7);
     }
 
     @Test

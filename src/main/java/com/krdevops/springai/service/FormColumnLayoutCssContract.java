@@ -10,8 +10,19 @@ public final class FormColumnLayoutCssContract {
     public static final String CSS = """
 
 /* === egov-form-column-layout:start === */
-.egov-form-table.egov-layout-two-col th { width: 90px; }
-.egov-form-table.egov-layout-two-col td { width: auto; }
+.krds-table-wrap .tbl.col.egov-layout-two-col { table-layout: fixed; }
+.krds-table-wrap .tbl.col.egov-layout-two-col th { width: 140px; white-space: normal; }
+.krds-table-wrap .tbl.col.egov-layout-two-col td { width: auto; }
+.krds-table-wrap .tbl.col.egov-layout-two-col th:empty,
+.krds-table-wrap .tbl.col.egov-layout-two-col td:empty { border: 0; background: transparent; }
+@media (max-width: 768px) {
+  .krds-table-wrap .tbl.col.egov-layout-two-col { table-layout: auto; }
+  .krds-table-wrap .tbl.col.egov-layout-two-col tr,
+  .krds-table-wrap .tbl.col.egov-layout-two-col th,
+  .krds-table-wrap .tbl.col.egov-layout-two-col td { display: block; width: auto; }
+  .krds-table-wrap .tbl.col.egov-layout-two-col th:empty,
+  .krds-table-wrap .tbl.col.egov-layout-two-col td:empty { display: none; }
+}
 .form-row-two-col { display: flex; gap: 16px; }
 .form-row-two-col .form-group { flex: 1; min-width: 0; }
 /* === egov-form-column-layout:end === */

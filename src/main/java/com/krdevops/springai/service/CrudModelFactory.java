@@ -10,7 +10,7 @@ import com.krdevops.springai.model.crud.PkModel;
 import com.krdevops.springai.model.design.FieldSourceType;
 import com.krdevops.springai.model.design.ScreenSpecification;
 import com.krdevops.springai.model.design.ActionPlacement;
-import com.krdevops.springai.model.design.FormColumnLayout;
+import com.krdevops.springai.model.design.FormColumnLayoutPolicy;
 import com.krdevops.springai.model.design.GenerationQueryContract;
 import com.krdevops.springai.model.design.LayoutDensity;
 import com.krdevops.springai.model.design.SearchPanelPlacement;
@@ -201,8 +201,7 @@ public class CrudModelFactory {
                 detailFields,
                 screenSpecification == null
                         ? LayoutDensity.STANDARD : screenSpecification.layoutDensity(),
-                screenSpecification == null
-                        ? FormColumnLayout.SINGLE_COLUMN : screenSpecification.formColumnLayout(),
+                FormColumnLayoutPolicy.resolve(formFields.size(), screenSpecification),
                 screenSpecification == null
                         ? ActionPlacement.TOP_RIGHT : screenSpecification.actionPlacement(),
                 screenSpecification == null

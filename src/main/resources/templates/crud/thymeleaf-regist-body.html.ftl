@@ -55,6 +55,10 @@
                            th:errors="*{${f.javaName}}"></p>
                     </td>
 </#list>
+<#if pair?size == 1>
+                    <th></th>
+                    <td></td>
+</#if>
                 </tr>
 </#list>
 <#else>

@@ -14,15 +14,31 @@
     <section class="egov-section">
         <h2 class="egov-section-title">${domainKr} 정보</h2>
         <div class="krds-table-wrap">
-            <table class="tbl col egov-form-table">
+<#assign twoColDetail = (formColumnLayout == "TWO_COLUMN") && (effectiveDetailFields?size >= 6)>
+            <table class="tbl col egov-form-table<#if twoColDetail> egov-layout-two-col</#if>">
                 <caption>${domainKr} 상세 정보</caption>
                 <tbody>
+<#if twoColDetail>
+<#list effectiveDetailFields?chunk(2) as pair>
+                <tr>
+<#list pair as f>
+                    <th scope="row">${f.comment}</th>
+                    <td th:text="${'$'}{result.${f.javaName}}"></td>
+</#list>
+<#if pair?size == 1>
+                    <th></th>
+                    <td></td>
+</#if>
+                </tr>
+</#list>
+<#else>
 <#list effectiveDetailFields as f>
                 <tr>
                     <th scope="row">${f.comment}</th>
                     <td th:text="${'$'}{result.${f.javaName}}"></td>
                 </tr>
 </#list>
+</#if>
                 </tbody>
             </table>
         </div>

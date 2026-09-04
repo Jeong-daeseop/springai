@@ -20,7 +20,7 @@ class TemplateSetFingerprintServiceTest {
         assertThat(first).isEqualTo(second);
         assertThat(first.templateSetVersion()).isEqualTo("crud-thymeleaf-1.0");
         assertThat(first.templateSetHash())
-                .isEqualTo("14534bdcf260e4a73ba1132266f4019e162260564da7dad7b18968fea610e5e1");
+                .isEqualTo("e70a93e34e13c157d87f138c166ffcd6b99685260bf0a53e95a89deb0565bee1");
         assertThat(first.templates()).hasSize(28);
         assertThat(first.templates()).extracting(value -> value.relativePath())
                 .isSorted()

@@ -359,6 +359,89 @@ class CrudModelFactoryTest {
         assertThat(model.formColumnLayout()).isEqualTo(FormColumnLayout.TWO_COLUMN);
     }
 
+    // ─── formColumnLayout: 스키마 전용 필드 수 heuristic (FormColumnLayoutPolicy) ──
+
+    @Test
+    void fromSchema_schemaOnly_tenFormFields_twoColumn() {
+        CrudTemplateModel model = factory.fromSchema(
+                "T", "Foo", "egovframework.let.foo", "5.0", columns(10, false));
+
+        assertThat(model.formFields()).hasSize(10);
+        assertThat(model.formColumnLayout()).isEqualTo(FormColumnLayout.TWO_COLUMN);
+    }
+
+    @Test
+    void fromSchema_schemaOnly_nineFormFields_singleColumn() {
+        CrudTemplateModel model = factory.fromSchema(
+                "T", "Foo", "egovframework.let.foo", "5.0", columns(9, false));
+
+        assertThat(model.formFields()).hasSize(9);
+        assertThat(model.formColumnLayout()).isEqualTo(FormColumnLayout.SINGLE_COLUMN);
+    }
+
+    @Test
+    void fromSchema_schemaOnly_auditColumnsExcludedFromThreshold() {
+        // 물리 13 = PK 1 + 감사 4 + 업무 8 → formFields 8 → SINGLE_COLUMN
+        CrudTemplateModel model = factory.fromSchema(
+                "T", "Foo", "egovframework.let.foo", "5.0", columns(8, true));
+
+        assertThat(model.formFields()).hasSize(8);
+        assertThat(model.formColumnLayout()).isEqualTo(FormColumnLayout.SINGLE_COLUMN);
+    }
+
+    @Test
+    void fromSchema_screenSpecPresent_suppressesFieldCountHeuristic() {
+        ScreenSpecification specification = new ScreenSpecification(
+                "spec", 1, ScreenSpecStatus.APPROVED, "직원", "crud", "CRUD_LIST",
+                "com", "LETTNEMPLYRINFO", List.of(DataSourceSpec.primary("com", "LETTNEMPLYRINFO")),
+                List.of(), List.of(), LayoutDensity.STANDARD, FormColumnLayout.SINGLE_COLUMN,
+                LocalDateTime.now());
+
+        CrudTemplateModel model = factory.fromSchema(
+                "LETTNEMPLYRINFO", "Employer", "egovframework.let.emp", "5.0", columns(20, false),
+                CrudProgramMetadata.fallback(null), CrudViewType.THYMELEAF,
+                ScreenSubsetMode.NONE, specification);
+
+        // 스펙이 있으면(= SINGLE_COLUMN 명시/기본) 필드 20개여도 heuristic 미발동
+        assertThat(model.formColumnLayout()).isEqualTo(FormColumnLayout.SINGLE_COLUMN);
+    }
+
+    private List<Map<String, Object>> columns(int businessCount, boolean withAudit) {
+        List<Map<String, Object>> cols = new java.util.ArrayList<>();
+        Map<String, Object> pk = new LinkedHashMap<>();
+        pk.put("COLUMN_NAME", "ID");
+        pk.put("DATA_TYPE", "varchar");
+        pk.put("CHARACTER_MAXIMUM_LENGTH", 20L);
+        pk.put("IS_NULLABLE", "NO");
+        pk.put("COLUMN_COMMENT", "ID");
+        pk.put("COLUMN_KEY", "PRI");
+        cols.add(pk);
+        for (int i = 0; i < businessCount; i++) {
+            Map<String, Object> c = new LinkedHashMap<>();
+            c.put("COLUMN_NAME", String.format("COL_%02d", i));
+            c.put("DATA_TYPE", "varchar");
+            c.put("CHARACTER_MAXIMUM_LENGTH", 50L);
+            c.put("IS_NULLABLE", "YES");
+            c.put("COLUMN_COMMENT", "항목" + i);
+            c.put("COLUMN_KEY", "");
+            cols.add(c);
+        }
+        if (withAudit) {
+            for (String name : List.of("FRST_REGIST_PNTTM", "FRST_REGISTER_ID",
+                    "LAST_UPDT_PNTTM", "LAST_UPDUSR_ID")) {
+                Map<String, Object> c = new LinkedHashMap<>();
+                c.put("COLUMN_NAME", name);
+                c.put("DATA_TYPE", "varchar");
+                c.put("CHARACTER_MAXIMUM_LENGTH", 30L);
+                c.put("IS_NULLABLE", "YES");
+                c.put("COLUMN_COMMENT", name);
+                c.put("COLUMN_KEY", "");
+                cols.add(c);
+            }
+        }
+        return cols;
+    }
+
     @Test
     void fromSchema_noScreenSpecification_formColumnLayoutDefaultsToSingleColumn() {
         CrudTemplateModel model = factory.fromSchema(
