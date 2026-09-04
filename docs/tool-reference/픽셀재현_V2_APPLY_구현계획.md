@@ -173,6 +173,16 @@ KRDS Figma 컴포넌트는 **영문 PascalCase variant 속성명 + 소문자 값
 
 **variant 축(Figma) → propertyMappings**: `button`은 Figma `Color`(primary/…)·`Size`(large/…)·`State`, 나머지는 `Size`·`State` 중심. Figma 인스턴스명 규칙 `Type=…, Color=…, State=…, Size=…` (Badge에서 확인). 정확한 축은 각 컴포넌트 node-id URL로 `get_design_context` 시 최종 확정.
 
+### Figma 조사 한계 (2026-09-04)
+
+`get_metadata`(nodeId 없음)가 KRDS Community 파일의 페이지를 **5개만 반환**(Badge/Link/Design style/Getting Started/Main menu — 페이징 미지원, 잘림). button/text_input/selectbox/date_input/table/pagination은 각자 전용 페이지에 있으나 그 페이지 ID를 발견할 방법이 없다. `search_design_system`은 `componentKey`만 주고 `nodeId`를 안 준다. `get_design_context`/`get_metadata`는 nodeId 필수.
+
+확인된 variant 명명 규칙(Badge, Main menu 페이지에서):
+- 속성명: `Type`, `Color`, `Size`, `State` (일부 소문자 `state=`, `banner=`), 값은 소문자
+- 예: `Type=outline, Color=secondary, State=default, Size=large` / `State=hover` / `More depth=Yes`
+
+**진행 방식**: 정확한 `figmaProperty` 이름은 사용자가 Figma에서 컴포넌트 우클릭 → Copy link로 node-id URL을 주면 `get_design_context`로 확정. 그때까지는 위 규칙(`Type`/`Color`/`Size`/`State`)으로 매핑 작성하고 B3 구현 중 보정. `figmaProperty`가 틀려도 해당 variant가 해석 안 되어 default로 떨어질 뿐(멱등적 실패 아님)이라 후속 보정 가능.
+
 ## B3. CRUD 템플릿이 `designComponents` 소비
 
 **목표**: `CrudTemplateModel.designComponents`(현재 `CrudTemplateRenderer.java:244`가 모델에 넣지만 템플릿 미사용)를 실제 렌더에 반영.
@@ -358,6 +368,21 @@ mappings: `@paginationInfo`/`@linkUrl`(req:false) — 전부 바인딩. eGovFram
 **검증**: `UiDesignSpecV2ArtifactWriterTest`(2, 신규 — specId=artifactId, content-addressed hash, 멱등), `GenerationDesignContextServiceTest`(4, +2 — V2_PREVIEW v2 경로 / DISABLED v1 경로 유지), `GenerationDesignContextArtifactGateTest`(3), `ScreenSpecificationV2IntegrationTest`(3), `ScreenSpecificationServiceTest`(5), `generation.crud.*` / `CrudOrchestrationServiceTest` / `GenerationBaselineFixtureTest` / `RestMcpWorkflowCrossE2ETest` / `designsystem.*` — 총 332건 통과. 전체 `./gradlew test`도 실행.
 
 **남음**: B1(Figma→componentRef), B2 variant 정밀, B3(fragment 파일 생성 + FTL 소비), B4(프로파일 버전), B5(모드 전환).
+
+### B1 착수 중 발견 (2026-09-04) — mapper 확장 필요
+
+`FigmaUiDesignSpecV2Mapper`를 `resolve()`에 연결하는 것만으로는 픽셀 재현이 안 된다:
+
+- `FigmaUiDesignSpecV2Mapper.node()` (`:83`)가 `SemanticNode`의 `componentRef` 자리에 **`null`을 전달**. `logicalType(raw)`(문자열)만 세팅하고 `ComponentReference(logicalType, componentSetKey, mappingRef)`는 안 만든다.
+- → Figma mapper를 배선해도 `RequiredComponentMappingApplyGate`가 순회할 `componentRef` = 0개 → A1과 동일(다이제스트만).
+
+**진짜 B1 작업**:
+1. `FigmaUiDesignSpecV2Mapper.node()` 확장 — INSTANCE 노드에서 `raw.path("componentId")` 읽고, 컴포넌트 세트 키로 해석해 `ComponentReference` 생성 후 `SemanticNode`에 전달
+2. `componentId → componentSetKey` 해석 — NODES 응답에 `componentSets` 맵이 없으면 `FigmaApiClient.getFileComponents(fileKey)`(`:368`, `GET /v1/files/{key}/components`, 이미 존재) 별도 호출
+3. `FigmaApiClient.fetchNode`가 instance의 `componentId`/`componentProperties`를 응답에 포함하는지 확인(depth/필드)
+4. 실제 Figma INSTANCE 노드 JSON 픽스처 + 테스트 (현재 없음 — Figma 데이터 확보 필요)
+
+**결론**: B1은 "배선"이 아니라 Figma 노드 → 컴포넌트 참조 추출 로직 신규 구현. 실제 Figma 데이터(KRDS 컴포넌트/화면 node-id) 확보 후 진행.
 
 ---
 
