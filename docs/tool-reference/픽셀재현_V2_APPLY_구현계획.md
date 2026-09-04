@@ -115,9 +115,55 @@ sourceRevision, approvedBy, approvedAt
 - (b) 신규 MCP 도구 `registerComponentMapping(...)` + `approveComponentMapping(mappingId)` — 세션에서 등록. `DesignCodeComponentMappingRepository.saveImmutable` + `DesignCodeComponentMappingApprovalService.approve`(46행) 위임.
 
 **결정/입력 필요 (사용자·디자이너)**
-- KRDS Figma 라이브러리에서 각 컴포넌트 세트의 **실제 키**
-- 각 컴포넌트의 **Thymeleaf fragment 마크업** (파라미터·슬롯 포함)
-- Figma variant 속성명 ↔ fragment 파라미터명 대응
+- ~~KRDS Figma 라이브러리에서 각 컴포넌트 세트의 **실제 키**~~ → 아래 B2 인벤토리에서 조사 완료
+- 각 컴포넌트의 **Thymeleaf fragment 마크업** (파라미터·슬롯 포함) — B3에서 작성
+- Figma variant 속성명 ↔ fragment 파라미터명 대응 — variant 추출 진행 중
+
+### B2 인벤토리 (2026-09-04 조사, KRDS_v1.0.0 Community)
+
+- `fileKey`: `6fcm04dwSEH2IUizZfaZCj`
+- `libraryKey`: `lk-d23666ef86e768bedd5db3bae3fc7a19dfe377e321e758b0085d804d0a733281a3148081a64f16b42143690fdeb2c8f67cde44fd79ac8e707afb19bc03fd0dfe`
+- 매핑 대상 라이브러리 결정: **KRDS_v1.0.0 (Community)** (대안 "FTC 정부 포털 Design System"은 미채택)
+
+| eGov logicalType | KRDS 컴포넌트 | `figmaComponentSetKey` (componentKey) | assetType |
+|---|---|---|---|
+| `button` (primary/secondary/negative) | `button` | `104d078e1895f788a91cfc8c42073fe6bc85e77a` | component_set |
+| `button-text` | `button_text` | `517f19a6f3981e46254deb24091b2240605dc74e` | component_set |
+| `button-link` | `button_link` | `a92ad2622cafa6582137dc010d3b310ecc38c667` | component_set |
+| `text-input` | `text_input` | `e2643d821fe50580f30fd5d0378ad7e486543da6` | component_set |
+| `select` (공통코드) | `selectbox` | `69ac27b250e29b249f408e70a7f72f6422206d66` | component_set |
+| `date-input` | `date_input` | `91e9276f499af0a7b06d94e514e40324fe66172a` | component_set |
+| `checkbox` | `checkbox` | `68dac165ea6ccd639de85b07d6b49aadc0705d63` | component_set |
+| `radio` | `radio_button` | `02eb1de395a6a48136b752469f3a9fceaf9fc7a4` | component_set |
+| `data-table` (목록) | `table` | `194a582dc105671593355376a992d90ab42ca7ce` | component_set |
+| `pagination` | `pagination__atomic` | `a786257623cc432e95c4dbaa80cd56741d2a753d` | component_set |
+| `input-message` (에러/힌트) | `input_message__atomic` | `4804570b7748935a184c044fa669dff7099bb692` | component_set |
+
+**색상 토큰**: `mode` 컬렉션, `variableSetKey` `6c0577907fbad9e7f69d8714b3ef5b76d84279ee` — `color/input/border`, `color/input/surface`, `color/input/border-active`, `color/input/border-error`, `color/input/border-disabled`, `color/text/primary`, `color/text/danger`, `color/text/basic` 등
+
+**미확인**: `search-form`(KRDS 전용 컴포넌트 없음 — 조합으로 구성), eGov `tbl col` 폼 테이블 대응(KRDS `table`은 데이터 테이블 지향 — 폼 테이블은 매핑 대상에서 제외하고 기존 마크업 유지 검토)
+
+### B2 variant 명명 규칙 (Badge 컴포넌트에서 확인)
+
+KRDS Figma 컴포넌트는 **영문 PascalCase variant 속성명 + 소문자 값**을 쓴다:
+- 속성 축: `Type`, `Color`, `State`, `Size` (+ 컴포넌트별 추가 축, 예: Badge의 `Number`)
+- 값 예: `Type` = `outline`/`solid`/`solid-pastel` · `Color` = `primary`/`secondary`/`tertiary`/`point`/`danger`/`warning`/`success`/`info` · `State` = `default`/`disabled`/`hover`/... · `Size` = `large`/`medium`/`small`
+- variant 인스턴스 이름 형식: `Type=outline, Color=secondary, State=default, Size=large`
+
+→ `DesignCodeComponentMapping.propertyMappings[].figmaProperty`에 이 속성명을 그대로 사용.
+
+### B2 draft 매핑표 (variant 축은 규칙 기반 추정 — 구현 시 `get_design_context`로 확정)
+
+| logicalType | figmaComponentSetKey | 추정 variant 축 | eGov 대상 마크업(초안) |
+|---|---|---|---|
+| `button` | `104d078e1895f788a91cfc8c42073fe6bc85e77a` | `Type`(primary/secondary/…), `Size`(large/medium/small), `State` | `<button class="krds-btn {Color} {Size} egov-btn">` |
+| `text-input` | `e2643d821fe50580f30fd5d0378ad7e486543da6` | `Size`, `State`(default/error/disabled/readonly) | `<input type="text" class="krds-input {Size} egov-control">` |
+| `select` | `69ac27b250e29b249f408e70a7f72f6422206d66` | `Size`, `State` | `<select class="krds-select {Size} egov-control">` |
+| `date-input` | `91e9276f499af0a7b06d94e514e40324fe66172a` | `Type`(single/period), `Size`, `State` | `<input type="text" class="krds-input {Size} egov-control" data-role="datepicker">` |
+| `data-table` | `194a582dc105671593355376a992d90ab42ca7ce` | `Type`, `Size`(밀도) | `<table class="tbl data">` (목록) |
+| `pagination` | `a786257623cc432e95c4dbaa80cd56741d2a753d` | (원자 컴포넌트 — 페이지 항목 상태) | 페이징 프래그먼트 (PaginationInfo 연동) |
+
+**확정 필요 (B3 착수 시)**: 각 컴포넌트의 실제 variant 축·값 — KRDS 파일의 해당 컴포넌트 페이지에 `get_metadata`(nodeId 필요) 또는 실제 예제 화면에서 `get_design_context`. 현재 파일 페이지 목록이 5개로 잘려 컴포넌트 페이지 직접 접근 불가 → 컴포넌트별 node-id URL을 사용자가 제공하거나, KRDS 공식 문서(krds.go.kr) 병행 참조.
 
 ## B3. CRUD 템플릿이 `designComponents` 소비
 
