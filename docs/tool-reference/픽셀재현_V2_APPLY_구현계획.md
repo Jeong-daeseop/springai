@@ -434,6 +434,25 @@ mappings: `@paginationInfo`/`@linkUrl`(req:false) — 전부 바인딩. eGovFram
 
 ---
 
+### B4 구현 완료 (2026-09-04)
+
+**`componentMappingVersion` — 유지(`"1.0"`), bump 안 함**
+- `RendererProfile.componentMappingVersion`은 선언 필드일 뿐 **소비자 0** — `RendererProfileValidator`는 rendererType·templateEngine·viewType·status·templateSetVersion·**templateSetHash**·capability matrix·validatorProfile만 검증. `componentMappingVersion`을 읽거나 실제 시드 Mapping과 대조하는 게이트 없음(`grep componentMappingVersion` → 모델 필드·스키마·픽스처뿐).
+- B2 시더가 만드는 6개 `DesignCodeComponentMapping`의 `version`이 `"1.0"`. 프로파일의 `componentMappingVersion`을 `"1.1"`로 올리면 **시드 Mapping version과 desync**되고, 그걸 잡아줄 검증도 없으므로 오히려 혼동만 는다. → `"1.0"` 유지가 정합.
+- `contentHash`(JSON `8e2801b4…` ↔ `RendererProfileReference.DEFAULT_CONTENT_HASH`)는 프로파일 JSON 내용이 B4에서 안 바뀌므로(templateSetHash는 B3에서 이미 갱신) 그대로.
+
+**`RequiredComponentMappingApplyGate` 통합 테스트 (신규)**
+- `RequiredComponentMappingApplyGateSeedIntegrationTest` — `ThymeleafKrdsComponentMappingSeeder.mappings()`의 **실제 6종 시드**를 in-memory stub repository로 Gate에 태운다.
+- v2 스펙 nodes 6개가 각각 `ComponentReference(logicalType, "krds:"+logicalType, null)` (B1 pragmatic 키 규약) 보유.
+- ① 6종 모두 승인 → `requireForApply`가 6개 `DesignComponentRenderInput` 확정(각 `thymeleafFragment` = `components/krds-<x> :: <name>`, `rendererProfile` = `thymeleaf-krds`).
+- ② `select` 시드 제외 → `RequiredComponentMappingException("승인 Mapping 누락: select/krds:select (thymeleaf-krds)")`.
+- ③ `date-input`+`pagination` 제외 → 두 누락 모두 수집 후 차단.
+- Mapping 내부 계약(Fixture Adapter·RenderInput 해석)은 `ThymeleafKrdsComponentMappingSeederTest`가, Gate 단위 동작(pinned ref 불일치·미지원 variant·V2_PREVIEW no-op)은 기존 `RequiredComponentMappingApplyGateTest`가 커버 — 이 테스트는 시드↔Gate end-to-end만.
+
+**검증**: `RequiredComponentMappingApplyGateSeedIntegrationTest`(신규 3), `RequiredComponentMappingApplyGateTest`·`ThymeleafKrdsComponentMappingSeederTest`(기존 유지) 통과.
+
+---
+
 ### (이전 기록) B1 착수 중 발견 (2026-09-04) — mapper 확장 필요
 
 `FigmaUiDesignSpecV2Mapper`를 `resolve()`에 연결하는 것만으로는 픽셀 재현이 안 된다:
