@@ -24,6 +24,24 @@ public class FigmaUiDesignSpecV2Mapper {
             .enable(SerializationFeature.ORDER_MAP_ENTRIES_BY_KEYS)
             .build();
 
+    /**
+     * KRDS Figma 컴포넌트 이름(정규화: 소문자·영숫자만) 접두사 → eGov logicalType.
+     * pragmatic 매핑 — 실제 Figma Component Set 키 대신 {@code "krds:" + logicalType}를 쓰며
+     * {@code DesignCodeComponentMapping} 시드가 같은 값을 사용한다. 더 정밀한 해석은
+     * ComponentRegistry 통합 시 대체한다. 순서 중요(더 구체적인 이름 먼저).
+     */
+    private static final List<String[]> LOGICAL_TYPE_ROOTS = List.of(
+            new String[] {"textinput", "text-input"},
+            new String[] {"selectbox", "select"},
+            new String[] {"dateinput", "date-input"},
+            new String[] {"pagination", "pagination"},
+            new String[] {"checkbox", "checkbox"},
+            new String[] {"radiobutton", "radio"},
+            new String[] {"buttontext", "button"},
+            new String[] {"buttonlink", "button"},
+            new String[] {"button", "button"},
+            new String[] {"table", "data-table"});
+
     public UiDesignSpecV2 map(
             String specId,
             FigmaReference reference,
@@ -80,10 +98,30 @@ public class FigmaUiDesignSpecV2Mapper {
         UiDesignSpecV2.VisualStyle visualStyle = new UiDesignSpecV2.VisualStyle(
                 raw.path("opacity").asDouble(1.0), visualPaints(raw.path("fills")), visualPaints(raw.path("strokes")));
         return new UiDesignSpecV2.SemanticNode(
-                entry.semanticId(), role(raw), logicalType(raw), geometry, constraints, null, visualStyle,
+                entry.semanticId(), role(raw), logicalType(raw), geometry, constraints,
+                componentReference(raw), visualStyle,
                 List.of(), interactions(entry),
                 new UiDesignSpecV2.InferenceEvidence(
                         List.of(entry.sourceNodeRef()), confidence(raw), "FIGMA_NODE_TREE", false, false));
+    }
+
+    /**
+     * COMPONENT/INSTANCE 노드의 이름을 알려진 eGov logicalType으로 정규화해 ComponentReference를 만든다.
+     * 매칭되지 않는 노드(레이아웃 컨테이너·텍스트 등)는 null을 반환해 {@code RequiredComponentMappingApplyGate}가
+     * 순회 대상에서 제외한다.
+     */
+    private UiDesignSpecV2.ComponentReference componentReference(JsonNode raw) {
+        String type = raw.path("type").asText("").toUpperCase(Locale.ROOT);
+        if (!"COMPONENT".equals(type) && !"INSTANCE".equals(type)) return null;
+        String normalized = raw.path("name").asText("").trim()
+                .toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+        if (normalized.isEmpty()) return null;
+        for (String[] entry : LOGICAL_TYPE_ROOTS) {
+            if (normalized.startsWith(entry[0])) {
+                return new UiDesignSpecV2.ComponentReference(entry[1], "krds:" + entry[1], null);
+            }
+        }
+        return null;
     }
 
     private List<UiDesignSpecV2.VisualPaint> visualPaints(JsonNode paints) {

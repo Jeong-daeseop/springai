@@ -101,6 +101,54 @@ class FigmaUiDesignSpecV2MapperTest {
     }
 
     @Test
+    void 알려진_KRDS_컴포넌트_INSTANCE는_ComponentReference를_만든다() throws Exception {
+        FigmaNodeDocument document = document("""
+                {
+                  "id":"1:1","type":"FRAME","name":"Employer Regist",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"id":"1:2","type":"INSTANCE","name":"Button",
+                     "absoluteBoundingBox":{"x":10,"y":10,"width":120,"height":48}},
+                    {"id":"1:3","type":"INSTANCE","name":"text_input",
+                     "absoluteBoundingBox":{"x":10,"y":80,"width":320,"height":48}},
+                    {"id":"1:4","type":"INSTANCE","name":"selectbox / medium",
+                     "absoluteBoundingBox":{"x":10,"y":140,"width":320,"height":48}},
+                    {"id":"1:5","type":"INSTANCE","name":"pagination__pc",
+                     "absoluteBoundingBox":{"x":10,"y":800,"width":400,"height":40}},
+                    {"id":"1:6","type":"FRAME","name":"row",
+                     "absoluteBoundingBox":{"x":0,"y":0,"width":100,"height":10}},
+                    {"id":"1:7","type":"INSTANCE","name":"Divider",
+                     "absoluteBoundingBox":{"x":0,"y":0,"width":100,"height":1}}
+                  ]
+                }
+                """);
+
+        UiDesignSpecV2 spec = mapper.map(
+                "ui-b1", new FigmaReference("file-1", "1:1"), document, "crud");
+
+        assertThat(spec.nodes()).filteredOn(n -> n.semanticId().equals("node-1:2"))
+                .singleElement().satisfies(n -> {
+                    assertThat(n.componentRef()).isNotNull();
+                    assertThat(n.componentRef().logicalType()).isEqualTo("button");
+                    assertThat(n.componentRef().componentSetKey()).isEqualTo("krds:button");
+                });
+        assertThat(spec.nodes()).filteredOn(n -> n.semanticId().equals("node-1:3"))
+                .singleElement().satisfies(n ->
+                        assertThat(n.componentRef().logicalType()).isEqualTo("text-input"));
+        assertThat(spec.nodes()).filteredOn(n -> n.semanticId().equals("node-1:4"))
+                .singleElement().satisfies(n ->
+                        assertThat(n.componentRef().logicalType()).isEqualTo("select"));
+        assertThat(spec.nodes()).filteredOn(n -> n.semanticId().equals("node-1:5"))
+                .singleElement().satisfies(n ->
+                        assertThat(n.componentRef().logicalType()).isEqualTo("pagination"));
+        // 레이아웃 컨테이너/미지 컴포넌트는 componentRef 없음
+        assertThat(spec.nodes()).filteredOn(n -> n.semanticId().equals("node-1:6"))
+                .singleElement().satisfies(n -> assertThat(n.componentRef()).isNull());
+        assertThat(spec.nodes()).filteredOn(n -> n.semanticId().equals("node-1:7"))
+                .singleElement().satisfies(n -> assertThat(n.componentRef()).isNull());
+    }
+
+    @Test
     void 단일_FRAME이_아니면_거부한다() throws Exception {
         FigmaNodeDocument document = document("""
                 {"id":"0:1","type":"SECTION","name":"Screens","children":[]}

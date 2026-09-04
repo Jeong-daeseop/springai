@@ -369,7 +369,23 @@ mappings: `@paginationInfo`/`@linkUrl`(req:false) — 전부 바인딩. eGovFram
 
 **남음**: B1(Figma→componentRef), B2 variant 정밀, B3(fragment 파일 생성 + FTL 소비), B4(프로파일 버전), B5(모드 전환).
 
-### B1 착수 중 발견 (2026-09-04) — mapper 확장 필요
+### B1 구현 완료 (pragmatic, 2026-09-04)
+
+**변경**
+| 파일 | 내용 |
+|---|---|
+| `FigmaUiDesignSpecV2Mapper` | `node()`가 `componentRef` 자리에 `null` 대신 `componentReference(raw)` 전달. COMPONENT/INSTANCE 노드 이름(정규화)을 알려진 eGov logicalType 접두사(`button`/`textinput`/`selectbox`/`dateinput`/`pagination`/`checkbox`/`radiobutton`/`table`)에 매칭 → `ComponentReference(logicalType, "krds:"+logicalType, null)`. 미매칭(레이아웃 컨테이너·텍스트)은 null → 게이트 순회 제외 |
+| `GenerationDesignContextService` | `FigmaApiClient` + `FigmaUiDesignSpecV2Mapper` 주입(nullable). `toV2Spec(analysis)` 신설 — 출처가 FIGMA + Figma 재조회 가능 시 `figmaApiClient.fetchNode` → `figmaMapper.map`(정밀 v2, componentRef 있음), 아니면/실패 시 v1→v2 어댑터로 폴백(non-fatal, WARN 로그) |
+
+**pragmatic 결정**: `figmaComponentSetKey`를 실제 Figma Component Set 키가 아니라 **`"krds:" + logicalType`** 논리 키로 사용. B2 시드가 같은 값을 쓰면 `RequiredComponentMappingApplyGate.findApproved(logicalType, componentSetKey, "thymeleaf-krds")`가 매칭된다. 더 정밀한 해석(ComponentRegistry 통합, Figma `/components` API로 실제 세트 키 해석)은 후속.
+
+**한계**: variant(`Type`/`Size`/`State`)는 아직 안 뽑음 — `SemanticNode.componentRef`는 `logicalType`+`componentSetKey`만. Figma `componentProperties`(인스턴스 variant 값) 추출은 B3 `propertyMappings` 해석 시 필요 → 별도 확장.
+
+**검증**: `FigmaUiDesignSpecV2MapperTest`(+1 — INSTANCE 이름별 componentRef, 미매칭 null), `GenerationDesignContextServiceTest`/`GenerationDesignContextArtifactGateTest`(생성자 오버로드 유지) 통과. 전체 `./gradlew test` 실행.
+
+---
+
+### (이전 기록) B1 착수 중 발견 (2026-09-04) — mapper 확장 필요
 
 `FigmaUiDesignSpecV2Mapper`를 `resolve()`에 연결하는 것만으로는 픽셀 재현이 안 된다:
 
