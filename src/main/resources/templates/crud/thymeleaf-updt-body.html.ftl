@@ -3,13 +3,19 @@
   designComponentPlan이 있으면(V2_APPLY 픽셀 재현) KRDS 컴포넌트 fragment(th:replace) 기반
   div-stack 폼으로 렌더하고, 없으면 기존 table 폼을 그대로 유지한다(산출물 바이트 동일).
 -->
+<#function dcParam logicalType name default>
+  <#if designComponentPlan?? && designComponentPlan.has(logicalType)>
+    <#return (designComponentPlan.get(logicalType).fragmentParameters()[name])!default>
+  </#if>
+  <#return default>
+</#function>
 <#macro updtFormField f>
   <#if designComponentPlan.isCommonCode(f.javaName) && designComponentPlan.has('select')>
-                <div th:replace="~{components/krds-select :: select(path='${f.javaName}', label='${f.comment}', size='medium', state=null, options=${'$'}{${f.javaName}CodeList}, required=${f.required?c})}"></div>
+                <div th:replace="~{components/krds-select :: select(path='${f.javaName}', label='${f.comment}', size='${dcParam('select', 'size', 'medium')}', state=null, options=${'$'}{${f.javaName}CodeList}, required=${f.required?c})}"></div>
   <#elseif (f.javaType == 'LocalDate' || f.javaType == 'LocalDateTime' || f.javaType == 'Date') && designComponentPlan.has('date-input')>
-                <div th:replace="~{components/krds-date-input :: dateInput(path='${f.javaName}', label='${f.comment}', mode='single', required=${f.required?c})}"></div>
+                <div th:replace="~{components/krds-date-input :: dateInput(path='${f.javaName}', label='${f.comment}', mode='${dcParam('date-input', 'mode', 'single')}', required=${f.required?c})}"></div>
   <#elseif designComponentPlan.has('text-input')>
-                <div th:replace="~{components/krds-text-input :: textInput(path='${f.javaName}', label='${f.comment}', size='medium', state=null, placeholder='${f.comment}을(를) 입력하세요', maxlength=<#if f.maxLength??>${f.maxLength?c}<#else>null</#if>, required=${f.required?c})}"></div>
+                <div th:replace="~{components/krds-text-input :: textInput(path='${f.javaName}', label='${f.comment}', size='${dcParam('text-input', 'size', 'medium')}', state=null, placeholder='${f.comment}을(를) 입력하세요', maxlength=<#if f.maxLength??>${f.maxLength?c}<#else>null</#if>, required=${f.required?c})}"></div>
   <#else>
                 <div class="krds-form-group">
                     <label for="${f.javaName}" class="krds-form-label">
@@ -136,8 +142,8 @@
         <div class="egov-form-actions">
 <#if designComponentPlan?? && designComponentPlan.has('button')>
             <a th:href="@{${route.resolvedDetailPath()}(<#list pkFields as p>${p.javaName}=${'$'}{${domainLc}VO.${p.javaName}}<#sep>,</#sep></#list>)}"
-               th:replace="~{components/krds-button :: button(label='취소', variant='secondary', size='medium', buttonType='button')}"></a>
-            <button type="submit" th:replace="~{components/krds-button :: button(label='저장', variant='primary', size='medium', buttonType='submit')}"></button>
+               th:replace="~{components/krds-button :: button(label='취소', variant='secondary', size='${dcParam('button', 'size', 'medium')}', buttonType='button')}"></a>
+            <button type="submit" th:replace="~{components/krds-button :: button(label='저장', variant='${dcParam('button', 'variant', 'primary')}', size='${dcParam('button', 'size', 'medium')}', buttonType='submit')}"></button>
 <#else>
             <a th:href="@{${route.resolvedDetailPath()}(<#list pkFields as p>${p.javaName}=${'$'}{${domainLc}VO.${p.javaName}}<#sep>,</#sep></#list>)}"
                class="krds-btn secondary medium egov-btn">취소</a>

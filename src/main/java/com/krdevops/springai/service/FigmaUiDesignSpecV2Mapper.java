@@ -11,6 +11,7 @@ import com.krdevops.springai.model.design.UiDesignSpecV2;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -118,10 +119,37 @@ public class FigmaUiDesignSpecV2Mapper {
         if (normalized.isEmpty()) return null;
         for (String[] entry : LOGICAL_TYPE_ROOTS) {
             if (normalized.startsWith(entry[0])) {
-                return new UiDesignSpecV2.ComponentReference(entry[1], "krds:" + entry[1], null);
+                return new UiDesignSpecV2.ComponentReference(
+                        entry[1], "krds:" + entry[1], null, componentProperties(raw));
             }
         }
         return null;
+    }
+
+    /**
+     * Figma INSTANCE의 {@code componentProperties}(variant/boolean/text 값)를 뽑아
+     * {@code {Type: "outline", Size: "small"}} 형태의 평면 맵으로 만든다. TEXT/BOOLEAN 속성명의
+     * {@code #nodeId} 접미사는 제거한다. INSTANCE_SWAP 등 렌더에 무관한 타입은 건너뛴다.
+     */
+    private Map<String, String> componentProperties(JsonNode raw) {
+        JsonNode props = raw.path("componentProperties");
+        if (!props.isObject()) return Map.of();
+        LinkedHashMap<String, String> out = new LinkedHashMap<>();
+        props.fields().forEachRemaining(field -> {
+            JsonNode entry = field.getValue();
+            String propertyType = entry.path("type").asText("");
+            if (!"VARIANT".equals(propertyType) && !"BOOLEAN".equals(propertyType)
+                    && !"TEXT".equals(propertyType)) {
+                return;
+            }
+            JsonNode value = entry.path("value");
+            if (value.isMissingNode() || value.isNull()) return;
+            String name = field.getKey();
+            int hash = name.indexOf('#');
+            if (hash > 0) name = name.substring(0, hash);
+            out.putIfAbsent(name.trim(), value.asText());
+        });
+        return Map.copyOf(out);
     }
 
     private List<UiDesignSpecV2.VisualPaint> visualPaints(JsonNode paints) {

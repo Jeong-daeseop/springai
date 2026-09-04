@@ -440,9 +440,30 @@ mappings: `@paginationInfo`/`@linkUrl`(req:false) — 전부 바인딩. eGovFram
 **의도적 미구현(후속)**
 - **list 화면 data-table/pagination fragment 소비 안 함** — 기존 eGov 목록 마크업(행별 상세 링크, 검색 파라미터 보존 페이지네이션, 체크박스 컬럼)이 generic fragment보다 기능이 많아 교체 시 회귀. fragment 파일·시드는 유지(계약 완결성/타 화면용).
 - **detail 화면** — 2단 폼 로직이 담당(계획서 §309).
-- variant(`Type`/`Size`/`State`) Figma 추출 — B1 한계 그대로.
+- ~~variant(`Type`/`Size`/`State`) Figma 추출 — B1 한계 그대로.~~ → **B3-variant 후속에서 구현**(아래).
 
 **검증**: `CrudTemplateRendererTest`(+7 — plan 유무별 regist/updt fragment 치환, 공통코드 select, controller/mapper/service 공통코드 코드젠, plan 없을 때 바이트 동일), `KrdsComponentFragmentWriterTest`(신규 — 멱등 기록 + 6종 계약 통과), `TemplateSetFingerprintServiceTest`(golden 갱신) 통과. 전체 `./gradlew test`.
+
+---
+
+### B3-variant 후속 구현 완료 (2026-09-04)
+
+**목표**: Figma INSTANCE의 `componentProperties`(variant 값)를 뽑아 fragment 파라미터로 흘려보낸다 — 지금까지는 시드 Fixture 기본값(primary/medium/single)만 렌더에 반영됐다.
+
+| 파일 | 변경 |
+|---|---|
+| `model/design/UiDesignSpecV2.ComponentReference` | 4번째 컴포넌트 `Map<String,String> componentProperties` 추가(+3-arg 호환 생성자). 렌더 전용, v2 아티팩트 hash는 `sha256(직렬화 바이트)`라 자기정합 유지(고정 golden 없음) |
+| `service/FigmaUiDesignSpecV2Mapper` | `componentReference(raw)`가 `raw.path("componentProperties")` 파싱 — VARIANT/BOOLEAN/TEXT 타입만, TEXT/BOOLEAN 속성명의 `#nodeId` 접미사 제거, INSTANCE_SWAP 등 제외 → `{Type:"secondary", Size:"large", Label:"저장"}` 평면 맵 |
+| `service/designsystem/RequiredComponentMappingApplyGate` | `effectiveFigmaProperties(mapping, reference, fixtureProps)` — 시드 Fixture `figmaProperties` 위에 인스턴스 `componentProperties`를 **Mapping이 실제 매핑하는 figmaProperty 키만** 덮어씀(잡음 방지). 인스턴스 미지정 속성(Label 등)은 Fixture 기본값 유지. 시드의 `valueMapping`이 비어 있어 `ComponentVariantValueResolver`는 passthrough → `size="large"` 등이 fragment 파라미터로 그대로 전달 |
+| `templates/crud/thymeleaf-regist-body.html.ftl` / `thymeleaf-updt-body.html.ftl` | `<#function dcParam(logicalType, name, default)>` — `designComponentPlan.get(logicalType).fragmentParameters()[name]!default`. select `size`, text-input `size`, date-input `mode`, button `variant`+`size`를 `th:replace` 호출부에서 해석값으로. `label`/`buttonType`/`path`/`options`/`required` 등 CRUD 의미 파라미터는 그대로. 취소 버튼은 `variant='secondary'` 고정(CRUD 의미), 저장 버튼만 design variant |
+| `renderer-profile-thymeleaf-krds-v1.json` + `TemplateSetFingerprintServiceTest` | `templateSetHash` `7ea76553…` → `44073b0966b0c878778da705745af9a9a218d7094fa40d8237486a9915c8fb35` |
+
+**결정**
+- variant 값 **passthrough**(valueMapping 미사용) — KRDS Figma variant 값(small/medium/large, primary/secondary/tertiary)이 이미 KRDS 클래스 토큰과 일치. Figma 값이 KRDS 토큰과 다른 경우 대비 `valueMapping` 정밀화는 후속(현재는 raw 값이 그대로 클래스로 들어가 잘못된 CSS 클래스 가능성 — 낮은 리스크).
+- 인스턴스 값이 Fixture 기본값을 **덮어쓴다**(gap-fill 아님) — 인스턴스가 명시한 것은 ground truth.
+- `state`는 6종 시드 어느 것도 매핑 안 함 → FTL에서 `state=null` 고정 유지.
+
+**검증**: `FigmaUiDesignSpecV2MapperTest`(+2 — componentProperties 추출/빈 INSTANCE), `RequiredComponentMappingApplyGateSeedIntegrationTest`(+1 — 인스턴스 값이 Fixture 덮어씀), `CrudTemplateRendererTest`(+2 — 해석 variant/size 적용, 미해석 시 기본값), `GenerationBaselineFixtureTest` golden 유지(plan 없으면 바이트 동일), 전체 `./gradlew test`.
 
 ---
 

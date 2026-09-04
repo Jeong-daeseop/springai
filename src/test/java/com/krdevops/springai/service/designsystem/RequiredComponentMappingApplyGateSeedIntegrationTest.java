@@ -112,6 +112,33 @@ class RequiredComponentMappingApplyGateSeedIntegrationTest {
                                 "승인 Mapping 누락: pagination/krds:pagination (thymeleaf-krds)"));
     }
 
+    @Test
+    void INSTANCE의_componentProperties가_시드_Fixture_기본값을_덮어쓴다() {
+        UiDesignSpecV2.InferenceEvidence evidence = new UiDesignSpecV2.InferenceEvidence(
+                List.of("1:2"), 0.99, "figma-component", false, false);
+        // button 인스턴스가 variant=secondary, size=large를 명시 (시드 Fixture 기본값은 primary/medium)
+        UiDesignSpecV2.ComponentReference buttonRef = new UiDesignSpecV2.ComponentReference(
+                "button", "krds:button", null, Map.of("Type", "secondary", "Size", "large"));
+        UiDesignSpecV2.SemanticNode buttonNode = new UiDesignSpecV2.SemanticNode(
+                "button-node", "field", "button", null, Map.of(), buttonRef,
+                List.of(), List.of(), evidence);
+        UiDesignSpecV2 spec = new UiDesignSpecV2(
+                UI_SPEC_ID, "2.0", "c".repeat(64),
+                new UiDesignSpecV2.Source(
+                        UiDesignSpecV2.SourceType.FIGMA, "file", "1:1", "krds-v1.0.0"),
+                null, List.of(buttonNode), List.of(), List.of(), List.of(), List.of(), 0.99);
+        when(readResult.spec()).thenReturn(spec);
+        stubRepositoryExcluding(Set.of());
+
+        DesignComponentRenderInput button = gate.requireForApply(screenSpecification(), "thymeleaf-krds")
+                .stream().filter(input -> input.logicalType().equals("button")).findFirst().orElseThrow();
+
+        assertThat(button.fragmentParameters())
+                .containsEntry("variant", "secondary")   // 인스턴스 값
+                .containsEntry("size", "large")           // 인스턴스 값
+                .containsEntry("label", "버튼");           // 인스턴스 미지정 → 시드 Fixture 기본값 유지
+    }
+
     private void stubRepositoryExcluding(Set<String> excludedLogicalTypes) {
         when(repository.findApproved(anyString(), anyString(), eq("thymeleaf-krds")))
                 .thenAnswer(invocation -> {

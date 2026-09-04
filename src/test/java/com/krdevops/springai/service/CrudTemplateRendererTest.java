@@ -436,10 +436,47 @@ class CrudTemplateRendererTest {
     // ─── designComponentPlan(픽셀 재현) fragment 소비 ──────────────────────────
 
     private DesignComponentRenderInput renderInput(String logicalType, String fragment) {
+        return renderInput(logicalType, fragment, java.util.Map.of());
+    }
+
+    private DesignComponentRenderInput renderInput(
+            String logicalType, String fragment, java.util.Map<String, Object> fragmentParameters) {
         return new DesignComponentRenderInput(
                 "krds-" + logicalType, "1.0", logicalType, "krds:" + logicalType,
-                fragment, "thymeleaf-krds", java.util.Map.of(), java.util.Map.of(),
+                fragment, "thymeleaf-krds", fragmentParameters, java.util.Map.of(),
                 "krds-v1.0.0", "a".repeat(64));
+    }
+
+    @Test
+    void thymeleafRegist_withPlan_appliesResolvedVariantAndSizeToFragments() {
+        CrudTemplateModel connected = new CrudModelFactory().withDesignComponents(
+                model(true),
+                List.of(renderInput("text-input", "components/krds-text-input :: textInput",
+                                java.util.Map.of("size", "large")),
+                        renderInput("button", "components/krds-button :: button",
+                                java.util.Map.of("variant", "secondary", "size", "large"))),
+                List.of());
+
+        String result = renderer.renderByLayerKey("thymeleafRegist", connected);
+
+        assertThat(result)
+                .contains("textInput(path='userNm', label='사용자명', size='large'")
+                .contains("button(label='저장', variant='secondary', size='large', buttonType='submit')");
+    }
+
+    @Test
+    void thymeleafRegist_withPlanButNoResolvedParams_usesFragmentDefaults() {
+        CrudTemplateModel connected = new CrudModelFactory().withDesignComponents(
+                model(true),
+                List.of(renderInput("text-input", "components/krds-text-input :: textInput"),
+                        renderInput("button", "components/krds-button :: button")),
+                List.of());
+
+        String result = renderer.renderByLayerKey("thymeleafRegist", connected);
+
+        assertThat(result)
+                .contains("textInput(path='userNm', label='사용자명', size='medium'")
+                .contains("button(label='저장', variant='primary', size='medium', buttonType='submit')");
     }
 
     @Test

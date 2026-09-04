@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** V2 Apply 직전 필수 Component Mapping과 Renderer 입력을 전부 확인하는 fail-closed Gate. */
 @Service
@@ -80,7 +81,9 @@ public class RequiredComponentMappingApplyGate {
             }
             try {
                 inputs.add(renderInputService.resolve(mapping, rendererProfile,
-                        adaptation.fixture().figmaProperties(), adaptation.fixture().figmaSlots()));
+                        effectiveFigmaProperties(mapping, reference,
+                                adaptation.fixture().figmaProperties()),
+                        adaptation.fixture().figmaSlots()));
             } catch (ComponentVariantValueResolver.ComponentVariantResolutionException exception) {
                 exception.resolution().issues().stream()
                         .filter(issue -> issue.severity() == ComponentVariantValueResolver.Severity.ERROR)
@@ -93,6 +96,30 @@ public class RequiredComponentMappingApplyGate {
         }
         if (!issues.isEmpty()) throw new RequiredComponentMappingException(issues);
         return List.copyOf(inputs);
+    }
+
+    /**
+     * Mapping의 시드 Fixture {@code figmaProperties} 위에 실제 Figma INSTANCE의
+     * {@code componentProperties}(variant 값)를 덮어쓴다 — Mapping이 실제로 매핑하는
+     * figmaProperty 키만 반영해 {@code UNMAPPED_FIGMA_PROPERTY} 잡음을 피한다. 인스턴스가
+     * 지정하지 않은 속성은 Fixture 기본값(예: Label)을 그대로 쓴다.
+     */
+    private Map<String, Object> effectiveFigmaProperties(
+            DesignCodeComponentMapping mapping,
+            UiDesignSpecV2.ComponentReference reference,
+            Map<String, Object> fixtureProperties) {
+        LinkedHashMap<String, Object> effective = new LinkedHashMap<>(fixtureProperties);
+        Map<String, String> instanceProperties = reference.componentProperties();
+        if (instanceProperties.isEmpty()) return effective;
+        java.util.Set<String> mappedKeys = mapping.propertyMappings().stream()
+                .map(DesignCodeComponentMapping.PropertyMapping::figmaProperty)
+                .collect(java.util.stream.Collectors.toSet());
+        instanceProperties.forEach((key, value) -> {
+            if (mappedKeys.contains(key) && value != null && !value.isBlank()) {
+                effective.put(key, value);
+            }
+        });
+        return effective;
     }
 
     private void validatePinnedReference(

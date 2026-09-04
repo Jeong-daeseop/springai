@@ -152,11 +152,21 @@ public record UiDesignSpecV2(
     public record ComponentReference(
             String logicalType,
             String componentSetKey,
-            @Nullable VersionedArtifactReference mappingRef
+            @Nullable VersionedArtifactReference mappingRef,
+            Map<String, String> componentProperties
     ) {
         public ComponentReference {
             logicalType = requireText(logicalType, "component logicalType");
             componentSetKey = requireText(componentSetKey, "componentSetKey");
+            componentProperties = componentProperties == null
+                    ? Map.of() : Map.copyOf(componentProperties);
+        }
+
+        /** componentProperties 도입 전 호출자 호환. */
+        public ComponentReference(
+                String logicalType, String componentSetKey,
+                @Nullable VersionedArtifactReference mappingRef) {
+            this(logicalType, componentSetKey, mappingRef, Map.of());
         }
     }
 

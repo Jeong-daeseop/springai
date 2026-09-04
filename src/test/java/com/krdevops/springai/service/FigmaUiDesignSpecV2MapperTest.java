@@ -149,6 +149,60 @@ class FigmaUiDesignSpecV2MapperTest {
     }
 
     @Test
+    void INSTANCE의_componentProperties에서_variant값을_뽑는다() throws Exception {
+        FigmaNodeDocument document = document("""
+                {
+                  "id":"1:1","type":"FRAME","name":"Employer Regist",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"id":"1:2","type":"INSTANCE","name":"Button",
+                     "absoluteBoundingBox":{"x":10,"y":10,"width":120,"height":48},
+                     "componentProperties":{
+                       "Type":{"value":"secondary","type":"VARIANT"},
+                       "Size":{"value":"large","type":"VARIANT"},
+                       "Disabled":{"value":false,"type":"BOOLEAN"},
+                       "Label#12:0":{"value":"저장","type":"TEXT"},
+                       "Icon#8:1":{"value":"I3:4","type":"INSTANCE_SWAP"}
+                     }}
+                  ]
+                }
+                """);
+
+        UiDesignSpecV2 spec = mapper.map(
+                "ui-b1v", new FigmaReference("file-1", "1:1"), document, "crud");
+
+        assertThat(spec.nodes()).filteredOn(n -> n.semanticId().equals("node-1:2"))
+                .singleElement().satisfies(n -> assertThat(n.componentRef().componentProperties())
+                        .containsEntry("Type", "secondary")
+                        .containsEntry("Size", "large")
+                        .containsEntry("Disabled", "false")
+                        .containsEntry("Label", "저장")           // #nodeId 접미사 제거
+                        .doesNotContainKey("Icon")               // INSTANCE_SWAP 제외
+                        .doesNotContainKey("Icon#8:1"));
+    }
+
+    @Test
+    void componentProperties가_없는_INSTANCE는_빈맵이다() throws Exception {
+        FigmaNodeDocument document = document("""
+                {
+                  "id":"1:1","type":"FRAME","name":"F",
+                  "absoluteBoundingBox":{"x":0,"y":0,"width":1440,"height":900},
+                  "children":[
+                    {"id":"1:2","type":"INSTANCE","name":"Button",
+                     "absoluteBoundingBox":{"x":10,"y":10,"width":120,"height":48}}
+                  ]
+                }
+                """);
+
+        UiDesignSpecV2 spec = mapper.map(
+                "ui-b1e", new FigmaReference("file-1", "1:1"), document, "crud");
+
+        assertThat(spec.nodes()).filteredOn(n -> n.semanticId().equals("node-1:2"))
+                .singleElement().satisfies(n ->
+                        assertThat(n.componentRef().componentProperties()).isEmpty());
+    }
+
+    @Test
     void 단일_FRAME이_아니면_거부한다() throws Exception {
         FigmaNodeDocument document = document("""
                 {"id":"0:1","type":"SECTION","name":"Screens","children":[]}
