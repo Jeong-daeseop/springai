@@ -14,6 +14,11 @@ public class BootBuildGradleBuilder {
         String mbsbVer   = s.cap().boot3()              ? MYBATIS_SB3                : MYBATIS_SB2;
         String egovVer   = s.cap().egovParent()         ? EGOV_50                    : EGOV_43;
         String fdlCmmnId = s.cap().hyphenArtifactId()   ? "egovframe-rte-fdl-cmmn"  : "org.egovframe.rte.fdl.cmmn";
+        String thymeleafDeps = !s.thymeleaf() ? "" : """
+
+    // Thymeleaf (viewType=thymeleaf) — ViewResolver/LayoutDialect는 Boot auto-configuration이 구성
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect'""";
         return """
 plugins {
     id 'java'
@@ -44,6 +49,7 @@ dependencies {
 
     // MyBatis Spring Boot Starter
     implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:%s'
+%s
 
     // eGovFrame (fdl.cmmn 서비스 레이어 표준)
     implementation("org.egovframe.rte:%s:%s") {
@@ -66,6 +72,6 @@ dependencies {
 }
 
 tasks.named('test') { useJUnitPlatform() }
-""".formatted(sbVer, s.groupId(), javaVer, mbsbVer, fdlCmmnId, egovVer, mbsbVer);
+""".formatted(sbVer, s.groupId(), javaVer, mbsbVer, thymeleafDeps, fdlCmmnId, egovVer, mbsbVer);
     }
 }

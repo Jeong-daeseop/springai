@@ -47,6 +47,8 @@ public class ThymeleafLayoutGenerationService implements GenerateThymeleafLayout
     private final MainPageRenderer mainPageRenderer;
     private final ClasspathAssetCopier classpathAssetCopier;
     private final ServletContextConfigurer servletContextConfigurer;
+    private final ProjectTypeDetector projectTypeDetector;
+    private final BootMvcConfigConfigurer bootMvcConfigConfigurer;
     private final ApprovedProjectWritePort writePort;
 
     @Override
@@ -101,16 +103,37 @@ public class ThymeleafLayoutGenerationService implements GenerateThymeleafLayout
                 resolvedBasePath + "/default",
                 resolvedBasePath + "/breadcrumb");
 
-        ServletContextConfigurer.ServletContextPatchResult servletPatch =
-                servletContextConfigurer.patch(outputPath, resolvedPackageName);
+        ProjectTypeDetector.ProjectType projectType = projectTypeDetector.detect(outputPath);
+
+        // 인터셉터 등록 — WAR/UNKNOWN 은 servlet-context.xml patch, Boot 는 WebMvcConfigurer 클래스 생성.
+        String interceptorMessage;
+        boolean interceptorFailed;
+        if (projectType == ProjectTypeDetector.ProjectType.BOOT) {
+            BootMvcConfigConfigurer.InterceptorRegistrationResult boot =
+                    bootMvcConfigConfigurer.configure(outputPath, resolvedPackageName);
+            interceptorMessage = boot.message();
+            interceptorFailed = boot.failed();
+        } else {
+            ServletContextConfigurer.ServletContextPatchResult servletPatch =
+                    servletContextConfigurer.patch(outputPath, resolvedPackageName);
+            interceptorMessage = servletPatch.message();
+            interceptorFailed = servletPatch.failed();
+        }
 
         MyBatisRuntimeConfigurer.ConfigurationResult myBatisResult = myBatisRuntimeConfigurer.ensureConfigured(
                 outputPath.toString(), resolvedPackageName + ".cmm.service");
 
-        boolean runtimeSkipped = servletPatch.failed();
+        // Boot 는 Thymeleaf ViewResolver/LayoutDialect 를 auto-configuration 이 담당하므로 XML 보강을 하지 않는다.
+        boolean runtimeSkipped;
         List<String> runtimeFailures = new ArrayList<>();
-        if (!runtimeSkipped) {
-            thymeleafRuntimeConfigurer.ensureThymeleafRuntime(outputPath.toString(), DEFAULT_EGOV_VERSION, runtimeFailures);
+        if (projectType == ProjectTypeDetector.ProjectType.BOOT) {
+            runtimeSkipped = true;
+        } else {
+            runtimeSkipped = interceptorFailed;
+            if (!runtimeSkipped) {
+                thymeleafRuntimeConfigurer.ensureThymeleafRuntime(
+                        outputPath.toString(), DEFAULT_EGOV_VERSION, runtimeFailures);
+            }
         }
 
         return new LayoutGenerationResult(
@@ -124,11 +147,12 @@ public class ThymeleafLayoutGenerationService implements GenerateThymeleafLayout
                 gnbComponentOutcomes,
                 mainHtmlOutcome,
                 validation,
-                servletPatch.message(),
+                interceptorMessage,
                 myBatisResult,
                 DEFAULT_EGOV_VERSION,
                 runtimeSkipped,
-                runtimeFailures);
+                runtimeFailures,
+                projectType.name());
     }
 
     private void addChange(List<ProjectChangeSet.FileChange> changes, Path outputRoot, Path targetPath, String content) {

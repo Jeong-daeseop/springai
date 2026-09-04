@@ -62,6 +62,11 @@ public class FilePlanFactory {
             dirs.add("src/main/resources/static/resources/css");
             dirs.add("src/main/resources/static/resources/js");
             dirs.add("src/main/resources/templates");
+            if (s.thymeleaf()) {
+                dirs.add("src/main/resources/templates/egovframework/main");
+                dirs.add("src/main/resources/templates/layout");
+                dirs.add("src/main/java/" + s.packagePath() + "/main/web");
+            }
         } else {
             dirs.add("src/main/java/" + s.packagePath() + "/main/service");
             dirs.add("src/main/java/" + s.packagePath() + "/main/service/impl");
@@ -123,18 +128,7 @@ public class FilePlanFactory {
                             RESOURCE, () -> stpl.log4j2(s))
         ));
         if (s.thymeleaf()) {
-            plans.add(FilePlan.of("src/main/resources/templates/egovframework/main/main.html",
-                    RESOURCE, () -> mainThymeleafHtml()));
-            plans.add(FilePlan.of("src/main/resources/templates/layout/default.html",
-                    RESOURCE, () -> defaultLayoutHtml()));
-            plans.add(FilePlan.of("src/main/resources/templates/layout/gnb.html",
-                    RESOURCE, () -> gnbLayoutHtml()));
-            plans.add(FilePlan.of("src/main/resources/templates/layout/lnb.html",
-                    RESOURCE, () -> lnbLayoutHtml()));
-            plans.add(FilePlan.of("src/main/resources/templates/layout/breadcrumb.html",
-                    RESOURCE, () -> breadcrumbLayoutHtml()));
-            plans.add(FilePlan.of("src/main/resources/templates/layout/footer.html",
-                    RESOURCE, () -> footerLayoutHtml()));
+            plans.addAll(thymeleafLayoutFilePlans());
         } else {
             plans.add(FilePlan.of("src/main/webapp/WEB-INF/jsp/egovframework/main/main.jsp",
                     WEB, () -> mainJsp()));
@@ -142,11 +136,34 @@ public class FilePlanFactory {
         return plans;
     }
 
+    /**
+     * Thymeleaf 공통 layout 5종 + main.html FilePlan — WAR/Boot 공용.
+     * 저장 경로는 두 프로젝트 타입 모두 {@code src/main/resources/templates/**} 로 동일하다.
+     * 동적 GNB 컴포넌트 4종과 servlet-context/WebMvcConfigurer 인터셉터 등록은
+     * {@code generateThymeleafLayout()} 이 별도로 수행한다(여기서는 만들지 않는다).
+     */
+    private List<FilePlan> thymeleafLayoutFilePlans() {
+        List<FilePlan> plans = new ArrayList<>();
+        plans.add(FilePlan.of("src/main/resources/templates/egovframework/main/main.html",
+                RESOURCE, () -> mainThymeleafHtml()));
+        plans.add(FilePlan.of("src/main/resources/templates/layout/default.html",
+                RESOURCE, () -> defaultLayoutHtml()));
+        plans.add(FilePlan.of("src/main/resources/templates/layout/gnb.html",
+                RESOURCE, () -> gnbLayoutHtml()));
+        plans.add(FilePlan.of("src/main/resources/templates/layout/lnb.html",
+                RESOURCE, () -> lnbLayoutHtml()));
+        plans.add(FilePlan.of("src/main/resources/templates/layout/breadcrumb.html",
+                RESOURCE, () -> breadcrumbLayoutHtml()));
+        plans.add(FilePlan.of("src/main/resources/templates/layout/footer.html",
+                RESOURCE, () -> footerLayoutHtml()));
+        return plans;
+    }
+
     private List<FilePlan> bootFiles(ProjectSpec s) {
         String base = "src/main/java/" + s.packagePath();
         String test = "src/test/java/" + s.packagePath();
         String cls  = s.className();
-        return List.of(
+        List<FilePlan> plans = new ArrayList<>(List.of(
             FilePlan.of("src/main/resources/application.yml",
                         RESOURCE, () -> stpl.applicationYml(s)),
             FilePlan.of("src/main/resources/logback-spring.xml",
@@ -161,7 +178,42 @@ public class FilePlanFactory {
                         SOURCE,   () -> stpl.bootMain(s)),
             FilePlan.of(test + "/" + cls + "ApplicationTests.java",
                         TEST,     () -> stpl.bootTest(s))
-        );
+        ));
+        if (s.thymeleaf()) {
+            plans.addAll(thymeleafLayoutFilePlans());
+            // Boot 에는 index.jsp forward 가 없으므로 "/" 및 메인 뷰 매핑용 Controller 를 함께 생성한다.
+            plans.add(FilePlan.of("src/main/java/" + s.packagePath() + "/main/web/MainController.java",
+                    SOURCE, () -> bootMainController(s)));
+        }
+        return plans;
+    }
+
+    /**
+     * Boot + Thymeleaf 메인 화면 Controller.
+     * WAR 의 {@link #mainController}(/egovframework/com/main.do 만 매핑)와 달리 루트("/")도 매핑한다 —
+     * generateThymeleafLayout() 이 생성하는 layout 프래그먼트의 brand/breadcrumb 링크가 {@code @{/}} 이기 때문.
+     */
+    private static String bootMainController(ProjectSpec s) {
+        return """
+package %s.main.web;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+
+/**
+ * 메인 화면 Controller (Spring Boot)
+ * @author eGovFrame
+ */
+@Controller
+public class MainController {
+
+    @GetMapping({"/", "/egovframework/com/main.do"})
+    public String main() {
+        return "egovframework/main/main";
+    }
+
+}
+""".formatted(s.packageName());
     }
 
     // ── 버전 비교 헬퍼 (Builder 클래스에서 참조) ──────────────────────────────
@@ -240,28 +292,28 @@ public class FilePlanFactory {
         com.krdevops.springai.model.VersionCapability cap = buildCap(egovVersion);
         return new ProjectSpec("project", "com.example", "project",
                 packageName, "maven", false,
-                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap, "jsp");
+                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap, "jsp", "8080");
     }
 
     private static ProjectSpec minimalSpecForArtifact(String artifactId, String egovVersion) {
         com.krdevops.springai.model.VersionCapability cap = buildCap(egovVersion);
         return new ProjectSpec(artifactId, "com.example", artifactId,
                 "egovframework.let.sample", "maven", false,
-                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap, "jsp");
+                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap, "jsp", "8080");
     }
 
     private static ProjectSpec minimalSpecForProject(String projectName) {
         com.krdevops.springai.model.VersionCapability cap = buildCap("5.0");
         return new ProjectSpec(projectName, "com.example", projectName,
                 "egovframework.let.sample", "maven", false,
-                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap, "jsp");
+                java.nio.file.Paths.get("/tmp"), "egovframework/let/sample", cap, "jsp", "8080");
     }
 
     private static ProjectSpec minimalSpecForBoot(String artifactId, String packageName) {
         com.krdevops.springai.model.VersionCapability cap = buildCap("5.0");
         return new ProjectSpec(artifactId, "com.example", artifactId,
                 packageName, "maven", true,
-                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap, "jsp");
+                java.nio.file.Paths.get("/tmp"), packageName.replace(".", "/"), cap, "jsp", "8080");
     }
 
     /**

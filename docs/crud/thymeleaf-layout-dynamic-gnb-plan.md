@@ -1,5 +1,7 @@
 # Thymeleaf GNB 동적 렌더링 구현 계획
 
+> **[정정 노트]** 본문의 `COMTNMENUINFO`/`COMTNPROGRMLIST` 표기는 계획 시점 가정이다. 실제 구현은 `LETTNMENUINFO`/`LETTNPROGRMLIST` 기준이며(`ebt` DB 스키마), 테이블명은 `generateThymeleafLayout()`의 `menuTableName`/`programTableName` 파라미터로 변경 가능하다(기본값 `LETTN*`). 조회 SQL 뼈대·`com.COMTNMENUINFO` 실측 인용을 포함한 본문은 계획 기록으로 보존한다.
+
 이 문서는 `thymeleaf-layout-dynamic-gnb-design.md`(설계 검토, 1~10절)의 후속 실행 계획이다. 설계 검토에서 확정된 결론(`ThymeleafLayoutTool`이 GNB 컴포넌트 소유)과, 이번 문서 6.2에서 확정한 등록 방식(`servlet-context.xml` **최초 생성은 `ProjectInitializrTool`, GNB 인터셉터 등록 patch는 `ThymeleafLayoutTool`이 수행**)을 실제 변경 파일·순서로 구체화한다.
 
 **진행 상황**: Phase 1·2·3·4·5 구현 완료(전체 테스트 통과). Phase 6만 남음. 구현 중 계획과 달라진 세부사항은 각 절에 "[Phase N 구현 완료, 계획 대비 변경]" 표시와 함께 갱신했다.
@@ -18,7 +20,7 @@
 | 신규/빈 메뉴 프로젝트 처리 | `gnb.html`이 "홈"을 **항상 정적으로 1개** 렌더링하고, `gnbMenus`가 비어 있으면 그 외에는 아무것도 안 그림 | "홈"을 인터셉터 fallback 리스트에도 넣으면 중복 렌더링됨 — 5.4 참고 |
 | 공통 컴포넌트 생성 위치 | `ThymeleafLayoutTool` | 설계 검토 8~9절 결론 |
 | `layoutMode=create` 3중 중복(`crud`/`board`/`masterdetail` `gnb.html.ftl`) | **1단계에서 모두 동일하게 동적 템플릿으로 맞춘다.** 공용 템플릿으로 통합하는 리팩터링(설계 검토 8.4의 3번)은 후속 과제로 미룬다 | 최소 범위로 우선 기능 완성 |
-| WAR vs Boot 지원 범위 | **1차는 WAR만 지원.** Boot는 `servlet-context.xml` 자체가 없어 인터셉터 등록 메커니즘이 XML patch가 아니라 `WebMvcConfigurer` Java 설정이라 별도 작업이 필요 | 6.2 참고. GNB 컴포넌트 파일은 Boot에서도 생성되지만 미등록 상태로 남음 — Tool 응답에 명시 필요 |
+| WAR vs Boot 지원 범위 | **1차는 WAR만 지원.** ~~Boot는 GNB 컴포넌트 파일만 생성되고 미등록 상태로 남음~~ → **후속으로 Boot 지원 완료** (`docs/crud/thymeleaf-layout-boot-support-plan.md`): `ProjectTypeDetector`가 구조로 WAR/Boot 판정, Boot는 `BootMvcConfigConfigurer`가 `{packageName}.config.EgovWebMvcConfig`(`WebMvcConfigurer`) 클래스를 생성해 인터셉터 등록 | 6.2 참고 |
 
 ## 3. 최종 아키텍처
 

@@ -6,7 +6,7 @@
 
 `CrudPromptBuilderTool`의 Thymeleaf 생성 경로(`buildFullCrudPrompt` / `buildBoardFeature` / `buildMasterDetailPrompt`)는 `layoutMode=reuse`가 기본값이라 화면 생성 시 layout 파일을 다시 만들지 않습니다. 따라서 **신규 프로젝트에서는 화면 생성 Tool을 호출하기 전에 이 Tool을 먼저 실행**해 layout과 GNB 메뉴 컴포넌트를 준비해야 합니다.
 
-GNB(상단 메뉴)는 정적 placeholder가 아니라 `COMTNMENUINFO`(`UPPER_MENU_NO=0`) + `COMTNPROGRMLIST` 조인 기반으로 **매 요청마다 동적 렌더링**됩니다. 설계·구현 배경은 `docs/crud/thymeleaf-layout-dynamic-gnb-design.md`(설계 검토)와 `docs/crud/thymeleaf-layout-dynamic-gnb-plan.md`(구현 계획, Phase 1~4 완료)를 참고하세요.
+GNB(상단 메뉴)는 정적 placeholder가 아니라 `LETTNMENUINFO`(`UPPER_MENU_NO=0`) + `LETTNPROGRMLIST` 조인 기반으로 **매 요청마다 동적 렌더링**됩니다(테이블명은 `menuTableName`/`programTableName`으로 변경 가능, 기본값이 `LETTN*`). 설계·구현 배경은 `docs/crud/thymeleaf-layout-dynamic-gnb-design.md`(설계 검토)와 `docs/crud/thymeleaf-layout-dynamic-gnb-plan.md`(구현 계획, Phase 1~4 완료)를 참고하세요.
 
 ---
 
@@ -22,7 +22,7 @@ ThymeleafLayoutTool (MCP Tool 진입점)
 
 ---
 
-## 기능: `generateThymeleafLayout(outputPath, layoutBasePath, overwriteLayout, packageName)`
+## 기능: `generateThymeleafLayout(outputPath, layoutBasePath, overwriteLayout, packageName, menuTableName, programTableName)`
 
 ### 파라미터
 
@@ -30,8 +30,10 @@ ThymeleafLayoutTool (MCP Tool 진입점)
 |---|---|---|---|
 | `outputPath` | Y | - | 프로젝트 루트 절대경로 |
 | `layoutBasePath` | N | `"layout"` | `templates` 아래 layout base 경로. `"layout/admin"`처럼 하위 경로 지정 가능 |
-| `overwriteLayout` | N | `false` | 기존 layout/GNB 컴포넌트 파일 덮어쓰기 여부. `false`면 이미 있는 파일은 보존만 하고 건너뜀 |
+| `overwriteLayout` | N | `true` | 기존 layout/GNB 컴포넌트 파일 덮어쓰기 여부. 생략 시 기존 파일을 갱신합니다. 커스터마이징한 layout/인터셉터를 지키려면 **명시적으로 `false`** 를 주어야 이미 있는 파일을 보존(skip)합니다 |
 | `packageName` | **사실상 필수** | `"egovframework.let.sample"` | GNB 메뉴 컴포넌트가 생성될 패키지(예: `egovframework.let.emp`). **`initializeProject()`에 전달했던 packageName과 반드시 동일해야 합니다** — 다르면 `EgovGnbMenuInterceptor`가 실제 CRUD 패키지와 어긋난 위치에 생성되어 동작하지 않습니다. 미입력 시 기본값이 적용되고 응답 맨 앞에 경고 문구가 반환됩니다 |
+| `menuTableName` | N | `"LETTNMENUINFO"` | GNB가 조회할 메뉴 테이블명. `GnbMenuMapper.xml`의 `FROM` 절에 반영됩니다(`UPPER_MENU_NO=0` 조건) |
+| `programTableName` | N | `"LETTNPROGRMLIST"` | GNB가 조회할 프로그램(URL) 테이블명. `GnbMenuMapper.xml`의 `LEFT JOIN` 절에 반영됩니다 |
 
 ### 생성 파일
 
@@ -54,11 +56,9 @@ src/main/java/{packageName 경로}/cmm/web/EgovGnbMenuInterceptor.java
 ```
 예: `packageName="egovframework.let.emp"` → `src/main/java/egovframework/let/emp/cmm/vo/GnbMenuVO.java`. **`egovframework.let.*` 접두사를 강제하지 않습니다** — `kr.go.sample.emp` 같은 임의의 packageName도 정확히 지원합니다(`FilePlanFactory.mainController()`와 동일한 방식).
 
-**servlet-context.xml patch** (WAR 프로젝트, 파일이 이미 존재할 때만):
-```
-src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml
-```
-에 아래 블록을 `</beans>` 직전에 삽입합니다(이미 등록되어 있으면 skip):
+**인터셉터 등록** — `ProjectTypeDetector`가 판정한 타입에 따라:
+
+*WAR* — `src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml`(이미 존재할 때만)의 `</beans>` 직전에 삽입(이미 등록되어 있으면 skip):
 ```xml
 <mvc:interceptors>
     <mvc:interceptor>
@@ -68,6 +68,19 @@ src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml
 </mvc:interceptors>
 ```
 
+*Boot* — `src/main/java/{packageName 경로}/config/EgovWebMvcConfig.java` 를 생성:
+```java
+@Configuration
+@RequiredArgsConstructor
+public class EgovWebMvcConfig implements WebMvcConfigurer {
+    private final GnbMenuMapper gnbMenuMapper;
+    @Override public void addInterceptors(InterceptorRegistry registry) {
+        registry.addInterceptor(new EgovGnbMenuInterceptor(gnbMenuMapper)).addPathPatterns("/**");
+    }
+}
+```
+이미 `EgovWebMvcConfig`가 있고 `EgovGnbMenuInterceptor`를 참조하면 보존(skip). 참조가 없으면 자동 편집하지 않고 수동 등록 안내만 반환.
+
 ### 처리 흐름
 
 ```
@@ -76,13 +89,13 @@ src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml
    - packageName 미입력 시 "egovframework.let.sample" 기본값 적용 + 응답에 경고 문구 추가
 
 2. layout HTML 5종 순회 (CrudLayerDefinition.thymeleafLayoutLayers())
-   - overwriteLayout=false + 파일 존재 → 보존(skip)
-   - 그 외 → CrudTemplateRenderer.renderLayoutByLayerKey()로 렌더링 후 CodeService.saveGeneratedCode()로 저장
+   - overwriteLayout이 명시적 false + 파일 존재 → 보존(skip)
+   - 그 외(기본값 true 포함) → CrudTemplateRenderer.renderLayoutByLayerKey()로 렌더링 후 CodeService.saveGeneratedCode()로 저장
 
 3. GNB 메뉴 컴포넌트 4종 순회 (CrudLayerDefinition.GNB_MENU_COMPONENT_LAYERS)
    - pkgSub = packageName.replace(".", "/") (접두사 제거 없는 전체 치환)
-   - overwriteLayout=false + 파일 존재 → 보존(skip)
-   - 그 외 → CrudTemplateRenderer.renderGnbMenuComponent()로 렌더링 후 저장
+   - overwriteLayout이 명시적 false + 파일 존재 → 보존(skip)
+   - 그 외(기본값 true 포함) → CrudTemplateRenderer.renderGnbMenuComponent()로 렌더링 후 저장
    - 이 4종은 도메인별 CRUD 생성 경로(layoutMode=create)와 완전히 분리되어 있어,
      도메인을 여러 개 생성해도 이 파일들이 반복 생성/충돌되지 않습니다
 
@@ -90,11 +103,18 @@ src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml
    - layout HTML 5종이 모두 존재하는지 재확인 (GNB 컴포넌트는 이 검증에 포함되지 않음)
    - 누락 시 [검증 실패] + 누락 파일 목록 반환
 
-5. servlet-context.xml patch
-   - 파일 없음 → 건너뜀 + 안내(Boot 프로젝트면 정상 / WAR면 initializeProject() 확인 또는 수동 등록 안내)
-   - EgovGnbMenuInterceptor 이미 등록됨 → skip
-   - </beans> 정확히 1개 → 그 직전에 인터셉터 등록 블록 삽입
-   - </beans> 0개 또는 2개 이상 → 파일을 건드리지 않고 실패 메시지 반환
+5. 인터셉터 등록 (ProjectTypeDetector.detect() 로 WAR/BOOT/UNKNOWN 판정)
+   [WAR/UNKNOWN] servlet-context.xml patch
+     - 파일 없음 → 건너뜀 + 안내(Boot면 정상 / WAR면 initializeProject() 확인 또는 수동 등록 안내)
+     - EgovGnbMenuInterceptor 이미 등록됨 → skip
+     - </beans> 정확히 1개 → 그 직전에 인터셉터 등록 블록 삽입
+     - </beans> 0개 또는 2개 이상 → 파일을 건드리지 않고 실패 메시지 반환
+   [BOOT] BootMvcConfigConfigurer.configure() → {packageName}/config/EgovWebMvcConfig.java
+     - 파일 없음 → WebMvcConfigurer 클래스 생성
+     - 파일 있고 EgovGnbMenuInterceptor 참조 → 보존(skip)
+     - 파일 있고 참조 없음 → 자동 편집하지 않고 수동 등록 안내
+   [BOOT] MyBatis(context-common.xml) 보강 및 Thymeleaf ViewResolver XML 보강은 생략
+     (application.yml mapper-locations + @MapperScan, Boot auto-configuration이 담당)
 ```
 
 ### 응답 형식 예시
@@ -122,7 +142,7 @@ packageName: egovframework.let.emp
   등록: .../src/main/webapp/WEB-INF/spring/appServlet/servlet-context.xml 에 EgovGnbMenuInterceptor patch 완료 (bean class=egovframework.let.emp.cmm.web.EgovGnbMenuInterceptor, autowire=constructor)
 ```
 
-기존 파일이 있고 `overwriteLayout=false`(기본값)인 경우 layout/GNB 컴포넌트 모두 `보존:`으로 표시되고, `servlet-context.xml`에 이미 등록되어 있으면 `보존: ... (EgovGnbMenuInterceptor 이미 등록됨)`으로 표시됩니다.
+`overwriteLayout=false`를 명시하고 기존 파일이 있는 경우 layout/GNB 컴포넌트 모두 `보존:`으로 표시되고(기본값 `true`에서는 `생성:`으로 갱신됨), `servlet-context.xml`에 이미 등록되어 있으면 `overwriteLayout`과 무관하게 `보존: ... (EgovGnbMenuInterceptor 이미 등록됨)`으로 표시됩니다.
 
 `packageName` 미입력 시 응답 맨 앞에 다음 경고가 추가됩니다:
 ```
@@ -137,26 +157,32 @@ packageName: egovframework.let.emp
 |---|---|
 | 실행 시점 | `buildFullCrudPrompt`/`buildBoardFeature`/`buildMasterDetailPrompt`(Thymeleaf, `layoutMode=reuse`) **실행 전**에 먼저 호출 |
 | `packageName` 일치 | `initializeProject()`에 전달한 packageName과 반드시 동일해야 GNB 컴포넌트가 올바른 위치에 생성되고 CRUD 코드와 패키지가 맞음 |
-| 기본 보존 정책 | `overwriteLayout` 기본값 `false` — 사용자가 수정한 layout/GNB 컴포넌트를 실수로 덮어쓰지 않음 |
+| 기본 갱신 정책 | `overwriteLayout` 기본값 `true` — 생략하면 기존 layout/GNB 컴포넌트를 최신 템플릿으로 갱신함. 커스터마이징한 파일을 지키려면 `overwriteLayout=false`를 명시 |
 | `layoutMode=reuse`와의 관계 | layout 파일이 없는 상태에서 `layoutMode=reuse`로 화면을 생성하면 실패 안내와 함께 거부됨 |
 | `layoutMode=create`와의 관계 | 화면 생성 Tool이 layout HTML 레이어까지 함께 생성하므로 이 Tool을 별도로 먼저 부를 필요는 없음. **단, GNB 메뉴 컴포넌트 4종은 `layoutMode=create` 경로에서 생성되지 않으므로**(도메인마다 반복 생성되면 안 되는 프로젝트 전역 산출물이라 의도적으로 분리) GNB 동적 렌더링을 쓰려면 이 Tool을 최소 1회는 호출해야 함 |
 | `layoutBasePath` 일치 | `generateThymeleafLayout(layoutBasePath="layout/admin")`으로 만든 경로는 화면 생성 시 `layoutView="layout/admin/default"`, `breadcrumbView="layout/admin/breadcrumb"`로 동일하게 지정해야 함 |
-| **WAR 전용 (1차 구현)** | Boot 프로젝트는 `servlet-context.xml` 자체가 없어(auto-configuration 방식) 인터셉터 등록이 불가능합니다. GNB 컴포넌트 파일은 생성되지만 등록되지 않아 동작하지 않습니다. Boot 지원(`WebMvcConfigurer` 방식)은 후속 과제 |
+| **WAR / Boot 분기** | `ProjectTypeDetector`가 구조를 감지합니다 — `src/main/webapp/WEB-INF/web.xml` 존재 → WAR, `src/main/resources/application.yml`(또는 `.yaml`/`.properties`) 존재 → Boot, 둘 다 없으면 UNKNOWN(WAR 경로로 폴백 + 경고). WAR는 `servlet-context.xml`에 `<mvc:interceptors>` patch, Boot는 `{packageName}.config.EgovWebMvcConfig`(`WebMvcConfigurer`) 클래스를 생성해 `addInterceptors()`에 `EgovGnbMenuInterceptor`(GnbMenuMapper 생성자 주입)를 등록. Boot는 MyBatis 배선(`application.yml` `mybatis.mapper-locations` + `@MapperScan`)·ViewResolver(auto-configuration)가 이미 갖춰져 XML 보강을 하지 않음. 이미 사용자가 만든 `EgovWebMvcConfig`가 있으면 자동 편집하지 않고 수동 등록을 안내함. 상세: `docs/crud/thymeleaf-layout-boot-support-plan.md` |
 | **Jakarta Servlet 전용 (1차 구현)** | `EgovGnbMenuInterceptor`는 `jakarta.servlet.*`만 지원합니다(eGovFrame 5.0 전용). eGovFrame 4.3(`javax.servlet`)은 미지원이며 후속 과제 |
-| 메뉴 데이터는 별도 등록 필요 | `COMTNMENUINFO`에 실제 메뉴가 없으면 GNB에는 "홈"만 보입니다. `MenuTool.generateMenuInsertSql()`로 메뉴를 등록해야 GNB에 항목이 나타납니다(자동 등록 안 함) |
+| 메뉴 데이터는 별도 등록 필요 | `LETTNMENUINFO`(또는 `menuTableName`으로 지정한 테이블)에 실제 메뉴가 없으면 GNB에는 "홈"만 보입니다. `MenuTool.generateMenuInsertSql()`로 메뉴를 등록해야 GNB에 항목이 나타납니다(자동 등록 안 함) |
 
 ---
 
 ## 전체 워크플로우 (신규 프로젝트 기준)
 
 ```
-Step 1. initializeProject(packageName="egovframework.let.emp", ...)
+Step 1. initializeProject(packageName="egovframework.let.emp", viewType="jsp", ...)
         → 프로젝트 골격 + 정적 리소스(styles.css, krds.min.js) 생성
+        ⚠️ Thymeleaf 프로젝트여도 viewType="jsp"(기본값)로 초기화한다.
+           viewType="thymeleaf"로 초기화하면 정적 GNB가 든 layout 5종/main.html/ViewResolver가
+           먼저 생성되는데, Step 2가 이를 어차피 다시 만든다(overwriteLayout 기본값 true).
+           중복이며, 나중에 overwriteLayout=false로 재호출하면 정적 gnb.html이 남아 동적 GNB가 깨진다.
+           viewType="jsp"면 layout 책임이 Step 2로 단일화되어 이 위험이 없다.
 
 Step 2. generateThymeleafLayout(outputPath, packageName="egovframework.let.emp")
         → layout 5종(default/gnb/lnb/breadcrumb/footer) +
           GNB 메뉴 컴포넌트 4종(VO/Mapper/MapperXml/Interceptor) 생성 +
-          servlet-context.xml 인터셉터 등록 patch
+          인터셉터 등록 (WAR: servlet-context.xml patch / Boot: EgovWebMvcConfig 클래스 생성)
+          ※ 구조(web.xml/application.yml)로 WAR/Boot 자동 판정 — projectType 파라미터 없음
 
 Step 3. buildFullCrudPrompt(..., viewType="thymeleaf")
         → layoutMode 기본값 reuse로 layout 재사용, 화면/Java/Mapper만 생성
@@ -189,16 +215,18 @@ generateThymeleafLayout(outputPath="/Users/user/Desktop/egov-generated/emp", pac
 layoutBasePath="layout/admin" 으로 관리자용 Thymeleaf layout 만들어줘
 ```
 
-### 기존 layout/GNB 컴포넌트 강제 갱신
+### 커스터마이징한 layout/GNB 컴포넌트 보존
 
 ```
-/Users/user/Desktop/egov-generated/emp 의 Thymeleaf layout과 GNB 컴포넌트를 최신 버전으로 덮어써줘 (overwriteLayout=true)
+/Users/user/Desktop/egov-generated/emp 의 기존 layout/GNB 컴포넌트는 그대로 두고 servlet-context.xml patch만 다시 해줘 (overwriteLayout=false)
 ```
+→ 기본값(`overwriteLayout=true`)은 layout/GNB 파일을 최신 템플릿으로 갱신하므로, 직접 수정한 파일을 지키려면 `false`를 명시합니다. `false`여도 아직 없는 파일은 새로 생성되고, `servlet-context.xml`/`context-common.xml` 보강은 항상 수행됩니다.
 
 ### 전체 흐름 조합
 
 ```
-1. initializeProject(projectName="emp-web", packageName="egovframework.let.emp", ..., projectType="boot", egovVersion="5.0")
+1. initializeProject(projectName="emp-web", packageName="egovframework.let.emp", ..., projectType="boot", egovVersion="5.0", viewType="jsp")
+   → Thymeleaf를 쓸 프로젝트여도 viewType="jsp"로 초기화 (정적 gnb.html 선생성 방지)
 2. generateThymeleafLayout(outputPath="/Users/user/Desktop/egov-generated/emp-web", packageName="egovframework.let.emp")
 3. buildFullCrudPrompt(database="ebt", tableName="COMTNEMPLYRINFO", domain="Employer",
    packageName="egovframework.let.emp", outputPath="...", viewType="thymeleaf")
@@ -225,7 +253,7 @@ generateThymeleafLayout(outputPath="/Users/user/Desktop/egov-generated/emp") 로
 
 ## GNB 동적 렌더링 동작 방식 (참고)
 
-1. `EgovGnbMenuInterceptor`(`HandlerInterceptor.postHandle()`)가 매 요청마다 `COMTNMENUINFO`(`UPPER_MENU_NO=0`) + `COMTNPROGRMLIST`를 조인 조회해 `gnbMenus`(최상위 메뉴 목록)와 `currentTopMenuNo`(현재 선택된 메뉴, `request.getServletPath()` 기준 매칭)를 모델에 주입합니다.
+1. `EgovGnbMenuInterceptor`(`HandlerInterceptor.postHandle()`)가 매 요청마다 `LETTNMENUINFO`(`UPPER_MENU_NO=0`) + `LETTNPROGRMLIST`(기본값, `menuTableName`/`programTableName`으로 변경 가능)를 조인 조회해 `gnbMenus`(최상위 메뉴 목록)와 `currentTopMenuNo`(현재 선택된 메뉴, `request.getServletPath()` 기준 매칭)를 모델에 주입합니다.
 2. `gnb.html`은 "홈"을 항상 정적으로 1개 렌더링하고, 그 뒤로 `th:each="menu : ${gnbMenus}"`로 실제 메뉴를 그립니다. `menu.url == null`인 항목(SQL 단계에서 이미 `p.URL IS NOT NULL`로 걸러지지만 템플릿에서도 2차 방어)은 렌더링에서 제외됩니다.
 3. 조회 실패/빈 결과 시 `gnbMenus`는 빈 리스트가 되어 "홈"만 남습니다(홈이 중복 렌더링되지 않도록 fallback 리스트에 "홈"을 넣지 않음).
 4. `/resources/**`, `/css/**`, `/js/**`, `/images/**`, `/api/**`, `/mcp/**`, `/ai/**`, `/error` 요청과 `modelAndView == null`/`redirect:` 응답은 조회 자체를 skip합니다.

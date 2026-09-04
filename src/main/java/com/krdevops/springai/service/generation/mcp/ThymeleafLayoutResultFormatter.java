@@ -21,6 +21,7 @@ public class ThymeleafLayoutResultFormatter {
               .append("실제 프로젝트 packageName과 다르면 GNB 컴포넌트가 컴파일되지 않거나 등록되지 않습니다.\n\n");
         }
         sb.append("출력 경로: ").append(result.outputPath()).append("\n");
+        sb.append("프로젝트 타입: ").append(result.projectType()).append("\n");
         sb.append("layoutBasePath: ").append(result.resolvedBasePath()).append("\n");
         sb.append("packageName: ").append(result.resolvedPackageName()).append("\n\n");
         sb.append("menuTableName: ").append(result.resolvedMenuTableName()).append("\n");
@@ -47,15 +48,31 @@ public class ThymeleafLayoutResultFormatter {
             sb.append("\n[검증 완료] layout 5종이 모두 존재합니다.\n");
         }
 
-        sb.append("\n[servlet-context.xml 등록]\n");
+        boolean boot = "BOOT".equals(result.projectType());
+
+        sb.append(boot ? "\n[WebMvcConfigurer 인터셉터 등록]\n" : "\n[servlet-context.xml 등록]\n");
         sb.append(result.servletContextPatchMessage());
 
-        sb.append("\n[context-common.xml MyBatis 설정]\n");
+        sb.append("\n[MyBatis Mapper 설정]\n");
         MyBatisRuntimeConfigurer.ConfigurationResult myBatis = result.myBatisResult();
-        sb.append("  ").append(myBatis.success() ? "완료: " : "실패: ")
-                .append(myBatis.path()).append(" — ").append(myBatis.message()).append("\n");
+        if (myBatis.skipped()) {
+            sb.append("  생략: ").append(myBatis.path()).append(" — ").append(myBatis.message());
+            if (boot) {
+                sb.append(" (Boot는 application.yml의 mybatis.mapper-locations + @MapperScan으로 GnbMenuMapper를 배선합니다)");
+            }
+            sb.append("\n");
+        } else {
+            sb.append("  ").append(myBatis.success() ? "완료: " : "실패: ")
+                    .append(myBatis.path()).append(" — ").append(myBatis.message()).append("\n");
+        }
 
         sb.append("\n[Thymeleaf 런타임 설정]\n");
+        if (boot) {
+            sb.append("  Boot auto-configuration이 ViewResolver/LayoutDialect를 자동 구성합니다 ")
+              .append("(build 파일의 spring-boot-starter-thymeleaf + thymeleaf-layout-dialect 의존성 필요 — ")
+              .append("initializeProject가 viewType=thymeleaf일 때 추가).\n");
+            return sb.toString();
+        }
         if (result.runtimeSkipped()) {
             sb.append("  건너뜀: servlet-context.xml patch 실패 상태라 ViewResolver 보강을 생략합니다.\n");
             return sb.toString();

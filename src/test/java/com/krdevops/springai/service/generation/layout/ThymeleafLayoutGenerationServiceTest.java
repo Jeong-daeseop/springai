@@ -30,6 +30,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -68,10 +70,14 @@ class ThymeleafLayoutGenerationServiceTest {
                         List.of()));
         when(classpathAssetCopier.copyLogo(any(), org.mockito.ArgumentMatchers.anyBoolean())).thenReturn("  보존: logo\n");
 
+        BootMvcConfigConfigurer bootMvcConfigConfigurer = new BootMvcConfigConfigurer(
+                codeService, writePort, new OperationHashFactory(new ObjectMapper()));
+
         return new ThymeleafLayoutGenerationService(
                 new CrudTemplateRenderer(crudFreemarkerConfiguration()), codeService, thymeleafLayoutValidator,
                 thymeleafRuntimeConfigurer, myBatisRuntimeConfigurer, new ThymeleafLayoutGenerationPlanner(),
-                new MainPageRenderer(), classpathAssetCopier, servletContextConfigurer, writePort);
+                new MainPageRenderer(), classpathAssetCopier, servletContextConfigurer,
+                new ProjectTypeDetector(), bootMvcConfigConfigurer, writePort);
     }
 
     private static Configuration crudFreemarkerConfiguration() {
@@ -148,6 +154,29 @@ class ThymeleafLayoutGenerationServiceTest {
         // 실패와 무관한 GNB 컴포넌트/main.html은 정상적으로 계속 생성된다.
         assertThat(result.gnbComponentOutcomes()).allMatch(outcome -> outcome.status() == Status.CREATED);
         assertThat(result.mainHtmlOutcome().status()).isEqualTo(Status.CREATED);
+    }
+
+    @Test
+    void generate_onBootProject_registersInterceptorViaWebMvcConfigAndSkipsServletContext(
+            @TempDir Path outputRoot) throws Exception {
+        // application.yml 존재 → ProjectTypeDetector 가 BOOT 로 판정
+        Path yml = outputRoot.resolve("src/main/resources/application.yml");
+        Files.createDirectories(yml.getParent());
+        Files.writeString(yml, "spring:\n");
+
+        LayoutGenerationResult result = service(outputRoot).generate(
+                new GenerateThymeleafLayoutCommand(
+                        outputRoot, "layout", false, "egovframework.let.sample", "menu", "program"));
+
+        assertThat(result.projectType()).isEqualTo("BOOT");
+        assertThat(outputRoot.resolve(
+                "src/main/java/egovframework/let/sample/config/EgovWebMvcConfig.java")).isRegularFile();
+        assertThat(result.servletContextPatchMessage()).contains("WebMvcConfigurer", "EgovGnbMenuInterceptor");
+        // WAR 전용 배선은 호출되지 않는다.
+        verify(servletContextConfigurer, never()).patch(any(), anyString());
+        verify(thymeleafRuntimeConfigurer, never())
+                .ensureThymeleafRuntime(anyString(), anyString(), any());
+        assertThat(result.runtimeSkipped()).isTrue();
     }
 
     @Test

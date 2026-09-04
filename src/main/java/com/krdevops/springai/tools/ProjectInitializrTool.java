@@ -63,10 +63,20 @@ public class ProjectInitializrTool {
               projectType : war 또는 boot
               egovVersion : 4.3 또는 5.0 또는 latest (5.0 = latest 동일)
               outputPath  : 생성 상위 경로         (예: /Users/user/Desktop)
+              serverPort  : Boot server.port 기본값 (선택, 기본값 "8080", 숫자 1~65535)
+                            - Boot 프로젝트의 application.yml에 `port: ${SERVER_PORT:<serverPort>}` 형태로 반영됩니다.
+                              (SERVER_PORT 환경변수가 있으면 그 값이 우선)
+                            - WAR 프로젝트는 외부 Tomcat에 배포하므로 이 값을 사용하지 않습니다.
+                            - 예: serverPort="9090" → 생성된 Boot 앱이 9090 포트로 기동
               viewType    : 화면 기술              (선택, 기본값 "jsp")
                             - "jsp"       : 공통 index.jsp + MainController + WEB-INF/jsp/egovframework/main/main.jsp 생성
-                            - "thymeleaf" : MainController + templates/egovframework/main/main.html
-                                            + layout 5종 + 공통 index.jsp + Thymeleaf ViewResolver 생성
+                            - "thymeleaf" : MainController + templates/egovframework/main/main.html + layout 5종 생성
+                                            (WAR: 추가로 index.jsp + servlet-context.xml Thymeleaf ViewResolver.
+                                             Boot: spring-boot-starter-thymeleaf + thymeleaf-layout-dialect 의존성 +
+                                             "/" 매핑 MainController. ViewResolver는 Boot auto-configuration이 담당)
+                            ※ 어느 경우든 동적 GNB 컴포넌트/인터셉터 등록은 generateThymeleafLayout()이 별도 수행합니다.
+                              레이아웃 소유권 단일화를 위해 initializeProject는 viewType="jsp"로 두고
+                              Thymeleaf layout은 generateThymeleafLayout()에 맡기는 것을 권장합니다.
               designSystemProfileId : DESIGN.md/ComponentRegistry 기준 KRDS 디자인 토큰을 반영할 DesignSystemProfile ID (선택)
                             지정하면 ComponentRegistry에서 내보낸 DESIGN.md를 프로젝트 루트에 생성하고,
                             해석된 토큰을 styles.css에 CSS 변수 참조로 patch합니다. 실패해도 프로젝트 골격
@@ -81,10 +91,11 @@ public class ProjectInitializrTool {
     public String initializeProject(String projectName, String groupId, String artifactId,
                                     String packageName, String buildTool,
                                     String projectType, String egovVersion, String outputPath,
-                                    @Nullable String viewType, @Nullable String designSystemProfileId) {
+                                    @Nullable String serverPort, @Nullable String viewType,
+                                    @Nullable String designSystemProfileId) {
         return projectInitializrService.initializeProject(
             projectName, groupId, artifactId, packageName, buildTool,
-            projectType, egovVersion, outputPath, viewType, designSystemProfileId);
+            projectType, egovVersion, outputPath, viewType, designSystemProfileId, serverPort);
     }
 
     @McpToolRisk(McpToolRiskLevel.FILE_WRITE)

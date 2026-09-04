@@ -36,8 +36,10 @@ public class DefaultStaticTemplateRenderer implements StaticTemplateRenderer {
     @Override
     public String applicationYml(ProjectSpec s) {
         return loader.load("application.yml.tpl",
-                Map.of("artifactId",   s.artifactId(),
-                       "packageName",  s.packageName()));
+                Map.of("artifactId",     s.artifactId(),
+                       "packageName",    s.packageName(),
+                       // server.port 는 SERVER_PORT 환경변수 우선, 미지정 시 serverPort 기본값
+                       "serverPortExpr", "${SERVER_PORT:" + s.serverPort() + "}"));
     }
 
     @Override

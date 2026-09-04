@@ -1,5 +1,7 @@
 # Thymeleaf GNB 다중 도메인 메뉴 노출 설계 검토
 
+> **[정정 노트]** 본문의 `COMTNMENUINFO`/`COMTNPROGRMLIST` 표기는 설계 시점 가정이다. 실제 구현은 `LETTNMENUINFO`/`LETTNPROGRMLIST` 기준이며(`ebt` DB 스키마), 테이블명은 `generateThymeleafLayout()`의 `menuTableName`/`programTableName` 파라미터로 변경 가능하다(기본값 `LETTN*`). 설계 논리(옵션 A/B/C 비교, 2단 트리 구조 등)는 테이블명과 무관하게 유효하므로 본문은 검토 기록으로 보존한다.
+
 ## 1. 문제 현상
 
 `egov-web2`에 `generateThymeleafLayout` → `buildFullCrudPrompt(domain=Menu)` → `buildFullCrudPrompt(domain=Faq)` 순서로 생성한 뒤, FAQ 화면을 열면 상단 GNB에 "FAQINFO 관리"만 보이고 이전에 생성한 "MENUINFO 관리"는 보이지 않는다.

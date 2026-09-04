@@ -3,6 +3,7 @@ package com.krdevops.springai.service.generation.crud;
 import com.krdevops.springai.model.crud.CrudTemplateModel;
 import com.krdevops.springai.model.crud.CrudViewType;
 import com.krdevops.springai.service.WarEntryPointConfigurer;
+import com.krdevops.springai.service.generation.layout.ProjectTypeDetector;
 import com.krdevops.springai.service.generation.model.GenerationContext;
 import com.krdevops.springai.service.generation.model.GenerationFailure;
 import com.krdevops.springai.service.generation.model.GenerationStage;
@@ -29,6 +30,7 @@ public class CrudEntryPointProcessor implements GenerationStageProcessor {
     static final String ID = "crudEntryPointProcessor";
 
     private final WarEntryPointConfigurer warEntryPointConfigurer;
+    private final ProjectTypeDetector projectTypeDetector;
 
     @Override
     public String id() {
@@ -49,6 +51,14 @@ public class CrudEntryPointProcessor implements GenerationStageProcessor {
     public ProcessorResult process(GenerationProcessingContext context) {
         CrudTemplateModel model = context.context().attribute(CrudGenerationAttributes.MODEL);
         CrudViewType viewType = context.context().attribute(CrudGenerationAttributes.VIEW_TYPE);
+
+        // WAR 전용 처리 — Boot 는 index.jsp/web.xml 이 없어 진입점 갱신 대상이 아니다.
+        ProjectTypeDetector.ProjectType projectType =
+                projectTypeDetector.detect(java.nio.file.Path.of(context.context().outputPath()));
+        if (projectType == ProjectTypeDetector.ProjectType.BOOT) {
+            log.info("[pipeline] Boot 프로젝트 — WAR 기본 진입점(index.jsp) 갱신 생략");
+            return ProcessorResult.ok();
+        }
 
         String listViewName = "Egov" + model.domain() + "List"
                 + (viewType == CrudViewType.THYMELEAF ? ".html" : ".jsp");

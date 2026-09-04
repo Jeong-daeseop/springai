@@ -84,7 +84,7 @@ public class ProjectInitializrService {
                                     String packageName, String buildTool,
                                     String projectType, String egovVersion, String outputPath) {
         return initializeProject(projectName, groupId, artifactId, packageName, buildTool,
-                projectType, egovVersion, outputPath, "jsp", null);
+                projectType, egovVersion, outputPath, "jsp", null, null);
     }
 
     public String initializeProject(String projectName, String groupId, String artifactId,
@@ -92,18 +92,26 @@ public class ProjectInitializrService {
                                     String projectType, String egovVersion, String outputPath,
                                     String viewType) {
         return initializeProject(projectName, groupId, artifactId, packageName, buildTool,
-                projectType, egovVersion, outputPath, viewType, null);
+                projectType, egovVersion, outputPath, viewType, null, null);
     }
 
     public String initializeProject(String projectName, String groupId, String artifactId,
                                     String packageName, String buildTool,
                                     String projectType, String egovVersion, String outputPath,
                                     String viewType, String designSystemProfileId) {
+        return initializeProject(projectName, groupId, artifactId, packageName, buildTool,
+                projectType, egovVersion, outputPath, viewType, designSystemProfileId, null);
+    }
+
+    public String initializeProject(String projectName, String groupId, String artifactId,
+                                    String packageName, String buildTool,
+                                    String projectType, String egovVersion, String outputPath,
+                                    String viewType, String designSystemProfileId, String serverPort) {
 
         // ① Capability 해석 + Spec 조립
         VersionCapability cap = resolver.resolve(egovVersion);
         ProjectSpec spec = ProjectSpec.of(projectName, groupId, artifactId,
-                packageName, buildTool, projectType, outputPath, cap, viewType);
+                packageName, buildTool, projectType, outputPath, cap, viewType, serverPort);
 
         // ② 디렉터리 생성 (FilePlan 외부 — 디렉터리는 파일이 아님)
         createDirectories(spec);
