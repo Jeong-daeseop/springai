@@ -3,18 +3,25 @@
 <body>
 <!--
   KRDS Select fragment. thymeleafFragment: "components/krds-select :: select"
-  base class: krds-form-select   size: small | medium | large   state: is-error (null=default)
+  구조는 KRDS 공식 배포 키트(krds-uiux html/code/select*.html) 마크업 기준.
+  base class: krds-form-select   size: small | medium | large   state: is-error (select 요소 자체에 붙는다)
   options: [{code, codeNm}] 형태의 공통코드 리스트.
 -->
-<div th:fragment="select(path, label, size, state, options, required)" class="krds-form-group">
-  <label th:for="${path}" class="krds-form-label">
-    <span th:text="${label}">항목</span><span th:if="${required}" class="egov-required-mark">*</span>
-  </label>
-  <select th:id="${path}" th:name="${path}" th:field="*{__${path}__}"
-          th:class="'krds-form-select ' + (${size} ?: 'medium') + (${state} != null ? ' ' + ${state} : '') + ' egov-control'">
-    <option value="">선택</option>
-    <option th:each="opt : ${options}" th:value="${opt.code}" th:text="${opt.codeNm}"></option>
-  </select>
+<div th:fragment="select(path, label, size, state, options, required)" class="form-group">
+  <div class="form-tit">
+    <label th:for="${path}">
+      <span th:text="${label}">항목</span><span th:if="${required}" class="egov-required-mark">*</span>
+    </label>
+  </div>
+  <div class="form-conts">
+    <select th:id="${path}" th:name="${path}" th:field="*{__${path}__}"
+            th:class="'krds-form-select ' + (${size} ?: 'medium') + (${state} != null ? ' ' + ${state} : '') + ' egov-control'"
+            title="선택">
+      <option value="">선택</option>
+      <option th:each="opt : ${options}" th:value="${opt.code}" th:text="${opt.codeNm}"></option>
+    </select>
+  </div>
+  <p th:if="${#fields.hasErrors('__${path}__')}" class="form-hint-invalid" th:errors="*{__${path}__}"></p>
 </div>
 </body>
 </html>

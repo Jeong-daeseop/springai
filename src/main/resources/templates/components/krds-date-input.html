@@ -3,24 +3,43 @@
 <body>
 <!--
   KRDS Date input fragment. thymeleafFragment: "components/krds-date-input :: dateInput"
-  KRDS date-input은 .calendar-input + .form-btn-datepicker 계열(krds-input 아님).
+  구조는 KRDS 공식 배포 키트(krds-uiux html/code/date_input.html, calendar_range.html) 마크업 기준.
+  달력 팝업(.krds-calendar-area 이하)은 krds.min.js가 .datepicker 클래스를 보고 런타임에
+  주입하므로 여기서는 트리거(입력+버튼) 부분만 만든다.
   mode: single | period
 -->
 <div th:fragment="dateInput(path, label, mode, required)" class="form-group">
-  <span class="form-tit">
-    <span th:text="${label}">날짜</span><span th:if="${required}" class="egov-required-mark">*</span>
-  </span>
-  <th:block th:if="${mode} == null or ${mode} == 'single'">
-    <input type="text" class="calendar-input" th:id="${path}" th:name="${path}"
-           th:field="*{__${path}__}" placeholder="YYYY-MM-DD"/>
-    <button type="button" class="form-btn-datepicker" aria-label="날짜 선택"></button>
-  </th:block>
-  <th:block th:if="${mode} == 'period'">
-    <input type="text" class="calendar-input" th:name="${path} + 'From'" placeholder="시작일"/>
-    <span> ~ </span>
-    <input type="text" class="calendar-input" th:name="${path} + 'To'" placeholder="종료일"/>
-  </th:block>
-  <p class="form-hint">YYYY-MM-DD 형식으로 입력하세요.</p>
+  <div class="form-tit">
+    <label th:if="${mode} == null or ${mode} == 'single'" th:for="${path}">
+      <span th:text="${label}">날짜</span><span th:if="${required}" class="egov-required-mark">*</span>
+    </label>
+    <span th:if="${mode} == 'period'">
+      <span th:text="${label}">날짜</span><span th:if="${required}" class="egov-required-mark">*</span>
+    </span>
+  </div>
+  <div class="form-conts calendar-conts">
+    <div class="calendar-input">
+      <th:block th:if="${mode} == null or ${mode} == 'single'">
+        <input type="number" th:id="${path}" th:name="${path}" th:field="*{__${path}__}"
+               class="krds-input datepicker cal egov-control" placeholder="YYYY.MM.DD"/>
+      </th:block>
+      <ul th:if="${mode} == 'period'" class="input-group range set">
+        <li>
+          <input type="number" th:name="${path} + 'From'" class="krds-input datepicker egov-control"
+                 placeholder="시작날짜" title="시작날짜 입력"/>
+        </li>
+        <li class="mark">-</li>
+        <li>
+          <input type="number" th:name="${path} + 'To'" class="krds-input datepicker egov-control"
+                 placeholder="종료날짜" title="종료날짜 입력"/>
+        </li>
+      </ul>
+      <button type="button" class="krds-btn medium icon form-btn-datepicker egov-control">
+        <span class="sr-only">달력 열기</span>
+        <i class="svg-icon ico-calendar"></i>
+      </button>
+    </div>
+  </div>
 </div>
 </body>
 </html>

@@ -3,34 +3,36 @@
 <body>
 <!--
   KRDS Pagination fragment. thymeleafFragment: "components/krds-pagination :: pagination"
+  구조는 KRDS 공식 배포 키트(krds-uiux html/code/pagination.html) 마크업 기준 —
+  <div class="krds-pagination"><a class="page-navi prev">이전</a>
+    <div class="page-links"><a class="page-link">...</a><a class="page-link active">...</a></div>
+  <a class="page-navi next">다음</a></div>. 현재 페이지는 active(공식 link-dot은 "..." 생략
+  표시 전용이지 현재 페이지 표시가 아니다 — 이전 초안의 오배정을 바로잡음).
+  생략(…) 축약 표시는 후속 — PaginationInfo의 windowed 페이지 목록만 그린다.
+
   paginationInfo: eGovFrame PaginationInfo (currentPageNo, firstPageNoOnPageList,
                   lastPageNoOnPageList, totalPageCount, ...)
   linkUrl: 페이지 이동 기본 경로. ?pageIndex=N 파라미터가 덧붙는다.
   variant: KRDS 페이지네이션 유형 (pc | mobile, 기본 pc)
 -->
-<nav th:fragment="pagination(paginationInfo, linkUrl, variant)"
-     th:class="'krds-pagination ' + (${variant} ?: 'pc')" aria-label="페이지 탐색">
-  <ul class="page-navi">
-    <li class="prev">
-      <a class="page-link"
-         th:classappend="${paginationInfo.currentPageNo <= 1} ? ' is-disabled'"
-         th:href="${paginationInfo.currentPageNo <= 1} ? '#' : @{${linkUrl}(pageIndex=${paginationInfo.currentPageNo - 1})}"
-         aria-label="이전 페이지">이전</a>
-    </li>
-    <li th:each="pageNo : ${#numbers.sequence(paginationInfo.firstPageNoOnPageList, paginationInfo.lastPageNoOnPageList)}"
-        th:classappend="${pageNo == paginationInfo.currentPageNo} ? ' is-current'">
-      <span th:if="${pageNo == paginationInfo.currentPageNo}" class="page-link link-dot" aria-current="page"
-            th:text="${pageNo}"></span>
-      <a th:unless="${pageNo == paginationInfo.currentPageNo}" class="page-link"
+<div th:fragment="pagination(paginationInfo, linkUrl, variant)"
+     th:class="'krds-pagination ' + (${variant} ?: 'pc')">
+  <a class="page-navi prev"
+     th:classappend="${paginationInfo.currentPageNo <= 1} ? ' is-disabled'"
+     th:href="${paginationInfo.currentPageNo <= 1} ? '#' : @{${linkUrl}(pageIndex=${paginationInfo.currentPageNo - 1})}">이전</a>
+  <div class="page-links">
+    <th:block th:each="pageNo : ${#numbers.sequence(paginationInfo.firstPageNoOnPageList, paginationInfo.lastPageNoOnPageList)}">
+      <a th:if="${pageNo != paginationInfo.currentPageNo}" class="page-link"
          th:href="@{${linkUrl}(pageIndex=${pageNo})}" th:text="${pageNo}"></a>
-    </li>
-    <li class="next">
-      <a class="page-link"
-         th:classappend="${paginationInfo.currentPageNo >= paginationInfo.totalPageCount} ? ' is-disabled'"
-         th:href="${paginationInfo.currentPageNo >= paginationInfo.totalPageCount} ? '#' : @{${linkUrl}(pageIndex=${paginationInfo.currentPageNo + 1})}"
-         aria-label="다음 페이지">다음</a>
-    </li>
-  </ul>
-</nav>
+      <a th:if="${pageNo == paginationInfo.currentPageNo}" class="page-link active"
+         th:href="@{${linkUrl}(pageIndex=${pageNo})}">
+        <span class="sr-only">현재페이지 </span><span th:text="${pageNo}"></span>
+      </a>
+    </th:block>
+  </div>
+  <a class="page-navi next"
+     th:classappend="${paginationInfo.currentPageNo >= paginationInfo.totalPageCount} ? ' is-disabled'"
+     th:href="${paginationInfo.currentPageNo >= paginationInfo.totalPageCount} ? '#' : @{${linkUrl}(pageIndex=${paginationInfo.currentPageNo + 1})}">다음</a>
+</div>
 </body>
 </html>

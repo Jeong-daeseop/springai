@@ -467,6 +467,23 @@ mappings: `@paginationInfo`/`@linkUrl`(req:false) — 전부 바인딩. eGovFram
 
 ---
 
+### B3-fragment 마크업 정합 수정 (2026-09-05)
+
+**배경**: 로컬 KRDS 공식 배포 키트(`krds-uiux-1.0.1`, `html/code/*.html` + `resources/css`)를 확보해 B3 fragment 6종의 마크업을 KRDS 공식 예시와 직접 대조. `krds-button.html`은 일치했지만 나머지 4개는 실제 불일치를 발견해 수정.
+
+| fragment | 문제 | 수정 |
+|---|---|---|
+| `krds-text-input.html` | 바깥 wrapper `krds-form-group`(존재 안 함), label wrapper 없음, `krds-form-label`(존재 안 함), 힌트 `krds-form-hint is-error`(존재 안 함) | 공식 구조 `form-group > form-tit(label) + form-conts(input)` + 에러 힌트 `form-hint-invalid`(별개 클래스, `is-error` 아님). `state`는 `form-conts`에 붙는다(공식: text-input은 wrapper에, select는 자기 자신에 — 컴포넌트별로 다름, 아래 참고) |
+| `krds-select.html` | 동일한 wrapper 누락, 힌트 클래스 오류 | 동일 구조 정정. `krds-form-select`/`is-error`/`completed`는 이미 맞았음(select는 상태 클래스가 `<select>` 자신에 붙음 — text-input과 다른 관례, 공식 데모 기준 확인) |
+| `krds-date-input.html` | wrapper 없음, input에 `datepicker`/`cal` 클래스 누락, 버튼에 `krds-btn medium icon` 누락 | `form-group > form-tit + form-conts.calendar-conts > calendar-input(input.krds-input.datepicker.cal + button.krds-btn.medium.icon.form-btn-datepicker + 아이콘)`. 달력 팝업(`.krds-calendar-area` 이하)은 `krds.min.js`가 런타임에 그리므로 그대로 미포함 |
+| `krds-pagination.html` | **버그**: 현재 페이지 표시에 `link-dot` 클래스 사용 — 공식으로는 `link-dot`이 "…" 생략 표시 전용이고 현재 페이지는 `active`. `<nav><ul><li>` 구조도 공식과 다름(`<div class="krds-pagination"><a class="page-navi prev">...<div class="page-links"><a class="page-link">...` — `<li>` 없이 형제 `<a>`) | 공식 구조로 재작성, `active` 클래스로 정정. "…" 생략 축약 표시는 미구현(후속 — `PaginationInfo`의 windowed 목록만 그림) |
+
+**영향 범위**: fragment 파라미터 시그니처(`textInput(path, label, size, state, ...)` 등)는 전부 그대로라 CRUD FTL의 `th:replace` 호출부·`ThymeleafFragmentContractValidator` 계약·`templateSetHash`(fragment는 `templates/crud/*.ftl` 밖) 전부 무변경. fragment 내부 마크업만 교체.
+
+**검증**: `KrdsComponentFragmentWriterTest`(계약 통과 유지), `CrudTemplateRendererTest`·`TemplateSetFingerprintServiceTest`·`GenerationBaselineFixtureTest` 무변경 통과, 전체 `./gradlew test` 2067건 통과.
+
+---
+
 ### B4 구현 완료 (2026-09-04)
 
 **`componentMappingVersion` — 유지(`"1.0"`), bump 안 함**

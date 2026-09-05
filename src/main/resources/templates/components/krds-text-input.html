@@ -3,17 +3,22 @@
 <body>
 <!--
   KRDS Text input fragment. thymeleafFragment: "components/krds-text-input :: textInput"
-  size: small | medium | large   state: is-error | is-success (null=default)
+  구조는 KRDS 공식 배포 키트(krds-uiux html/code/text_input*.html) 마크업 기준.
+  size: small | medium | large   state: is-error | is-success | is-information (form-conts에 붙는다. null=기본)
   이 fragment는 상위 form의 th:object 컨텍스트를 상속한다. path=자바 필드명.
 -->
-<div th:fragment="textInput(path, label, size, state, placeholder, maxlength, required)" class="krds-form-group">
-  <label th:for="${path}" class="krds-form-label">
-    <span th:text="${label}">항목</span><span th:if="${required}" class="egov-required-mark">*</span>
-  </label>
-  <input type="text" th:id="${path}" th:name="${path}" th:field="*{__${path}__}"
-         th:class="'krds-input ' + (${size} ?: 'medium') + (${state} != null ? ' ' + ${state} : '') + ' egov-control'"
-         th:placeholder="${placeholder}" th:maxlength="${maxlength}"/>
-  <p th:if="${#fields.hasErrors('__${path}__')}" class="krds-form-hint is-error" th:errors="*{__${path}__}"></p>
+<div th:fragment="textInput(path, label, size, state, placeholder, maxlength, required)" class="form-group">
+  <div class="form-tit">
+    <label th:for="${path}">
+      <span th:text="${label}">항목</span><span th:if="${required}" class="egov-required-mark">*</span>
+    </label>
+  </div>
+  <div th:class="'form-conts' + (${state} != null ? ' ' + ${state} : '')">
+    <input type="text" th:id="${path}" th:name="${path}" th:field="*{__${path}__}"
+           th:class="'krds-input ' + (${size} ?: 'medium') + ' egov-control'"
+           th:placeholder="${placeholder}" th:maxlength="${maxlength}"/>
+  </div>
+  <p th:if="${#fields.hasErrors('__${path}__')}" class="form-hint-invalid" th:errors="*{__${path}__}"></p>
 </div>
 </body>
 </html>
